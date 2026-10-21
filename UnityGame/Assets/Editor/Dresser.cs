@@ -279,7 +279,7 @@ public static class Dresser
         Top(1, "Perahan", new Cut { Thickness = 0.016f, Smooth = 16, UpperArm = 0.076f * slim, LowerArm = 0.067f * slim },
             new Drape { Hem = knee.y - 0.03f, SideSlits = true, OpenFrom = 0.2f, Ease = 0.026f, Flare = 0.05f, Folds = 0.013f }, cloth, Wardrobe.TopColors[1]);
         Top(2, "Thobe", new Cut { Thickness = 0.014f, Smooth = 16, UpperArm = 0.071f * slim, LowerArm = 0.063f * slim },
-            new Drape { Hem = ankle.y + 0.05f, Ease = 0.03f, Flare = 0.025f, Folds = 0.012f }, cloth, Wardrobe.TopColors[2]);
+            new Drape { Hem = ankle.y + 0.05f, Ease = 0.045f, Flare = 0.025f, Folds = 0.012f, Follow = 0.95f }, cloth, Wardrobe.TopColors[2]);
         Top(3, "Suit", new Cut { Thickness = 0.016f, Smooth = 12, UpperArm = 0.062f * slim, LowerArm = 0.052f * slim, Tile = 0.25f },
             new Drape { Hem = hemThigh(0.4f), FrontOpen = true, OpenFrom = 0.03f, Ease = 0.01f, Flare = 0.012f, Folds = 0.004f, Tile = 0.25f }, wool, Wardrobe.TopColors[3]);
         Top(4, "LongShirt", new Cut { Thickness = 0.012f, Smooth = 12, UpperArm = 0.062f * slim, LowerArm = 0.054f * slim },
@@ -287,7 +287,7 @@ public static class Dresser
         Top(5, "Chapan", new Cut { Thickness = 0.022f, Smooth = 16, UpperArm = 0.084f * slim, LowerArm = 0.08f * slim, Tile = 0.35f },
             new Drape { Hem = knee.y - 0.16f, FrontOpen = true, OpenFrom = 0.02f, Ease = 0.036f, Flare = 0.07f, Folds = 0.016f, Tile = 0.35f }, stripes, Wardrobe.TopColors[5]);
         Top(6, "Abaya", new Cut { Thickness = 0.016f, Smooth = 16, UpperArm = 0.075f * slim, LowerArm = 0.071f * slim },
-            new Drape { Hem = ankle.y + 0.03f, Ease = 0.035f, Flare = 0.045f, Folds = 0.015f }, cloth, Wardrobe.TopColors[6]);
+            new Drape { Hem = ankle.y + 0.03f, Ease = 0.05f, Flare = 0.045f, Folds = 0.015f, Follow = 0.95f }, cloth, Wardrobe.TopColors[6]);
         Top(7, "LongCoat", new Cut { Thickness = 0.016f, Smooth = 12, UpperArm = 0.066f * slim, LowerArm = 0.058f * slim, Tile = 0.25f },
             new Drape { Hem = knee.y - 0.06f, FrontOpen = true, SideSlits = true, OpenFrom = 0.14f, Ease = 0.02f, Flare = 0.045f, Folds = 0.01f, Tile = 0.25f }, wool, Wardrobe.TopColors[7]);
 
@@ -608,7 +608,7 @@ public static class Dresser
                 var fb = new Bounds(pts[0], Vector3.zero);
                 foreach (var p in pts) fb.Encapsulate(p);
                 var kb = kit.Bounds;
-                float len = (fb.size.z + 0.03f) / kb.size.z, wid = (fb.size.x + 0.028f) / kb.size.x;
+                float len = (fb.size.z * 1.12f + 0.04f) / kb.size.z, wid = (fb.size.x + 0.03f) / kb.size.x;
                 // the kit's boots point to -Z: turned around, the heel (max z) goes to the back of the foot
                 var placed = Outfit.Place(kit, new Vector3(kb.center.x, kb.min.y, kb.max.z), new Vector3(fb.center.x, ground - 0.004f, fb.min.z - 0.013f),
                     new Vector3(wid, Mathf.Max(len, wid), len), 180f, side == "l");
@@ -624,6 +624,9 @@ public static class Dresser
             }
             Part(result, Outfit.Wear(body, pair, "Feet_" + item, KitMaterials(kit)), Slot.Feet, M(option));
         }
+        // a leather lining under the kit boots: no bare toes when the boot shape and the foot differ
+        var lining = Outfit.Shell(body, new Cut { Regions = new[] { Region.Feet }, Thickness = 0.006f, Smooth = 2, Tile = 0.1f });
+        Part(result, Outfit.Wear(body, lining, "Feet_BootLining", AssetSetup.Mat("Leather_Boot", new Color(0.09f, 0.08f, 0.07f), 0.35f)), Slot.Feet, M(0, 1));
         var shoes = Outfit.Shell(body, new Cut { Regions = new[] { Region.Feet }, Thickness = 0.007f, Smooth = 3, Tile = 0.1f });
         var sole = shoes != null ? Outfit.Derive(shoes, p => p.y < ground + 0.018f, 0.003f) : null;
         Part(result, Outfit.Wear(body, shoes, "Feet_Shoes", leather), Slot.Feet, M(2));

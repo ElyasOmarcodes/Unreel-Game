@@ -26,9 +26,10 @@ public static class VillageBuilder
 
     // ------------------------------------------------------------------ materials
 
-    private static Material Mud => PortBuilder.Pbr("V_Mud", "Clay002", new Color(0.86f, 0.74f, 0.6f), 0.12f);
-    private static Material MudPlaster => PortBuilder.Pbr("V_MudPlaster", "Clay007", new Color(0.9f, 0.8f, 0.66f), 0.1f);
-    private static Material MudDark => PortBuilder.Pbr("V_MudDark", "Clay002", new Color(0.66f, 0.55f, 0.43f), 0.1f);
+    // kahgel: mud and straw plaster, light beige brown (the hand smoothed clay texture)
+    private static Material Mud => PortBuilder.Pbr("V_Mud", "Clay007", new Color(0.88f, 0.78f, 0.64f), 0.12f);
+    private static Material MudPlaster => PortBuilder.Pbr("V_MudPlaster", "Clay007", new Color(0.97f, 0.9f, 0.78f), 0.1f);
+    private static Material MudDark => PortBuilder.Pbr("V_MudDark", "Clay007", new Color(0.68f, 0.58f, 0.47f), 0.1f);
     private static Material Dirt => PortBuilder.Pbr("V_Dirt", "Ground104", Color.white, 0.1f);
     private static Material Wood => PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
     private static Material OldWood => PortBuilder.Pbr("V_OldWood", "Planks037A", new Color(0.72f, 0.62f, 0.5f), 0.3f);
@@ -146,6 +147,14 @@ public static class VillageBuilder
         go.transform.SetParent(root, false);
         go.transform.position = new Vector3(-Size / 2f, Base, -Size / 2f);
         terrain = go.GetComponent<Terrain>();
+        // an explicit terrain material (saved as an asset) so the player build keeps the terrain shader
+        var shader = Shader.Find("Nature/Terrain/Standard") ?? Shader.Find("Nature/Terrain/Diffuse");
+        string matPath = $"{AssetSetup.Generated}/Village_TerrainMat.mat";
+        AssetDatabase.DeleteAsset(matPath);
+        var terrainMat = new Material(shader) { name = "Village_Terrain" };
+        AssetDatabase.CreateAsset(terrainMat, matPath);
+        terrain.materialTemplate = terrainMat;
+        Debug.Log("[Village] terrain shader " + (shader != null ? shader.name : "none"));
         terrain.heightmapPixelError = 8f;
         terrain.basemapDistance = 70f;
         terrain.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
