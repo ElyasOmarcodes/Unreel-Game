@@ -15,7 +15,11 @@ public static class PortBuilder
 {
     public const string Textures = "Assets/ThirdParty/Port/Textures";
     public const string Props = "Assets/ThirdParty/Props";
-    public const float HalfX = 72f, HalfZ = 52f;
+    public const float HalfX = 92f, HalfZ = 64f;
+    // the sunken loading pit in the east of the yard (x0, z0, width, depth) and its depth
+    private static readonly Rect Pit = new Rect(72f, -34f, 14f, 22f);
+    private const float PitDepth = 2.4f;
+    private static bool InPit(Vector3 p, float margin = 1.5f) => p.x > Pit.xMin - margin && p.x < Pit.xMax + margin && p.z > Pit.yMin - margin && p.z < Pit.yMax + margin;
 
     private static Transform root;
     private static System.Random rng;
@@ -345,6 +349,104 @@ public static class PortBuilder
     }
 
     /// <summary>
+    /// A loading pit 2.4 m below the yard: concrete walls, stairs down at the west end, a truck ramp at
+    /// the south, low concrete kerbs around the edge (cover) and a few crates and a container inside.
+    /// </summary>
+    private static void LoadingPit()
+    {
+        var t = new GameObject("LoadingPit").transform;
+        t.SetParent(root, false);
+        float floor = -PitDepth;
+        var c = new Vector3(Pit.center.x, 0, Pit.center.y);
+        Box("PitFloor", new Vector3(c.x, floor - 0.25f, c.z), new Vector3(Pit.width, 0.5f, Pit.height), OldConcrete, 3f, t);
+        // concrete lining on the four walls
+        Box("PitWall", new Vector3(Pit.xMin + 0.15f, floor / 2f, c.z), new Vector3(0.3f, PitDepth, Pit.height), Concrete, 2.5f, t);
+        Box("PitWall", new Vector3(Pit.xMax - 0.15f, floor / 2f, c.z), new Vector3(0.3f, PitDepth, Pit.height), Concrete, 2.5f, t);
+        Box("PitWall", new Vector3(c.x, floor / 2f, Pit.yMin + 0.15f), new Vector3(Pit.width, PitDepth, 0.3f), Concrete, 2.5f, t);
+        Box("PitWall", new Vector3(c.x, floor / 2f, Pit.yMax - 0.15f), new Vector3(Pit.width, PitDepth, 0.3f), Concrete, 2.5f, t);
+        // stairs down at the west end (rising towards the west edge)
+        float run = Mathf.CeilToInt(PitDepth / 0.2f) * 0.36f;
+        Buildings.Stairs(t, new Vector3(Pit.xMin + 0.3f + run, floor, c.z + 6f), Vector3.left, PitDepth, 1.8f, Concrete);
+        // truck ramp from the south edge down to the floor
+        float rampLength = 9f, slope = Mathf.Atan2(PitDepth, rampLength) * Mathf.Rad2Deg;
+        var ramp = Box("Ramp", new Vector3(c.x + 3f, floor / 2f, Pit.yMin + 0.3f + rampLength / 2f), new Vector3(4f, 0.4f, Mathf.Sqrt(rampLength * rampLength + PitDepth * PitDepth)), OldConcrete, 2f, t);
+        ramp.transform.rotation = Quaternion.Euler(slope, 0, 0);
+        Box("RampWall", new Vector3(c.x + 0.8f, floor / 2f + 0.3f, Pit.yMin + 0.3f + rampLength / 2f), new Vector3(0.3f, PitDepth + 0.6f, rampLength), Concrete, 2f, t);
+        // kerbs around the edge, open at the stairs and the ramp
+        MeshGen.RoundBox("Kerb", new Vector3(Pit.xMax + 0.3f, 0.45f, c.z), new Vector3(0.5f, 0.9f, Pit.height), 0.07f, Concrete, 2f, t);
+        MeshGen.RoundBox("Kerb", new Vector3(c.x - 2f, 0.45f, Pit.yMax + 0.3f), new Vector3(Pit.width - 4f, 0.9f, 0.5f), 0.07f, Concrete, 2f, t);
+        MeshGen.RoundBox("Kerb", new Vector3(Pit.xMin - 0.3f, 0.45f, c.z - 3f), new Vector3(0.5f, 0.9f, Pit.height - 9f), 0.07f, Concrete, 2f, t);
+        MeshGen.RoundBox("Kerb", new Vector3(c.x - 3.5f, 0.45f, Pit.yMin - 0.3f), new Vector3(Pit.width - 7f, 0.9f, 0.5f), 0.07f, Concrete, 2f, t);
+        // inside: a container and pallets of crates
+        Container(new Vector3(c.x - 2.5f, floor, c.z + 2f), 0, 5, t);
+        Pallet(new Vector3(c.x + 4f, floor, c.z + 6f), 20f, 3, t);
+        Drums(new Vector3(c.x + 3.5f, floor, c.z - 1f), 4, t);
+    }
+
+    /// <summary>A rail-mounted gantry crane over the north quay; a steel stair climbs to a platform on one leg.</summary>
+    private static void GantryCrane(Vector3 c)
+    {
+        var t = new GameObject("GantryCrane").transform;
+        t.SetParent(root, false);
+        var paint = Pbr("CranePaint", "Metal032", new Color(0.92f, 0.62f, 0.12f), 0.5f);
+        const float span = 22f, depth = 8f, height = 15f;
+        foreach (float x in new[] { -span / 2f, span / 2f })
+            foreach (float z in new[] { -depth / 2f, depth / 2f })
+            {
+                Box("Leg", c + new Vector3(x, height / 2f, z), new Vector3(0.9f, height, 0.9f), paint, 2f, t);
+                Box("Bogie", c + new Vector3(x, 0.45f, z), new Vector3(1.6f, 0.9f, 2.6f), DarkMetal, 1f, t);
+            }
+        foreach (float z in new[] { -depth / 2f, depth / 2f })
+        {
+            Box("Girder", c + new Vector3(0, height + 0.7f, z), new Vector3(span + 6f, 1.4f, 1.1f), paint, 2f, t, 0, false);
+            Box("Rail", c + new Vector3(0, 0.05f, z), new Vector3(70f, 0.1f, 0.25f), DarkMetal, 1f, t, 0, false);
+        }
+        foreach (float x in new[] { -span / 2f, span / 2f })
+        {
+            Box("CrossBeam", c + new Vector3(x, height + 0.7f, 0), new Vector3(1.1f, 1.4f, depth), paint, 2f, t, 0, false);
+            Box("SillBeam", c + new Vector3(x, 1.4f, 0), new Vector3(0.7f, 0.7f, depth), paint, 2f, t);
+        }
+        // trolley and operator cabin, the hoist ropes and a hanging spreader
+        Box("Trolley", c + new Vector3(3f, height + 1.8f, 0), new Vector3(3f, 1.2f, depth + 1f), paint, 2f, t, 0, false);
+        Box("Cabin", c + new Vector3(3f, height - 1.4f, depth / 2f - 0.8f), new Vector3(2.2f, 2.2f, 2f), WallWhite, 2f, t, 0, false);
+        Box("CabinGlass", c + new Vector3(3f, height - 1.4f, depth / 2f - 1.81f), new Vector3(1.8f, 1.2f, 0.05f), Glass, 1f, t, 0, false);
+        foreach (float z in new[] { -1.2f, 1.2f })
+            Box("Rope", c + new Vector3(3f, height - 4f, z), new Vector3(0.05f, 8f, 0.05f), DarkMetal, 1f, t, 0, false);
+        Box("Spreader", c + new Vector3(3f, height - 8.2f, 0), new Vector3(2.4f, 0.4f, 6f), paint, 1f, t, 0, false);
+        // stair up the west leg to a platform at 8 m: a lookout over the whole yard
+        Buildings.FireEscape(t, c + new Vector3(-span / 2f - 0.45f, 0, -depth / 2f + 0.2f), Vector3.forward, Vector3.left, 8f, false, Walkway, RustPlates);
+    }
+
+    /// <summary>A cargo ship moored outside the north wall (to look at; it is not part of the play area).</summary>
+    private static void Ship(Vector3 c)
+    {
+        var t = new GameObject("Ship").transform;
+        t.SetParent(root, false);
+        var hull = AssetSetup.Mat("Port_ShipHull", new Color(0.12f, 0.16f, 0.22f), 0.45f, 0.2f);
+        var bottom = AssetSetup.Mat("Port_ShipBottom", new Color(0.55f, 0.14f, 0.1f), 0.4f, 0.1f);
+        var white = AssetSetup.Mat("Port_ShipWhite", new Color(0.9f, 0.9f, 0.88f), 0.5f, 0.1f);
+        MeshGen.RoundBox("HullBottom", c + new Vector3(0, -4.2f, 0), new Vector3(78f, 3f, 14f), 1.2f, bottom, 4f, t, 0f, false);
+        MeshGen.RoundBox("Hull", c + new Vector3(0, 0.5f, 0), new Vector3(80f, 6.5f, 14.5f), 1.5f, hull, 4f, t, 0f, false);
+        MeshGen.RoundBox("Bow", c + new Vector3(41f, 0.8f, 0), new Vector3(7f, 6.2f, 9f), 3f, hull, 4f, t, 0f, false);
+        // bridge house at the stern, funnel, deck cranes and containers on deck
+        MeshGen.RoundBox("Bridge", c + new Vector3(-30f, 9f, 0), new Vector3(10f, 10.5f, 13f), 0.3f, white, 3f, t, 0f, false);
+        MeshGen.RoundBox("BridgeWings", c + new Vector3(-27f, 13.2f, 0), new Vector3(3f, 1.2f, 17f), 0.2f, white, 3f, t, 0f, false);
+        Box("BridgeGlass", c + new Vector3(-24.95f, 12.4f, 0), new Vector3(0.1f, 1.2f, 11f), Glass, 1f, t, 0, false);
+        MeshGen.TexCylinder("Funnel", c + new Vector3(-33f, 14f, 0), 1.6f, 4f, AssetSetup.Mat("Port_Funnel", new Color(0.8f, 0.2f, 0.12f), 0.5f), 2f, t, false);
+        for (int i = 0; i < 4; i++)
+            for (int k = 0; k < 2; k++)
+            {
+                var go = MeshGen.Object("DeckContainer", MeshGen.Container(), ContainerMat(i + k), t, c + new Vector3(-14f + i * 9f, 3.75f + k * 2.6f, -2f + (i % 2) * 1.5f), 90f);
+                go.GetComponent<MeshRenderer>().sharedMaterials = new[] { ContainerMat(i * 2 + k), DarkMetal };
+            }
+        foreach (float x in new[] { -6f, 14f })
+        {
+            Box("CraneMast", c + new Vector3(x, 8f, 5.5f), new Vector3(0.8f, 9f, 0.8f), Yellow, 1f, t, 0, false);
+            Box("CraneJib", c + new Vector3(x + 5f, 11.5f, 5.5f), new Vector3(10f, 0.5f, 0.5f), Yellow, 1f, t, 0, false).transform.rotation = Quaternion.Euler(0, 0, 20f);
+        }
+    }
+
+    /// <summary>
     /// A trick route onto the small shed roof: a steel stair hidden behind the shed and the perimeter
     /// wall climbs onto two stacked containers, and a plank bridges the gap to the roof.
     /// </summary>
@@ -416,8 +518,15 @@ public static class PortBuilder
         LoadProps();
 
         // ground, quay and sea
-        Box("Yard", new Vector3(0, -0.5f, 0), new Vector3(HalfX * 2 + 16, 1f, HalfZ * 2 + 16), Asphalt, 5f, root);
-        Box("Quay", new Vector3(0, -2.2f, 0), new Vector3(HalfX * 2 + 18, 2.4f, HalfZ * 2 + 18), OldConcrete, 3f, root, 0, false);
+        // the yard (in four pieces around the loading pit)
+        float yx = HalfX + 8f, yz = HalfZ + 8f;
+        void Ground(float x0, float x1, float z0, float z1) =>
+            Box("Yard", new Vector3((x0 + x1) / 2f, -1.5f, (z0 + z1) / 2f), new Vector3(x1 - x0, 3f, z1 - z0), Asphalt, 5f, root);
+        Ground(-yx, Pit.xMin, -yz, yz);
+        Ground(Pit.xMax, yx, -yz, yz);
+        Ground(Pit.xMin, Pit.xMax, -yz, Pit.yMin);
+        Ground(Pit.xMin, Pit.xMax, Pit.yMax, yz);
+        LoadingPit();
         var sea = MeshGen.Object("Sea", MeshGen.Box(new Vector3(1600, 0.1f, 1600), 40f), AssetSetup.Mat("Port_Sea", new Color(0.08f, 0.22f, 0.32f), 0.95f, 0.1f), root, new Vector3(0, -2.6f, 0));
         sea.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
@@ -444,6 +553,17 @@ public static class PortBuilder
         });
         Box("AC", office.TransformPoint(new Vector3(7.45f, 2.6f, -5f)), new Vector3(0.8f, 0.7f, 1.1f), AssetSetup.Solid("Port_AC", new Color(0.85f, 0.86f, 0.84f), 0.4f), 1f, office, 0, false);
         HiddenRoute();
+        // the new parts of the yard: customs house (enterable), a raised loading dock, a pump house,
+        // a gantry crane with a stair up to a platform, more containers, and a ship at the quay
+        Buildings.Build(root, "Customs", new Vector3(-82f, 0, 22f), -90f, 14f, 12f, 2, new Buildings.Style
+        {
+            Outer = Plaster, Inner = Pbr("PlasterInner", "Plaster001", new Color(0.93f, 0.92f, 0.88f), 0.5f),
+            Floor = Pbr("Tiles", "Tiles101", Color.white, 0.6f), Stairs = Concrete, Trim = Concrete, Furniture = Wood,
+        });
+        Platform(new Vector3(-80f, 0, -30f), 16f, 12f, 1.4f, 1);
+        Warehouse(new Vector3(82f, 0, 44f), 10f, 12f, 5f, WallWhite, WallTeal, RoofRust, 0f);
+        GantryCrane(new Vector3(-21f, 0, 57f));
+        Ship(new Vector3(14f, 0, HalfZ + 24f));
 
         // oil tanks with a pipe bridge to the long warehouse, yellow silos
         Tank(new Vector3(22, 0, 10), 5.5f, 9f);
@@ -472,6 +592,11 @@ public static class PortBuilder
         ContainerStack(new Vector3(44, 0, -6), 0, 2, 2);
         ContainerStack(new Vector3(-62, 0, 8), 90, 3, 2);
         ContainerStack(new Vector3(62, 0, 4), 90, 2, 1);
+        ContainerStack(new Vector3(78, 0, 8), 0, 2, 2);
+        ContainerStack(new Vector3(-70, 0, 50), 90, 3, 2);
+        ContainerStack(new Vector3(40, 0, 56), 90, 3, 2);
+        ContainerStack(new Vector3(-84, 0, -6), 0, 2, 1);
+        ContainerStack(new Vector3(56, 0, -56), 0, 3, 2);
 
         // fences and low walls
         var fences = new GameObject("Fences").transform;
@@ -507,6 +632,7 @@ public static class PortBuilder
         for (int i = 0; i < 80 && placed < 18; i++)
         {
             var p = new Vector3(R(-HalfX + 7, HalfX - 7), 0, R(-HalfZ + 7, HalfZ - 7));
+            if (InPit(p, 4f)) continue;
             if (Physics.CheckBox(p + Vector3.up * 1.2f, new Vector3(3.2f, 1f, 3.2f), Quaternion.identity, World.EnvMask | (1 << World.FenceLayer))) continue;
             Obstacles.Random(cover, p, R(0, 360), rng);
             Physics.SyncTransforms();
@@ -525,7 +651,8 @@ public static class PortBuilder
         string[] crates = { "old_military_crate", "plastic_crate_03", "cardboard_box_01", "ammo_box", "Barrel_01", "Barrel_02", "barrel_03", "propane_tank", "small_lpg_tank", "metal_trash_can", "old_tyre", "utility_box_01", "portable_generator" };
         for (int i = 0; i < 46; i++)
         {
-            var p = new Vector3(R(-66, 66), 0, R(-46, 46));
+            var p = new Vector3(R(-HalfX + 6, HalfX - 6), 0, R(-HalfZ + 6, HalfZ - 6));
+            if (InPit(p)) continue;
             if (Physics.CheckSphere(p + Vector3.up * 0.8f, 1.2f)) continue;
             Prop(crates[rng.Next(crates.Length)], p, R(0, 360), small);
         }
@@ -538,7 +665,7 @@ public static class PortBuilder
             if (t.gameObject.layer != World.FenceLayer)
                 GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
 
-        var layout = new MapLayout { Name = "PORT", Root = root.gameObject, Center = Vector3.zero, Radius = 70f };
+        var layout = new MapLayout { Name = "PORT", Root = root.gameObject, Center = Vector3.zero, Radius = 90f };
         BuildNavigation(layout);
         Debug.Log($"[Port] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {props.Count} props, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
         return layout;
@@ -551,8 +678,9 @@ public static class PortBuilder
         var points = new List<Vector3>();
         var index = new Dictionary<Vector2Int, int>();
         const float step = 7f;
-        for (int gx = -9; gx <= 9; gx++)
-            for (int gz = -6; gz <= 6; gz++)
+        int nx = Mathf.FloorToInt(HalfX / step), nz = Mathf.FloorToInt(HalfZ / step);
+        for (int gx = -nx; gx <= nx; gx++)
+            for (int gz = -nz; gz <= nz; gz++)
             {
                 var p = new Vector3(gx * step, 0, gz * step);
                 if (Mathf.Abs(p.x) > HalfX - 3 || Mathf.Abs(p.z) > HalfZ - 3) continue;
@@ -574,9 +702,38 @@ public static class PortBuilder
                 if (Physics.SphereCast(a, 0.45f, (b - a).normalized, out _, Vector3.Distance(a, b), World.EnvMask | (1 << World.FenceLayer))) continue;
                 links.Add(new Vector2Int(pair.Value, other));
             }
+        // the loading pit: down the stairs and the ramp, joined to the nearest points above and below
+        float run = Mathf.CeilToInt(PitDepth / 0.2f) * 0.36f;
+        var c = new Vector3(Pit.center.x, 0, Pit.center.y);
+        foreach (var (top, bottom) in new[]
+        {
+            (new Vector3(Pit.xMin - 1.2f, 0, c.z + 6f), new Vector3(Pit.xMin + run + 1f, -PitDepth, c.z + 6f)),
+            (new Vector3(c.x + 3f, 0, Pit.yMin - 1.5f), new Vector3(c.x + 3f, -PitDepth, Pit.yMin + 10.5f)),
+        })
+        {
+            int a = points.Count, b = points.Count + 1;
+            points.Add(top);
+            points.Add(bottom);
+            links.Add(new Vector2Int(a, b));
+            foreach (int end in new[] { a, b })
+            {
+                var p = points[end];
+                int best = -1;
+                float bestDist = 11f;
+                for (int i = 0; i < a; i++)
+                {
+                    float dist = Vector3.Distance(points[i], p);
+                    if (Mathf.Abs(points[i].y - p.y) > 0.5f || dist > bestDist) continue;
+                    if (Physics.SphereCast(p + Vector3.up * 1f, 0.4f, (points[i] - p).normalized, out _, dist, World.EnvMask | (1 << World.FenceLayer))) continue;
+                    best = i;
+                    bestDist = dist;
+                }
+                if (best >= 0) links.Add(new Vector2Int(end, best));
+            }
+        }
         layout.Waypoints = points.ToArray();
         layout.Links = links.ToArray();
-        // players come back all over the yard (the host picks a safe one at random)
-        layout.Spawns = points.ToArray();
+        // players come back all over the yard (the host picks a safe one at random), not in the pit
+        layout.Spawns = points.Where(p => p.y > -1f).ToArray();
     }
 }
