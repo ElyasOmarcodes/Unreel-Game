@@ -25,7 +25,7 @@ namespace ArenaRush.UI
         internal struct Command
         {
             public int Layer;
-            public Texture Texture;
+            public int Shape;          // 0 = solid rectangle, 1 = disc, 2 = ring (textures are resolved at draw time)
             public RectangleF Rect;
             public Color4 Color;
             public string Text;
@@ -40,14 +40,16 @@ namespace ArenaRush.UI
         /// <summary>Normalized (0..1) screen position to virtual overlay coordinates.</summary>
         public static Vector2 ToVirtual(Vector2 normalized) => new Vector2(normalized.X * Width, normalized.Y * Height);
 
-        public static void Rect(RectangleF rect, Color4 color, int layer = 0, Texture texture = null)
+        public static void Rect(RectangleF rect, Color4 color, int layer = 0) => Shape(0, rect, color, layer);
+
+        private static void Shape(int shape, RectangleF rect, Color4 color, int layer)
         {
-            Commands.Add(new Command { Layer = layer, Texture = texture ?? White, Rect = rect, Color = Premultiply(color) });
+            Commands.Add(new Command { Layer = layer, Shape = shape, Rect = rect, Color = Premultiply(color) });
         }
 
         public static void Circle(Vector2 center, float radius, Color4 color, bool ring = false, int layer = 0)
         {
-            Rect(new RectangleF(center.X - radius, center.Y - radius, radius * 2, radius * 2), color, layer, ring ? Ring : Disc);
+            Shape(ring ? 2 : 1, new RectangleF(center.X - radius, center.Y - radius, radius * 2, radius * 2), color, layer);
         }
 
         /// <summary>Draws text; align: -1 left, 0 centre, 1 right (relative to position.X).</summary>
@@ -131,9 +133,14 @@ namespace ArenaRush.UI
             foreach (var c in commands)
             {
                 if (c.Text != null)
-                    batch.DrawString(Overlay.Font, c.Text, c.Size, c.Position, c.Color);
-                else
-                    batch.Draw(c.Texture, c.Rect, c.Color);
+                {
+                    if (Overlay.Font != null)
+                        batch.DrawString(Overlay.Font, c.Text, c.Size, c.Position, c.Color);
+                    continue;
+                }
+                var texture = c.Shape switch { 1 => Overlay.Disc, 2 => Overlay.Ring, _ => Overlay.White };
+                if (texture != null)
+                    batch.Draw(texture, c.Rect, c.Color);
             }
             batch.End();
         }
