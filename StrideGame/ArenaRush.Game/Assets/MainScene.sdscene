@@ -475,7 +475,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            0028c99c72d249c4a13d82cd30d3b851: !BoxColliderShapeDesc
+                            5482524dda48406db95b3c8124b4575e: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 240, Y: 1, Z: 240}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -521,7 +521,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            c0e00787a7ef49f9b433ad84aebd075e: !BoxColliderShapeDesc
+                            8dd75df1678547e8955f2ef4102148f8: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 22, Y: 0.3, Z: 14}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -552,7 +552,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            43a2f71b40bf45e885f3af7237135aaf: !BoxColliderShapeDesc
+                            fbdad7a35d8a4282ac7dab1c22057aa3: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 11, Y: 4.5, Z: 9}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -583,7 +583,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            bd98f54396c94d248eddccefd19cfb12: !CylinderColliderShapeDesc
+                            998b2bf7fe134844b779d72165549f7e: !CylinderColliderShapeDesc
                                 Height: 9
                                 Radius: 5.2
                                 Orientation: UpY
@@ -630,7 +630,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            70a359f235dc41ec836ce83ffb37c53a: !CylinderColliderShapeDesc
+                            5c783775767841efbf7c6bebf4249c2d: !CylinderColliderShapeDesc
                                 Height: 6
                                 Radius: 0.65
                                 Orientation: UpY
@@ -677,7 +677,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            185904c48b9e46888e037abe56ee41b8: !CylinderColliderShapeDesc
+                            ea44f06446ad4736b34ec08bf37c91e2: !CylinderColliderShapeDesc
                                 Height: 6
                                 Radius: 0.65
                                 Orientation: UpY
@@ -724,7 +724,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            c2ed333a6d31444d883a5959132fd7b3: !CylinderColliderShapeDesc
+                            3ed4be24dd0b4fb1b6873a0f255c2d58: !CylinderColliderShapeDesc
                                 Height: 6
                                 Radius: 0.65
                                 Orientation: UpY
@@ -861,7 +861,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            de7dbfee7f7249858562cebca9ae66cd: !CylinderColliderShapeDesc
+                            bce3e457f460455bbac149b1f19cebf2: !CylinderColliderShapeDesc
                                 Height: 7.5
                                 Radius: 2.6
                                 Orientation: UpY
@@ -953,7 +953,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            e02805f2c1074de187e12131cfbc0c45: !CylinderColliderShapeDesc
+                            b81e88519c484c40a2cdd523a251ccc6: !CylinderColliderShapeDesc
                                 Height: 7.5
                                 Radius: 2.6
                                 Orientation: UpY
@@ -1045,7 +1045,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            6d80b92d6c8a4d3ba394c41cd1bc3f4d: !CylinderColliderShapeDesc
+                            40230690c2e6426eb79765942b65d5b3: !CylinderColliderShapeDesc
                                 Height: 7.5
                                 Radius: 2.6
                                 Orientation: UpY
@@ -1167,7 +1167,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            db22162060ee457794a3cad909c08dbb: !BoxColliderShapeDesc
+                            f326726fa370407a879638c7d8d67e5e: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 0.25, Y: 5.2, Z: 0.25}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -1198,7 +1198,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            5615e4660cb842d98db2ebd654ed22fd: !BoxColliderShapeDesc
+                            8b4e210e8fcf4bd0b27b93af3448c5e6: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 0.25, Y: 5.2, Z: 0.25}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -1229,7 +1229,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            a7ccabe5e73241ea870e0ade193e32fe: !BoxColliderShapeDesc
+                            725230f0e0fd4f5db51216dac6960bb3: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 0.25, Y: 5.2, Z: 0.25}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -1260,7 +1260,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            05d450637eb042d4800dd34823744cc9: !BoxColliderShapeDesc
+                            357320acfb6343d89429b0457179ae58: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 0.25, Y: 5.2, Z: 0.25}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -1291,7 +1291,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            a872720faeef4eac9ba27daacaced8cf: !BoxColliderShapeDesc
+                            ed554f9de7024ae6a1d8bb1791aecfd0: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 0.25, Y: 5.2, Z: 0.25}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -1322,7 +1322,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            bdf8f82fc4ae43d196438736cb868b1b: !BoxColliderShapeDesc
+                            72fb34dd96cc46edbfecb6c58378c1e2: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 0.25, Y: 5.2, Z: 0.25}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -1353,7 +1353,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            00d76b2c0d36419e991117451980b16f: !BoxColliderShapeDesc
+                            84a6f25ffcfc4608a1bd1573abab99e9: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 26, Y: 0.25, Z: 1.4}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -1549,7 +1549,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            28c73388e6f7432488f5cb697e1325e9: !BoxColliderShapeDesc
+                            d58daa1a946a458bb16ca05789cae8e3: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 18, Y: 0.25, Z: 1.4}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -1865,7 +1865,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            a8e8440cec814fbdb4d7d4939765c60f: !BoxColliderShapeDesc
+                            76c07a760e724d3cb2d09b1231f022db: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 0.4, Y: 3.2, Z: 0.4}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -1896,7 +1896,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            b075ed1f0d7f4171828b6bf60ba97c79: !BoxColliderShapeDesc
+                            86808906b13e406caf0d05e1448e840a: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 0.4, Y: 3.2, Z: 0.4}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -1927,7 +1927,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            c03e95143e7c4f89adb2a45a39ee39b8: !BoxColliderShapeDesc
+                            9edc9e845c8142a7b9e8a1bce6248f27: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 3.5, Y: 2.2, Z: 2}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -2318,7 +2318,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            242efdfde0f24910b444ef964579969c: !BoxColliderShapeDesc
+                            22a08bf17de44ce39efbfa3a15a5e271: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 3.4, Y: 1, Z: 3.4}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -2364,7 +2364,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            1ecf3b6fcde34fe9bc95dc60dd279756: !BoxColliderShapeDesc
+                            9ec72ae9952b4a519e77bd7ff7c5eeff: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 9, Y: 4.2, Z: 6}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -2425,7 +2425,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            c8f041c798074b30b9bdeec01afdc1f8: !BoxColliderShapeDesc
+                            31ac8726f7784397aad222ccc895c36a: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 8, Y: 4.8, Z: 7}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -2486,7 +2486,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            48f786af359444dfbdebde8826d8687e: !BoxColliderShapeDesc
+                            b726f2ac8151442499c5422467b122ce: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 7, Y: 3.6, Z: 5}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -2547,7 +2547,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            5bf0decee8434b10aed3ab69a9281dbb: !BoxColliderShapeDesc
+                            2ab9ca5f84df4fe59ed209420372b108: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 18, Y: 2, Z: 0.6}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -2578,7 +2578,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            0f4cb89f40e84f0b8780aca30913c8a2: !BoxColliderShapeDesc
+                            3637513dfd1f4704bf0400dbdba8118f: !BoxColliderShapeDesc
                                 Is2D: false
                                 Size: {X: 12, Y: 0.15, Z: 2}
                                 LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
@@ -3425,7 +3425,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            e185660bed04429ea28aa9a863c7307b: !CylinderColliderShapeDesc
+                            8b83ab534c2943aebbc54bccde6ca90c: !CylinderColliderShapeDesc
                                 Height: 4.01305
                                 Radius: 0.26
                                 Orientation: UpY
@@ -3667,7 +3667,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            86664ed6bef2425db70f7003b7cff3c7: !CylinderColliderShapeDesc
+                            c87b16da8deb46cd8fbbf3f6e6908527: !CylinderColliderShapeDesc
                                 Height: 3.27687
                                 Radius: 0.26
                                 Orientation: UpY
@@ -3909,7 +3909,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            a5027af2935f4c20bf555b773bf3f529: !CylinderColliderShapeDesc
+                            f86bfbcc40ae4073819dc640543f0608: !CylinderColliderShapeDesc
                                 Height: 3.81222
                                 Radius: 0.26
                                 Orientation: UpY
@@ -4151,7 +4151,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            77c2ed597a71410d8a0a23fcb188870d: !CylinderColliderShapeDesc
+                            af6b58d5181e4a9f9b56559f05aba443: !CylinderColliderShapeDesc
                                 Height: 3.31114
                                 Radius: 0.26
                                 Orientation: UpY
@@ -4393,7 +4393,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            bd39da08dede4b9895b847070f22089d: !CylinderColliderShapeDesc
+                            ba701f0c02d24d529b998c7a86733a22: !CylinderColliderShapeDesc
                                 Height: 2.8798
                                 Radius: 0.26
                                 Orientation: UpY
@@ -4635,7 +4635,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            5eb2e4034d544862a989c1e3db36759b: !CylinderColliderShapeDesc
+                            30295c073e8e46b59c15e9f38931dc92: !CylinderColliderShapeDesc
                                 Height: 3.73436
                                 Radius: 0.26
                                 Orientation: UpY
@@ -4877,7 +4877,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            325d3ec7853c478fbc8627bb2117edd9: !CylinderColliderShapeDesc
+                            fbe671062027417ba554e51e09d34ab4: !CylinderColliderShapeDesc
                                 Height: 3.75981
                                 Radius: 0.26
                                 Orientation: UpY
@@ -5119,7 +5119,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            d1861f876a564e21a22e7368ca9ebcee: !CylinderColliderShapeDesc
+                            f7860d1ba0f749eaa1eaf01b1a67280b: !CylinderColliderShapeDesc
                                 Height: 3.3758
                                 Radius: 0.26
                                 Orientation: UpY
@@ -5361,7 +5361,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            597e8ab12f3047ac99fee0c68ce8f3c5: !CylinderColliderShapeDesc
+                            f15314527786423a808b9361e89d7949: !CylinderColliderShapeDesc
                                 Height: 3.06697
                                 Radius: 0.26
                                 Orientation: UpY
@@ -5603,7 +5603,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            eb93cd89f1f7489da179f39c05ed9bfb: !CylinderColliderShapeDesc
+                            b037d048176a4558826590bc0f749446: !CylinderColliderShapeDesc
                                 Height: 3.46453
                                 Radius: 0.26
                                 Orientation: UpY
@@ -5845,7 +5845,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            08f10e7a62f8499dbbac03bcc2d14f87: !CylinderColliderShapeDesc
+                            3716240be03a45bba81b5e13a458d79b: !CylinderColliderShapeDesc
                                 Height: 3.3318
                                 Radius: 0.26
                                 Orientation: UpY
@@ -6087,7 +6087,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            9d0c21f5463649f4a2d5ed5a77fec388: !CylinderColliderShapeDesc
+                            714781fc279444dbabfc1ac9ad2a7111: !CylinderColliderShapeDesc
                                 Height: 3.47035
                                 Radius: 0.26
                                 Orientation: UpY
@@ -6329,7 +6329,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            d567551cc9e34d23a820f7996519d780: !CylinderColliderShapeDesc
+                            21e5a96f49db4730b4f0e5fdd92211ad: !CylinderColliderShapeDesc
                                 Height: 2.71449
                                 Radius: 0.26
                                 Orientation: UpY
@@ -6571,7 +6571,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            e4f428866199413d913c1887854907bb: !CylinderColliderShapeDesc
+                            7c7478a90fdd475185bb4ed7e441f79a: !CylinderColliderShapeDesc
                                 Height: 2.10517
                                 Radius: 0.26
                                 Orientation: UpY
@@ -6813,7 +6813,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            d919ae9aa2184b77b8cf4fa1a06076b0: !CylinderColliderShapeDesc
+                            c35ad196e02349249ace306dfe020313: !CylinderColliderShapeDesc
                                 Height: 2.95793
                                 Radius: 0.26
                                 Orientation: UpY
@@ -7055,7 +7055,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            23379dd3f58c4d8a87b7fd81dc53c711: !CylinderColliderShapeDesc
+                            cd8a282872d144a29047f0b59f3a07c2: !CylinderColliderShapeDesc
                                 Height: 2.24242
                                 Radius: 0.26
                                 Orientation: UpY
@@ -7297,7 +7297,7 @@ Hierarchy:
                         IsTrigger: false
                         AlwaysUpdateNaviMeshCache: false
                         ColliderShapes:
-                            1953bfac4645492492cb21381b027d66: !CylinderColliderShapeDesc
+                            631e33df041f4ba5b966b4a888d6427c: !CylinderColliderShapeDesc
                                 Height: 2.87378
                                 Radius: 0.26
                                 Orientation: UpY
@@ -7594,9 +7594,9 @@ Hierarchy:
                     ff96010fba8451bd83b4d2985b15994f: !ArenaRush.Player.AnimationController,ArenaRush.Game
                         Id: bafd1210-df80-55e2-8004-041c3eaf153c
                         AnimationComponent: ref!! 48767089-9d37-5c8b-adaf-2f78d8cba33e
-                        AnimationIdle: 75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle
-                        AnimationWalk: 6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run
-                        AnimationRun: 6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run
+                        AnimationIdle: 5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle
+                        AnimationWalk: 9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk
+                        AnimationRun: 448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run
                         AnimationJumpStart: 8e192377-a8d5-4e4d-8b88-21f921be0683:/mannequinModel/Animations/Jump_Start
                         AnimationJumpMid: 94d6acea-a230-438d-83b3-b99c99a41a53:/mannequinModel/Animations/Jump_Loop
                         AnimationJumpEnd: f5d57cf5-c062-4e82-abcc-3ca315f86363:/mannequinModel/Animations/Jump_End
@@ -8256,9 +8256,9 @@ Hierarchy:
                     4714d879408154aa85650da4cfc54f41: !AnimationComponent
                         Id: d2afed47-1902-55dc-8fd1-2789eb2e63c5
                         Animations:
-                            312ce0eaca995828916853b298bcee32~Idle: 75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle
-                            a839959b5cbe5d69bcc6c95cb546ed75~Run: 6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run
-                            e3cb54d6394d531391316ac079ff5a2a~Shoot: a49fd478-024a-4aba-a973-5d2ec3d264cc:/mannequinModel/Animations/Gun_Shoot
+                            312ce0eaca995828916853b298bcee32~Idle: 5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle
+                            a839959b5cbe5d69bcc6c95cb546ed75~Run: 448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run
+                            4f952049aa7c5fe2a88e6a98fa8a18de~Walk: 9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk
         -   Entity:
                 Id: 2e69c05d-255b-5ee0-940b-662fd43d4481
                 Name: "Enemy0WeaponHolder"
@@ -8561,9 +8561,9 @@ Hierarchy:
                     4b9f7c45dc1f52e5a02d12a9a6232bf0: !AnimationComponent
                         Id: 9b081843-9a11-53da-950e-408e8807016b
                         Animations:
-                            e30738802ead53c0b37876a7a2714839~Idle: 75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle
-                            e41dc01aee5e57869999657a959e7684~Run: 6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run
-                            bc3b8cc2483e54288ccfef6cdeff7087~Shoot: a49fd478-024a-4aba-a973-5d2ec3d264cc:/mannequinModel/Animations/Gun_Shoot
+                            e30738802ead53c0b37876a7a2714839~Idle: 5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle
+                            e41dc01aee5e57869999657a959e7684~Run: 448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run
+                            63678ff1eaed509f94891207309e1f9e~Walk: 9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk
         -   Entity:
                 Id: fd569635-f91d-531e-8f25-c72b138caca5
                 Name: "Enemy1WeaponHolder"
@@ -8866,9 +8866,9 @@ Hierarchy:
                     9226a9f02dcc5cb08123a00eff9b3990: !AnimationComponent
                         Id: cc2c767f-bbd2-5ae8-bbcf-ddeff7afede5
                         Animations:
-                            0ac7c4191f52505e8cf3168b3250b9a6~Idle: 75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle
-                            8ea9e166af8a5f7db54d34c4dc2db787~Run: 6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run
-                            f202b09995da5612995a49b36743fa1d~Shoot: a49fd478-024a-4aba-a973-5d2ec3d264cc:/mannequinModel/Animations/Gun_Shoot
+                            0ac7c4191f52505e8cf3168b3250b9a6~Idle: 5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle
+                            8ea9e166af8a5f7db54d34c4dc2db787~Run: 448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run
+                            61408aa452d752638adbcd006b087bcb~Walk: 9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk
         -   Entity:
                 Id: d2076777-aa61-5dd2-a652-3fefcdfab4af
                 Name: "Enemy2WeaponHolder"
@@ -9171,9 +9171,9 @@ Hierarchy:
                     b7cfc83206385e71978b4ea82aedb41e: !AnimationComponent
                         Id: d5474e02-4a04-5f2b-ac78-1a2b3551f84f
                         Animations:
-                            ed78f2d2f8875705b24ba1c25882fed6~Idle: 75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle
-                            bf24188c31045d82a6dc5b362ae38e69~Run: 6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run
-                            d0a99fe88792509180832584781d9381~Shoot: a49fd478-024a-4aba-a973-5d2ec3d264cc:/mannequinModel/Animations/Gun_Shoot
+                            ed78f2d2f8875705b24ba1c25882fed6~Idle: 5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle
+                            bf24188c31045d82a6dc5b362ae38e69~Run: 448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run
+                            ca3a82245ceb56298c829e667a1915e5~Walk: 9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk
         -   Entity:
                 Id: 3bff28d2-059f-5f4c-88fd-6e08f0ded425
                 Name: "Enemy3WeaponHolder"
@@ -9476,9 +9476,9 @@ Hierarchy:
                     fca2e26532fc52f5a3fdea21f1752280: !AnimationComponent
                         Id: e6d37b38-d9be-53a7-89d2-de31c65ae8f2
                         Animations:
-                            cb340dcd73b655cd8d17bc33a5d853df~Idle: 75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle
-                            1f865e8c953357e4ab0c77c5c00e9ca2~Run: 6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run
-                            998113c1dfc450b49091db2b440d9459~Shoot: a49fd478-024a-4aba-a973-5d2ec3d264cc:/mannequinModel/Animations/Gun_Shoot
+                            cb340dcd73b655cd8d17bc33a5d853df~Idle: 5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle
+                            1f865e8c953357e4ab0c77c5c00e9ca2~Run: 448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run
+                            bf418c9f84675cf7b42347cb50fdc5ca~Walk: 9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk
         -   Entity:
                 Id: 3ef046b7-509f-5d00-ab34-6a98375a926a
                 Name: "Enemy4WeaponHolder"
@@ -9781,9 +9781,9 @@ Hierarchy:
                     ec7d48c4423c52a480af6a2fb82569f1: !AnimationComponent
                         Id: f059bad9-eebe-56fb-b3f1-f9783151a4fb
                         Animations:
-                            cadae3ee0cb15effba575dfaa40fd3ba~Idle: 75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle
-                            52c6cbd6551b5379b61edbdfdc6173f9~Run: 6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run
-                            6d760daff6155699afe1ec965acdf428~Shoot: a49fd478-024a-4aba-a973-5d2ec3d264cc:/mannequinModel/Animations/Gun_Shoot
+                            cadae3ee0cb15effba575dfaa40fd3ba~Idle: 5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle
+                            52c6cbd6551b5379b61edbdfdc6173f9~Run: 448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run
+                            0bb3652a968755deaf14da012cc3f67d~Walk: 9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk
         -   Entity:
                 Id: af2092c5-738a-5985-a7bd-fc9d646454d5
                 Name: "Enemy5WeaponHolder"
@@ -10086,9 +10086,9 @@ Hierarchy:
                     102c124a7be05ef9b886471ec35a23b0: !AnimationComponent
                         Id: c1e9e50c-b5a9-59a4-bfb2-2c60497b81a5
                         Animations:
-                            4b84b0bb0dee507fb18867ec3e5f24ec~Idle: 75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle
-                            69c94fbd3e235af0a3d2180e5c07e296~Run: 6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run
-                            5308e603a6925c65a4856554008d5d0f~Shoot: a49fd478-024a-4aba-a973-5d2ec3d264cc:/mannequinModel/Animations/Gun_Shoot
+                            4b84b0bb0dee507fb18867ec3e5f24ec~Idle: 5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle
+                            69c94fbd3e235af0a3d2180e5c07e296~Run: 448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run
+                            2962a2d41e2b5572a01aa5e3085eb8a5~Walk: 9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk
         -   Entity:
                 Id: 69085cc5-6942-56d4-8673-5e253344517b
                 Name: "Enemy6WeaponHolder"
@@ -10391,9 +10391,9 @@ Hierarchy:
                     e68fd055ae9650559a2c29074cd74d84: !AnimationComponent
                         Id: f9bf08cc-da64-501f-9e73-95a6cc377881
                         Animations:
-                            7bdb88362ae959d1950601ab4b0b5d3e~Idle: 75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle
-                            6ef1a46d0c4753d78500da44f134b62b~Run: 6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run
-                            b6811741690d5593a145f2559c067a7f~Shoot: a49fd478-024a-4aba-a973-5d2ec3d264cc:/mannequinModel/Animations/Gun_Shoot
+                            7bdb88362ae959d1950601ab4b0b5d3e~Idle: 5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle
+                            6ef1a46d0c4753d78500da44f134b62b~Run: 448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run
+                            b83b6abd19315816b31fb6a57a169ece~Walk: 9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk
         -   Entity:
                 Id: fa0ea30a-81c6-573d-b58f-e5812fd2297b
                 Name: "Enemy7WeaponHolder"

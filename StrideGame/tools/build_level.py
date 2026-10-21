@@ -40,9 +40,9 @@ CAMERA_SLOT_ID = "f1ef5817-0725-4b1a-abc9-845d101ec0e6"
 SCENE_ID = "d472907d-661e-40bf-820d-0eecd1599699"
 MANNEQUIN_MODEL = "f68ea240-695a-4de5-9884-60d77544fcd6:/mannequinModel/Models/mannequinModel"
 ANIMS = {
-    "AnimationIdle": "75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle",
-    "AnimationWalk": "6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run",
-    "AnimationRun": "6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run",
+    "AnimationIdle": "5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle",
+    "AnimationWalk": "9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk",
+    "AnimationRun": "448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run",
     "AnimationJumpStart": "8e192377-a8d5-4e4d-8b88-21f921be0683:/mannequinModel/Animations/Jump_Start",
     "AnimationJumpMid": "94d6acea-a230-438d-83b3-b99c99a41a53:/mannequinModel/Animations/Jump_Loop",
     "AnimationJumpEnd": "f5d57cf5-c062-4e82-abcc-3ca315f86363:/mannequinModel/Animations/Jump_End",
@@ -1035,9 +1035,10 @@ Spatialized: false
     enemy_body = material("EnemyBody", color=(0.16, 0.17, 0.12), rough=0.75, metal=0.0)
     enemy_armor = material("EnemyArmor", color=(0.35, 0.05, 0.04), rough=0.5, metal=0.3)
     enemy_glow = material("EnemyVisor", color=(1.0, 0.15, 0.05), rough=0.3, emissive=(1.0, 0.1, 0.05, 6.0))
-    enemy_anims = {"Idle": "75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle",
-                   "Run": "6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run",
-                   "Shoot": "a49fd478-024a-4aba-a973-5d2ec3d264cc:/mannequinModel/Animations/Gun_Shoot"}
+    # (the sample's gun-pose FBX clips carry no animation data for Assimp, so use the plain clips)
+    enemy_anims = {"Idle": "5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle",
+                   "Run": "448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run",
+                   "Walk": "9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk"}
     enemy_spots = [(-14, -10), (10, -22), (-18, -30), (18, -28), (4, -40), (-26, -14), (24, -6), (-4, -26)]
     for i, (x, z) in enumerate(enemy_spots):
         enemy = Ent(f"Enemy{i}", (x, 0.1, z))

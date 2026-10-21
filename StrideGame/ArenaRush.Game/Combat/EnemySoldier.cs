@@ -152,7 +152,7 @@ namespace ArenaRush.Combat
                 model.Transform.Rotation = Quaternion.RotationY(yaw);
 
             if (state == State.Attack)
-                Play(burstLeft > 0 ? "Shoot" : "Idle");
+                Play("Idle");
             else
                 Play(move.LengthSquared() > 0.1f ? "Run" : "Idle");
         }
