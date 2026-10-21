@@ -43,6 +43,7 @@ jobs:
           unzip -l ubc.zip | grep -v -i "\.blend" | head -150
           mkdir -p x && cd x && unzip -q ../ubc.zip
           cat $(find . -iname "*license*" | head -1) 2>/dev/null | head -20
+          python3 -m pip install -q pillow
           python3 - <<'PY'
           import re, glob
           from PIL import Image
@@ -55,4 +56,5 @@ jobs:
               print('   nodes', models[:12], '...', len(models))
           for f in sorted(glob.glob('**/*.png', recursive=True)):
               print(f, Image.open(f).size, Image.open(f).mode)
+          print(open(glob.glob('**/License_Standard.txt', recursive=True)[0]).read())
           PY
