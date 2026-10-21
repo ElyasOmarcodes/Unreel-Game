@@ -41,6 +41,22 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Cache NuGet packages and the Stride package resolver
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nuget/packages
+            ~/.local/share/stride
+          key: nuget-stride-4.4.1-${{ hashFiles('StrideGame/**/*.csproj') }}
+          restore-keys: nuget-stride-4.4.1-
+
+      - name: Cache downloaded CC0 assets (Poly Haven)
+        uses: actions/cache@v4
+        with:
+          path: StrideGame/ArenaRush.Game/Resources/Level
+          key: polyhaven-${{ hashFiles('StrideGame/tools/build_level.py') }}
+          restore-keys: polyhaven-
+
       - name: Install .NET Android workload
         run: dotnet workload install android
 
@@ -101,7 +117,6 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -126,6 +141,28 @@ jobs:
           echo "{\"file_format_version\":\"1.0.0\",\"ICD\":{\"library_path\":\"$LIB\",\"api_version\":\"1.3.0\"}}" > lvp_icd.json
           echo "VK_DRIVER_FILES=$PWD/lvp_icd.json" >> $GITHUB_ENV
 
+      - name: Cache the emulator image (AVD snapshot)
+        id: avd-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34-google_apis-x86_64-pixel6
+
+      - name: Create the AVD snapshot (first run only)
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "AVD snapshot created"
+
       - name: Play the game on an Android emulator and take screenshots
         env:
           ANDROID_EMU_VK_ICD: ""
@@ -135,7 +172,8 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          emulator-options: -no-snapshot-save -no-window -no-boot-anim -no-audio -gpu swiftshader_indirect
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -no-boot-anim -no-audio -gpu swiftshader_indirect -camera-back none
           disable-animations: true
           script: bash .github/scripts/emulator-play.sh apks/ArenaRush-android-x64.apk shots
 
@@ -146,9 +184,14 @@ jobs:
           path: shots/
 
   release:
-    needs: build
+    # Only publish builds that ran on the emulator without crashing.
+    needs: [build, emulator-test]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: emulator-screenshots
+          path: shots
       - uses: actions/download-artifact@v4
         with:
           name: apks
@@ -167,4 +210,6 @@ jobs:
             Controls: drag on the left side to walk/run, drag on the right side to look around, tap the round button to jump.
             Walk into crates, barrels and tyres to push them (physics).
 
-          files: apks/ArenaRush-android-arm64.apk
+          files: |
+            apks/ArenaRush-android-arm64.apk
+            shots/*.png

@@ -8,6 +8,8 @@ adb wait-for-device
 adb shell settings put system accelerometer_rotation 0 || true
 adb install -r -g "$APK" || { echo "::error::install failed"; exit 1; }
 adb logcat -c
+adb logcat -v time > "$OUT/logcat.txt" 2>/dev/null &
+LOGCAT_PID=$!
 adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1
 shot() { sleep "${2:-0}"; adb exec-out screencap -p > "$OUT/$1.png"; echo "screenshot $1 ($(stat -c%s "$OUT/$1.png") bytes)"; }
 
@@ -37,8 +39,13 @@ shot 05-after 8
 adb shell input swipe $((W*70/100)) $((H*40/100)) $((W*85/100)) $((H*30/100)) 1500
 shot 06-look 6
 
-adb logcat -d > "$OUT/logcat.txt" 2>/dev/null || true
-grep -iE "FATAL|AndroidRuntime|Unhandled|Exception" "$OUT/logcat.txt" | head -40 || true
+kill $LOGCAT_PID 2>/dev/null || true
+echo "================= game log ================="
+APP_PIDS=$(grep -oE "Start proc ([0-9]+):com.elyasomar.arenarush" "$OUT/logcat.txt" | grep -oE "[0-9]+" | sort -u | tr '\n' '|' | sed 's/|$//')
+echo "app pids: $APP_PIDS"
+grep -E "\(\s*(${APP_PIDS:-none})\)|ArenaRush|arenarush|DEBUG   |F/libc|monodroid|mono-rt|DOTNET|Stride|AndroidRuntime" "$OUT/logcat.txt" \
+  | grep -vE "ModernMediaScanner|Telephony|Conscrypt" | tail -250 || true
+echo "============================================"
 if ! adb shell pidof $PKG >/dev/null; then
   echo "::error::the game is not running anymore (see logcat.txt)"
   exit 1

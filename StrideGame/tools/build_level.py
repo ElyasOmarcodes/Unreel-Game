@@ -275,7 +275,7 @@ def tex_scalar(tref, channel, uv=(1, 1), indent="            "):
 
 
 def material(name, diffuse=None, normal=None, arm=None, color=(0.6, 0.6, 0.6), rough=0.8, metal=0.0,
-             uv=(1, 1), cutout=False, two_sided=False, tex_scale=100, emissive=None):
+             uv=(1, 1), cutout=False, two_sided=False, tex_scale=50, emissive=None):
     """PBR material. diffuse/normal/arm are image paths (Poly Haven 'arm' = AO, roughness, metalness)."""
     path = os.path.join(LEVEL_ASSETS, "Materials", f"{name}.sdmat")
     lines = ["Attributes:"]
@@ -419,7 +419,7 @@ def gltf_model(asset_id):
             color=tuple(pbr.get("baseColorFactor", [0.6, 0.6, 0.6, 1])[:3]),
             cutout=m.get("alphaMode") == "MASK",
             two_sided=bool(m.get("doubleSided")),
-            tex_scale=50,
+            tex_scale=25,
         )
         mats.append((mname, mref))
 
