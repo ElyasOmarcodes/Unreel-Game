@@ -1,0 +1,13 @@
+!ProceduralModelAsset
+Id: f8648107-0382-4ab7-97c8-ea34131e0c4e
+SerializedVersion: {Stride: 2.0.0.0}
+Tags: []
+Type: !SphereProceduralModel
+    Radius: 0.15
+    Tessellation: 12
+    Scale: {X: 1.0, Y: 1.0, Z: 1.0}
+    UvScale: {X: 1.0, Y: 1.0}
+    LocalOffset: {X: 0.0, Y: 0.0, Z: 0.0}
+    NumberOfTextureCoordinates: 10
+    MaterialInstance:
+        Material: ad63b35d-3b35-4ae9-82be-3fa934402114:Bullet Material

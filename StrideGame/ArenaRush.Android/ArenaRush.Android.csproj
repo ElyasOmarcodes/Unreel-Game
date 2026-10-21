@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ArenaRush.Android</RootNamespace>
+    <OutputPath>..\Bin\Android\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <ApplicationId>com.elyasomar.arenarush</ApplicationId>
+    <ApplicationTitle>Arena Rush</ApplicationTitle>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+    <AndroidResgenNamespace>$(AssemblyName)</AndroidResgenNamespace>
+    <StrideCurrentPackagePath>$(MSBuildThisFileDirectory)..\ArenaRush.Game\ArenaRush.Game.sdpkg</StrideCurrentPackagePath>
+    <StridePlatform>Android</StridePlatform>
+    <AndroidApplicationIcon>@mipmap/appicon</AndroidApplicationIcon>
+    <!-- Standalone, sideloadable test APK (no fast deployment, no app bundle). -->
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ArenaRush.Game\ArenaRush.Game.csproj" />
+  </ItemGroup>
+</Project>

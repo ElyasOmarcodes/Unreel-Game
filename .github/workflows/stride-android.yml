@@ -1,0 +1,67 @@
+name: Stride - build Android debug APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - StrideGame/**
+      - .github/workflows/stride-android.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    # Stride's asset compiler runs on Windows.
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: StrideGame
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install .NET Android workload
+        run: dotnet workload install android
+
+      - name: Build debug APK
+        run: >
+          dotnet build ArenaRush.Android/ArenaRush.Android.csproj
+          -c Debug
+          -p:AndroidSdkDirectory="$env:ANDROID_HOME"
+          -p:JavaSdkDirectory="$env:JAVA_HOME"
+
+      - name: Collect APK
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter *.apk Bin, ArenaRush.Android/bin -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize
+          $apk = Get-ChildItem -Recurse -Filter *-Signed.apk Bin, ArenaRush.Android/bin -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $apk) { throw "No signed APK produced" }
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item $apk.FullName out/ArenaRush-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArenaRush-debug-apk
+          path: StrideGame/out/ArenaRush-debug.apk
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: arenarush-debug-${{ github.run_number }}
+          name: Arena Rush (Stride) - debug build ${{ github.run_number }}
+          prerelease: true
+          body: |
+            Debug test build of the Arena Rush action game, made with the Stride engine (MIT, free).
+            Install ArenaRush-debug.apk on your Android phone (allow "install unknown apps").
+            Controls: drag your finger to move; the hero fires automatically at the nearest enemy.
+          files: StrideGame/out/ArenaRush-debug.apk
