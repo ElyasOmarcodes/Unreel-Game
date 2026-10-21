@@ -48,7 +48,7 @@ jobs:
         with:
           # keep in sync with UnityGame/ProjectSettings/ProjectVersion.txt
           version-file: None
-          unity-version: 6000.0.58f2
+          unity-version: 6000.0.85f1
           build-targets: Android
           cache-installation: true
           auto-update-hub: false
@@ -60,20 +60,19 @@ jobs:
           username: ${{ secrets.UNITY_EMAIL }}
           password: ${{ secrets.UNITY_PASSWORD }}
 
-      - name: Check that the Android Gradle plugin repository is reachable
-        continue-on-error: true
-        run: |
-          for v in 8.7.2 9.1.1; do
-            curl -s -o /dev/null -w "AGP $v: %{http_code}\n" "https://dl.google.com/dl/android/maven2/com/android/application/com.android.application.gradle.plugin/$v/com.android.application.gradle.plugin-$v.pom"
-          done
-
+      # Unity is started directly: the unity-action wrapper sets UNITY_THISISABUILDMACHINE=1, which makes
+      # the editor's Gradle use Unity's internal package mirror (bfartifactory) that is not reachable from here.
       - name: Build the APK
-        uses: RageAgainstThePixel/unity-action@v3
-        with:
-          project-path: ${{ github.workspace }}/UnityGame
-          build-target: Android
-          log-name: Android-Build
-          args: -quit -batchmode -nographics -executeMethod CiBuild.BuildAndroid
+        run: |
+          set +e
+          mkdir -p UnityGame/Builds/Logs
+          "$UNITY_EDITOR_PATH" -projectPath "$GITHUB_WORKSPACE/UnityGame" -buildTarget Android \
+            -batchmode -nographics -quit -executeMethod CiBuild.BuildAndroid \
+            -logFile - 2>&1 | tee UnityGame/Builds/Logs/Android-Build.log | grep -E --line-buffered "CiBuild|error|Error|FAILURE|What went wrong|BUILD|Exception|Exiting"
+          code=${PIPESTATUS[0]}
+          echo "Unity exit code: $code"
+          tail -60 UnityGame/Builds/Logs/Android-Build.log
+          test -f UnityGame/Builds/Android/UnityTest.apk
 
       - name: Show the APK
         run: |
