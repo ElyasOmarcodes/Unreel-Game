@@ -1,6 +1,6 @@
 name: Asset probe (research)
 
-# Read-only research: looks inside the free (CC0) asset downloads the game is going to use.
+# Read-only research: looks for free (CC0) ambientCG materials the game could use.
 on:
   workflow_dispatch:
   push:
@@ -11,50 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Quaternius Universal Base Characters (itch.io)
+      - name: ambientCG materials for an Afghan village (mud walls, dirt, straw, wood, stone)
         run: |
-          set -x
-          P=https://quaternius.itch.io/universal-base-characters
-          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
-          curl -s -A "$UA" -c jar -b jar "$P" -o page.html
-          CSRF=$(grep -o 'name="csrf_token" value="[^"]*' page.html | head -1 | sed 's/.*value="//')
-          curl -s -A "$UA" -c jar -b jar -X POST "$P/download_url" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $P" --data-urlencode "csrf_token=$CSRF" -o r1.json
-          cat r1.json; echo
-          URL=$(python3 -c "import json;print(json.load(open('r1.json'))['url'])")
-          SEG=${URL##*/download/}
-          curl -s -A "$UA" -c jar -b jar -L "$URL" -o dl.html
-          grep -o 'data-upload_id="[0-9]*"' dl.html | sort -u
-          grep -o '.\{200\}upload_id.\{200\}' dl.html | head -3
-          python3 - <<'PY'
-          import re
-          h = open('dl.html', encoding='utf-8', errors='replace').read()
-          for m in re.finditer(r'<script[^>]*>(.*?)</script>', h, re.S):
-              body = m.group(1).strip()
-              if body and ('download' in body.lower() or 'key' in body.lower()):
-                  print('SCRIPT:', body[:1500])
-          PY
-          CSRF2=$(grep -o 'name="csrf_token" value="[^"]*' dl.html | head -1 | sed 's/.*value="//')
-          UP=$(grep -o 'data-upload_id="[0-9]*"' dl.html | grep -o '[0-9]*' | head -1)
-          curl -s -A "$UA" -c jar -b jar -X POST "$P/file/$UP?source=game_download&download_key=$SEG" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $URL" --data-urlencode "csrf_token=$CSRF2" -o r2.json
-          FILE=$(python3 -c "import json;print(json.load(open('r2.json'))['url'])")
-          set +x
-          curl -sL "$FILE" -o ubc.zip
-          ls -la ubc.zip
-          unzip -l ubc.zip | grep -v -i "\.blend" | head -150
-          mkdir -p x && cd x && unzip -q ../ubc.zip
-          cat $(find . -iname "*license*" | head -1) 2>/dev/null | head -20
-          python3 -m pip install -q pillow
-          python3 - <<'PY'
-          import re, glob
-          from PIL import Image
-          files = glob.glob('**/Base Characters/Unity/*.fbx', recursive=True) + glob.glob('**/Rigged to Head Bone/FBX (Unity)/*.fbx', recursive=True)
-          for f in files:
-              d = open(f, 'rb').read()
-              mats = sorted(set(m.decode('latin1') for m in re.findall(rb'([A-Za-z0-9_ .\-]+)\x00\x01Material', d)))
-              models = [m.decode('latin1') for m in re.findall(rb'([A-Za-z0-9_ .\-]+)\x00\x01Model', d)]
-              print('==', f, 'materials', mats)
-              print('   nodes', models[:12], '...', len(models))
-          for f in sorted(glob.glob('**/*.png', recursive=True)):
-              print(f, Image.open(f).size, Image.open(f).mode)
-          print(open(glob.glob('**/License_Standard.txt', recursive=True)[0]).read())
-          PY
+          for q in mud adobe clay "rammed earth" dirt ground soil gravel straw thatch "wood beams" "rough plaster" "stone wall" cobblestone rock hay field grass path; do
+            echo "=== $q"
+            curl -s "https://ambientcg.com/api/v2/full_json?type=Material&q=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$q")&limit=40&include=tagData,displayData" \
+              | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          for a in d.get('foundAssets', []):
+              print(a['assetId'], '|', a.get('displayName'), '|', a.get('displayCategory'), '|', ' '.join((a.get('tags') or [])[:10]))
+          "
+          done
