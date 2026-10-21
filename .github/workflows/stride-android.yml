@@ -218,13 +218,14 @@ jobs:
           name: Tropical Factory (Stride) - build ${{ github.run_number }}
           prerelease: true
           body: |
-            3D third-person test build made with the Stride engine (MIT, free, no licence needed).
-            Island factory level with CC0 Poly Haven assets, physics crates/barrels/tyres, animated character.
-            Goal: collect all 12 glowing energy cells around the factory as fast as you can.
+            TROPICAL STRIKE - third-person action shooter made with the Stride engine (MIT, free, no licence needed).
+            Splash, main menu, settings (graphics, sensitivity, volume, invert Y, FPS), pause, victory/defeat screens.
+            Weapons: AK-47, M4A1, pistol. Mission: eliminate the 8 hostiles in the island factory.
+            Glowing cells give health and ammo. CC0 Poly Haven assets, physics props, synthesized sound effects.
 
             Install: download ArenaRush-android-arm64.apk on your phone and allow "install unknown apps".
-            Controls: drag on the left side to walk/run, drag on the right side to look around, tap the round button to jump.
-            Walk into crates, barrels and tyres to push them (physics).
+            Controls: left side = move stick, drag on the right side = aim, hold FIRE (and drag to aim while shooting),
+            JUMP, R = reload, SWAP = next weapon, pause button at the top. Shoot crates and barrels to push them.
 
           files: |
             apks/ArenaRush-android-arm64.apk

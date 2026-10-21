@@ -13,6 +13,8 @@ using Stride.Shaders.Compiler;
 // it flies a camera around the level, records every shader permutation the renderer asks for and
 // exits. CI turns that file into EffectCompileLog.sdeffectlog so Android ships precompiled shaders.
 var logPath = Environment.GetEnvironmentVariable("ARENARUSH_EFFECT_LOG");
+if (!string.IsNullOrEmpty(logPath))
+    ArenaRush.GameFlow.SkipMenus = true;
 using var game = string.IsNullOrEmpty(logPath) ? new Game() : new EffectRecordingGame(logPath);
 game.Run();
 
@@ -64,13 +66,17 @@ internal class EffectRecordingGame : Game
         await Wait(10);
 
         // 2. a free camera orbiting over the whole level
-        var playerCamera = scene.Entities.SelectMany(Descendants)
-            .Select(e => e.Get<CameraComponent>()).FirstOrDefault(c => c != null);
+        // take over: stop the menu camera switching and disable the scene cameras
+        foreach (var e in scene.Entities.SelectMany(Descendants).ToList())
+        {
+            var menuCamera = e.Get<ArenaRush.UI.MenuCamera>();
+            if (menuCamera != null) e.Remove(menuCamera);
+        }
+        var cameras = scene.Entities.SelectMany(Descendants).Select(e => e.Get<CameraComponent>()).Where(c => c != null).ToList();
+        foreach (var c in cameras) c.Enabled = false;
         var slot = SceneSystem.GraphicsCompositor.Cameras[0].ToSlotId();
         var orbit = new CameraComponent { Slot = slot, FarClipPlane = 400, VerticalFieldOfView = 60 };
         var orbitEntity = new Entity("RecorderCamera") { orbit };
-        if (playerCamera != null)
-            playerCamera.Enabled = false;
         scene.Entities.Add(orbitEntity);
 
         var center = new Vector3(0, 0, -14);
@@ -86,8 +92,8 @@ internal class EffectRecordingGame : Game
             }
         }
 
-        if (playerCamera != null)
-            playerCamera.Enabled = true;
+        orbit.Enabled = false;
+        if (cameras.Count > 0) cameras[0].Enabled = true;
         scene.Entities.Remove(orbitEntity);
         await Wait(5);
 

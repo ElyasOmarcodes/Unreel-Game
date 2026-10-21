@@ -130,13 +130,20 @@ namespace ArenaRush.Player
             var blend = 1f - MathF.Exp(-dt * 14f);
             moveDirection = Vector3.Lerp(moveDirection, newMoveDirection, blend);
 
-            character.SetVelocity(moveDirection * speed);
+            var speedFactor = TouchState.FireHeld ? 0.7f : 1f;
+            character.SetVelocity(moveDirection * speed * speedFactor);
 
             // Broadcast speed as per cent of the max speed
             RunSpeedEventKey.Broadcast(moveDirection.Length());
 
-            // Character orientation
-            if (moveDirection.Length() > 0.001)
+            // Character orientation: while playing, face where the camera aims (shooter style)
+            if (GameFlow.IsPlaying)
+            {
+                var yaw = MathUtil.DegreesToRadians(Camera.ThirdPersonCamera.CurrentYaw);
+                var aim = new Vector3(-MathF.Sin(yaw), 0, -MathF.Cos(yaw));
+                yawOrientation = MathUtil.RadiansToDegrees((float)Math.Atan2(-aim.Z, aim.X) + MathUtil.PiOverTwo);
+            }
+            else if (moveDirection.Length() > 0.001)
             {
                 yawOrientation = MathUtil.RadiansToDegrees((float) Math.Atan2(-moveDirection.Z, moveDirection.X) + MathUtil.PiOverTwo);
             }

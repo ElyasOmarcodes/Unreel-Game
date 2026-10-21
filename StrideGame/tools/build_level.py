@@ -40,9 +40,9 @@ CAMERA_SLOT_ID = "f1ef5817-0725-4b1a-abc9-845d101ec0e6"
 SCENE_ID = "d472907d-661e-40bf-820d-0eecd1599699"
 MANNEQUIN_MODEL = "f68ea240-695a-4de5-9884-60d77544fcd6:/mannequinModel/Models/mannequinModel"
 ANIMS = {
-    "AnimationIdle": "5f286f7e-7d38-44cf-9bc1-3aad7be4f0fa:/mannequinModel/Animations/Idle",
-    "AnimationWalk": "9d61b261-66aa-40ed-88ed-3cc448f890c0:/mannequinModel/Animations/Walk",
-    "AnimationRun": "448ca260-c8b7-4f63-9bf6-e58a5970a830:/mannequinModel/Animations/Run",
+    "AnimationIdle": "75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle",
+    "AnimationWalk": "6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run",
+    "AnimationRun": "6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run",
     "AnimationJumpStart": "8e192377-a8d5-4e4d-8b88-21f921be0683:/mannequinModel/Animations/Jump_Start",
     "AnimationJumpMid": "94d6acea-a230-438d-83b3-b99c99a41a53:/mannequinModel/Animations/Jump_Loop",
     "AnimationJumpEnd": "f5d57cf5-c062-4e82-abcc-3ca315f86363:/mannequinModel/Animations/Jump_End",
@@ -837,14 +837,107 @@ CubeMap: {sky_tex}
     for i, (x, z) in enumerate([(-12, 14), (14, 16), (-28, -2), (28, -6), (-2, 24)]):
         palm(f"YardPalm{i}", x, z, random.uniform(6, 9), random.uniform(5, 15), random.uniform(0, 360))
 
-    # ---- player: physics character + mannequin + third-person camera
-    player = Ent("Player", (0, 0.1, 8))
+    # ---- weapons (procedural AK-47, M4A1, pistol; barrel along -Z, grip at the origin)
+    wood_tex = fetch_texture_set("smoked_walnut_veneer", maps=("diff", "nor_gl", "arm"))
+    gun_wood = material("GunWood", wood_tex.get("diff"), wood_tex.get("nor_gl"), wood_tex.get("arm"), rough=0.5, tex_scale=25)
+    gun_metal = material("GunMetal", color=(0.05, 0.05, 0.055), rough=0.35, metal=1.0)
+    gun_polymer = material("GunPolymer", color=(0.025, 0.025, 0.028), rough=0.7, metal=0.0)
+    gun_plum = material("GunMagazine", color=(0.22, 0.07, 0.04), rough=0.55, metal=0.0)
+    gun_tan = material("GunTan", color=(0.42, 0.34, 0.22), rough=0.7, metal=0.0)
+    flash_mat = material("MuzzleFlash", color=(1.0, 0.7, 0.2), rough=1.0, emissive=(1.0, 0.65, 0.2, 12.0))
+
+    GUN_PARTS = {
+        "AK47": [
+            ("Cube", (0.055, 0.075, 0.30), gun_metal, (0, 0.0, -0.02), (0, 0, 0)),          # receiver
+            ("Cube", (0.05, 0.025, 0.27), gun_metal, (0, 0.05, -0.02), (0, 0, 0)),          # dust cover
+            ("Cylinder", (0.012, 0.40), gun_metal, (0, 0.015, -0.36), (0, 90, 0)),         # barrel
+            ("Cylinder", (0.013, 0.22), gun_metal, (0, 0.045, -0.27), (0, 90, 0)),         # gas tube
+            ("Cube", (0.062, 0.055, 0.19), gun_wood, (0, 0.005, -0.26), (0, 0, 0)),        # lower handguard
+            ("Cube", (0.045, 0.03, 0.15), gun_wood, (0, 0.05, -0.27), (0, 0, 0)),          # upper handguard
+            ("Cube", (0.008, 0.045, 0.01), gun_metal, (0, 0.045, -0.53), (0, 0, 0)),       # front sight
+            ("Cylinder", (0.017, 0.05), gun_metal, (0, 0.015, -0.58), (0, 90, 0)),         # muzzle brake
+            ("Cube", (0.032, 0.10, 0.042), gun_wood, (0, -0.075, 0.07), (0, -18, 0)),     # pistol grip
+            ("Cube", (0.028, 0.12, 0.055), gun_plum, (0, -0.095, -0.07), (0, 12, 0)),     # curved magazine (top)
+            ("Cube", (0.028, 0.10, 0.055), gun_plum, (0, -0.19, -0.105), (0, 28, 0)),     # curved magazine (bottom)
+            ("Cube", (0.042, 0.075, 0.26), gun_wood, (0, -0.03, 0.25), (0, 7, 0)),        # stock
+            ("Cube", (0.044, 0.105, 0.02), gun_metal, (0, -0.045, 0.385), (0, 7, 0)),     # butt plate
+        ],
+        "M4": [
+            ("Cube", (0.05, 0.065, 0.26), gun_polymer, (0, 0.01, -0.02), (0, 0, 0)),      # upper receiver
+            ("Cube", (0.045, 0.05, 0.19), gun_polymer, (0, -0.045, 0.0), (0, 0, 0)),      # lower receiver
+            ("Cube", (0.065, 0.065, 0.24), gun_polymer, (0, 0.012, -0.27), (0, 0, 0)),    # quad-rail handguard
+            ("Cube", (0.02, 0.012, 0.50), gun_metal, (0, 0.05, -0.15), (0, 0, 0)),        # top rail
+            ("Cylinder", (0.010, 0.22), gun_metal, (0, 0.012, -0.48), (0, 90, 0)),        # barrel
+            ("Cylinder", (0.014, 0.05), gun_metal, (0, 0.012, -0.61), (0, 90, 0)),        # flash hider
+            ("Cube", (0.012, 0.055, 0.02), gun_polymer, (0, 0.07, -0.38), (0, 0, 0)),     # front sight
+            ("Cube", (0.022, 0.035, 0.05), gun_polymer, (0, 0.072, 0.07), (0, 0, 0)),     # rear sight
+            ("Cube", (0.03, 0.10, 0.04), gun_polymer, (0, -0.10, 0.07), (0, -18, 0)),     # pistol grip
+            ("Cube", (0.026, 0.17, 0.06), gun_tan, (0, -0.125, -0.06), (0, 6, 0)),        # STANAG magazine
+            ("Cylinder", (0.017, 0.20), gun_metal, (0, 0.0, 0.21), (0, 90, 0)),           # buffer tube
+            ("Cube", (0.05, 0.085, 0.14), gun_polymer, (0, -0.02, 0.30), (0, 0, 0)),      # collapsible stock
+        ],
+        "PISTOL": [
+            ("Cube", (0.03, 0.033, 0.19), gun_metal, (0, 0.03, -0.06), (0, 0, 0)),         # slide
+            ("Cube", (0.028, 0.022, 0.16), gun_polymer, (0, 0.002, -0.05), (0, 0, 0)),     # frame
+            ("Cylinder", (0.008, 0.02), gun_metal, (0, 0.03, -0.16), (0, 90, 0)),          # muzzle
+            ("Cube", (0.028, 0.11, 0.048), gun_polymer, (0, -0.06, 0.02), (0, -14, 0)),    # grip
+        ],
+    }
+    MUZZLE = {"AK47": (0, 0.015, -0.66), "M4": (0, 0.012, -0.70), "PISTOL": (0, 0.03, -0.22)}
+
+    def build_gun(gun_id, prefix):
+        root = Ent(f"Gun_{gun_id}" if prefix == "" else f"{prefix}Gun_{gun_id}", (0, 0, 0))
+        parts = []
+        for k, (kind, dims, mat, pos, (yaw, pitch, roll)) in enumerate(GUN_PARTS[gun_id]):
+            part = Ent(f"{prefix}{gun_id}_part{k}", pos, q_rot(yaw=yaw, pitch=pitch, roll=roll))
+            part.add(model_comp(proc_model(kind, dims, mat, tess=10 if kind == "Cylinder" else None), False))
+            root.child(part)
+            parts.append(part)
+        flash = Ent(f"MuzzleFlash{prefix}{gun_id}", MUZZLE[gun_id], q_rot(pitch=-90))
+        flash.add(model_comp(proc_model("Cone", (0.05, 0.22), flash_mat, tess=8, offset=(0, 0.11, 0)), False))
+        root.child(flash)
+        parts.append(flash)
+        return root, parts
+
+    # ---- sounds
+    def sound_asset(name, wav):
+        path = os.path.join(LEVEL_ASSETS, "Audio", f"{name}.sdsnd")
+        write(path, f"""!Sound
+Id: {gid('asset', asset_url(path))}
+SerializedVersion: {{Stride: 2.0.0.0}}
+Tags: []
+Source: {rel_from(path, os.path.join(GAME, 'Resources', 'Audio', wav + '.wav'))}
+CompressionRatio: 10
+StreamFromDisk: false
+Spatialized: false
+""")
+        return ref(path)
+
+    sounds = {
+        "ShotAk": sound_asset("ShotAk", "shot_ak"), "ShotM4": sound_asset("ShotM4", "shot_m4"),
+        "ShotPistol": sound_asset("ShotPistol", "shot_pistol"), "EnemyShot": sound_asset("EnemyShot", "shot_enemy"),
+        "Reload": sound_asset("Reload", "reload"), "Empty": sound_asset("Empty", "empty"),
+        "Hit": sound_asset("Hit", "hit"), "Pickup": sound_asset("Pickup", "pickup"),
+        "Hurt": sound_asset("Hurt", "hurt"), "Click": sound_asset("Click", "click"),
+    }
+
+    # ---- player: physics character + mannequin with guns + over-the-shoulder camera
+    player = Ent("Player", (0, 0.1, 10))
     model = Ent("PlayerModel", (0, 0, 0))
-    cam_target = Ent("CameraTarget", (0, 1.65, 0), q_rot(yaw=0, pitch=-12))
-    camera = Ent("Camera", (0, 0, 5.0))
+    cam_target = Ent("CameraTarget", (0, 1.6, 0), q_rot(yaw=0, pitch=-10))
+    camera = Ent("Camera", (0.55, 0.2, 3.2))
+    holder = Ent("WeaponHolder", (-0.17, 1.2, 0.3), q_rot(yaw=180, pitch=-4))
     player.child(model)
     player.child(cam_target)
     cam_target.child(camera)
+    model.child(holder)
+    gun_parts = []
+    for gid_ in ("AK47", "M4", "PISTOL"):
+        root, parts = build_gun(gid_, "")
+        holder.child(root)
+        gun_parts.append(root)
+        gun_parts += parts
+
     player.add("""                    @KEY@: !CharacterComponent
                         Id: @ID@
                         CollisionGroup: KinematicFilter
@@ -867,7 +960,7 @@ CubeMap: {sky_tex}
 """)
     player.add("""                    @KEY@: !ArenaRush.Player.PlayerController,ArenaRush.Game
                         Id: @ID@
-                        MaxRunSpeed: 6.5
+                        MaxRunSpeed: 6.0
                         JumpReactionThreshold: 0.15
 """)
     player.add(f"""                    @KEY@: !ArenaRush.Player.PlayerInput,ArenaRush.Game
@@ -894,6 +987,13 @@ CubeMap: {sky_tex}
                         Id: @ID@
                         PushStrength: 6.0
 """)
+    player.add("""                    @KEY@: !ArenaRush.Combat.Health,ArenaRush.Game
+                        Id: @ID@
+                        MaxHealth: 100.0
+""")
+    player.add("""                    @KEY@: !ArenaRush.Combat.PlayerWeapon,ArenaRush.Game
+                        Id: @ID@
+""")
     anim_comp_id = gid("component", model.id, 2)
     model.add(model_comp(MANNEQUIN_MODEL))
     anim_lines = "".join(f"                        {k}: {v}\n" for k, v in ANIMS.items())
@@ -911,35 +1011,112 @@ CubeMap: {sky_tex}
                         Id: @ID@
                         Name: null
                         Projection: Perspective
-                        VerticalFieldOfView: 55.0
+                        VerticalFieldOfView: 60.0
                         FarClipPlane: 400.0
                         Slot: {CAMERA_SLOT_ID}
 """)
     camera.add("""                    @KEY@: !ArenaRush.Camera.ThirdPersonCamera,ArenaRush.Game
                         Id: @ID@
-                        DefaultDistance: 5.0
-                        MinimumDistance: 0.4
-                        ConeRadius: 1.25
+                        DefaultDistance: 3.2
+                        MinimumDistance: 0.6
+                        ConeRadius: 0.6
                         InvertX: false
-                        MinVerticalAngle: -20.0
-                        MaxVerticalAngle: 70.0
+                        MinVerticalAngle: -35.0
+                        MaxVerticalAngle: 60.0
                         InvertY: false
                         RotationSpeed: 360.0
-                        VerticalSpeed: 45.0
+                        VerticalSpeed: 60.0
 """)
     player.emit()
-    model.emit(root=False)
-    cam_target.emit(root=False)
-    camera.emit(root=False)
+    for e in (model, cam_target, camera, holder, *gun_parts):
+        e.emit(root=False)
 
-    Ent("TouchControls").add("""                    @KEY@: !ArenaRush.TouchHud,ArenaRush.Game
+    # ---- hostile soldiers
+    enemy_body = material("EnemyBody", color=(0.16, 0.17, 0.12), rough=0.75, metal=0.0)
+    enemy_armor = material("EnemyArmor", color=(0.35, 0.05, 0.04), rough=0.5, metal=0.3)
+    enemy_glow = material("EnemyVisor", color=(1.0, 0.15, 0.05), rough=0.3, emissive=(1.0, 0.1, 0.05, 6.0))
+    enemy_anims = {"Idle": "75e70d0e-0b33-45f6-a18a-c6d65109fb34:/mannequinModel/Animations/Gun_Idle",
+                   "Run": "6917eb15-cd27-453c-838c-1ddc6efc7983:/mannequinModel/Animations/Gun_Run",
+                   "Shoot": "a49fd478-024a-4aba-a973-5d2ec3d264cc:/mannequinModel/Animations/Gun_Shoot"}
+    enemy_spots = [(-14, -10), (10, -22), (-18, -30), (18, -28), (4, -40), (-26, -14), (24, -6), (-4, -26)]
+    for i, (x, z) in enumerate(enemy_spots):
+        enemy = Ent(f"Enemy{i}", (x, 0.1, z))
+        emodel = Ent(f"Enemy{i}Model", (0, 0, 0))
+        eholder = Ent(f"Enemy{i}WeaponHolder", (-0.17, 1.2, 0.3), q_rot(yaw=180, pitch=-4))
+        enemy.child(emodel)
+        emodel.child(eholder)
+        groot, gparts = build_gun("AK47", f"E{i}_")
+        eholder.child(groot)
+        enemy.add("""                    @KEY@: !CharacterComponent
                         Id: @ID@
+                        CollisionGroup: CharacterFilter
+                        CanSleep: false
+                        Restitution: 0.0
+                        Friction: 0.5
+                        RollingFriction: 0.0
+                        CcdMotionThreshold: 0.0
+                        CcdSweptSphereRadius: 0.0
+                        FallSpeed: 10.0
+                        MaxSlope: {Radians: 0.7853982}
+                        JumpSpeed: 5.0
+                        Gravity: {X: 0.0, Y: -25.0, Z: 0.0}
+                        ColliderShapes:
+                            56a5239435c0e54188f913fd5d2f5dee: !CapsuleColliderShapeDesc
+                                Length: 1.2
+                                Radius: 0.4
+                                LocalOffset: {X: 0.0, Y: 0.95, Z: 0.0}
+                                LocalRotation: {X: 0.0, Y: 0.0, Z: 0.0, W: 1.0}
+""")
+        enemy.add("""                    @KEY@: !ArenaRush.Combat.Health,ArenaRush.Game
+                        Id: @ID@
+                        MaxHealth: 100.0
+""")
+        enemy.add("""                    @KEY@: !ArenaRush.Combat.EnemySoldier,ArenaRush.Game
+                        Id: @ID@
+""")
+        emodel.add(f"""                    @KEY@: !ModelComponent
+                        Id: @ID@
+                        Model: {MANNEQUIN_MODEL}
+                        IsShadowCaster: true
+                        Materials:
+                            {key('em', i, 0)}~0: {enemy_body}
+                            {key('em', i, 1)}~1: {enemy_glow}
+                            {key('em', i, 2)}~2: {enemy_armor}
+""")
+        anim_dict = "".join(f"                            {key('ea', i, n)}~{n}: {r}\n" for n, r in enemy_anims.items())
+        emodel.add(f"""                    @KEY@: !AnimationComponent
+                        Id: @ID@
+                        Animations:
+{anim_dict}""")
+        enemy.emit()
+        for e in (emodel, eholder, groot, *gparts):
+            e.emit(root=False)
+
+    # ---- game systems: UI (menus + HUD), menu camera, pickups, sounds
+    Ent("GameUI").add("""                    @KEY@: !ArenaRush.UI.GameUI,ArenaRush.Game
+                        Id: @ID@
+                        Priority: -1000
                         Font: 3c1d7a52-9b0e-4f6a-8d21-6e5f0a9c4b11:HudFont
 """).emit()
-    Ent("GameManager").add("""                    @KEY@: !ArenaRush.CellHunt,ArenaRush.Game
+    Ent("MenuCamera", (20, 9, 10)).add(f"""                    @KEY@: !CameraComponent
+                        Id: @ID@
+                        Name: null
+                        Projection: Perspective
+                        VerticalFieldOfView: 55.0
+                        FarClipPlane: 400.0
+                        Slot: {CAMERA_SLOT_ID}
+""").add("""                    @KEY@: !ArenaRush.UI.MenuCamera,ArenaRush.Game
+                        Id: @ID@
+""").emit()
+    Ent("GameManager").add("""                    @KEY@: !ArenaRush.Combat.Pickups,ArenaRush.Game
                         Id: @ID@
                         PickupRadius: 1.4
+                        RespawnTime: 30.0
 """).emit()
+    sound_lines = "".join(f"                        {k}: {v}\n" for k, v in sounds.items())
+    Ent("Sounds").add(f"""                    @KEY@: !ArenaRush.Combat.SoundBank,ArenaRush.Game
+                        Id: @ID@
+{sound_lines}""").emit()
 
     # ---- scene file
     roots = "".join(f"        - ref!! {r}\n" for r in ROOTS)

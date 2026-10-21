@@ -43,8 +43,8 @@ namespace ArenaRush.Player
         public List<Keys> KeysJump { get; } = new List<Keys>();
 
         /// <summary>
-        /// Touch: left part of the screen is a floating joystick, dragging on the right part turns the camera,
-        /// the round button at the bottom right jumps. Positions are normalized (0..1).
+        /// Touch: left part of the screen is a floating move stick, dragging on the right part (or while holding FIRE)
+        /// aims the camera, and the round buttons fire, jump, reload, switch weapon and pause.
         /// </summary>
         public float TouchJoystickRadius { get; set; } = 0.08f;
 
@@ -52,15 +52,22 @@ namespace ArenaRush.Player
 
         private int? movePointer;
         private int? lookPointer;
+        private int? firePointer;
         private Vector2 lookDelta;
-        private bool touchJump;
+
+        private static bool Hit(Vector2 normalized, Vector2 center, float radius)
+        {
+            var a = UI.Overlay.ToVirtual(normalized);
+            var b = UI.Overlay.ToVirtual(center);
+            return (a - b).Length() < radius * 1.25f;
+        }
 
         private void ReadTouch()
         {
             var bounds = Game.Window.ClientBounds;
-            var aspect = bounds.Width / (float)System.Math.Max(1, bounds.Height);
+            var aspect = UI.Overlay.Width / UI.Overlay.Height;
             lookDelta = Vector2.Zero;
-            touchJump = false;
+            TouchState.ClearPresses();
 
             foreach (var ev in Input.PointerEvents)
             {
@@ -69,36 +76,43 @@ namespace ArenaRush.Player
                 switch (ev.EventType)
                 {
                     case PointerEventType.Pressed:
-                        var toJump = (ev.Position - TouchState.JumpButtonCenter) * new Vector2(aspect, 1);
-                        if (toJump.Length() < TouchState.JumpButtonRadius * 1.3f)
+                        if (Hit(ev.Position, TouchState.FireCenter, TouchState.FireRadius) && firePointer == null)
+                            firePointer = ev.PointerId;
+                        else if (Hit(ev.Position, TouchState.JumpCenter, TouchState.JumpRadius))
                         {
-                            touchJump = true;
-                            TouchState.JumpPressedTime = 0.15f;
+                            TouchState.JumpPressed = true;
+                            TouchState.JumpFlash = 0.15f;
                         }
-                        else if (ev.Position.X < 0.45f && movePointer == null)
+                        else if (Hit(ev.Position, TouchState.ReloadCenter, TouchState.ReloadRadius))
+                            TouchState.ReloadPressed = true;
+                        else if (Hit(ev.Position, TouchState.SwapCenter, TouchState.SwapRadius))
+                            TouchState.SwapPressed = true;
+                        else if (Hit(ev.Position, TouchState.PauseCenter, TouchState.PauseRadius))
+                            TouchState.PausePressed = true;
+                        else if (ev.Position.X < 0.42f && movePointer == null)
                         {
                             movePointer = ev.PointerId;
                             TouchState.StickOrigin = TouchState.StickCurrent = ev.Position;
                         }
                         else if (lookPointer == null)
-                        {
                             lookPointer = ev.PointerId;
-                        }
                         break;
                     case PointerEventType.Moved:
                         if (ev.PointerId == movePointer)
                             TouchState.StickCurrent = ev.Position;
-                        else if (ev.PointerId == lookPointer)
+                        else if (ev.PointerId == lookPointer || ev.PointerId == firePointer)
                             lookDelta += ev.DeltaPosition * new Vector2(aspect, 1);
                         break;
                     case PointerEventType.Released:
                     case PointerEventType.Canceled:
                         if (ev.PointerId == movePointer) movePointer = null;
                         if (ev.PointerId == lookPointer) lookPointer = null;
+                        if (ev.PointerId == firePointer) firePointer = null;
                         break;
                 }
             }
 
+            TouchState.FireHeld = firePointer != null || (Input.HasMouse && Input.IsMousePositionLocked && Input.IsMouseButtonDown(MouseButton.Left));
             TouchState.StickActive = movePointer != null;
             TouchState.Stick = Vector2.Zero;
             if (movePointer != null)
@@ -107,11 +121,23 @@ namespace ArenaRush.Player
                 if (d.Length() > 1) d.Normalize();
                 TouchState.Stick = new Vector2(d.X, -d.Y);
             }
+
+            // keyboard equivalents for desktop testing
+            if (Input.IsKeyPressed(Keys.R)) TouchState.ReloadPressed = true;
+            if (Input.IsKeyPressed(Keys.Q) || Input.IsKeyPressed(Keys.Tab)) TouchState.SwapPressed = true;
+            if (Input.IsKeyPressed(Keys.Escape) || Input.IsKeyPressed(Keys.P)) TouchState.PausePressed = true;
         }
 
         public override void Update()
         {
             ReadTouch();
+            if (!GameFlow.IsPlaying)
+            {
+                MoveDirectionEventKey.Broadcast(Vector3.Zero);
+                CameraDirectionEventKey.Broadcast(Vector2.Zero);
+                JumpEventKey.Broadcast(false);
+                return;
+            }
 
             // Character movement: should be camera-aware
             {
@@ -178,7 +204,7 @@ namespace ArenaRush.Player
                     Input.LockMousePosition(true);
                     Game.IsMouseVisible = false;
                 }
-                if (Input.IsKeyPressed(Keys.Escape))
+                if (Input.IsKeyPressed(Keys.F1))
                 {
                     Input.UnlockMousePosition();
                     Game.IsMouseVisible = true;
@@ -189,6 +215,8 @@ namespace ArenaRush.Player
                 }
 
                 cameraDirection += new Vector2(lookDelta.X, -lookDelta.Y) * TouchLookSensitivity;
+                cameraDirection *= GameOptions.LookSensitivity;
+                if (GameOptions.InvertY) cameraDirection.Y = -cameraDirection.Y;
 
                 // Broadcast the camera direction directly, as a screen-space Vector2
                 CameraDirectionEventKey.Broadcast(cameraDirection);
@@ -203,7 +231,7 @@ namespace ArenaRush.Player
 
                 // Keyboard: jumping
                 didJump |= (KeysJump.Any(key => Input.IsKeyPressed(key)));
-                didJump |= touchJump;
+                didJump |= TouchState.JumpPressed;
 
                 JumpEventKey.Broadcast(didJump);
             }

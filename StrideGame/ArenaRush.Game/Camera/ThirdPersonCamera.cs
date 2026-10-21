@@ -57,8 +57,16 @@ namespace ArenaRush.Camera
         /// </summary>
         public float VerticalSpeed { get; set; } = 65f;
 
-        private Vector3 cameraRotationXYZ = new Vector3(-20, 45, 0);
-        private Vector3 targetRotationXYZ = new Vector3(-20, 45, 0);
+        /// <summary>Current camera yaw in degrees (used to turn the character towards the aim).</summary>
+        public static float CurrentYaw;
+
+        private static Vector2 pendingRecoil;
+
+        /// <summary>Kicks the aim up (degrees) and sideways, e.g. when a weapon fires.</summary>
+        public static void AddRecoil(float up, float side) => pendingRecoil += new Vector2(side, up);
+
+        private Vector3 cameraRotationXYZ = new Vector3(-10, 0, 0);
+        private Vector3 targetRotationXYZ = new Vector3(-10, 0, 0);
         private readonly EventReceiver<Vector2> cameraDirectionEvent = new EventReceiver<Vector2>(PlayerInput.CameraDirectionEventKey);
         private List<HitResult> resultsOutput;
         private ConeColliderShape coneShape;
@@ -133,8 +141,15 @@ namespace ArenaRush.Camera
             if (InvertX) cameraMovement.X *= -1;
             targetRotationXYZ.Y -= cameraMovement.X * RotationSpeed;
 
+            // weapon recoil
+            targetRotationXYZ.X = Math.Min(targetRotationXYZ.X + pendingRecoil.Y, -MinVerticalAngle);
+            targetRotationXYZ.Y += pendingRecoil.X;
+            pendingRecoil = Vector2.Zero;
+            CurrentYaw = targetRotationXYZ.Y;
+
             // Very simple lerp to allow smoother transition of the camera towards its desired destination. You can change this behavior with a different one, better suited for your game.
-            cameraRotationXYZ = Vector3.Lerp(cameraRotationXYZ, targetRotationXYZ, 0.25f);
+            var dt = (float)Game.UpdateTime.Elapsed.TotalSeconds;
+            cameraRotationXYZ = Vector3.Lerp(cameraRotationXYZ, targetRotationXYZ, 1f - MathF.Exp(-dt * 18f));
             Entity.GetParent().Transform.RotationEulerXYZ = new Vector3(MathUtil.DegreesToRadians(cameraRotationXYZ.X), MathUtil.DegreesToRadians(cameraRotationXYZ.Y), 0);
         }
 
