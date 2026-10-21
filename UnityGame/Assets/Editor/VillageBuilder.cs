@@ -9,17 +9,16 @@ using UnityEngine;
 /// with gates and corner towers around one- and two-storey mud houses (flat roofs on wooden beams,
 /// outside stairs to the roof), a small bazaar on a raised platform around a big plane tree, a dry
 /// river bed (khwar) with a wooden footbridge and a ford, terraced wheat fields and orchards on the
-/// hills, and an old round watchtower (burj) on the highest hill. Ground is a Unity terrain painted
+/// hills, and an old round watchtower (burj) on the highest hill. Ground is a height field mesh painted
 /// with grass, dirt, gravel and rock (ambientCG, CC0).
 /// </summary>
 public static class VillageBuilder
 {
     public const float Half = 86f;              // playable half size
-    private const float Size = 340f, Height = 60f, Base = -14f;
+    private const float Size = 340f;
 
     private static Transform root;
     private static System.Random rng;
-    private static Terrain terrain;
     private static readonly List<Rect> flats = new List<Rect>();
 
     private static float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
@@ -77,88 +76,84 @@ public static class VillageBuilder
 
     private static Texture2D T(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{PortBuilder.Textures}/{file}");
 
-    private static TerrainLayer Layer(string name, string set, float tile, Color tint)
+    /// <summary>
+    /// The ground: a height field mesh (2 m cells) with a mesh collider, painted with grass, dirt,
+    /// gravel and rock through its vertex colours (shader UA/Ground). A plain mesh rather than a Unity
+    /// terrain: cheaper on phones and its shader always ends up in the build.
+    /// </summary>
+    private static void BuildGround()
     {
-        string path = $"{AssetSetup.Generated}/Village_{name}.terrainlayer";
-        AssetDatabase.DeleteAsset(path);
-        var layer = new TerrainLayer
-        {
-            diffuseTexture = T(set + "_BaseColor.jpg"),
-            normalMapTexture = T(set + "_Normal.jpg"),
-            tileSize = new Vector2(tile, tile),
-            diffuseRemapMax = new Vector4(tint.r, tint.g, tint.b, 1f),
-            smoothness = 0.05f,
-            metallic = 0f,
-        };
-        if (layer.diffuseTexture == null) Debug.LogWarning("[Village] missing texture " + set);
-        AssetDatabase.CreateAsset(layer, path);
-        return layer;
-    }
-
-    private static void BuildTerrain()
-    {
-        const int res = 257, splat = 256;
-        var data = new TerrainData { heightmapResolution = res };
-        data.size = new Vector3(Size, Height, Size);
-        var heights = new float[res, res];
-        for (int j = 0; j < res; j++)
-            for (int i = 0; i < res; i++)
+        const int cells = 170;
+        float cell = Size / cells;
+        int n = cells + 1;
+        var vertices = new Vector3[n * n];
+        var colors = new Color[n * n];
+        for (int j = 0; j < n; j++)
+            for (int i = 0; i < n; i++)
             {
-                float x = -Size / 2f + i / (res - 1f) * Size, z = -Size / 2f + j / (res - 1f) * Size;
-                heights[j, i] = Mathf.Clamp01((GroundHeight(x, z) - Base) / Height);
+                float x = -Size / 2f + i * cell, z = -Size / 2f + j * cell;
+                vertices[j * n + i] = new Vector3(x, GroundHeight(x, z), z);
             }
-        data.SetHeights(0, 0, heights);
-        data.terrainLayers = new[]
-        {
-            Layer("Grass", "Grass004", 5f, new Color(0.9f, 1f, 0.85f)),
-            Layer("Dirt", "Ground104", 4f, Color.white),
-            Layer("Gravel", "Gravel036L", 3f, Color.white),
-            Layer("Rock", "Rock055", 8f, Color.white),
-        };
-        data.alphamapResolution = splat;
-        data.baseMapResolution = 256;
-        var alpha = new float[splat, splat, 4];
-        for (int j = 0; j < splat; j++)
-            for (int i = 0; i < splat; i++)
+        for (int j = 0; j < n; j++)
+            for (int i = 0; i < n; i++)
             {
-                float x = -Size / 2f + (i + 0.5f) / splat * Size, z = -Size / 2f + (j + 0.5f) / splat * Size;
-                float n = Mathf.PerlinNoise(x * 0.05f + 3f, z * 0.05f + 7f);
-                var normal = data.GetInterpolatedNormal((i + 0.5f) / splat, (j + 0.5f) / splat);
+                var v = vertices[j * n + i];
+                float hx = vertices[j * n + Mathf.Min(n - 1, i + 1)].y - vertices[j * n + Mathf.Max(0, i - 1)].y;
+                float hz = vertices[Mathf.Min(n - 1, j + 1) * n + i].y - vertices[Mathf.Max(0, j - 1) * n + i].y;
+                var normal = new Vector3(-hx, 2f * cell, -hz).normalized;
+                float x = v.x, z = v.z;
+                float noise = Mathf.PerlinNoise(x * 0.05f + 3f, z * 0.05f + 7f);
                 float steep = Mathf.InverseLerp(0.9f, 0.72f, normal.y);
                 float river = Mathf.InverseLerp(6f, 3f, Mathf.Abs(z - RiverZ(x)));
                 // the village itself is trodden dirt, paths link it to the hills and the river
                 float village = Mathf.Max(FlatWeight(x, z), Mathf.InverseLerp(48f, 30f, new Vector2(x * 0.9f, z).magnitude));
-                float path = PathWeight(x, z);
-                float dirt = Mathf.Clamp01(Mathf.Max(village * (0.75f + 0.25f * n), path));
+                float dirt = Mathf.Clamp01(Mathf.Max(village * (0.75f + 0.25f * noise), PathWeight(x, z)));
                 float rock = Mathf.Clamp01(steep * (1f - river));
                 float gravel = river;
                 float grass = Mathf.Clamp01(1f - dirt - rock - gravel);
                 float sum = Mathf.Max(0.001f, grass + dirt + rock + gravel);
-                alpha[j, i, 0] = grass / sum;
-                alpha[j, i, 1] = dirt / sum;
-                alpha[j, i, 2] = gravel / sum;
-                alpha[j, i, 3] = rock / sum;
+                colors[j * n + i] = new Color(dirt / sum, grass / sum, gravel / sum, rock / sum);
             }
-        data.SetAlphamaps(0, 0, alpha);
-        AssetDatabase.DeleteAsset($"{AssetSetup.Generated}/Village_Terrain.asset");
-        AssetDatabase.CreateAsset(data, $"{AssetSetup.Generated}/Village_Terrain.asset");
-        var go = Terrain.CreateTerrainGameObject(data);
-        go.name = "Ground";
-        go.transform.SetParent(root, false);
-        go.transform.position = new Vector3(-Size / 2f, Base, -Size / 2f);
-        terrain = go.GetComponent<Terrain>();
-        // an explicit terrain material (saved as an asset) so the player build keeps the terrain shader
-        var shader = Shader.Find("Nature/Terrain/Standard") ?? Shader.Find("Nature/Terrain/Diffuse");
-        string matPath = $"{AssetSetup.Generated}/Village_TerrainMat.mat";
+        var triangles = new int[cells * cells * 6];
+        int t = 0;
+        for (int j = 0; j < cells; j++)
+            for (int i = 0; i < cells; i++)
+            {
+                int a = j * n + i, b = a + 1, c = a + n, d = c + 1;
+                // clockwise seen from above (Unity's front faces)
+                triangles[t++] = a; triangles[t++] = c; triangles[t++] = b;
+                triangles[t++] = b; triangles[t++] = c; triangles[t++] = d;
+            }
+        var mesh = new Mesh { name = "VillageGround" };
+        mesh.SetVertices(vertices);
+        mesh.SetColors(colors);
+        mesh.SetTriangles(triangles, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        AssetDatabase.DeleteAsset($"{AssetSetup.Generated}/Village_Ground.asset");
+        AssetDatabase.CreateAsset(mesh, $"{AssetSetup.Generated}/Village_Ground.asset");
+
+        string matPath = $"{AssetSetup.Generated}/Materials/Village_Ground.mat";
         AssetDatabase.DeleteAsset(matPath);
-        var terrainMat = new Material(shader) { name = "Village_Terrain" };
-        AssetDatabase.CreateAsset(terrainMat, matPath);
-        terrain.materialTemplate = terrainMat;
-        Debug.Log("[Village] terrain shader " + (shader != null ? shader.name : "none"));
-        terrain.heightmapPixelError = 8f;
-        terrain.basemapDistance = 70f;
-        terrain.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        terrain.drawTreesAndFoliage = false;
+        var shader = Shader.Find("UA/Ground");
+        if (shader == null) Debug.LogWarning("[Map] village: ground shader missing");
+        var mat = new Material(shader ?? Shader.Find("Standard")) { name = "Village_Ground" };
+        mat.SetTexture("_Grass", T("Grass004_BaseColor.jpg"));
+        mat.SetTexture("_Dirt", T("Ground104_BaseColor.jpg"));
+        mat.SetTexture("_Gravel", T("Gravel036L_BaseColor.jpg"));
+        mat.SetTexture("_Rock", T("Rock055_BaseColor.jpg"));
+        mat.SetColor("_GrassTint", new Color(0.9f, 1f, 0.85f));
+        mat.SetVector("_Tiles", new Vector4(5f, 4f, 3f, 8f));
+        AssetDatabase.CreateAsset(mat, matPath);
+
+        var go = new GameObject("Ground");
+        go.transform.SetParent(root, false);
+        go.AddComponent<MeshFilter>().sharedMesh = mesh;
+        var r = go.AddComponent<MeshRenderer>();
+        r.sharedMaterial = mat;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        go.AddComponent<MeshCollider>().sharedMesh = mesh;
+        Physics.SyncTransforms();
     }
 
     // the paths: from the bazaar to the bridge, the ford, the watchtower and the terraces
@@ -186,7 +181,15 @@ public static class VillageBuilder
         return Mathf.InverseLerp(2.6f, 1.2f, best);
     }
 
-    private static float Y(float x, float z) => terrain != null ? terrain.SampleHeight(new Vector3(x, 0, z)) + terrain.transform.position.y : GroundHeight(x, z);
+    /// <summary>Ground height under (x, z): the mesh surface (raycast), else the height function.</summary>
+    private static float Y(float x, float z)
+    {
+        var hits = Physics.RaycastAll(new Vector3(x, 80f, z), Vector3.down, 200f, World.EnvMask);
+        float best = float.MinValue;
+        foreach (var h in hits)
+            if (h.collider.name == "Ground") best = Mathf.Max(best, h.point.y);
+        return best > float.MinValue ? best : GroundHeight(x, z);
+    }
 
     // ------------------------------------------------------------------ pieces
 
@@ -517,7 +520,7 @@ public static class VillageBuilder
             flats.Add(new Rect(k.c.x - ex, k.c.z - ez, ex * 2f, ez * 2f));
         }
         flats.Add(new Rect(-16f, -21f, 32f, 42f));   // the bazaar square
-        BuildTerrain();
+        BuildGround();
         int seed = 5;
         foreach (var k in compounds) Compound(k.c, k.w, k.l, k.yaw, k.upper, k.towers, seed++);
         Bazaar();
@@ -619,8 +622,7 @@ public static class VillageBuilder
         }
 
         foreach (var tr in root.GetComponentsInChildren<Transform>(true))
-            if (tr.GetComponent<Terrain>() == null)
-                GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
+            GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
 
         var layout = new MapLayout { Name = "VILLAGE", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
         BuildNavigation(layout);
