@@ -52,7 +52,7 @@ namespace UA
         public Vector3 Pos;
         public float Yaw, Pitch, MoveX, MoveY;
         public bool Crouch, Grounded = true, Aiming, Prone;
-        public byte Look;
+        public int Look;
         public short Kills, Deaths;
         public byte SpawnSeq;
         public ushort Hits;
@@ -83,7 +83,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 3;
+        public const byte Version = 4;
         public const byte NoPlayer = 255;
 
         public bool Active, IsHost, Practice;
@@ -414,7 +414,7 @@ namespace UA
                 {
                     Id = id, IsBot = true, Name = BotNames[(id - 100) % BotNames.Length] + " [BOT]", Team = SmallerTeam(),
                     Primary = Weapons.BotPrimaries[UnityEngine.Random.Range(0, Weapons.BotPrimaries.Length)], Secondary = (byte)UnityEngine.Random.Range(4, 6),
-                    Look = (byte)UnityEngine.Random.Range(0, 64),
+                    Look = Wardrobe.Random(),
                 };
                 Players[id] = bot;
                 bots.Add(bot);
@@ -494,7 +494,7 @@ namespace UA
             int tok = r.ReadInt32();
             string name = Settings.Clean(r.ReadString());
             byte primary = r.ReadByte(), secondary = r.ReadByte();
-            byte look = r.ReadByte();
+            int look = r.ReadInt32();
             var player = Players.Values.FirstOrDefault(p => !p.IsBot && p.Id != 0 && p.Token == tok);
             if (player == null)
             {
@@ -505,7 +505,7 @@ namespace UA
                 player = new PlayerState
                 {
                     Id = id, Token = tok, Name = name, Team = SmallerTeam(), Primary = (byte)(primary % Weapons.Count),
-                    Secondary = (byte)(secondary % Weapons.Count), Weapon = (byte)(primary % Weapons.Count), Look = (byte)(look % 64),
+                    Secondary = (byte)(secondary % Weapons.Count), Weapon = (byte)(primary % Weapons.Count), Look = look,
                 };
                 if (Phase == Phase.Playing || Phase == Phase.Countdown) player.RespawnAt = now + 1f;
                 Players[id] = player;
@@ -752,7 +752,7 @@ namespace UA
                 if (isNew) Players[id] = p = new PlayerState { Id = id };
                 p.Name = r.ReadString(); byte team = r.ReadByte(); p.IsBot = r.ReadBoolean();
                 byte primary = r.ReadByte(), secondary = r.ReadByte();
-                p.Look = r.ReadByte();
+                p.Look = r.ReadInt32();
                 // our own team / loadout are decided locally while in the lobby and sent with the input
                 if (id != LocalId || phase != Phase.Lobby || isNew) { p.Team = team; p.Primary = primary; p.Secondary = secondary; }
                 seen.Add(id);

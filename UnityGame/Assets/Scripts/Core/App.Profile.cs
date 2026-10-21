@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 namespace UA
 {
-    /// <summary>Profile: name, character (body, head gear, camo) and the two weapons, with live 3D previews.</summary>
+    /// <summary>Profile: name, the character built piece by piece (Wardrobe) and the two weapons, with live 3D previews.</summary>
     public partial class App
     {
         private PreviewStage stage;
@@ -13,9 +13,9 @@ namespace UA
         private Text gunTitle, gunStats;
         private int previewWeapon;
 
-        private static readonly string[] BodyNames = { "MALE - LIGHT", "MALE - DARK", "FEMALE - LIGHT", "FEMALE - DARK" };
-        private static readonly string[] HeadNames = { "COMBAT HELMET", "CAP", "BERET", "BALACLAVA" };
-        private static readonly string[] CamoNames = { "URBAN", "DESERT", "WOODLAND", "BLACK OPS" };
+        private RectTransform characterTab, weaponTab;
+        private Button characterTabButton, weaponTabButton;
+        private readonly System.Collections.Generic.List<(Text text, System.Func<string> value)> lookValues = new System.Collections.Generic.List<(Text, System.Func<string>)>();
 
         private class RotateDrag : MonoBehaviour, IDragHandler
         {
@@ -23,16 +23,34 @@ namespace UA
             public void OnDrag(PointerEventData e) { if (Stage != null) Stage.CharacterYaw -= e.delta.x * 0.4f; }
         }
 
-        // part 0: body and skin (0..3), 1: head gear, 2: camo
-        private static int LookPart(int look, int part) => part == 0 ? ((look / 16) % 2) * 2 + (look / 32) % 2 : part == 1 ? look % 4 : (look / 4) % 4;
-
-        private static void SetLookPart(int part, int delta)
+        private static void ChangeLook(Wardrobe.Slot slot, int delta)
         {
-            int look = Settings.Look, person = LookPart(look, 0), camo = (look / 4) % 4, head = look % 4;
-            if (part == 0) person = (person + 4 + delta) % 4;
-            else if (part == 1) head = (head + 4 + delta) % 4;
-            else camo = (camo + 4 + delta) % 4;
-            Settings.Look = (byte)((person % 2) * 32 + (person / 2) * 16 + camo * 4 + head);
+            int look = Settings.Look;
+            look = Wardrobe.Set(look, slot, Wardrobe.Get(look, slot) + delta);
+            // the camo of a combat jacket and cargo trousers match until one is changed on its own
+            if (slot == Wardrobe.Slot.Top || slot == Wardrobe.Slot.TopColor)
+                if (Wardrobe.Get(look, Wardrobe.Slot.Top) == 0 && Wardrobe.Get(look, Wardrobe.Slot.Bottom) == 0)
+                    look = Wardrobe.Set(look, Wardrobe.Slot.BottomColor, Wardrobe.Get(look, Wardrobe.Slot.TopColor));
+            Settings.Look = look;
+        }
+
+        private static void ChangeStyle(int delta)
+        {
+            int n = Wardrobe.Styles.Length;
+            int style = (Wardrobe.StyleOf(Settings.Look) + n + delta) % n;
+            int look = Wardrobe.Apply(Settings.Look, Wardrobe.Styles[style]);
+            // a woman's style picks the woman's body (and back), keeping the skin tone
+            bool female = style >= 8;
+            if (female != Wardrobe.Female(look)) look = Wardrobe.Set(look, Wardrobe.Slot.Body, (female ? 2 : 0) + Wardrobe.Get(look, Wardrobe.Slot.Body) % 2);
+            Settings.Look = look;
+        }
+
+        private void ShowTab(bool character)
+        {
+            characterTab.gameObject.SetActive(character);
+            weaponTab.gameObject.SetActive(!character);
+            characterTabButton.GetComponent<Image>().color = character ? UIKit.AccentDark : UIKit.ButtonColor;
+            weaponTabButton.GetComponent<Image>().color = character ? UIKit.ButtonColor : UIKit.AccentDark;
         }
 
         private void BuildProfile()
@@ -49,36 +67,65 @@ namespace UA
 
             var right = UIKit.Panel(s, 1060, 820, -20);
             right.anchoredPosition = new Vector2(330, -20);
-            var nameRow = UIKit.Node(right, "NameRow").At(0.5f, 1f, 0, -30, 980, 80, 0.5f, 1f);
+            var nameRow = UIKit.Node(right, "NameRow").At(0.5f, 1f, 0, -24, 1020, 76, 0.5f, 1f);
             var nameLabel = UIKit.Txt(nameRow, "NAME", 32, TextAnchor.MiddleLeft, UIKit.Muted);
             nameLabel.rectTransform.Fill();
             nameLabel.rectTransform.offsetMin = new Vector2(30, 0);
             profileName = UIKit.Input(nameRow, Settings.PlayerName, "Your name", 32);
             profileName.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 560, 70, 1f, 0.5f);
             profileName.onEndEdit.AddListener(v => Settings.PlayerName = v);
-            UIKit.Stepper(right, "AGENT", -120, () => BodyNames[LookPart(Settings.Look, 0)], d => { SetLookPart(0, d); RefreshProfile(); }, 980);
-            UIKit.Stepper(right, "HEAD", -210, () => HeadNames[LookPart(Settings.Look, 1)], d => { SetLookPart(1, d); RefreshProfile(); }, 980);
-            UIKit.Stepper(right, "CAMO", -300, () => CamoNames[LookPart(Settings.Look, 2)], d => { SetLookPart(2, d); RefreshProfile(); }, 980);
-            UIKit.Stepper(right, "WEAPON 1", -390, () => Weapons.Get(Settings.Primary).Name, d =>
+
+            characterTabButton = UIKit.Btn(right, "CHARACTER", () => ShowTab(true), 30, null, "person");
+            characterTabButton.GetComponent<RectTransform>().At(0.5f, 1f, -255, -108, 500, 62, 0.5f, 1f);
+            weaponTabButton = UIKit.Btn(right, "WEAPONS", () => { ShowTab(false); RefreshProfile(); }, 30, null, "gps_fixed");
+            weaponTabButton.GetComponent<RectTransform>().At(0.5f, 1f, 255, -108, 500, 62, 0.5f, 1f);
+
+            // character: every piece chosen on its own, in two columns
+            characterTab = UIKit.Node(right, "CharacterTab");
+            characterTab.Fill();
+            lookValues.Clear();
+            void Look(Wardrobe.Slot slot, int column, int row)
+            {
+                System.Func<string> value = () => Wardrobe.Label(Settings.Look, slot);
+                var t = UIKit.MiniStepper(characterTab, Wardrobe.SlotNames[(int)slot], column == 0 ? -257 : 257, -184 - row * 88, 506, value, d => { ChangeLook(slot, d); RefreshProfile(); });
+                lookValues.Add((t, value));
+            }
+            System.Func<string> styleValue = () => Wardrobe.Styles[Wardrobe.StyleOf(Settings.Look)].Name;
+            var styleText = UIKit.MiniStepper(characterTab, "STYLE", 257, -184, 506, styleValue, d => { ChangeStyle(d); RefreshProfile(); });
+            lookValues.Add((styleText, styleValue));
+            Look(Wardrobe.Slot.Body, 0, 0);
+            Look(Wardrobe.Slot.Top, 0, 1); Look(Wardrobe.Slot.TopColor, 1, 1);
+            Look(Wardrobe.Slot.Bottom, 0, 2); Look(Wardrobe.Slot.BottomColor, 1, 2);
+            Look(Wardrobe.Slot.Head, 0, 3); Look(Wardrobe.Slot.HeadColor, 1, 3);
+            Look(Wardrobe.Slot.Vest, 0, 4); Look(Wardrobe.Slot.Bag, 1, 4);
+            Look(Wardrobe.Slot.Feet, 0, 5); Look(Wardrobe.Slot.Gloves, 1, 5);
+            Look(Wardrobe.Slot.Kit, 0, 6); Look(Wardrobe.Slot.Beard, 1, 6);
+
+            // weapons: both slots take any weapon, with the real data of the one shown
+            weaponTab = UIKit.Node(right, "WeaponTab");
+            weaponTab.Fill();
+            UIKit.Stepper(weaponTab, "WEAPON 1", -190, () => Weapons.Get(Settings.Primary).Name, d =>
             {
                 Settings.Primary = (byte)((Settings.Primary + Weapons.Count + d) % Weapons.Count);
                 previewWeapon = Settings.Primary;
                 RefreshProfile();
             }, 980);
-            UIKit.Stepper(right, "WEAPON 2", -480, () => Weapons.Get(Settings.Secondary).Name, d =>
+            UIKit.Stepper(weaponTab, "WEAPON 2", -284, () => Weapons.Get(Settings.Secondary).Name, d =>
             {
                 Settings.Secondary = (byte)((Settings.Secondary + Weapons.Count + d) % Weapons.Count);
                 previewWeapon = Settings.Secondary;
                 RefreshProfile();
             }, 980);
-            var gunBox = UIKit.Img(right, new Color(0, 0, 0, 0.35f), UIKit.Rounded);
-            gunBox.rectTransform.At(0.5f, 0f, -190, 20, 580, 220, 0.5f, 0f);
+            var gunBox = UIKit.Img(weaponTab, new Color(0, 0, 0, 0.35f), UIKit.Rounded);
+            gunBox.rectTransform.At(0.5f, 0f, -190, 30, 580, 380, 0.5f, 0f);
             gunView = UIKit.Node(gunBox.transform, "Gun").gameObject.AddComponent<RawImage>();
             gunView.rectTransform.Fill(6);
-            gunTitle = UIKit.Txt(right, "", 34, TextAnchor.UpperLeft, UIKit.Accent);
-            gunTitle.rectTransform.At(1f, 0f, -16, 190, 370, 50, 1f, 0f);
-            gunStats = UIKit.Txt(right, "", 21, TextAnchor.UpperLeft, UIKit.TextColor);
-            gunStats.rectTransform.At(1f, 0f, -16, 20, 370, 165, 1f, 0f);
+            gunTitle = UIKit.Txt(weaponTab, "", 34, TextAnchor.UpperLeft, UIKit.Accent);
+            gunTitle.rectTransform.At(1f, 0f, -16, 350, 370, 50, 1f, 0f);
+            gunStats = UIKit.Txt(weaponTab, "", 23, TextAnchor.UpperLeft, UIKit.TextColor);
+            gunStats.rectTransform.At(1f, 0f, -16, 30, 370, 310, 1f, 0f);
+            ShowTab(true);
+
             var back = UIKit.Btn(s, "SAVE", () => { Settings.PlayerName = profileName.text; ShowScreen("menu"); }, 36, UIKit.AccentDark, "play_arrow");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 30, 380, 90, 0.5f, 0f);
         }
@@ -99,12 +146,13 @@ namespace UA
         {
             if (stage == null) return;
             stage.ShowCharacter(Settings.Look, previewWeapon);
+            foreach (var (text, value) in lookValues) text.text = value();
             stage.ShowGun(previewWeapon);
             var w = Weapons.Get(previewWeapon);
             int bodyShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets));
             int headShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets * w.HeadMultiplier));
             gunTitle.text = w.Name;
-            gunStats.text = $"{w.Caliber}  ·  {w.MuzzleVelocity} m/s\n{w.Action}  ·  {1000f / w.FireRate:0} ms\nRange {w.EffectiveRange} m  ·  Mag {w.MagSize}\nScope {(w.Scope ? $"{60f / w.AimFov:0.#}x" : "none")}  ·  Dmg {w.Damage * w.Pellets:0}\nKill: {bodyShots} body / {headShots} head";
+            gunStats.text = $"{w.Caliber}\n{w.MuzzleVelocity} m/s muzzle velocity\n{w.Action}\n{1000f / w.FireRate:0} ms between shots\nRange {w.EffectiveRange} m  ·  Mag {w.MagSize}\nScope {(w.Scope ? $"{60f / w.AimFov:0.#}x" : "none")}\nDamage {w.Damage * w.Pellets:0}\nKill: {bodyShots} body / {headShots} head";
             var me = Session.I.Local;
             if (me != null && Session.I.Phase == Phase.Lobby) { me.Look = Settings.Look; Session.I.SetLoadout(Settings.Primary, Settings.Secondary); }
         }

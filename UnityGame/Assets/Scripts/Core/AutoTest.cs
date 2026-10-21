@@ -78,29 +78,61 @@ namespace UA
                 yield return Shot("00-guns");
                 Destroy(lineup);
             }
+            // every style of the wardrobe, front and back, then close-ups of the head wear
             var row = new System.Collections.Generic.List<GameObject>();
-            string[] prefabs = { "Agent", "Agent_F" };
-            for (int i = 0; i < 8; i++)
+            GameObject Dress(int look, Vector3 pos, float yaw)
             {
-                var prefab = Resources.Load<GameObject>(prefabs[i / 4]);
-                if (prefab == null) continue;
-                var go = Instantiate(prefab, new Vector3(i * 1.1f, 300, 0), Quaternion.Euler(0, 180, 0));
+                var prefab = Resources.Load<GameObject>(Wardrobe.Female(look) ? "Agent_F" : "Agent");
+                if (prefab == null) return null;
+                var go = Instantiate(prefab, pos, Quaternion.Euler(0, yaw, 0));
                 var agent = go.GetComponent<Agent>();
-                agent.SetLook(i % 4 + (i / 2) % 2 * 4 + (i % 2) * 32);
-                agent.SetWeapon(i % 6);
+                agent.SetTeamColor(row.Count % 2 == 0 ? new Color(0.18f, 0.42f, 0.95f) : new Color(0.95f, 0.25f, 0.2f));
+                agent.SetLook(look);
+                agent.SetWeapon(row.Count % 4 == 3 ? 4 : row.Count % 3);
                 row.Add(go);
+                return go;
             }
-            cam.transform.SetPositionAndRotation(new Vector3(3.85f, 301.1f, -6.5f), Quaternion.Euler(4, 0, 0));
-            yield return Wait(1f);
-            yield return Shot("00-characters");
-            // close-up of the faces and head gear
-            cam.Cam.fieldOfView = 28;
-            cam.transform.SetPositionAndRotation(new Vector3(1.65f, 301.62f, -3.2f), Quaternion.LookRotation(new Vector3(0, -0.02f, 1f)));
-            yield return Wait(0.5f);
+            for (int half = 0; half < 2; half++)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    int style = half * 5 + i;
+                    int look = Wardrobe.Apply(Wardrobe.Set(0, Wardrobe.Slot.Body, (style >= 8 ? 2 : 0) + i % 2), Wardrobe.Styles[style]);
+                    look = Wardrobe.Set(look, Wardrobe.Slot.TopColor, (style * 3) % 8);
+                    look = Wardrobe.Set(look, Wardrobe.Slot.BottomColor, Wardrobe.Get(look, Wardrobe.Slot.Top) == 0 ? (style * 3) % 8 : style % 3);
+                    look = Wardrobe.Set(look, Wardrobe.Slot.HeadColor, style % 4);
+                    Dress(look, new Vector3(i * 1.05f, 300, 0), 180);
+                }
+                cam.transform.SetPositionAndRotation(new Vector3(2.1f, 301.0f, -5.4f), Quaternion.Euler(3, 0, 0));
+                cam.Cam.fieldOfView = 34;
+                yield return Wait(1f);
+                yield return Shot(half == 0 ? "00-styles-a" : "00-styles-b");
+                foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 0, 0);
+                yield return Wait(0.3f);
+                yield return Shot(half == 0 ? "00-styles-a-back" : "00-styles-b-back");
+                foreach (var go in row) Destroy(go);
+                row.Clear();
+            }
+            // head wear close-ups: 12 options on alternating bodies
+            for (int i = 0; i < 12; i++)
+            {
+                int head = i + 1;
+                int look = Wardrobe.Set(0, Wardrobe.Slot.Body, head == 8 ? 2 + i % 2 : i % 2);
+                look = Wardrobe.Set(Wardrobe.Set(look, Wardrobe.Slot.Head, head), Wardrobe.Slot.Top, head == 8 ? 6 : i % 6);
+                look = Wardrobe.Set(Wardrobe.Set(look, Wardrobe.Slot.Beard, i % 3 == 0 ? 0 : 1), Wardrobe.Slot.HeadColor, i % 4);
+                Dress(look, new Vector3((i % 6) * 0.62f + (i / 6) * 6f, 300, 0), 160);
+            }
+            cam.Cam.fieldOfView = 30;
+            cam.transform.SetPositionAndRotation(new Vector3(1.55f, 301.62f, -2.6f), Quaternion.Euler(2, 0, 0));
+            yield return Wait(0.6f);
             yield return Shot("00-faces");
-            cam.transform.SetPositionAndRotation(new Vector3(6.05f, 301.55f, -3.2f), Quaternion.LookRotation(new Vector3(0, -0.02f, 1f)));
-            yield return Wait(0.5f);
-            yield return Shot("00-faces-female");
+            cam.transform.SetPositionAndRotation(new Vector3(7.55f, 301.62f, -2.6f), Quaternion.Euler(2, 0, 0));
+            yield return Wait(0.3f);
+            yield return Shot("00-faces-2");
+            foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 20, 0);
+            cam.transform.SetPositionAndRotation(new Vector3(1.55f, 301.62f, -2.6f), Quaternion.Euler(2, 0, 0));
+            yield return Wait(0.3f);
+            yield return Shot("00-faces-back");
             foreach (var go in row) Destroy(go);
             CameraRig.Frozen = false;
             app.ShowScreen("menu");

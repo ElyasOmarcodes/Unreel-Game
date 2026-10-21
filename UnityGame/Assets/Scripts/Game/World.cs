@@ -107,9 +107,9 @@ namespace UA
 
         private void Create(PlayerState p, Session s)
         {
-            // every player gets a stable look: body (male / female), skin, head gear and camo
-            int look = p.Look % 64;
-            var prefab = agentPrefabs[((look / 16) % 2) % agentPrefabs.Length];
+            // every player is dressed as they built their character (Wardrobe)
+            int look = p.Look;
+            var prefab = agentPrefabs[(Wardrobe.Female(look) ? 1 : 0) % agentPrefabs.Length];
             var go = Instantiate(prefab, p.Pos, Quaternion.Euler(0, p.Yaw, 0));
             go.name = "Agent " + p.Name;
             var agent = go.GetComponent<Agent>();

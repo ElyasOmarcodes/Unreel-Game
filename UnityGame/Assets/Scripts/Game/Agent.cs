@@ -18,17 +18,28 @@ namespace UA
         public Renderer[] AllRenderers = new Renderer[0];
         public Hitbox[] Hitboxes = new Hitbox[0];
         public CharacterController Controller;
-        [Tooltip("Head gear options (helmet, cap, beret, mask); one is shown per look")]
-        public GameObject[] Headgear = new GameObject[0];
-        [Tooltip("Camo suits; the mannequin material named Suit* is replaced per look")]
-        public Material[] Suits = new Material[0];
-        public Renderer[] SuitRenderers = new Renderer[0];
         [Tooltip("Realistic characters: light and dark skin (material named Skin_*) on these renderers")]
         public Material[] Skins = new Material[0];
         public Renderer[] SkinRenderers = new Renderer[0];
-        [Tooltip("Hair and eyebrows, hidden under the balaclava")]
-        public Renderer[] HairRenderers = new Renderer[0];
-        public GameObject Beard;
+        [Tooltip("Every piece of clothing and gear; SetLook shows the ones the look picks")]
+        public OutfitPart[] Parts = new OutfitPart[0];
+
+        /// <summary>One wardrobe piece: shown when the look's value in Slot is one of Mask (and in Slot2 one of Mask2).</summary>
+        [System.Serializable]
+        public class OutfitPart
+        {
+            public GameObject Object;
+            public Wardrobe.Slot Slot;
+            public int Mask;
+            public bool HasSecond;
+            public Wardrobe.Slot Slot2;
+            public int Mask2;
+            [Tooltip("Colour chosen by this slot of the look: a material per colour (camo) or a tint")]
+            public bool Coloured;
+            public Wardrobe.Slot ColorSlot;
+            public Material[] Materials = new Material[0];
+            public Color[] Colors = new Color[0];
+        }
 
         public byte Id { get; private set; }
         public bool Alive { get; private set; } = true;
@@ -74,16 +85,31 @@ namespace UA
         private void LateUpdate()
         {
             if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
+            if (State.MoveY > 1.2f) return;   // sprinting: the gun is carried, not aimed
             var muzzle = Muzzles[weapon];
-            var target = AimPoint ?? Eye + Quaternion.Euler(-State.Pitch, State.Yaw, 0) * Vector3.forward * 60f;
-            if ((target - muzzle.position).sqrMagnitude < 1f) target = Eye + (target - Eye).normalized * 1.5f;
+            var forward = Quaternion.Euler(-State.Pitch, State.Yaw, 0) * Vector3.forward;
+            var target = Eye + forward * 60f;
+            // a point right in front of the face (a wall, an obstacle while running) would twist the
+            // arms: then aim along the view direction instead
+            if (AimPoint.HasValue)
+            {
+                var toPoint = AimPoint.Value - Eye;
+                if (toPoint.magnitude > 4f && Vector3.Dot(toPoint.normalized, forward) > 0.9f) target = AimPoint.Value;
+            }
             if (chestBone != null && !State.Prone)
             {
                 var turn = Quaternion.FromToRotation(muzzle.forward, (target - muzzle.position).normalized);
-                chestBone.rotation = Quaternion.Slerp(Quaternion.identity, turn, 0.75f) * chestBone.rotation;
+                chestBone.rotation = Limit(Quaternion.Slerp(Quaternion.identity, turn, 0.75f), 30f) * chestBone.rotation;
             }
             for (int i = 0; i < 2; i++)
-                handBone.rotation = Quaternion.FromToRotation(muzzle.forward, (target - muzzle.position).normalized) * handBone.rotation;
+                handBone.rotation = Limit(Quaternion.FromToRotation(muzzle.forward, (target - muzzle.position).normalized), 20f) * handBone.rotation;
+        }
+
+        private static Quaternion Limit(Quaternion q, float maxDegrees)
+        {
+            q.ToAngleAxis(out float angle, out var axis);
+            if (angle > 180f) angle -= 360f;
+            return Mathf.Abs(angle) <= maxDegrees || float.IsNaN(axis.x) ? q : Quaternion.AngleAxis(Mathf.Sign(angle) * maxDegrees, axis);
         }
 
         public void Init(PlayerState state, bool local, bool bot, Color teamColor)
@@ -166,22 +192,31 @@ namespace UA
             }
         }
 
-        /// <summary>
-        /// Outfit for this player. look = skin * 32 + body * 16 + camo * 4 + head gear
-        /// (the body picks the prefab; the beard grows on every other camo).
-        /// </summary>
+        /// <summary>Dress the agent as the look says (see Wardrobe).</summary>
         public void SetLook(int look)
         {
-            int gear = Headgear.Length > 0 ? look % Headgear.Length : 0;
-            for (int i = 0; i < Headgear.Length; i++)
-                if (Headgear[i] != null) Headgear[i].SetActive(i == gear);
-            bool masked = Headgear.Length > 3 && gear == 3;
-            foreach (var r in HairRenderers)
-                if (r != null) r.gameObject.SetActive(!masked);
-            if (Beard != null) Beard.SetActive(!masked && ((look >> 2) & 1) == 1);
+            foreach (var part in Parts)
+            {
+                if (part.Object == null) continue;
+                bool on = ((part.Mask >> Wardrobe.Get(look, part.Slot)) & 1) == 1
+                          && (!part.HasSecond || ((part.Mask2 >> Wardrobe.Get(look, part.Slot2)) & 1) == 1);
+                part.Object.SetActive(on);
+                if (!on || !part.Coloured) continue;
+                int c = Wardrobe.Get(look, part.ColorSlot);
+                foreach (var r in part.Object.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (part.Materials.Length > 0) r.sharedMaterial = part.Materials[c % part.Materials.Length];
+                    else if (part.Colors.Length > 0)
+                    {
+                        var block = new MaterialPropertyBlock();
+                        block.SetColor("_Color", part.Colors[c % part.Colors.Length]);
+                        r.SetPropertyBlock(block);
+                    }
+                }
+            }
             if (Skins.Length > 0)
             {
-                var tone = Skins[(look / 32) % Skins.Length];
+                var tone = Skins[Wardrobe.Get(look, Wardrobe.Slot.Body) % Skins.Length];
                 foreach (var r in SkinRenderers)
                 {
                     if (r == null) continue;
@@ -190,15 +225,6 @@ namespace UA
                         if (materials[i] != null && materials[i].name.StartsWith("Skin_")) materials[i] = tone;
                     r.sharedMaterials = materials;
                 }
-            }
-            if (Suits.Length == 0) return;
-            var suit = Suits[(look / Mathf.Max(1, Headgear.Length)) % Suits.Length];
-            foreach (var r in SuitRenderers)
-            {
-                var materials = r.sharedMaterials;
-                for (int i = 0; i < materials.Length; i++)
-                    if (materials[i] != null && materials[i].name.StartsWith("Suit")) materials[i] = suit;
-                r.sharedMaterials = materials;
             }
         }
 

@@ -78,6 +78,10 @@ public static class CiBuild
             if (input != null) { input.intValue = 0; so.ApplyModifiedProperties(); }
         }
         QualitySettings.shadowDistance = 35;
+        // skin the characters and their clothes on the GPU (many skinned meshes per agent)
+        var deformation = typeof(PlayerSettings).GetProperty("meshDeformation");
+        if (deformation != null && deformation.CanWrite) deformation.SetValue(null, Enum.Parse(deformation.PropertyType, "GPU"));
+        else typeof(PlayerSettings).GetProperty("gpuSkinning")?.SetValue(null, true);
         AssetDatabase.SaveAssets();
     }
 

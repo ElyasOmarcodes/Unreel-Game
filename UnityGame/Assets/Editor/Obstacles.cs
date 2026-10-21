@@ -135,14 +135,8 @@ public static class Obstacles
         Box("Stripe", t, new Vector3(0, 0.45f, -0.356f), new Vector3(1.0f, 0.12f, 0.01f), stripe, 1f, 0f, false);
         foreach (float x in new[] { -0.5f, 0.5f })
             Box("Handle", t, new Vector3(x, 0.55f, 0), new Vector3(0.06f, 0.06f, 0.8f), Steel, 1f, 0f, false);
-        var lamp = MeshGen.TexCylinder("Lamp", t.TransformPoint(new Vector3(0.45f, 0.77f, 0.2f)), 0.05f, 0.08f, stripe, 1f, t, false);
-        var light = lamp.AddComponent<Light>();
-        light.type = LightType.Point;
-        light.color = new Color(1f, 0.8f, 0.3f);
-        light.range = 3f;
-        light.intensity = 1.2f;
-        light.shadows = LightShadows.None;
-        light.transform.localPosition += Vector3.up * 0.1f;
+        // a glowing lamp (emissive only: a real light per crate costs too much on phones)
+        MeshGen.TexCylinder("Lamp", t.TransformPoint(new Vector3(0.45f, 0.77f, 0.2f)), 0.05f, 0.08f, stripe, 1f, t, false);
         t.gameObject.AddComponent<AmmoBox>();
     }
 

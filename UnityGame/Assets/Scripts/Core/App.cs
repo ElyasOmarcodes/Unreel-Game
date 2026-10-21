@@ -222,8 +222,9 @@ namespace UA
             splashBar = UIKit.Img(barBack.transform, UIKit.Accent, UIKit.Rounded);
             splashBar.rectTransform.Fill();
             splashBar.rectTransform.anchorMax = new Vector2(0, 1);
-            var credits = UIKit.Txt(s, "Made with Unity  -  3D characters, animations and city by Quaternius (CC0)", 26, TextAnchor.MiddleCenter, new Color(1, 1, 1, 0.4f));
-            credits.rectTransform.At(0.5f, 0f, 0, 60, 1700, 40);
+            var credits = UIKit.Txt(s, "Made with Unity  -  3D characters, animations and city by Quaternius (CC0)\n"
+                + "Military gear based on \"Military Character Kit 1.1\" by britdawgmasterfunk (sketchfab.com), CC-BY-4.0", 24, TextAnchor.MiddleCenter, new Color(1, 1, 1, 0.4f));
+            credits.rectTransform.At(0.5f, 0f, 0, 50, 1800, 70);
         }
 
         private void BuildMenu()

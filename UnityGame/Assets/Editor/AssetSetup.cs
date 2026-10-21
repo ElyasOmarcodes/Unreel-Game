@@ -557,7 +557,22 @@ public static class AssetSetup
             var tip = new GameObject("Muzzle").transform;
             tip.SetParent(fromPack.transform, false);
             tip.localPosition = new Vector3(0, size.y * (0.5f - grip.y) + size.y * 0.25f, size.z * (1f - grip.x));
-            if (id == 1) AddScope(fromPack.transform, size.y * (1f - grip.y), size.z * 0.06f);
+            if (id == 1)
+            {
+                // sit the sight on the top of the receiver (highest point of the gun just ahead of the grip)
+                float z = size.z * 0.08f, top = float.MinValue;
+                foreach (var filter in fromPack.GetComponentsInChildren<MeshFilter>())
+                {
+                    if (filter.sharedMesh == null || !filter.sharedMesh.isReadable) continue;
+                    foreach (var v in filter.sharedMesh.vertices)
+                    {
+                        var p = fromPack.transform.InverseTransformPoint(filter.transform.TransformPoint(v));
+                        if (Mathf.Abs(p.z - z) < size.z * 0.12f && p.y > top) top = p.y;
+                    }
+                }
+                if (top == float.MinValue) top = size.y * (1f - grip.y);
+                AddScope(fromPack.transform, top - 0.005f, z);
+            }
             return fromPack;
         }
         var metal = Solid("GunMetal", new Color(0.13f, 0.13f, 0.14f), 0.55f, 0.75f);
@@ -698,7 +713,7 @@ public static class AssetSetup
         Debug.Log($"[Setup] gun lineup: {names.Count} models");
     }
 
-    private static Texture2D Camo(string name, Color[] tones, float scale)
+    public static Texture2D Camo(string name, Color[] tones, float scale)
     {
         string path = $"{Generated}/Textures/{name}.png";
         const int size = 256;
@@ -722,7 +737,7 @@ public static class AssetSetup
 
     private static Material[] suits;
 
-    private static Material[] Suits()
+    public static Material[] Suits()
     {
         if (suits != null && suits.All(m => m != null)) return suits;
         suits = new[]
@@ -784,9 +799,7 @@ public static class AssetSetup
             }
         }
 
-        // materials: skin on the body, camo uniform (per look), team coloured plate carrier and helmet, gear
-        var suitOptions = Suits();
-        var suit = suitOptions[0];
+        // materials: skin on the body (light or dark per look), eyes, hair; the clothes come from the Dresser
         var skin = Mat("Skin", new Color(0.76f, 0.58f, 0.46f), 0.32f);
         bool realistic = modelPath.Contains("/UBC/");
         string sex = modelPath.Contains("Female") ? "Female" : "Male";
@@ -813,14 +826,9 @@ public static class AssetSetup
         // the body is the biggest skinned mesh (the others are eyes and eyebrows)
         var bodyRenderer = skinned.OrderByDescending(r => r.sharedMesh != null ? r.sharedMesh.vertexCount : 0).FirstOrDefault();
         var vestMat = Mat("TeamVest", new Color(0.45f, 0.46f, 0.48f), 0.25f);
-        var gear = Solid("Gear", new Color(0.16f, 0.17f, 0.14f), 0.25f);
-        var visor = Solid("Visor", new Color(0.05f, 0.06f, 0.08f), 0.92f, 0.4f);
-        var boots = Mat("Boots", new Color(0.14f, 0.11f, 0.08f), 0.35f);
-        var gloves = Mat("Gloves", new Color(0.09f, 0.09f, 0.1f), 0.3f);
         foreach (var s in skinned)
             s.sharedMaterials = s.sharedMaterials.Select(ForSlot).ToArray();
-        var hairRenderers = skinned.Where(r => r != bodyRenderer && r.sharedMaterials.Any(m => m == hair1 || m == hair2)).Cast<Renderer>().ToList();
-        GameObject beard = null;
+        GameObject hair = null, beard = null;
         if (realistic && bodyRenderer != null)
         {
             var bones = body.GetComponentsInChildren<Transform>(true).GroupBy(t => t.name).ToDictionary(g => g.Key, g => g.First());
@@ -838,114 +846,25 @@ public static class AssetSetup
                 hairRenderer.rootBone = src.rootBone != null && bones.TryGetValue(src.rootBone.name, out var rootBone) ? rootBone : bodyRenderer.rootBone;
                 hairRenderer.sharedMaterials = Enumerable.Repeat(m, Mathf.Max(1, src.sharedMaterials.Length)).ToArray();
                 hairRenderer.localBounds = bodyRenderer.localBounds;
-                hairRenderers.Add(hairRenderer);
                 return hairRenderer;
             }
-            Attach(sex == "Male" ? "Hair_Buzzed" : "Hair_Buns", sex == "Male" ? hair1 : hair2);
+            var hairRenderer = Attach(sex == "Male" ? "Hair_Buzzed" : "Hair_Buns", sex == "Male" ? hair1 : hair2);
+            if (hairRenderer != null) hair = hairRenderer.gameObject;
             if (sex == "Male")
             {
                 var beardRenderer = Attach("Hair_Beard", hair1);
-                if (beardRenderer != null) { beard = beardRenderer.gameObject; hairRenderers.Remove(beardRenderer); }
+                if (beardRenderer != null) beard = beardRenderer.gameObject;
             }
         }
+        // the whole wardrobe, cut for this body at rest and skinned to its bones (Dresser, Outfit)
         var teamRenderers = new List<Renderer>();
-        var headgear = new List<GameObject>();
-
-        // clothes made from the body mesh (in the aim pose sampled above)
-        var uniform = new List<Renderer>();
-        foreach (var s in new[] { bodyRenderer }.Where(r => r != null))
+        var parts = new List<Agent.OutfitPart>();
+        if (bodyRenderer != null)
         {
-            var shirt = Outfit.Shell(s, prefabName, "Shirt", new[] { Outfit.Region.Torso, Outfit.Region.Arms }, 0.012f, suit);
-            var pants = Outfit.Shell(s, prefabName, "Trousers", new[] { Outfit.Region.Legs }, 0.010f, suit);
-            Outfit.Shell(s, prefabName, "Boots", new[] { Outfit.Region.Feet }, 0.018f, boots);
-            Outfit.Shell(s, prefabName, "Gloves", new[] { Outfit.Region.Hands }, 0.004f, gloves);
-            var vest = Outfit.Shell(s, prefabName, "PlateCarrier", new[] { Outfit.Region.Torso }, 0.04f, vestMat,
-                vertex => vertex.y < (head != null ? head.position.y - 0.12f : 1.45f));
-            if (shirt != null) uniform.Add(shirt);
-            if (pants != null) uniform.Add(pants);
-            if (vest != null) teamRenderers.Add(vest);
-        }
-        if (uniform.Count == 0)
-            foreach (var s in new[] { bodyRenderer }.Where(r => r != null))
-            {
-                s.sharedMaterials = s.sharedMaterials.Select(_ => suit).ToArray();
-                uniform.Add(s);
-            }
-        Debug.Log($"[Setup] {prefabName}: {uniform.Count} uniform parts, vest {teamRenderers.Count}");
-
-        if (spine != null)
-        {
-            // backpack and chest pouches, placed in the current pose then attached to the chest bone (+Z = forward)
-            var holder = new GameObject("Gear").transform;
-            holder.SetPositionAndRotation(spine.position, root.transform.rotation);
-            if (teamRenderers.Count == 0)
-                teamRenderers.Add(Part(holder, PrimitiveType.Cube, new Vector3(0, -0.05f, 0.02f), new Vector3(0.34f, 0.32f, 0.22f), vestMat).GetComponent<Renderer>());
-            Part(holder, PrimitiveType.Cube, new Vector3(0, -0.06f, -0.2f), new Vector3(0.26f, 0.3f, 0.1f), gear);
-            Part(holder, PrimitiveType.Cube, new Vector3(-0.07f, -0.17f, 0.17f), new Vector3(0.07f, 0.1f, 0.045f), gear);
-            Part(holder, PrimitiveType.Cube, new Vector3(0.0f, -0.17f, 0.175f), new Vector3(0.07f, 0.1f, 0.045f), gear);
-            Part(holder, PrimitiveType.Cube, new Vector3(0.07f, -0.17f, 0.17f), new Vector3(0.07f, 0.1f, 0.045f), gear);
-            holder.SetParent(spine, true);
-        }
-        if (head != null)
-        {
-            // measure the head in the character's frame (+Z forward, +Y up)
-            var frame = new GameObject("HeadFrame").transform;
-            frame.SetPositionAndRotation(head.position, root.transform.rotation);
-            var hb = Outfit.HeadBounds(new[] { bodyRenderer }, head, frame) ?? new Bounds(new Vector3(0, 0.12f, 0.02f), new Vector3(0.2f, 0.25f, 0.23f));
-            Debug.Log($"[Setup] {prefabName} head bounds {hb.center} {hb.size}");
-            Object.DestroyImmediate(frame.gameObject);
-            Vector3 c = hb.center, sz = hb.size;
-            float top = hb.max.y, front = hb.max.z, eyeY = c.y - sz.y * 0.03f;
-            GameObject Gear(string name, bool headgearOption = true)
-            {
-                var g = new GameObject(name);
-                g.transform.SetPositionAndRotation(head.position, root.transform.rotation);
-                if (headgearOption) headgear.Add(g);
-                return g;
-            }
-            var dark = Solid("GearDark", new Color(0.08f, 0.08f, 0.09f), 0.3f);
-            // face: eyes, brows, nose, mouth, ears, short hair
-            var face = Gear("Face", false).transform;
-            var eyeWhite = Solid("EyeWhite", new Color(0.92f, 0.92f, 0.9f), 0.8f);
-            var iris = Solid("Iris", new Color(0.18f, 0.12f, 0.07f), 0.9f);
-            var brow = Solid("Brow", new Color(0.12f, 0.08f, 0.05f), 0.1f);
-            var lips = Solid("Lips", new Color(0.55f, 0.3f, 0.27f), 0.4f);
-            var hair = Solid("Hair", new Color(0.09f, 0.07f, 0.05f), 0.2f);
-            foreach (float side in new[] { -1f, 1f })
-            {
-                var eye = new Vector3(c.x + side * sz.x * 0.2f, eyeY, front - sz.z * 0.045f);
-                Part(face, PrimitiveType.Sphere, eye, new Vector3(0.026f, 0.02f, 0.02f), eyeWhite);
-                Part(face, PrimitiveType.Sphere, eye + new Vector3(0, 0, 0.008f), new Vector3(0.012f, 0.012f, 0.008f), iris);
-                Part(face, PrimitiveType.Cube, eye + new Vector3(0, 0.022f, 0.004f), new Vector3(0.032f, 0.006f, 0.01f), brow, new Vector3(0, 0, side * -8f));
-                Part(face, PrimitiveType.Sphere, new Vector3(c.x + side * sz.x * 0.5f, eyeY - 0.01f, c.z), new Vector3(0.016f, 0.05f, 0.035f), skin);
-            }
-            Part(face, PrimitiveType.Cube, new Vector3(c.x, eyeY - sz.y * 0.13f, front - 0.002f), new Vector3(0.022f, 0.045f, 0.03f), skin, new Vector3(-18, 0, 0));
-            Part(face, PrimitiveType.Cube, new Vector3(c.x, eyeY - sz.y * 0.3f, front - sz.z * 0.08f), new Vector3(0.045f, 0.008f, 0.012f), lips);
-            Part(face, PrimitiveType.Sphere, new Vector3(c.x, top - sz.y * 0.24f, c.z - sz.z * 0.06f), new Vector3(sz.x * 1.06f, sz.y * 0.55f, sz.z * 1.04f), hair);
-            face.SetParent(head, true);
-            if (realistic) Object.DestroyImmediate(face.gameObject);   // the real face has eyes, brows and hair
-            // 0: combat helmet with goggles
-            var helmet = Gear("Helmet").transform;
-            teamRenderers.Add(Part(helmet, PrimitiveType.Sphere, new Vector3(c.x, top - sz.y * 0.28f, c.z - sz.z * 0.03f), new Vector3(sz.x * 1.3f, sz.y * 0.72f, sz.z * 1.28f), vestMat).GetComponent<Renderer>());
-            Part(helmet, PrimitiveType.Cube, new Vector3(c.x, top - sz.y * 0.2f, front + 0.012f), new Vector3(sz.x * 0.85f, 0.045f, 0.04f), visor);
-            // 1: baseball cap
-            var cap = Gear("Cap").transform;
-            teamRenderers.Add(Part(cap, PrimitiveType.Sphere, new Vector3(c.x, top - sz.y * 0.2f, c.z), new Vector3(sz.x * 1.14f, sz.y * 0.56f, sz.z * 1.12f), vestMat).GetComponent<Renderer>());
-            Part(cap, PrimitiveType.Cube, new Vector3(c.x, top - sz.y * 0.3f, front + sz.z * 0.14f), new Vector3(sz.x * 0.85f, 0.014f, sz.z * 0.42f), dark, new Vector3(-6, 0, 0));
-            // 2: beret and sunglasses
-            var beret = Gear("Beret").transform;
-            teamRenderers.Add(Part(beret, PrimitiveType.Sphere, new Vector3(c.x + sz.x * 0.08f, top - sz.y * 0.06f, c.z), new Vector3(sz.x * 1.2f, sz.y * 0.3f, sz.z * 1.16f), vestMat, new Vector3(0, 0, -12)).GetComponent<Renderer>());
-            Part(beret, PrimitiveType.Cube, new Vector3(c.x, eyeY, front + 0.006f), new Vector3(sz.x * 0.8f, 0.032f, 0.016f), visor);
-            // 3: balaclava with goggles and headset
-            var mask = Gear("Balaclava").transform;
-            Part(mask, PrimitiveType.Sphere, c, new Vector3(sz.x * 1.18f, sz.y * 1.12f, sz.z * 1.18f), dark);
-            Part(mask, PrimitiveType.Cube, new Vector3(c.x, eyeY, front + 0.02f), new Vector3(sz.x * 0.82f, 0.04f, 0.035f), visor);
-            teamRenderers.Add(Part(mask, PrimitiveType.Cylinder, new Vector3(c.x, top - sz.y * 0.05f, c.z), new Vector3(sz.x * 1.3f, 0.01f, 0.05f), vestMat, new Vector3(0, 0, 90)).GetComponent<Renderer>());
-            foreach (var g in headgear)
-            {
-                g.transform.SetParent(head, true);
-                g.SetActive(g == headgear[0]);
-            }
+            var dressed = Dresser.Dress(new Outfit.Body(bodyRenderer, prefabName), prefabName, sex == "Female", hair, beard,
+                skinned.Where(r => r != bodyRenderer).ToArray(), vestMat);
+            parts = dressed.Parts;
+            teamRenderers = dressed.Team;
         }
 
         // weapons in the right hand, aligned with the character's forward direction in the aim pose
@@ -1001,13 +920,9 @@ public static class AssetSetup
         agent.AllRenderers = root.GetComponentsInChildren<Renderer>(true);
         agent.Hitboxes = hitboxes.ToArray();
         agent.Controller = cc;
-        agent.Headgear = headgear.ToArray();
-        agent.Suits = suitOptions;
-        agent.SuitRenderers = uniform.ToArray();
         agent.Skins = skins;
         agent.SkinRenderers = realistic && bodyRenderer != null ? new Renderer[] { bodyRenderer } : new Renderer[0];
-        agent.HairRenderers = hairRenderers.ToArray();
-        agent.Beard = beard;
+        agent.Parts = parts.ToArray();
 
         PrefabUtility.SaveAsPrefabAsset(root, $"Assets/Resources/{prefabName}.prefab");
         Object.DestroyImmediate(root);

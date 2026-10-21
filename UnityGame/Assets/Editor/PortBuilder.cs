@@ -390,7 +390,7 @@ public static class PortBuilder
                 var q = p + new Vector3(R(-2.5f, 2.5f), 0, R(-1.5f, 1.5f));
                 Nature.Place(Nature.Bushes[rng.Next(Nature.Bushes.Length)], q, R(0, 360), R(1f, 1.6f), t);
             }
-            for (int i = 0; i < size.x * size.z / 6f; i++)
+            for (int i = 0; i < size.x * size.z / 10f; i++)
             {
                 var p = c + new Vector3(R(-0.48f, 0.48f) * size.x, 0.16f, R(-0.48f, 0.48f) * size.z);
                 Nature.Place(Nature.Ground[rng.Next(Nature.Ground.Length)], p, R(0, 360), R(0.4f, 0.8f), t);

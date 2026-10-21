@@ -255,6 +255,27 @@ namespace UA
             return v;
         }
 
+        /// <summary>A small stepper for two-column pages: label above, value between the arrows.</summary>
+        public static Text MiniStepper(Transform parent, string label, float x, float y, float width, Func<string> value, Action<int> change)
+        {
+            var row = Node(parent, "Row " + label).At(0.5f, 1f, x, y, width, 80, 0.5f, 1f);
+            var bg = Img(row, new Color(1, 1, 1, 0.04f), Rounded);
+            bg.rectTransform.Fill();
+            var l = Txt(row, label, 20, TextAnchor.UpperCenter, Muted);
+            l.rectTransform.At(0.5f, 1f, 0, -4, width - 150, 26, 0.5f, 1f);
+            var v = Txt(row, value(), 27, TextAnchor.MiddleCenter, Accent);
+            v.rectTransform.At(0.5f, 0f, 0, 6, width - 150, 44, 0.5f, 0f);
+            v.horizontalOverflow = HorizontalWrapMode.Wrap;
+            v.resizeTextForBestFit = true;
+            v.resizeTextMinSize = 16;
+            v.resizeTextMaxSize = 27;
+            var minus = Btn(row, "<", () => { change(-1); v.text = value(); }, 36);
+            minus.GetComponent<RectTransform>().At(0f, 0.5f, 8, 0, 64, 64, 0f, 0.5f);
+            var plus = Btn(row, ">", () => { change(1); v.text = value(); }, 36);
+            plus.GetComponent<RectTransform>().At(1f, 0.5f, -8, 0, 64, 64, 1f, 0.5f);
+            return v;
+        }
+
         /// <summary>Dark glass panel with a thin border and an accent line on top.</summary>
         public static RectTransform Panel(Transform parent, float w, float h, float y = 0)
         {

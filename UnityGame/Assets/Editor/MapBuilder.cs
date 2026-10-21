@@ -286,18 +286,18 @@ public static class MapBuilder
                 cursor += width + R(0f, 2.5f);
             }
         }
-        // fire escapes on one or two of the buildings: low ones to the roof, tall ones to a perch
+        // fire escapes up to the roof of one or two of the lower buildings
         var steel = PortBuilder.Pbr("EscapeSteel", "Metal032", new Color(0.25f, 0.26f, 0.27f), 0.6f);
         var plate = PortBuilder.Pbr("Walkway", "DiamondPlate009", new Color(0.8f, 0.8f, 0.8f), 0.8f);
         int escapes = 0;
         foreach (var b in placed.OrderBy(_ => rng.Next()))
         {
             if (escapes >= 1 + (bx + bz + 2) % 2 || b.width < 10f) continue;
+            // only buildings low enough for a fire escape all the way to the roof
             float height = WorldBounds(b.go).max.y;
-            bool toRoof = height < 17f;
-            float target = toRoof ? height : 3.2f * (2 + rng.Next(2));
+            if (height > 17f) continue;
             var facade = center + b.along * (b.start + b.width / 2f - 4.3f) + b.outward * (BlockSize / 2f - Sidewalk) + Vector3.up * 0.16f;
-            global::Buildings.FireEscape(block, facade, b.along, b.outward, target - 0.16f, toRoof, plate, steel);
+            global::Buildings.FireEscape(block, facade, b.along, b.outward, height - 0.16f, true, plate, steel);
             escapes++;
         }
 
@@ -403,7 +403,7 @@ public static class MapBuilder
             }
         }
         // grass tufts and ferns on the lawn, away from the paths
-        for (int i = 0; i < 90; i++)
+        for (int i = 0; i < 50; i++)
         {
             var p = new Vector3(R(-16.5f, 16.5f), 0.19f, R(-16.5f, 16.5f));
             if (Mathf.Abs(p.x) < 2.6f || Mathf.Abs(p.z) < 2.6f || p.magnitude < 5f) continue;

@@ -34,24 +34,24 @@ namespace UA
         private readonly Dictionary<int, Finger> fingers = new Dictionary<int, Finger>();
         private bool lastFireHeld;
 
+        /// <summary>Default layout (the player's own arrangement from the layout editor).</summary>
         public static Vector2 DefaultCenter(Button b)
         {
             float w = UIKit.Width;
             switch (b)
             {
-                case Button.Fire: return new Vector2(w - 260, 300);
-                case Button.FireLeft: return new Vector2(250, 610);
-                case Button.Aim: return new Vector2(w - 500, 170);
-                case Button.Jump: return new Vector2(w - 100, 470);
-                case Button.Crouch: return new Vector2(w - 90, 170);
-                case Button.Prone: return new Vector2(w - 100, 650);
-                case Button.Reload: return new Vector2(w - 480, 380);
-                case Button.Swap: return new Vector2(w - 470, 590);
-                // left side: just up and right of the left fire button
-                case Button.Grenade: return new Vector2(395, 715);
-                case Button.Ammo: return new Vector2(w - 700, 330);
+                case Button.Fire: return new Vector2(w - 222, 273);
+                case Button.FireLeft: return new Vector2(374, 811);
+                case Button.Grenade: return new Vector2(579, 838);
+                case Button.Aim: return new Vector2(w - 135, 539);
+                case Button.Jump: return new Vector2(w - 497, 370);
+                case Button.Crouch: return new Vector2(w - 476, 144);
+                case Button.Prone: return new Vector2(w - 246, 721);
+                case Button.Reload: return new Vector2(w - 369, 536);
+                case Button.Swap: return new Vector2(w - 214, 907);
+                case Button.Ammo: return new Vector2(w / 2f + 61, 413);
                 case Button.Pause: return new Vector2(80, 1000);
-                default: return new Vector2(200, 1000);
+                default: return new Vector2(199, 1000);
             }
         }
 
@@ -59,33 +59,34 @@ namespace UA
         {
             switch (b)
             {
-                case Button.Fire: return 120;
-                case Button.FireLeft: return 72;
-                case Button.Aim: return 70;
+                case Button.Fire: return 128;
+                case Button.FireLeft: return 90;
+                case Button.Aim: return 68;
+                case Button.Swap: return 62;
                 case Button.Pause:
-                case Button.Score: return 52;
-                default: return 58;
+                case Button.Score: return 50;
+                default: return 56;
             }
         }
 
         // the player can move and resize every button (settings > controls layout)
-        public static Vector2 ButtonCenter(Button b) => DefaultCenter(b) + new Vector2(PlayerPrefs.GetFloat($"btn_{b}_x", 0f), PlayerPrefs.GetFloat($"btn_{b}_y", 0f));
-        public static float ButtonRadius(Button b) => DefaultRadius(b) * PlayerPrefs.GetFloat($"btn_{b}_s", 1f);
-        public static bool ButtonVisible(Button b) => PlayerPrefs.GetInt($"btn_{b}_on", 1) == 1;
+        public static Vector2 ButtonCenter(Button b) => DefaultCenter(b) + new Vector2(PlayerPrefs.GetFloat($"btn2_{b}_x", 0f), PlayerPrefs.GetFloat($"btn2_{b}_y", 0f));
+        public static float ButtonRadius(Button b) => DefaultRadius(b) * PlayerPrefs.GetFloat($"btn2_{b}_s", 1f);
+        public static bool ButtonVisible(Button b) => PlayerPrefs.GetInt($"btn2_{b}_on", 1) == 1;
 
         public static void SaveButton(Button b, Vector2 center, float scale, bool visible)
         {
             var offset = center - DefaultCenter(b);
-            PlayerPrefs.SetFloat($"btn_{b}_x", offset.x);
-            PlayerPrefs.SetFloat($"btn_{b}_y", offset.y);
-            PlayerPrefs.SetFloat($"btn_{b}_s", scale);
-            PlayerPrefs.SetInt($"btn_{b}_on", visible ? 1 : 0);
+            PlayerPrefs.SetFloat($"btn2_{b}_x", offset.x);
+            PlayerPrefs.SetFloat($"btn2_{b}_y", offset.y);
+            PlayerPrefs.SetFloat($"btn2_{b}_s", scale);
+            PlayerPrefs.SetInt($"btn2_{b}_on", visible ? 1 : 0);
         }
 
         public static void ResetLayout()
         {
             foreach (var b in AllButtons)
-                foreach (var k in new[] { "x", "y", "s", "on" }) PlayerPrefs.DeleteKey($"btn_{b}_{k}");
+                foreach (var k in new[] { "x", "y", "s", "on" }) PlayerPrefs.DeleteKey($"btn2_{b}_{k}");
         }
 
         private static readonly Button[] AllButtons = (Button[])System.Enum.GetValues(typeof(Button));
