@@ -12,7 +12,7 @@ on:
       - .github/scripts/unity-emulator-test.sh
 
 env:
-  UNITY_VERSION: '6000.0'
+  UNITY_VERSION: '6000.0.x'
 
 jobs:
   build:
@@ -27,6 +27,18 @@ jobs:
           remove_tool_cache: false
 
       - uses: actions/checkout@v4
+
+      # Unity Hub 3.20+ lives in /usr/lib/unityhub, but the released unity-setup action still
+      # expects /opt/unityhub/unityhub. Install the Hub first and link the old location to it.
+      - name: Install Unity Hub
+        run: |
+          wget -qO - https://hub.unity3d.com/linux/keys/public | gpg --dearmor | sudo tee /usr/share/keyrings/Unity_Technologies_ApS.gpg >/dev/null
+          printf 'Types: deb\nURIs: https://hub.unity3d.com/linux/repos/deb\nSuites: stable\nComponents: main\nSigned-By: /usr/share/keyrings/Unity_Technologies_ApS.gpg\n' | sudo tee /etc/apt/sources.list.d/unityhub.sources
+          sudo apt-get update -q && sudo apt-get install -y -q unityhub
+          if [ -x /usr/lib/unityhub/unityhub ]; then HUB_DIR=/usr/lib/unityhub; else HUB_DIR=$(dirname "$(readlink -f "$(command -v unityhub)")"); fi
+          echo "Unity Hub directory: $HUB_DIR"
+          [ -x /opt/unityhub/unityhub ] || sudo ln -sfn "$HUB_DIR" /opt/unityhub
+          ls -la /opt/unityhub/unityhub
 
       - name: Install the Unity editor with Android support
         uses: RageAgainstThePixel/unity-setup@v2
