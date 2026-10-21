@@ -1,0 +1,154 @@
+name: Unity Android (test APK)
+
+# Builds the Unity project in UnityGame/ into an Android APK with a Unity Personal license.
+# The license is activated online from the UNITY_EMAIL / UNITY_PASSWORD secrets and returned
+# automatically at the end of the job (post step of activate-unity-license).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - UnityGame/**
+      - .github/workflows/unity-android.yml
+      - .github/scripts/unity-emulator-test.sh
+
+env:
+  UNITY_VERSION: '6000.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Free disk space (the Unity editor with Android tools needs ~15 GB)
+        uses: endersonmenezes/free-disk-space@7901478139cff6e9d44df5972fd8ab8fcade4db1 # v3.2.2
+        with:
+          remove_android: true
+          remove_dotnet: false
+          remove_tool_cache: false
+
+      - uses: actions/checkout@v4
+
+      - name: Install the Unity editor with Android support
+        uses: RageAgainstThePixel/unity-setup@v2
+        with:
+          version-file: None
+          unity-version: ${{ env.UNITY_VERSION }}
+          build-targets: Android
+          cache-installation: true
+
+      - name: Activate the Unity Personal license (email + password)
+        uses: RageAgainstThePixel/activate-unity-license@v2
+        with:
+          license: personal
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Build the APK
+        uses: RageAgainstThePixel/unity-action@v3
+        with:
+          project-path: ${{ github.workspace }}/UnityGame
+          build-target: Android
+          log-name: Android-Build
+          args: -quit -batchmode -nographics -executeMethod CiBuild.BuildAndroid
+
+      - name: Show the APK
+        run: |
+          ls -la UnityGame/Builds/Android/
+          unzip -l UnityGame/Builds/Android/UnityTest.apk | tail -1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: UnityGame/Builds/Android/UnityTest.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unity-logs
+          path: ${{ github.workspace }}/**/*.log
+
+  emulator-test:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Cache the emulator image (AVD snapshot)
+        id: avd-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34-google_apis-x86_64-pixel6
+
+      - name: Create the AVD snapshot (first run only)
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "AVD snapshot created"
+
+      - name: Run the game on an Android emulator and take screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -no-boot-anim -no-audio -gpu swiftshader_indirect -camera-back none
+          disable-animations: true
+          script: bash .github/scripts/unity-emulator-test.sh apk/UnityTest.apk shots
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-screenshots
+          path: shots/
+
+  release:
+    needs: [build, emulator-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: apk
+      - uses: actions/download-artifact@v4
+        with:
+          name: emulator-screenshots
+          path: shots
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: unity-test-${{ github.run_number }}
+          name: Unity test APK - build ${{ github.run_number }}
+          prerelease: true
+          body: |
+            First Unity build made in GitHub Actions with a Unity Personal license (online activation).
+            Simple test scene: three spinning cubes on a ground plane, label and FPS counter.
+            Install: download UnityTest.apk on your phone and allow "install unknown apps".
+          files: |
+            apk/UnityTest.apk
+            shots/*.png
