@@ -21,6 +21,8 @@ namespace UA
         public static float Sensitivity { get => PlayerPrefs.GetFloat("sens", 1f); set => PlayerPrefs.SetFloat("sens", Mathf.Clamp(value, 0.3f, 3f)); }
         public static float Volume { get => PlayerPrefs.GetFloat("volume", 0.8f); set { PlayerPrefs.SetFloat("volume", Mathf.Clamp01(value)); AudioListener.volume = value; } }
         public static bool InvertY { get => PlayerPrefs.GetInt("invert", 0) == 1; set => PlayerPrefs.SetInt("invert", value ? 1 : 0); }
+        /// <summary>Touch look direction: true = the view moves the other way than the finger (default, as players asked).</summary>
+        public static bool ReverseLook { get => PlayerPrefs.GetInt("reverse", 1) == 1; set => PlayerPrefs.SetInt("reverse", value ? 1 : 0); }
         public static bool ShowFps { get => PlayerPrefs.GetInt("fps", 0) == 1; set => PlayerPrefs.SetInt("fps", value ? 1 : 0); }
         public static byte Primary { get => (byte)PlayerPrefs.GetInt("primary", 0); set => PlayerPrefs.SetInt("primary", value); }
         public static byte Secondary { get => (byte)PlayerPrefs.GetInt("secondary", 4); set => PlayerPrefs.SetInt("secondary", value); }
@@ -63,19 +65,6 @@ namespace UA
                     QualitySettings.antiAliasing = 2;
                     QualitySettings.lodBias = 1.5f;
                     break;
-            }
-            if (Application.isMobilePlatform)
-            {
-                // render below native resolution on weaker settings: big win on phones with 1440p+ screens
-                var display = Screen.currentResolution;
-                float scale = Quality == 0 ? 0.6f : Quality == 1 ? 0.8f : 1f;
-                int h = Mathf.Min(display.height, display.width);
-                int target = Mathf.Min(Mathf.RoundToInt(h * scale), 1080);
-                if (target < h)
-                {
-                    float k = (float)target / h;
-                    Screen.SetResolution(Mathf.RoundToInt(display.width * k), Mathf.RoundToInt(display.height * k), true);
-                }
             }
         }
     }

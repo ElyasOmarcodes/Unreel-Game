@@ -530,7 +530,7 @@ namespace UA
             nameField.onEndEdit.AddListener(v => Settings.PlayerName = v);
             UIKit.Stepper(panel, "GRAPHICS", -130, () => Settings.QualityNames[Settings.Quality], d => Settings.Quality = Mathf.Clamp(Settings.Quality + d, 0, 2), 1080);
             UIKit.Stepper(panel, "LOOK SENSITIVITY", -225, () => "x" + Settings.Sensitivity.ToString("0.0"), d => Settings.Sensitivity = Mathf.Round((Settings.Sensitivity + d * 0.1f) * 10f) / 10f, 1080);
-            UIKit.Stepper(panel, "INVERT LOOK", -320, () => Settings.InvertY ? "ON" : "OFF", d => Settings.InvertY = !Settings.InvertY, 1080);
+            UIKit.Stepper(panel, "LOOK DIRECTION", -320, () => Settings.ReverseLook ? "REVERSED" : "NORMAL", d => Settings.ReverseLook = !Settings.ReverseLook, 1080);
             UIKit.Stepper(panel, "SOUND VOLUME", -415, () => Mathf.RoundToInt(Settings.Volume * 100) + "%", d => Settings.Volume = Mathf.Round(Settings.Volume * 10 + d) / 10f, 1080);
             UIKit.Stepper(panel, "SHOW FPS", -510, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, 1080);
             var hint = UIKit.Txt(panel, "Controls: left side = move, drag right side = look, drag the FIRE button to aim while shooting.", 24, TextAnchor.MiddleCenter, UIKit.Muted);

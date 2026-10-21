@@ -12,23 +12,31 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Quaternius Universal Base Characters (itch.io)
+        continue-on-error: true
         run: |
           P=https://quaternius.itch.io/universal-base-characters
           curl -s -c jar -b jar "$P" -o page.html
           CSRF=$(grep -o 'name="csrf_token" value="[^"]*' page.html | head -1 | sed 's/.*value="//')
-          URL=$(curl -s -c jar -b jar -X POST "$P/download_url" -d "csrf_token=$CSRF" | python3 -c "import sys,json;print(json.load(sys.stdin)['url'])")
+          curl -s -c jar -b jar -X POST "$P/download_url" -d "csrf_token=$CSRF" -o r1.json; cat r1.json; echo
+          URL=$(python3 -c "import json;print(json.load(open('r1.json'))['url'])")
           KEY=${URL##*/download/}
           curl -s -c jar -b jar -L "$URL" -o dl.html
           UP=$(grep -o 'data-upload_id="[0-9]*"' dl.html | head -1 | grep -o '[0-9]*')
-          FILE=$(curl -s -c jar -b jar -X POST "$P/file/$UP?source=game_download&key=$KEY" -d "csrf_token=$CSRF" | python3 -c "import sys,json;print(json.load(sys.stdin)['url'])")
+          CSRF2=$(grep -o 'name="csrf_token" value="[^"]*' dl.html | head -1 | sed 's/.*value="//')
+          echo "upload=$UP key=$KEY"
+          grep -o 'data-upload_id="[0-9]*"[^>]*' dl.html | head -3
+          curl -s -c jar -b jar -X POST "$P/file/$UP?source=game_download&key=$KEY" -H "X-Requested-With: XMLHttpRequest" -d "csrf_token=$CSRF2" -o r2.json; cat r2.json; echo
+          FILE=$(python3 -c "import json;print(json.load(open('r2.json'))['url'])")
           curl -sL "$FILE" -o ubc.zip
           ls -la ubc.zip
           unzip -l ubc.zip | grep -v "\.blend" | head -150
       - name: Ultimate Gun Pack (FBX part)
+        continue-on-error: true
         run: |
           curl -sL https://opengameart.org/sites/default/files/ultimate_gun_pack_by_quaternius.zip -o guns.zip
           unzip -l guns.zip | grep -iv "blend" | head -150
       - name: Poly Haven files for some props
+        continue-on-error: true
         run: |
           for id in old_military_crate concrete_road_barrier metal_trash_can exterior_aircon_unit plastic_crate_03 modular_industrial_pipes_01 propane_tank rusted_wheel_rim_01; do
             curl -s "https://api.polyhaven.com/files/$id" | python3 -c "

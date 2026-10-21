@@ -6,10 +6,25 @@ using UnityEngine.UI;
 namespace UA
 {
     /// <summary>Small helpers to build the uGUI screens from code (reference resolution 1920x1080).</summary>
+    /// <summary>Small press animation for buttons.</summary>
+    public class PressScale : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
+    {
+        private float target = 1f;
+        public void OnPointerDown(PointerEventData e) => target = 0.94f;
+        public void OnPointerUp(PointerEventData e) => target = 1f;
+        public void OnPointerExit(PointerEventData e) => target = 1f;
+        private void Update()
+        {
+            float s = Mathf.MoveTowards(transform.localScale.x, target, Time.unscaledDeltaTime * 2f);
+            transform.localScale = new Vector3(s, s, 1f);
+        }
+    }
+
     public static class UIKit
     {
         public static Font Font;
-        public static Sprite Rounded, Circle, Ring, Soft;
+        public static Sprite Rounded, Circle, Ring, Soft, Gradient, Border;
+        private static readonly System.Collections.Generic.Dictionary<string, Sprite> icons = new System.Collections.Generic.Dictionary<string, Sprite>();
 
         public static readonly Color Accent = new Color(1f, 0.6f, 0.1f);
         public static readonly Color AccentDark = new Color(0.75f, 0.38f, 0.02f);
@@ -25,9 +40,12 @@ namespace UA
         {
             Font = Resources.Load<Font>("Fonts/RussoOne-Regular");
             if (Font == null) Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            Rounded = MakeSprite(64, (x, y) => RoundedAlpha(x, y, 64, 18), new Vector4(22, 22, 22, 22));
-            Circle = MakeSprite(128, (x, y) => CircleAlpha(x, y, 128, false), Vector4.zero);
-            Ring = MakeSprite(128, (x, y) => CircleAlpha(x, y, 128, true), Vector4.zero);
+            Rounded = MakeSprite(128, (x, y) => RoundedAlpha(x, y, 128, 30), new Vector4(36, 36, 36, 36));
+            // vertical light-to-dark gradient baked into the shape: tinted buttons get some depth
+            Gradient = MakeSprite(128, (x, y) => RoundedAlpha(x, y, 128, 30), new Vector4(36, 36, 36, 36), y => Mathf.Lerp(0.72f, 1f, y / 127f));
+            Border = MakeSprite(128, (x, y) => Mathf.Clamp01(RoundedAlpha(x, y, 128, 30) - RoundedAlpha(x - 3, y - 3, 122, 27, 0)), new Vector4(36, 36, 36, 36));
+            Circle = MakeSprite(256, (x, y) => CircleAlpha(x, y, 256, false), Vector4.zero);
+            Ring = MakeSprite(256, (x, y) => CircleAlpha(x, y, 256, true), Vector4.zero);
             Soft = MakeSprite(64, (x, y) => { float d = Vector2.Distance(new Vector2(x, y), new Vector2(31.5f, 31.5f)) / 32f; return Mathf.Clamp01(1f - d); }, Vector4.zero);
         }
 
@@ -45,13 +63,19 @@ namespace UA
             return ring ? Mathf.Clamp01(1f - Mathf.Abs(d - (r - 5f)) / 3f) : Mathf.Clamp01(r - d);
         }
 
-        private static Sprite MakeSprite(int size, Func<int, int, float> alpha, Vector4 border)
+        private static float RoundedAlpha(int x, int y, int size, float radius, int offset)
+            => x < 0 || y < 0 || x >= size || y >= size ? 0f : RoundedAlpha(x, y, size, radius);
+
+        private static Sprite MakeSprite(int size, Func<int, int, float> alpha, Vector4 border, Func<int, float> shade = null)
         {
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
             var pixels = new Color32[size * size];
             for (int y = 0; y < size; y++)
                 for (int x = 0; x < size; x++)
-                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)(255 * alpha(x, y)));
+                {
+                    byte v = (byte)(255 * (shade != null ? shade(y) : 1f));
+                    pixels[y * size + x] = new Color32(v, v, v, (byte)(255 * Mathf.Clamp01(alpha(x, y))));
+                }
             tex.SetPixels32(pixels);
             tex.Apply();
             return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, border);
@@ -137,10 +161,30 @@ namespace UA
             return t;
         }
 
-        public static Button Btn(Transform parent, string label, Action onClick, int size = 40, Color? color = null)
+        public static Sprite Icon(string name)
         {
-            var image = Img(parent, color ?? ButtonColor, Rounded, true);
+            if (icons.TryGetValue(name, out var sprite)) return sprite;
+            var tex = Resources.Load<Texture2D>("Icons/" + name);
+            sprite = tex != null ? Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f)) : null;
+            return icons[name] = sprite;
+        }
+
+        public static Image IconImage(Transform parent, string name, float size, Color? color = null)
+        {
+            var image = Img(parent, color ?? TextColor, Icon(name));
+            image.preserveAspect = true;
+            image.rectTransform.sizeDelta = new Vector2(size, size);
+            return image;
+        }
+
+        /// <summary>Button with a gradient body, a light border, an optional icon and a press animation.</summary>
+        public static Button Btn(Transform parent, string label, Action onClick, int size = 40, Color? color = null, string icon = null)
+        {
+            var image = Img(parent, color ?? ButtonColor, Gradient, true);
             image.name = "Button " + label;
+            var border = Img(image.transform, new Color(1, 1, 1, 0.16f), Border);
+            border.rectTransform.Fill();
+            image.gameObject.AddComponent<PressScale>();
             var button = image.gameObject.AddComponent<Button>();
             var colors = button.colors;
             colors.normalColor = Color.white;
@@ -155,8 +199,15 @@ namespace UA
                 Sfx.Play("click", 0.5f);
                 onClick?.Invoke();
             });
-            var t = Txt(image.transform, label, size);
+            var t = Txt(image.transform, label, size).Shadowed();
             t.rectTransform.Fill();
+            if (icon != null && Icon(icon) != null)
+            {
+                var ic = IconImage(image.transform, icon, size * 1.25f);
+                ic.rectTransform.At(0f, 0.5f, 28 + size * 0.62f, 0, size * 1.25f, size * 1.25f);
+                t.alignment = TextAnchor.MiddleLeft;
+                t.rectTransform.offsetMin = new Vector2(48 + size * 1.25f, 0);
+            }
             return button;
         }
 
@@ -200,10 +251,15 @@ namespace UA
             return v;
         }
 
+        /// <summary>Dark glass panel with a thin border and an accent line on top.</summary>
         public static RectTransform Panel(Transform parent, float w, float h, float y = 0)
         {
             var image = Img(parent, PanelColor, Rounded, true);
             var r = image.rectTransform.At(0.5f, 0.5f, 0, y, w, h);
+            var border = Img(r, new Color(1, 1, 1, 0.1f), Border);
+            border.rectTransform.Fill();
+            var accent = Img(r, Accent, Rounded);
+            accent.rectTransform.At(0.5f, 1f, 0, -2, Mathf.Min(w * 0.3f, 300), 6, 0.5f, 1f);
             return r;
         }
 

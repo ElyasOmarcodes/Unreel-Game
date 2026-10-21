@@ -123,7 +123,7 @@ namespace UA
                 else if (finger.LookDrag || finger.Button == Button.Fire)
                 {
                     // dragging the fire button also aims, like most mobile shooters
-                    Look += t.deltaPosition * scale * sens;
+                    Look += t.deltaPosition * scale * sens * (Settings.ReverseLook ? -1f : 1f);
                 }
                 if (finger.Button.HasValue)
                 {
