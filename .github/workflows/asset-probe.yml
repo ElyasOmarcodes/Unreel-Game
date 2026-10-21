@@ -35,9 +35,20 @@ jobs:
           PY
           CSRF2=$(grep -o 'name="csrf_token" value="[^"]*' dl.html | head -1 | sed 's/.*value="//')
           UP=$(grep -o 'data-upload_id="[0-9]*"' dl.html | grep -o '[0-9]*' | head -1)
-          try() { echo "== $1"; curl -s -A "$UA" -c jar -b jar -X POST "$1" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $URL" --data-urlencode "csrf_token=$CSRF2" | head -c 400; echo; }
-          try "$P/file/$UP?source=game_download"
-          try "$P/file/$UP?source=game_download&after_download_lightbox=1"
-          try "$P/file/$UP?source=view_game&as_props=1&after_download_lightbox=true"
-          try "$URL/file/$UP?source=game_download"
-          try "$P/file/$UP?source=game_download&download_key=$SEG"
+          curl -s -A "$UA" -c jar -b jar -X POST "$P/file/$UP?source=game_download&download_key=$SEG" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $URL" --data-urlencode "csrf_token=$CSRF2" -o r2.json
+          FILE=$(python3 -c "import json;print(json.load(open('r2.json'))['url'])")
+          set +x
+          curl -sL "$FILE" -o ubc.zip
+          ls -la ubc.zip
+          unzip -l ubc.zip | grep -v -i "\.blend" | head -150
+          mkdir -p x && cd x && unzip -q ../ubc.zip
+          find . -iname "*.fbx" | head -40
+          find . -iname "*.png" | head -60
+          cat $(find . -iname "*license*" | head -1) 2>/dev/null | head -20
+          for f in $(find . -iname "*.fbx" -path "*Unity*" | head -6); do echo "== $f"; python3 - "$f" <<'PY'
+          import re, sys
+          d = open(sys.argv[1], 'rb').read()
+          print(sorted(set(m.decode('latin1') for m in re.findall(rb'([A-Za-z0-9_ .\-]+)\x00\x01Material', d))))
+          print(sorted(set(m.decode('latin1') for m in re.findall(rb'([A-Za-z0-9_ .\-]+)\x00\x01Model', d)))[:80])
+          PY
+          done
