@@ -39,6 +39,12 @@ jobs:
           echo "Unity Hub directory: $HUB_DIR"
           [ -x /opt/unityhub/unityhub ] || sudo ln -sfn "$HUB_DIR" /opt/unityhub
           ls -la /opt/unityhub/unityhub
+          # headless wrapper the actions call (same as the one unity-cli writes after a fresh Hub install)
+          sudo apt-get install -y -q xvfb libgtk2.0-0 libglu1-mesa pulseaudio || true
+          sudo sed -i 's/^\(.*DISPLAY=:.*XAUTHORITY=.*\)\( "\$@" \)2>&1$/\1\2/' /usr/bin/xvfb-run
+          printf '#!/bin/bash\nexec xvfb-run --auto-servernum /opt/unityhub/unityhub "$@" 2>/dev/null\n' | sudo tee /usr/bin/unity-hub
+          sudo chmod 777 /usr/bin/unity-hub && sudo chmod -R 777 "$HUB_DIR"
+          unity-hub --headless help | head -5 || true
 
       - name: Install the Unity editor with Android support
         uses: RageAgainstThePixel/unity-setup@v2
@@ -47,6 +53,7 @@ jobs:
           unity-version: ${{ env.UNITY_VERSION }}
           build-targets: Android
           cache-installation: true
+          auto-update-hub: false
 
       - name: Activate the Unity Personal license (email + password)
         uses: RageAgainstThePixel/activate-unity-license@v2
