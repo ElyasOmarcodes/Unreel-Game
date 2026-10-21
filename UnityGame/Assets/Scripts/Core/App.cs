@@ -290,7 +290,8 @@ namespace UA
         public void OpenCreate(bool practice)
         {
             DraftPractice = practice;
-            if (Draft.GroupName == "Group") Draft.GroupName = Settings.PlayerName + "'s group";
+            if (Draft.GroupName == "Group")
+                Draft.GroupName = Rtl.HasRtl(Settings.PlayerName) ? "د " + Settings.PlayerName + " ګروپ" : Settings.PlayerName + "'s group";
             createTitle.text = practice ? "PRACTICE VS BOTS" : "CREATE GROUP";
             createButton.SetLabel(practice ? "START PRACTICE" : "CREATE GROUP");
             groupNameField.text = Draft.GroupName;
