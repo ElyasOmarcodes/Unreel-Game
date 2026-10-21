@@ -11,9 +11,6 @@ on:
       - .github/workflows/unity-android.yml
       - .github/scripts/unity-emulator-test.sh
 
-env:
-  UNITY_VERSION: '6000.0.x'
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -49,8 +46,8 @@ jobs:
       - name: Install the Unity editor with Android support
         uses: RageAgainstThePixel/unity-setup@v2
         with:
-          version-file: None
-          unity-version: ${{ env.UNITY_VERSION }}
+          # the editor version comes from UnityGame/ProjectSettings/ProjectVersion.txt
+          version-file: UnityGame/ProjectSettings/ProjectVersion.txt
           build-targets: Android
           cache-installation: true
           auto-update-hub: false
@@ -61,6 +58,13 @@ jobs:
           license: personal
           username: ${{ secrets.UNITY_EMAIL }}
           password: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Check that the Android Gradle plugin repository is reachable
+        continue-on-error: true
+        run: |
+          for v in 8.7.2 9.1.1; do
+            curl -s -o /dev/null -w "AGP $v: %{http_code}\n" "https://dl.google.com/dl/android/maven2/com/android/application/com.android.application.gradle.plugin/$v/com.android.application.gradle.plugin-$v.pom"
+          done
 
       - name: Build the APK
         uses: RageAgainstThePixel/unity-action@v3
