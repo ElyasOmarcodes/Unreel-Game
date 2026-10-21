@@ -46,8 +46,9 @@ jobs:
       - name: Install the Unity editor with Android support
         uses: RageAgainstThePixel/unity-setup@v2
         with:
-          # the editor version comes from UnityGame/ProjectSettings/ProjectVersion.txt
-          version-file: UnityGame/ProjectSettings/ProjectVersion.txt
+          # keep in sync with UnityGame/ProjectSettings/ProjectVersion.txt
+          version-file: None
+          unity-version: 6000.0.58f2
           build-targets: Android
           cache-installation: true
           auto-update-hub: false
