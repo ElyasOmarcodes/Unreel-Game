@@ -27,10 +27,10 @@ namespace UA
 
         public static readonly string[] QualityNames = { "LOW", "MEDIUM", "HIGH" };
 
-        public static string Clean(string name)
+        public static string Clean(string name, int maxLength = 14)
         {
             name = (name ?? "").Trim();
-            if (name.Length > 14) name = name.Substring(0, 14);
+            if (name.Length > maxLength) name = name.Substring(0, maxLength);
             return name.Length == 0 ? "Agent" : name;
         }
 

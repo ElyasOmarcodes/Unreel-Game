@@ -29,6 +29,7 @@ public static class MapBuilder
     public static void BuildScene()
     {
         rng = new System.Random(7);
+        tiled.Clear();
         waypoints.Clear();
         links.Clear();
         lamps.Clear();
@@ -177,8 +178,12 @@ public static class MapBuilder
 
     private static float R(float min, float max) => min + (float)rng.NextDouble() * (max - min);
 
+    private static readonly Dictionary<string, Material> tiled = new Dictionary<string, Material>();
+
     private static Material Tiled(string name, string sourceMaterial, Vector2 tiling, Color? tint = null)
     {
+        // created once per build: re-creating the asset would leave earlier users with a missing (pink) material
+        if (tiled.TryGetValue(name, out var cached) && cached != null) return cached;
         AssetSetup.CityMaterials.TryGetValue(sourceMaterial, out var source);
         string path = $"Assets/Generated/Materials/{name}.mat";
         AssetDatabase.DeleteAsset(path);
@@ -187,6 +192,7 @@ public static class MapBuilder
         m.mainTextureScale = tiling;
         if (tint.HasValue) m.color = tint.Value;
         AssetDatabase.CreateAsset(m, path);
+        tiled[name] = m;
         return m;
     }
 

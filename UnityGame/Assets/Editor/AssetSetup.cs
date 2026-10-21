@@ -530,9 +530,8 @@ public static class AssetSetup
             // vest and backpack, placed in world space in the current pose then attached to the chest bone
             var holder = new GameObject("Gear").transform;
             holder.SetPositionAndRotation(spine.position, root.transform.rotation * body.transform.localRotation);
-            var fwd = new Vector3(0, 0, 1);
-            teamRenderers.Add(Part(holder, PrimitiveType.Cube, new Vector3(0, -0.04f, 0.03f), new Vector3(0.38f, 0.36f, 0.25f), vestMat).GetComponent<Renderer>());
-            Part(holder, PrimitiveType.Cube, new Vector3(0, -0.02f, -0.17f) + fwd * 0, new Vector3(0.28f, 0.34f, 0.14f), gear);
+            teamRenderers.Add(Part(holder, PrimitiveType.Cube, new Vector3(0, -0.05f, 0.02f), new Vector3(0.34f, 0.32f, 0.22f), vestMat).GetComponent<Renderer>());
+            Part(holder, PrimitiveType.Cube, new Vector3(0, -0.04f, -0.15f), new Vector3(0.24f, 0.28f, 0.1f), gear);
             Part(holder, PrimitiveType.Cube, new Vector3(-0.1f, -0.16f, 0.16f), new Vector3(0.08f, 0.09f, 0.05f), gear);
             Part(holder, PrimitiveType.Cube, new Vector3(0.1f, -0.16f, 0.16f), new Vector3(0.08f, 0.09f, 0.05f), gear);
             holder.SetParent(spine, true);

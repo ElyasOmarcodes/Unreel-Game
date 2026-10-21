@@ -299,7 +299,7 @@ namespace UA
             nameLabel.rectTransform.offsetMin = new Vector2(30, 0);
             groupNameField = UIKit.Input(nameRow, Draft.GroupName, "Group name", 34, 20);
             groupNameField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 560, 74, 1f, 0.5f);
-            groupNameField.onEndEdit.AddListener(v => Draft.GroupName = Settings.Clean(v));
+            groupNameField.onEndEdit.AddListener(v => Draft.GroupName = Settings.Clean(v, 24));
             byte[] minutes = { 3, 5, 8, 10, 15 };
             UIKit.Stepper(panel, "GAME MODE", -130, () => MatchConfig.ModeNames[(int)Draft.Mode], d => Draft.Mode = (Mode)(((int)Draft.Mode + 2 + d) % 2), 1080);
             UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapNames[Draft.Map], d => Draft.Map = (byte)((Draft.Map + 3 + d) % 3), 1080);
@@ -319,7 +319,7 @@ namespace UA
 
         public void CreateFromDraft()
         {
-            Draft.GroupName = Settings.Clean(groupNameField.text.Length > 0 ? groupNameField.text : Draft.GroupName);
+            Draft.GroupName = Settings.Clean(groupNameField.text.Length > 0 ? groupNameField.text : Draft.GroupName, 24);
             var config = new MatchConfig
             {
                 GroupName = Draft.GroupName, Mode = Draft.Mode, Map = Draft.Map, Minutes = Draft.Minutes,
@@ -377,7 +377,10 @@ namespace UA
 
         private void RefreshJoin()
         {
-            var groups = Session.I.Groups.Values.OrderBy(g => g.Name).ToList();
+            // the same host can answer on loopback and on its Wi-Fi address: show it once
+            var all = Session.I.Groups.Values.ToList();
+            var groups = all.Where(g => !IPAddress.IsLoopback(g.Address.Address) || !all.Any(o => o != g && o.Name == g.Name && o.Port == g.Port))
+                .OrderBy(g => g.Name).ToList();
             var keys = groups.Select(g => g.Address + "|" + g.Players + "|" + g.Phase).ToList();
             joinStatus.text = groups.Count == 0 ? "Searching for groups on this Wi-Fi / hotspot ...\n\nAsk a friend to tap CREATE GROUP." : "";
             if (keys.SequenceEqual(shownGroups)) return;
