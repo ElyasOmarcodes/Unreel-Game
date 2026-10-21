@@ -13,30 +13,28 @@ jobs:
     steps:
       - name: Quaternius Universal Base Characters (itch.io)
         run: |
+          set -x
           P=https://quaternius.itch.io/universal-base-characters
-          curl -s -c jar -b jar "$P" -o page.html
+          UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+          curl -s -A "$UA" -c jar -b jar "$P" -o page.html
           CSRF=$(grep -o 'name="csrf_token" value="[^"]*' page.html | head -1 | sed 's/.*value="//')
-          curl -s -c jar -b jar -X POST "$P/download_url" -d "csrf_token=$CSRF" -o r1.json
+          curl -s -A "$UA" -c jar -b jar -X POST "$P/download_url" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $P" --data-urlencode "csrf_token=$CSRF" -o r1.json
+          cat r1.json; echo
           URL=$(python3 -c "import json;print(json.load(open('r1.json'))['url'])")
-          RAWKEY=$(python3 -c "import urllib.parse,sys;print(urllib.parse.unquote(sys.argv[1].split('/download/')[1]))" "$URL")
-          curl -s -c jar -b jar -L "$URL" -o dl.html
-          UP=$(grep -o 'data-upload_id="[0-9]*"' dl.html | head -1 | grep -o '[0-9]*')
+          SEG=${URL##*/download/}
+          curl -s -A "$UA" -c jar -b jar -L "$URL" -o dl.html
+          grep -o 'data-upload_id="[0-9]*"' dl.html | sort -u
+          grep -o '.\{200\}upload_id.\{200\}' dl.html | head -3
+          grep -o 'I\.[A-Za-z]*Page([^)]\{0,600\})' dl.html | head -3
           CSRF2=$(grep -o 'name="csrf_token" value="[^"]*' dl.html | head -1 | sed 's/.*value="//')
-          grep -o '"key":"[^"]*"' dl.html | head -3
-          grep -o 'DownloadPage[^;]\{0,400\}' dl.html | head -3
-          grep -o 'key[=:][^&"]\{5,80\}' dl.html | head -10
-          PAGEKEY=$(grep -o '"key":"[^"]*"' dl.html | head -1 | sed 's/"key":"//; s/"$//')
-          [ -n "$PAGEKEY" ] && RAWKEY="$PAGEKEY"
-          for variant in a b c; do
-            case $variant in
-              a) curl -s -c jar -b jar -X POST "$P/file/$UP?source=game_download" --data-urlencode "key=$RAWKEY" --data-urlencode "csrf_token=$CSRF2" -o r2.json ;;
-              b) curl -s -c jar -b jar -X POST "$P/file/$UP" --data-urlencode "key=$RAWKEY" --data-urlencode "csrf_token=$CSRF2" --data "source=game_download" -o r2.json ;;
-              c) curl -s -c jar -b jar -X POST "$P/file/$UP?key=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$RAWKEY")&source=game_download" -H "X-Requested-With: XMLHttpRequest" --data-urlencode "csrf_token=$CSRF2" -o r2.json ;;
-            esac
-            echo "variant $variant: $(cat r2.json)"
-            grep -q '"url"' r2.json && break
+          for UP in $(grep -o 'data-upload_id="[0-9]*"' dl.html | grep -o '[0-9]*' | sort -u); do
+            for K in "$SEG" "$(python3 -c "import urllib.parse,sys;print(urllib.parse.unquote(sys.argv[1]))" "$SEG")"; do
+              curl -s -A "$UA" -c jar -b jar -X POST "$P/file/$UP?source=game_download&key=$K" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $URL" --data-urlencode "csrf_token=$CSRF2" -o r2.json
+              echo "upload $UP: $(head -c 300 r2.json)"
+              if grep -q '"url"' r2.json; then
+                FILE=$(python3 -c "import json;print(json.load(open('r2.json'))['url'])")
+                curl -sIL "$FILE" | grep -i -E "content-length|content-disposition" | tail -2
+                break
+              fi
+            done
           done
-          FILE=$(python3 -c "import json;print(json.load(open('r2.json'))['url'])")
-          curl -sL "$FILE" -o ubc.zip
-          ls -la ubc.zip
-          unzip -l ubc.zip | grep -v "\.blend" | head -200
