@@ -22,6 +22,11 @@ jobs:
           curl -s -c jar -b jar -L "$URL" -o dl.html
           UP=$(grep -o 'data-upload_id="[0-9]*"' dl.html | head -1 | grep -o '[0-9]*')
           CSRF2=$(grep -o 'name="csrf_token" value="[^"]*' dl.html | head -1 | sed 's/.*value="//')
+          grep -o '"key":"[^"]*"' dl.html | head -3
+          grep -o 'DownloadPage[^;]\{0,400\}' dl.html | head -3
+          grep -o 'key[=:][^&"]\{5,80\}' dl.html | head -10
+          PAGEKEY=$(grep -o '"key":"[^"]*"' dl.html | head -1 | sed 's/"key":"//; s/"$//')
+          [ -n "$PAGEKEY" ] && RAWKEY="$PAGEKEY"
           for variant in a b c; do
             case $variant in
               a) curl -s -c jar -b jar -X POST "$P/file/$UP?source=game_download" --data-urlencode "key=$RAWKEY" --data-urlencode "csrf_token=$CSRF2" -o r2.json ;;
