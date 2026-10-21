@@ -233,6 +233,7 @@ namespace UA
             field.placeholder = ph;
             field.characterLimit = limit;
             field.text = value;
+            RtlInputDisplay.Attach(field);   // Pashto / Dari names shown joined and right-to-left
             return field;
         }
 

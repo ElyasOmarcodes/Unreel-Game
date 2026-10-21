@@ -30,6 +30,7 @@ public static class MapBuilder
     {
         rng = new System.Random(7);
         tiled.Clear();
+        carModels = null;
         waypoints.Clear();
         links.Clear();
         lamps.Clear();
@@ -258,6 +259,7 @@ public static class MapBuilder
         block.SetParent(map, false);
         float inner = BlockSize / 2f - Sidewalk;  // 17: buildings stay inside the sidewalk ring
         var occupied = new List<Rect>();
+        var placed = new List<(GameObject go, Vector3 along, Vector3 outward, float start, float width)>();
         // walk around the four edges, buildings facing the street
         for (int edge = 0; edge < 4; edge++)
         {
@@ -279,10 +281,26 @@ public static class MapBuilder
                 var rect = new Rect(pos.x - size.x / 2f + 0.3f, pos.z - size.z / 2f + 0.3f, size.x - 0.6f, size.z - 0.6f);
                 if (occupied.Any(o => o.Overlaps(rect))) { cursor += 3f; continue; }
                 occupied.Add(rect);
-                Place(kit, pos, yaw, block, 0.16f);
+                var building = Place(kit, pos, yaw, block, 0.16f);
+                if (building != null) placed.Add((building, along, outward, cursor, width));
                 cursor += width + R(0f, 2.5f);
             }
         }
+        // fire escapes on one or two of the buildings: low ones to the roof, tall ones to a perch
+        var steel = PortBuilder.Pbr("EscapeSteel", "Metal032", new Color(0.25f, 0.26f, 0.27f), 0.6f);
+        var plate = PortBuilder.Pbr("Walkway", "DiamondPlate009", new Color(0.8f, 0.8f, 0.8f), 0.8f);
+        int escapes = 0;
+        foreach (var b in placed.OrderBy(_ => rng.Next()))
+        {
+            if (escapes >= 1 + (bx + bz + 2) % 2 || b.width < 10f) continue;
+            float height = WorldBounds(b.go).max.y;
+            bool toRoof = height < 17f;
+            float target = toRoof ? height : 3.2f * (2 + rng.Next(2));
+            var facade = center + b.along * (b.start + b.width / 2f - 4.3f) + b.outward * (BlockSize / 2f - Sidewalk) + Vector3.up * 0.16f;
+            global::Buildings.FireEscape(block, facade, b.along, b.outward, target - 0.16f, toRoof, plate, steel);
+            escapes++;
+        }
+
         // what is left in the middle of the block becomes a small yard with cover
         var crate = AssetSetup.Solid("Crate", new Color(0.5f, 0.36f, 0.2f), 0.25f);
         for (int i = 0; i < 3; i++)
@@ -480,6 +498,11 @@ public static class MapBuilder
                 Obstacles.SandbagBunker(cover, p, Mathf.Atan2(-sx, -sz) * Mathf.Rad2Deg);
             }
 
+        // ammunition crates on the sidewalks around the city and one by the fountain
+        foreach (var (x, z, yaw) in new[] { (-33.5f, -12f, 90f), (33.5f, 12f, 90f), (-12f, 33.5f, 0f), (12f, -33.5f, 0f),
+                                            (-70.5f, -60f, 90f), (70.5f, 60f, 90f), (-60f, 70.5f, 0f), (60f, -70.5f, 0f), (0f, 6.6f, 0f) })
+            Obstacles.AmmoCrate(props, new Vector3(x, x == 0f ? 0.19f : 0.16f, z), yaw);
+
         // street lights on the sidewalk corners (lamps glow at night)
         var pole = AssetSetup.Solid("Pole", new Color(0.15f, 0.15f, 0.16f), 0.4f, 0.6f);
         var lampMat = AssetSetup.Mat("Lamp", new Color(1f, 0.9f, 0.7f), 0.5f, 0f, null, null, null, null, new Color(2.2f, 1.8f, 1.2f));
@@ -497,8 +520,41 @@ public static class MapBuilder
                 }
     }
 
+    private static List<GameObject> carModels;
+
+    /// <summary>A car from the CC0 car pack, 4.4 m long, standing on the road. Null if the pack is missing.</summary>
+    private static GameObject CarModel(Transform parent, Vector3 pos, float yaw)
+    {
+        if (carModels == null)
+        {
+            carModels = new List<GameObject>();
+            if (AssetDatabase.IsValidFolder("Assets/ThirdParty/Cars"))
+                carModels = AssetDatabase.FindAssets("t:Model", new[] { "Assets/ThirdParty/Cars" })
+                    .Select(g => AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(g)))
+                    .Where(m => m != null && m.GetComponentsInChildren<Renderer>().Length > 0).ToList();
+            Debug.Log($"[Map] car models: {carModels.Count}");
+        }
+        if (carModels.Count == 0) return null;
+        var holder = new GameObject("Car").transform;
+        holder.SetParent(parent, false);
+        var go = (GameObject)PrefabUtility.InstantiatePrefab(carModels[rng.Next(carModels.Count)], holder);
+        var b = WorldBounds(go);
+        if (b.size.x > b.size.z) go.transform.localRotation = Quaternion.Euler(0, 90, 0) * go.transform.localRotation;
+        b = WorldBounds(go);
+        go.transform.localScale *= 4.4f / Mathf.Max(0.1f, b.size.z);
+        b = WorldBounds(go);
+        go.transform.position -= new Vector3(b.center.x, b.min.y, b.center.z);
+        b = WorldBounds(go);
+        var box = holder.gameObject.AddComponent<BoxCollider>();
+        box.center = b.center;
+        box.size = b.size * 0.95f;
+        holder.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw + (rng.NextDouble() < 0.5 ? 180f : 0f), 0));
+        return holder.gameObject;
+    }
+
     private static void Car(Transform parent, Vector3 pos, float yaw, Color paint)
     {
+        if (CarModel(parent, pos, yaw) != null) return;
         var car = new GameObject("Car").transform;
         car.SetParent(parent, false);
         var body = AssetSetup.Solid("CarPaint_" + ColorUtility.ToHtmlStringRGB(paint), paint, 0.82f, 0.45f);
@@ -537,8 +593,11 @@ public static class MapBuilder
             foreach (var (pos, yaw) in new[] { (new Vector3(t, 0, ring), 180f), (new Vector3(t, 0, -ring), 0f), (new Vector3(ring, 0, t), 270f), (new Vector3(-ring, 0, t), 90f) })
                 Place(BuildingKits[rng.Next(BuildingKits.Length)], pos, yaw, back);
         }
-        foreach (var (c, s) in new[] { (new Vector3(0, 10, Half + 1), new Vector3(Half * 2 + 4, 20, 1)), (new Vector3(0, 10, -Half - 1), new Vector3(Half * 2 + 4, 20, 1)),
-                                       (new Vector3(Half + 1, 10, 0), new Vector3(1, 20, Half * 2 + 4)), (new Vector3(-Half - 1, 10, 0), new Vector3(1, 20, Half * 2 + 4)) })
+        // the invisible edge runs behind the fronts of the outer buildings: players can walk up to them
+        // (and a few meters into the gaps between them) but not out of the city
+        float edge = ring + 2f;
+        foreach (var (c, s) in new[] { (new Vector3(0, 10, edge), new Vector3(edge * 2 + 4, 20, 1)), (new Vector3(0, 10, -edge), new Vector3(edge * 2 + 4, 20, 1)),
+                                       (new Vector3(edge, 10, 0), new Vector3(1, 20, edge * 2 + 4)), (new Vector3(-edge, 10, 0), new Vector3(1, 20, edge * 2 + 4)) })
         {
             var wall = new GameObject("InvisibleWall");
             wall.transform.SetParent(back, false);

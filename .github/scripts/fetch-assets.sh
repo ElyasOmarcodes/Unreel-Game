@@ -145,8 +145,9 @@ PY
 # Free (pay what you want, $0) download from itch.io: the same skeleton as the animation library,
 # realistic skin with a face, eyes, eyebrows, hair and beard. Skipped (mannequin fallback) if itch.io fails.
 cd "$WORK"
-ubc() {
-  local P=https://quaternius.itch.io/universal-base-characters
+# free (pay what you want, $0) itch.io download: itch <page url> <zip> <unzip dir>
+itch() {
+  local P=$1
   local UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
   rm -f jar
   curl -sf -A "$UA" -c jar -b jar "$P" -o page.html || return 1
@@ -160,8 +161,9 @@ ubc() {
   UP=$(grep -o 'data-upload_id="[0-9]*"' dl.html | grep -o '[0-9]*' | head -1)
   curl -sf -A "$UA" -c jar -b jar -X POST "$P/file/$UP?source=game_download&download_key=$SEG" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $URL" --data-urlencode "csrf_token=$CSRF" -o r2.json || return 1
   FILE=$(python3 -c "import json;print(json.load(open('r2.json'))['url'])") || return 1
-  curl -sfL "$FILE" -o ubc.zip && unzip -q -o ubc.zip -d ubc
+  curl -sfL "$FILE" -o "$2" && unzip -q -o "$2" -d "$3"
 }
+ubc() { itch https://quaternius.itch.io/universal-base-characters ubc.zip ubc; }
 for i in 1 2 3; do ubc && break || { echo "UBC download attempt $i failed"; sleep 10; }; done
 if [ -d ubc ]; then
   U=$(find ubc -maxdepth 1 -type d -name "Universal*" | head -1)
@@ -214,6 +216,19 @@ PY
   ls -la "$DEST/UBC" "$DEST/UBC/Hair" "$DEST/UBC/Textures"
 else
   echo "::warning::Universal Base Characters could not be downloaded; the mannequins are used"
+fi
+
+# ---------------------------------------------------------------- cars: Quaternius Realistic Car Pack (CC0, itch.io)
+cd "$WORK"
+for i in 1 2 3; do itch https://quaternius.itch.io/lowpoly-cars cars.zip cars && break || { echo "car pack attempt $i failed"; sleep 10; }; done
+if [ -d cars ]; then
+  mkdir -p "$DEST/Cars"
+  find cars -iname "*.fbx" ! -iname "*cop*" ! -iname "*police*" -exec cp {} "$DEST/Cars/" \;
+  find cars -iname "*.png" -exec cp {} "$DEST/Cars/" \; || true
+  find cars -iname "*license*" -exec cp {} "$DEST/Cars/License.txt" \; || true
+  ls -la "$DEST/Cars"
+else
+  echo "::warning::the car pack could not be downloaded; simple cars are used"
 fi
 
 du -sh "$DEST"/*

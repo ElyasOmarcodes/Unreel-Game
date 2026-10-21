@@ -102,7 +102,7 @@ namespace UA
             hud.SetVisible(name == "game");
             if (pausePanel != null) pausePanel.gameObject.SetActive(Paused);
             if (name == "join") Session.I.StartDiscovery(); else Session.I.StopDiscovery();
-            if (name == "menu") menuPlayer.text = "PLAYER:  <color=#ffa020>" + Settings.PlayerName + "</color>";
+            if (name == "menu") menuPlayer.text = "PLAYER:  <color=#ffa020>" + Rtl.Shape(Settings.PlayerName) + "</color>";
             if (name == "lobby") RefreshLobby();
             if (name != "profile" && stage != null) stage.SetActive(false);
             Log("state=" + name);
@@ -403,7 +403,7 @@ namespace UA
                 var g = groups[i];
                 var row = UIKit.Img(joinList, new Color(1, 1, 1, 0.05f), UIKit.Rounded);
                 row.rectTransform.At(0.5f, 1f, 0, -i * 112, 1440, 100, 0.5f, 1f);
-                var name = UIKit.Txt(row.transform, $"{g.Name}\n<size=24><color=#9aa4b0>{MatchConfig.ModeNames[(int)g.Mode]}  -  {MatchConfig.MapNames[g.Map % MatchConfig.MapNames.Length]}  -  {g.Address.Address}</color></size>", 34, TextAnchor.MiddleLeft);
+                var name = UIKit.Txt(row.transform, $"{Rtl.Shape(g.Name)}\n<size=24><color=#9aa4b0>{MatchConfig.ModeNames[(int)g.Mode]}  -  {MatchConfig.MapNames[g.Map % MatchConfig.MapNames.Length]}  -  {g.Address.Address}</color></size>", 34, TextAnchor.MiddleLeft);
                 name.rectTransform.Fill();
                 name.rectTransform.offsetMin = new Vector2(30, 0);
                 var count = UIKit.Txt(row.transform, $"{g.Players}/{g.MaxPlayers}" + (g.Phase != Phase.Lobby ? "\n<size=22>IN MATCH</size>" : ""), 32, TextAnchor.MiddleCenter, UIKit.Accent);
@@ -494,14 +494,14 @@ namespace UA
                 lobbyWait.text = "";
                 return;
             }
-            lobbyTitle.text = s.Practice ? "PRACTICE" : s.Config.GroupName.ToUpperInvariant();
+            lobbyTitle.text = s.Practice ? "PRACTICE" : Rtl.Shape(s.Config.GroupName.ToUpperInvariant());
             lobbyInfo.text = $"{MatchConfig.ModeNames[(int)s.Config.Mode]}   -   {MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length]}   -   {s.Config.Minutes} MIN   -   BOTS: {s.Config.Bots} ({MatchConfig.SkillNames[s.Config.BotSkill % 3]})";
             lobbyIp.text = s.Practice ? "Only you and the bots - no network used" :
                 s.IsHost ? "Friends: JOIN GROUP, or type this IP:  " + (s.HostAddresses.Length > 0 ? s.HostAddresses : "(no Wi-Fi found)") : "Connected - " + s.Players.Count(p => !p.Value.IsBot) + " players in the group";
             lobbyLeftTitle.text = tdm ? "TEAM BLUE" : "PLAYERS";
             lobbyRightTitle.text = tdm ? "TEAM RED" : "";
             var ordered = s.Players.Values.OrderBy(p => p.IsBot).ThenBy(p => p.Id).ToList();
-            string Line(PlayerState p) => (p.Id == s.LocalId ? "<color=#ffa020>" : "") + (p.Id == 0 && !p.IsBot ? "[HOST] " : "") + p.Name + (p.Id == s.LocalId ? "</color>" : "")
+            string Line(PlayerState p) => (p.Id == s.LocalId ? "<color=#ffa020>" : "") + (p.Id == 0 && !p.IsBot ? "[HOST] " : "") + Rtl.Shape(p.Name) + (p.Id == s.LocalId ? "</color>" : "")
                 + $"  <size=22><color=#8a94a0>{Weapons.Get(p.Primary).Name} / {Weapons.Get(p.Secondary).Name}</color></size>";
             if (tdm)
             {
@@ -609,7 +609,7 @@ namespace UA
             else
             {
                 var best = s.Players.Values.OrderByDescending(p => p.Kills).ThenBy(p => p.Deaths).FirstOrDefault();
-                title = best == null ? "MATCH OVER" : (best.Id == s.LocalId ? "<color=#ffa020>YOU WIN!</color>" : best.Name.ToUpperInvariant() + " WINS");
+                title = best == null ? "MATCH OVER" : (best.Id == s.LocalId ? "<color=#ffa020>YOU WIN!</color>" : Rtl.Shape(best.Name.ToUpperInvariant()) + " WINS");
             }
             resultsTitle.text = title;
             resultsTable.text = Hud.ScoreboardText(s);

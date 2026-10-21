@@ -314,15 +314,32 @@ public static class PortBuilder
         }
     }
 
+    /// <summary>Four grain silos: painted steel with rust streaks, ring stiffeners, a conical roof, ladders and braced legs.</summary>
     private static void Silos(Vector3 c, Transform parent)
     {
+        var paint = Pbr("SiloPaint", "CorrugatedSteel005", new Color(0.92f, 0.74f, 0.2f), 0.6f);
+        var rust = Pbr("SiloRust", "CorrugatedSteel007A", new Color(1f, 0.85f, 0.7f), 0.5f);
+        var steel = Pbr("SiloSteel", "Metal032", new Color(0.45f, 0.46f, 0.47f), 0.6f);
         for (int i = 0; i < 4; i++)
         {
             var p = c + new Vector3((i % 2) * 3.2f, 0, (i / 2) * 3.2f);
             foreach (var (x, z) in new[] { (-0.9f, -0.9f), (0.9f, -0.9f), (-0.9f, 0.9f), (0.9f, 0.9f) })
-                Box("Leg", p + new Vector3(x, 1f, z), new Vector3(0.12f, 2f, 0.12f), DarkMetal, 1f, parent, 0, false);
-            MeshGen.TexCylinder("Silo", p + Vector3.up * 2f, 1.3f, 4.5f, Yellow, 2f, parent);
-            MeshGen.TexCylinder("Cone", p + Vector3.up * 1.4f, 0.5f, 0.6f, DarkMetal, 1f, parent, false);
+                Box("Leg", p + new Vector3(x, 1f, z), new Vector3(0.14f, 2f, 0.14f), steel, 1f, parent, 0, true);
+            Box("Brace", p + new Vector3(0, 0.9f, -0.9f), new Vector3(1.8f, 0.08f, 0.08f), steel, 1f, parent, 0, false);
+            Box("Brace", p + new Vector3(0, 0.9f, 0.9f), new Vector3(1.8f, 0.08f, 0.08f), steel, 1f, parent, 0, false);
+            MeshGen.TexCylinder("Silo", p + Vector3.up * 2f, 1.3f, 4.5f, paint, 2.2f, parent);
+            MeshGen.TexCylinder("RustBand", p + Vector3.up * 2f, 1.32f, 0.7f, rust, 2f, parent, false);
+            foreach (float y in new[] { 3.2f, 4.6f, 6.0f })
+                MeshGen.TexCylinder("Ring", p + Vector3.up * y, 1.34f, 0.08f, steel, 1f, parent, false);
+            MeshGen.TexCylinder("Roof", p + Vector3.up * 6.5f, 1.15f, 0.25f, steel, 1f, parent, false);
+            MeshGen.TexCylinder("RoofTop", p + Vector3.up * 6.75f, 0.6f, 0.3f, steel, 1f, parent, false);
+            MeshGen.TexCylinder("Cone", p + Vector3.up * 1.4f, 0.5f, 0.6f, steel, 1f, parent, false);
+            // ladder up the outside
+            var side = (i % 2 == 0 ? -1f : 1f);
+            Box("LadderRail", p + new Vector3(side * 1.4f, 4.3f, -0.22f), new Vector3(0.05f, 4.6f, 0.05f), steel, 1f, parent, 0, false);
+            Box("LadderRail", p + new Vector3(side * 1.4f, 4.3f, 0.22f), new Vector3(0.05f, 4.6f, 0.05f), steel, 1f, parent, 0, false);
+            for (float y = 2.2f; y < 6.5f; y += 0.35f)
+                Box("Rung", p + new Vector3(side * 1.4f, y, 0), new Vector3(0.04f, 0.04f, 0.44f), steel, 1f, parent, 0, false);
         }
     }
 
@@ -413,6 +430,9 @@ public static class PortBuilder
         Warehouse(new Vector3(-46, 0, 30), 22, 30, 9, WallWhite, WallRed, Roof, 0);
         Warehouse(new Vector3(18, 0, 42), 14, 40, 8, WallRed, WallWhite, RoofRust, 90);
         Warehouse(new Vector3(54, 0, -34), 14, 18, 7, WallTeal, WallWhite, Roof, 0);
+        // fire escapes up to the eaves of the big white warehouse and the teal one
+        Buildings.FireEscape(root, new Vector3(-35f, 0, 33f), Vector3.forward, Vector3.right, 9.1f, true, Walkway, RustPlates);
+        Buildings.FireEscape(root, new Vector3(61f, 0, -39f), Vector3.forward, Vector3.right, 7f, true, Walkway, RustPlates);
         Warehouse(new Vector3(-58, 0, -38), 9, 12, 5, WallRust, null, RoofRust, 90);
         Warehouse(new Vector3(6, 0, -42), 10, 14, 5.5f, WallTeal, WallRed, RoofRust, 90);
         // three-floor office players can enter, with stairs inside up to the roof
@@ -462,6 +482,21 @@ public static class PortBuilder
         ConcreteWall(new Vector3(18, 0, -6), new Vector3(30, 0, -6), 1.3f, fences);
 
         Greenery();
+
+        // ammunition crates, one in each part of the yard
+        var supply = new GameObject("AmmoCrates").transform;
+        supply.SetParent(root, false);
+        foreach (var (cx, cz) in new[] { (-50f, -25f), (-20f, -40f), (15f, -25f), (45f, -45f), (-60f, 18f), (-25f, 5f), (5f, 22f), (40f, 25f), (64f, -15f) })
+        {
+            Physics.SyncTransforms();
+            for (int k = 0; k < 20; k++)
+            {
+                var p = new Vector3(cx + R(-6, 6), 0, cz + R(-6, 6));
+                if (Physics.CheckBox(p + Vector3.up * 1f, new Vector3(1.4f, 0.9f, 1.4f), Quaternion.identity, World.EnvMask | (1 << World.FenceLayer))) continue;
+                Obstacles.AmmoCrate(supply, p, R(0, 360));
+                break;
+            }
+        }
 
         // varied cover across the yard: sandbag bunkers, wrecks, pipes, hedgehogs, crates, blocks
         Physics.SyncTransforms();

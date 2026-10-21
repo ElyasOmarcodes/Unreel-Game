@@ -101,6 +101,59 @@ public static class Buildings
         }
     }
 
+    /// <summary>
+    /// Steel fire escape on the outside of a building: two lanes of stairs zig-zag up the facade with
+    /// landings at both ends. It ends either on the roof (a plank over the parapet) or on a platform
+    /// part of the way up, a sniper perch. facade = point on the wall at street level, along = direction
+    /// along the wall, outward = away from the wall. Needs about 8.6 m of wall and 3 m in front of it.
+    /// </summary>
+    public static void FireEscape(Transform parent, Vector3 facade, Vector3 along, Vector3 outward, float height, bool toRoof, Material steps, Material steel)
+    {
+        var t = new GameObject(toRoof ? "FireEscape_Roof" : "FireEscape_Perch").transform;
+        t.SetParent(parent, false);
+        along.y = outward.y = 0;
+        along.Normalize();
+        outward.Normalize();
+        float yaw = Mathf.Atan2(along.x, along.z) * Mathf.Rad2Deg;
+        const float laneWidth = 1.3f, landing = 1.4f, gap = 0.15f;
+        int flights = Mathf.Max(1, Mathf.RoundToInt(height / 3.2f));
+        float rise = height / flights;
+        int count = Mathf.CeilToInt(rise / StepH);
+        float run = count * StepRun;
+        Vector3 Lane(int lane) => outward * (gap + laneWidth * (lane + 0.5f));
+        Vector3 At(float a, float y, float o) => facade + along * a + outward * o + Vector3.up * y;
+        float depth = gap + laneWidth * 2;
+        for (int k = 0; k < flights; k++)
+        {
+            bool forward = k % 2 == 0;
+            var start = facade + Lane(k % 2) + along * (forward ? landing : landing + run) + Vector3.up * (k * rise);
+            Stairs(t, start, forward ? along : -along, rise, laneWidth - 0.08f, steps);
+            // landing at the top of this flight (both lanes wide)
+            float a = forward ? landing + run + landing / 2f : landing / 2f;
+            MeshGen.TexBox("Landing", At(a, (k + 1) * rise - 0.06f, depth / 2f), new Vector3(landing, 0.12f, depth), steps, 1.5f, t, yaw + 90f);
+        }
+        // outer railing along the whole escape, and at the ends
+        float length = landing * 2 + run;
+        for (int k = 1; k <= flights; k++)
+            MeshGen.TexBox("Rail", At(length / 2f, k * rise + 0.5f, depth + 0.03f), new Vector3(0.06f, 1f, length), steel, 1f, t, yaw);
+        // posts down to the street
+        foreach (float a in new[] { 0.1f, length - 0.1f })
+            MeshGen.TexBox("Post", At(a, flights * rise / 2f, depth), new Vector3(0.12f, flights * rise, 0.12f), steel, 1f, t, yaw);
+        float top = flights * rise;
+        float end = flights % 2 == 1 ? landing + run + landing / 2f : landing / 2f;
+        if (toRoof)
+        {
+            // plank from the top landing over the parapet onto the roof
+            MeshGen.TexBox("RoofPlank", At(end, top + 0.04f, -0.6f), new Vector3(1.1f, 0.08f, 2.2f), steps, 1f, t, yaw + 90f);
+        }
+        else
+        {
+            // a wider platform with a waist-high steel wall: cover for shooting down the street
+            MeshGen.TexBox("Perch", At(end, top - 0.06f, depth + 0.7f), new Vector3(landing + 1.2f, 0.12f, 1.4f), steps, 1.5f, t, yaw + 90f);
+            MeshGen.TexBox("PerchWall", At(end, top + 0.5f, depth + 1.37f), new Vector3(0.08f, 1f, landing + 1.2f), steel, 1f, t, yaw);
+        }
+    }
+
     /// <summary>Outdoor staircase with side walls, from a ground point up to the given height.</summary>
     public static float OutdoorStairs(Transform parent, Vector3 start, Vector3 dir, float height, Material steps, Material rails)
     {

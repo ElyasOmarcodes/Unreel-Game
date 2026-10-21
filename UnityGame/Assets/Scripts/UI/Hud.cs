@@ -120,6 +120,7 @@ namespace UA
             AddButton(Controls.Button.Swap, "swap_horiz", "SWAP");
             AddButton(Controls.Button.Prone, "airline_seat_flat", "PRONE");
             AddButton(Controls.Button.Grenade, "grenade", "x2");
+            AddButton(Controls.Button.Ammo, "ammo", "AMMO");
             AddButton(Controls.Button.Pause, "pause", "");
             AddButton(Controls.Button.Score, "leaderboard", "");
 
@@ -177,8 +178,8 @@ namespace UA
         private void OnKill(KillEvent k)
         {
             var s = Session.I;
-            string killer = s.Players.TryGetValue(k.Killer, out var a) ? a.Name : "?";
-            string victim = s.Players.TryGetValue(k.Victim, out var b) ? b.Name : "?";
+            string killer = s.Players.TryGetValue(k.Killer, out var a) ? Rtl.Shape(a.Name) : "?";
+            string victim = s.Players.TryGetValue(k.Victim, out var b) ? Rtl.Shape(b.Name) : "?";
             string weapon = Weapons.Get(k.Weapon).Name;
             string kc = Hex(a != null ? World.TeamColor(a, s) : Color.white), vc = Hex(b != null ? World.TeamColor(b, s) : Color.white);
             string line = k.Killer == k.Victim
@@ -290,7 +291,7 @@ namespace UA
                 if (s.KillFeed.Any(k => k.Victim == s.LocalId))
                 {
                     var lastDeath = s.KillFeed.Last(k => k.Victim == s.LocalId);
-                    if (lastDeath.Killer != s.LocalId && s.Players.TryGetValue(lastDeath.Killer, out var killer)) by = "Killed by " + killer.Name;
+                    if (lastDeath.Killer != s.LocalId && s.Players.TryGetValue(lastDeath.Killer, out var killer)) by = "Killed by " + Rtl.Shape(killer.Name);
                 }
                 center.text = "YOU WERE ELIMINATED";
                 centerSmall.text = by + (by.Length > 0 ? "  -  " : "") + "respawning...";
@@ -314,7 +315,8 @@ namespace UA
                 float r = Controls.ButtonRadius(pair.Key);
                 pair.Value.rectTransform.anchoredPosition = c;
                 pair.Value.rectTransform.sizeDelta = new Vector2(r * 2, r * 2);
-                bool show = (touchUi || pair.Key == Controls.Button.Pause || pair.Key == Controls.Button.Score) && Controls.ButtonVisible(pair.Key);
+                bool show = (touchUi || pair.Key == Controls.Button.Pause || pair.Key == Controls.Button.Score || pair.Key == Controls.Button.Ammo) && Controls.ButtonVisible(pair.Key)
+                            && (pair.Key != Controls.Button.Ammo || Controls.AmmoAvailable);
                 pair.Value.enabled = show;
                 foreach (var g in pair.Value.GetComponentsInChildren<Graphic>()) g.enabled = show;
                 bool held = Controls.Held.Contains(pair.Key);
@@ -364,7 +366,7 @@ namespace UA
                     if (!friend && (screen.z > 25f || !World.I.LineOfSight(cam.transform.position, headPos))) continue;
                     var t = names[used++];
                     t.enabled = true;
-                    t.text = p.Name;
+                    t.text = Rtl.Shape(p.Name);
                     t.color = friend ? new Color(0.55f, 0.75f, 1f) : new Color(1f, 0.55f, 0.5f);
                     t.rectTransform.anchorMin = t.rectTransform.anchorMax = Vector2.zero;
                     t.rectTransform.anchoredPosition = new Vector2(screen.x, screen.y) * scale;
@@ -386,7 +388,7 @@ namespace UA
                     sb.AppendLine(g.Key == 0 ? $"<color=#4d84ff>TEAM BLUE   {s.TeamScore[0]}</color>" : $"<color=#f24d40>TEAM RED   {s.TeamScore[1]}</color>");
                 foreach (var p in g.OrderByDescending(p => p.Kills).ThenBy(p => p.Deaths))
                 {
-                    string name = p.Name.Length > 18 ? p.Name.Substring(0, 18) : p.Name;
+                    string name = Rtl.Shape(p.Name.Length > 18 ? p.Name.Substring(0, 18) : p.Name);
                     string line = name.PadRight(30) + p.Kills.ToString().PadLeft(10) + p.Deaths.ToString().PadLeft(12);
                     sb.AppendLine(p.Id == s.LocalId ? $"<color=#ffb040>{line}</color>" : line);
                 }

@@ -25,6 +25,11 @@ namespace UA
         public string Sound;
         public float SoundPitch = 1f;
         public float MoveSpeed = 1f;
+        // real-world data, shown on the profile page
+        public string Caliber = "";
+        public int MuzzleVelocity;      // m/s
+        public int EffectiveRange;      // m
+        public string Action = "";
     }
 
     /// <summary>
@@ -39,14 +44,14 @@ namespace UA
 
         public static readonly WeaponDef[] All =
         {
-            new WeaponDef { Id = 0, Name = "AK-47", Primary = true, Damage = 21, HeadMultiplier = 2.5f, FireRate = 10f, Range = 130, Spread = 2.6f, AimSpread = 0.7f, Recoil = 1.5f, ReloadTime = 2.4f, MagSize = 30, Reserve = 150, Auto = true, AimFov = 42, Sound = "shot_ak", MoveSpeed = 0.95f },
-            new WeaponDef { Id = 1, Name = "M4A1 ACOG", Primary = true, Damage = 18, HeadMultiplier = 2.5f, FireRate = 12.5f, Range = 150, Spread = 2.1f, AimSpread = 0.35f, Recoil = 1.05f, ReloadTime = 2.2f, MagSize = 30, Reserve = 180, Auto = true, Scope = true, AimFov = 27, Sound = "shot_m4", MoveSpeed = 0.97f },
-            new WeaponDef { Id = 2, Name = "SPAS-12", Primary = true, Damage = 13, HeadMultiplier = 1.5f, Pellets = 9, FireRate = 1.4f, Range = 38, Spread = 6.5f, AimSpread = 4.5f, Recoil = 4f, ReloadTime = 3.2f, MagSize = 8, Reserve = 40, AimFov = 50, Sound = "shot_shotgun", MoveSpeed = 0.95f },
-            new WeaponDef { Id = 3, Name = "L96 SNIPER", Primary = true, Damage = 75, HeadMultiplier = 3f, FireRate = 0.8f, Range = 300, Spread = 7f, AimSpread = 0f, Recoil = 5f, ReloadTime = 3f, MagSize = 5, Reserve = 25, Scope = true, BoltAction = true, AimFov = 12, Sound = "shot_sniper", MoveSpeed = 0.88f },
-            new WeaponDef { Id = 4, Name = "GLOCK 17", Primary = false, Damage = 15, HeadMultiplier = 2.5f, FireRate = 6.5f, Range = 70, Spread = 2.2f, AimSpread = 0.8f, Recoil = 0.9f, ReloadTime = 1.5f, MagSize = 17, Reserve = 85, AimFov = 50, Sound = "shot_pistol", MoveSpeed = 1.05f },
-            new WeaponDef { Id = 5, Name = "DESERT EAGLE", Primary = false, Damage = 35, HeadMultiplier = 2.5f, FireRate = 2.6f, Range = 80, Spread = 2.6f, AimSpread = 0.7f, Recoil = 3.2f, ReloadTime = 1.9f, MagSize = 7, Reserve = 35, AimFov = 48, Sound = "shot_deagle", MoveSpeed = 1.03f },
-            new WeaponDef { Id = 6, Name = "MP5", Primary = false, Damage = 14, HeadMultiplier = 2.2f, FireRate = 13f, Range = 70, Spread = 2.8f, AimSpread = 1f, Recoil = 0.8f, ReloadTime = 2f, MagSize = 30, Reserve = 180, Auto = true, AimFov = 46, Sound = "shot_smg", MoveSpeed = 1.02f },
-            new WeaponDef { Id = 7, Name = "SVD DRAGUNOV", Primary = true, Damage = 46, HeadMultiplier = 2.4f, FireRate = 3f, Range = 250, Spread = 4f, AimSpread = 0.1f, Recoil = 3f, ReloadTime = 2.6f, MagSize = 10, Reserve = 40, Scope = true, AimFov = 20, Sound = "shot_marksman", MoveSpeed = 0.92f },
+            new WeaponDef { Id = 0, Name = "AK-47", Primary = true, Damage = 21, HeadMultiplier = 2.5f, FireRate = 10f, Range = 130, Spread = 2.6f, AimSpread = 0.7f, Recoil = 1.5f, ReloadTime = 2.4f, MagSize = 30, Reserve = 150, Auto = true, AimFov = 42, Sound = "shot_ak", MoveSpeed = 0.95f, Caliber = "7.62×39 mm", MuzzleVelocity = 715, EffectiveRange = 350, Action = "AUTO 600 RPM" },
+            new WeaponDef { Id = 1, Name = "M4A1 ACOG", Primary = true, Damage = 18, HeadMultiplier = 2.5f, FireRate = 12.5f, Range = 150, Spread = 2.1f, AimSpread = 0.35f, Recoil = 1.05f, ReloadTime = 2.2f, MagSize = 30, Reserve = 180, Auto = true, Scope = true, AimFov = 27, Sound = "shot_m4", MoveSpeed = 0.97f, Caliber = "5.56×45 mm NATO", MuzzleVelocity = 910, EffectiveRange = 500, Action = "AUTO 750 RPM" },
+            new WeaponDef { Id = 2, Name = "SPAS-12", Primary = true, Damage = 13, HeadMultiplier = 1.5f, Pellets = 9, FireRate = 1.4f, Range = 38, Spread = 6.5f, AimSpread = 4.5f, Recoil = 4f, ReloadTime = 3.2f, MagSize = 8, Reserve = 40, AimFov = 50, Sound = "shot_shotgun", MoveSpeed = 0.95f, Caliber = "12 GAUGE", MuzzleVelocity = 400, EffectiveRange = 40, Action = "SEMI-AUTO" },
+            new WeaponDef { Id = 3, Name = "L96 SNIPER", Primary = true, Damage = 75, HeadMultiplier = 3f, FireRate = 0.8f, Range = 300, Spread = 7f, AimSpread = 0f, Recoil = 5f, ReloadTime = 3f, MagSize = 5, Reserve = 25, Scope = true, BoltAction = true, AimFov = 12, Sound = "shot_sniper", MoveSpeed = 0.88f, Caliber = "7.62×51 mm NATO", MuzzleVelocity = 850, EffectiveRange = 800, Action = "BOLT ACTION" },
+            new WeaponDef { Id = 4, Name = "GLOCK 17", Primary = false, Damage = 15, HeadMultiplier = 2.5f, FireRate = 6.5f, Range = 70, Spread = 2.2f, AimSpread = 0.8f, Recoil = 0.9f, ReloadTime = 1.5f, MagSize = 17, Reserve = 85, AimFov = 50, Sound = "shot_pistol", MoveSpeed = 1.05f, Caliber = "9×19 mm", MuzzleVelocity = 375, EffectiveRange = 50, Action = "SEMI-AUTO" },
+            new WeaponDef { Id = 5, Name = "DESERT EAGLE", Primary = false, Damage = 35, HeadMultiplier = 2.5f, FireRate = 2.6f, Range = 80, Spread = 2.6f, AimSpread = 0.7f, Recoil = 3.2f, ReloadTime = 1.9f, MagSize = 7, Reserve = 35, AimFov = 48, Sound = "shot_deagle", MoveSpeed = 1.03f, Caliber = ".50 AE", MuzzleVelocity = 470, EffectiveRange = 50, Action = "SEMI-AUTO" },
+            new WeaponDef { Id = 6, Name = "MP5", Primary = false, Damage = 14, HeadMultiplier = 2.2f, FireRate = 13.33f, Range = 70, Spread = 2.8f, AimSpread = 1f, Recoil = 0.8f, ReloadTime = 2f, MagSize = 30, Reserve = 180, Auto = true, AimFov = 46, Sound = "shot_smg", MoveSpeed = 1.02f, Caliber = "9×19 mm", MuzzleVelocity = 400, EffectiveRange = 150, Action = "AUTO 800 RPM" },
+            new WeaponDef { Id = 7, Name = "SVD DRAGUNOV", Primary = true, Damage = 46, HeadMultiplier = 2.4f, FireRate = 3f, Range = 250, Spread = 4f, AimSpread = 0.1f, Recoil = 3f, ReloadTime = 2.6f, MagSize = 10, Reserve = 40, Scope = true, AimFov = 20, Sound = "shot_marksman", MoveSpeed = 0.92f, Caliber = "7.62×54 mm R", MuzzleVelocity = 830, EffectiveRange = 800, Action = "SEMI-AUTO" },
         };
 
         /// <summary>Weapons the bots pick from.</summary>

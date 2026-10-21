@@ -10,12 +10,14 @@ namespace UA
     [DefaultExecutionOrder(-100)]
     public class Controls : MonoBehaviour
     {
-        public enum Button { Fire, FireLeft, Aim, Jump, Crouch, Reload, Swap, Pause, Score, Prone, Grenade }
+        public enum Button { Fire, FireLeft, Aim, Jump, Crouch, Reload, Swap, Pause, Score, Prone, Grenade, Ammo }
 
         public static bool Enabled;
+        /// <summary>The ammo button only exists while the player stands at an ammo box.</summary>
+        public static bool AmmoAvailable;
         public static Vector2 Move;
         public static Vector2 Look;
-        public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, PronePressed, GrenadePressed;
+        public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, PronePressed, GrenadePressed, AmmoPressed;
 
         // automated test input
         public static Vector2 SimMove, SimLook;
@@ -28,7 +30,7 @@ namespace UA
 
         public const float StickRadius = 120f;
 
-        private struct Finger { public Button? Button; public bool Stick, LookDrag; }
+        private struct Finger { public Button? Button; public bool Stick, LookDrag; public Vector2 Last; }
         private readonly Dictionary<int, Finger> fingers = new Dictionary<int, Finger>();
         private bool lastFireHeld;
 
@@ -45,7 +47,9 @@ namespace UA
                 case Button.Prone: return new Vector2(w - 100, 650);
                 case Button.Reload: return new Vector2(w - 480, 380);
                 case Button.Swap: return new Vector2(w - 470, 590);
-                case Button.Grenade: return new Vector2(w - 290, 560);
+                // left side: just up and right of the left fire button
+                case Button.Grenade: return new Vector2(395, 715);
+                case Button.Ammo: return new Vector2(w - 700, 330);
                 case Button.Pause: return new Vector2(80, 1000);
                 default: return new Vector2(200, 1000);
             }
@@ -88,7 +92,7 @@ namespace UA
 
         private void Update()
         {
-            bool fireTap = false, aim = false, jump = false, crouch = false, reload = false, swap = false, pause = false, prone = false, grenade = false;
+            bool fireTap = false, aim = false, jump = false, crouch = false, reload = false, swap = false, pause = false, prone = false, grenade = false, ammo = false;
             Move = Vector2.zero;
             Look = Vector2.zero;
             Held.Clear();
@@ -103,10 +107,10 @@ namespace UA
                 var p = t.position * scale;
                 if (t.phase == TouchPhase.Began)
                 {
-                    var f = new Finger();
+                    var f = new Finger { Last = p };
                     foreach (var b in AllButtons)
                     {
-                        if (ButtonVisible(b) && Vector2.Distance(p, ButtonCenter(b)) <= ButtonRadius(b) * 1.1f) { f.Button = b; break; }
+                        if (ButtonVisible(b) && (b != Button.Ammo || AmmoAvailable) && Vector2.Distance(p, ButtonCenter(b)) <= ButtonRadius(b) * 1.1f) { f.Button = b; break; }
                     }
                     if (f.Button == null)
                     {
@@ -126,6 +130,7 @@ namespace UA
                             case Button.Pause: pause = true; break;
                             case Button.Prone: prone = true; break;
                             case Button.Grenade: grenade = true; break;
+                            case Button.Ammo: ammo = true; break;
                         }
                     }
                     fingers[t.fingerId] = f;
@@ -145,10 +150,13 @@ namespace UA
                 }
                 else if (finger.LookDrag || finger.Button == Button.Fire)
                 {
-                    // dragging the fire button also aims, like most mobile shooters
-                    var d = t.deltaPosition * scale * sens;
+                    // dragging the fire button also aims, like most mobile shooters; the exact distance the
+                    // finger moved since the last frame (no smoothing, no lost touch samples)
+                    var d = (p - finger.Last) * sens;
                     Look += new Vector2(Settings.ReverseHorizontal ? -d.x : d.x, Settings.ReverseVertical ? -d.y : d.y);
                 }
+                finger.Last = p;
+                fingers[t.fingerId] = finger;
                 if (finger.Button.HasValue)
                 {
                     Held.Add(finger.Button.Value);
@@ -172,6 +180,7 @@ namespace UA
                 if (Input.GetKeyDown(KeyCode.C) || Input.GetKeyDown(KeyCode.LeftControl)) crouch = true;
                 if (Input.GetKeyDown(KeyCode.Z)) prone = true;
                 if (Input.GetKeyDown(KeyCode.G)) grenade = true;
+                if (Input.GetKeyDown(KeyCode.F)) ammo = true;
                 if (Input.GetKeyDown(KeyCode.R)) reload = true;
                 if (Input.GetKeyDown(KeyCode.Q) || Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Alpha2)) swap = true;
                 if (Input.GetKey(KeyCode.Tab)) Held.Add(Button.Score);
@@ -197,6 +206,7 @@ namespace UA
             ScoreHeld = Held.Contains(Button.Score);
             PronePressed = prone;
             GrenadePressed = grenade;
+            AmmoPressed = ammo;
         }
     }
 }

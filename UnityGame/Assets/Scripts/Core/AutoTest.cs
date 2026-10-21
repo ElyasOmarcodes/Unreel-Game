@@ -109,6 +109,7 @@ namespace UA
         private IEnumerator Host()
         {
             var app = App.I;
+            Settings.PlayerName = "ستوری ښه";   // a Pashto name: checks the joined right-to-left text
             yield return Wait(1.2f);
             yield return Shot("01-splash");
             yield return Until(() => app.Current == "menu", 10);
@@ -187,11 +188,15 @@ namespace UA
                 (0, "18-downtown-stairs", new Vector3(-47.5f, 5.2f, 41f), new Vector3(-43f, 3.8f, 47f)),
                 (0, "19-downtown-roof", new Vector3(-61f, 15.6f, 40.5f), new Vector3(-20f, 6f, 10f)),
                 (0, "20-downtown-park", new Vector3(-14f, 2.6f, -16f), new Vector3(0f, 2f, 0f)),
+                (0, "20b-downtown-street", new Vector3(29f, 2.2f, -36f), new Vector3(25f, 1f, -62f)),
+                (0, "20c-ammo-crate", new Vector3(-29.5f, 1.9f, -9.5f), new Vector3(-33.5f, 0.5f, -12f)),
                 (3, "21-port-office", new Vector3(44f, 4f, 4f), new Vector3(58f, 5f, 24f)),
                 (3, "22-port-office-inside", new Vector3(53f, 1.7f, 16.3f), new Vector3(63f, 1.6f, 24f)),
                 (3, "23-port-office-roof", new Vector3(52f, 12f, 17f), new Vector3(10f, 3f, 0f)),
                 (3, "24-port-hidden-route", new Vector3(-38f, 5f, -32f), new Vector3(-56f, 3f, -45f)),
                 (3, "25-port-trees", new Vector3(52f, 2.5f, 34f), new Vector3(58f, 3f, 48f)),
+                (3, "26-port-fire-escape", new Vector3(-24f, 4f, 30f), new Vector3(-34f, 4.5f, 37f)),
+                (3, "27-port-silos", new Vector3(-6f, 4f, 22f), new Vector3(-14f, 4f, 31f)),
             };
             foreach (var v in views)
             {

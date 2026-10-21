@@ -72,13 +72,13 @@ namespace UA
                 RefreshProfile();
             }, 980);
             var gunBox = UIKit.Img(right, new Color(0, 0, 0, 0.35f), UIKit.Rounded);
-            gunBox.rectTransform.At(0.5f, 0f, -150, 20, 640, 220, 0.5f, 0f);
+            gunBox.rectTransform.At(0.5f, 0f, -190, 20, 580, 220, 0.5f, 0f);
             gunView = UIKit.Node(gunBox.transform, "Gun").gameObject.AddComponent<RawImage>();
             gunView.rectTransform.Fill(6);
             gunTitle = UIKit.Txt(right, "", 34, TextAnchor.UpperLeft, UIKit.Accent);
-            gunTitle.rectTransform.At(1f, 0f, -30, 190, 300, 50, 1f, 0f);
-            gunStats = UIKit.Txt(right, "", 24, TextAnchor.UpperLeft, UIKit.TextColor);
-            gunStats.rectTransform.At(1f, 0f, -30, 20, 300, 165, 1f, 0f);
+            gunTitle.rectTransform.At(1f, 0f, -16, 190, 370, 50, 1f, 0f);
+            gunStats = UIKit.Txt(right, "", 21, TextAnchor.UpperLeft, UIKit.TextColor);
+            gunStats.rectTransform.At(1f, 0f, -16, 20, 370, 165, 1f, 0f);
             var back = UIKit.Btn(s, "SAVE", () => { Settings.PlayerName = profileName.text; ShowScreen("menu"); }, 36, UIKit.AccentDark, "play_arrow");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 30, 380, 90, 0.5f, 0f);
         }
@@ -104,7 +104,7 @@ namespace UA
             int bodyShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets));
             int headShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets * w.HeadMultiplier));
             gunTitle.text = w.Name;
-            gunStats.text = $"Damage   {w.Damage * w.Pellets:0}\nFire rate   {w.FireRate * 60:0} rpm\nMagazine   {w.MagSize}\nScope   {(w.Scope ? $"{60f / w.AimFov:0.#}x" : "none")}\nKill: {bodyShots} body / {headShots} head";
+            gunStats.text = $"{w.Caliber}  ·  {w.MuzzleVelocity} m/s\n{w.Action}  ·  {1000f / w.FireRate:0} ms\nRange {w.EffectiveRange} m  ·  Mag {w.MagSize}\nScope {(w.Scope ? $"{60f / w.AimFov:0.#}x" : "none")}  ·  Dmg {w.Damage * w.Pellets:0}\nKill: {bodyShots} body / {headShots} head";
             var me = Session.I.Local;
             if (me != null && Session.I.Phase == Phase.Lobby) { me.Look = Settings.Look; Session.I.SetLoadout(Settings.Primary, Settings.Secondary); }
         }

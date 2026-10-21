@@ -21,7 +21,7 @@ public class ImportRules : AssetPostprocessor
             importer.meshCompression = ModelImporterMeshCompression.Medium;
             importer.importBlendShapes = false;
         }
-        else if (assetPath.Contains("ThirdParty/Props/") || assetPath.Contains("ThirdParty/Guns/") || assetPath.Contains("ThirdParty/Nature/"))
+        else if (assetPath.Contains("ThirdParty/Props/") || assetPath.Contains("ThirdParty/Guns/") || assetPath.Contains("ThirdParty/Nature/") || assetPath.Contains("ThirdParty/Cars/"))
         {
             importer.addCollider = false;
             importer.importAnimation = false;

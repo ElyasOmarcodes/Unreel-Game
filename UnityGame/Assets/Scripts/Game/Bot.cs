@@ -110,7 +110,7 @@ namespace UA
             }
             lastPos = transform.position;
 
-            float speed = 4.3f * def.MoveSpeed;
+            float speed = 4.8f * def.MoveSpeed;
             if (cc.isGrounded) verticalSpeed = -2f;
             verticalSpeed -= 20f * dt;
             cc.Move((Vector3.ClampMagnitude(move, 1f) * speed + Vector3.up * verticalSpeed) * dt);
