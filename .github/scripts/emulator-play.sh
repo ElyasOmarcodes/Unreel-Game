@@ -24,18 +24,27 @@ vx() { echo $(( $1 * H / 720 )); }    # virtual x/y -> pixels (same scale on bot
 nx() { echo $(( W * $1 / 1000 )); }   # normalized (per mille) -> pixels
 ny() { echo $(( H * $1 / 1000 )); }
 
-# Software Vulkan in the emulator is slow: wait for the first frames.
-sleep 25; alive || echo "::error::game process died during start"
-shot 01-splash
-sleep 20
-shot 02-main-menu
+# Software Vulkan in the emulator is very slow: wait until the game logs its first frame.
+for i in $(seq 1 60); do
+  sleep 5
+  alive || { echo "::error::game process died during start"; break; }
+  grep -q "\[ArenaRush\] first-frame" "$OUT/logcat.txt" && break
+done
+echo "first frame after $(( $(date +%s) - START ))s"
+shot 01-splash 1
+# wait for the splash to finish and the menu to settle
+for i in $(seq 1 24); do
+  sleep 5
+  grep -q "\[ArenaRush\] state=MainMenu" "$OUT/logcat.txt" && break
+done
+shot 02-main-menu 8
 
 # SETTINGS (main menu button at virtual x 100..490, y 370..440)
-adb shell input tap $(vx 300) $(vx 405); shot 03-settings 6
+adb shell input tap $(vx 300) $(vx 405); shot 03-settings 10
 # BACK (centre of the screen, virtual y 570..634)
 adb shell input tap $(( W / 2 )) $(vx 602); sleep 4
 # PLAY (virtual y 280..350)
-adb shell input tap $(vx 300) $(vx 315); shot 04-playing 10
+adb shell input tap $(vx 300) $(vx 315); shot 04-playing 20
 
 # walk forward with the left stick
 JX=$(nx 150); JY=$(ny 720)
@@ -66,11 +75,16 @@ kill $LOGCAT_PID 2>/dev/null || true
 echo "================= game log ================="
 APP_PIDS=$(grep -oE "Start proc ([0-9]+):com.elyasomar.arenarush" "$OUT/logcat.txt" | grep -oE "[0-9]+" | sort -u | tr '\n' '|' | sed 's/|$//')
 echo "app pids: $APP_PIDS"
+grep "\[ArenaRush\]" "$OUT/logcat.txt" | tail -20 || true
 grep -E "\(\s*(${APP_PIDS:-none})\)|ArenaRush|arenarush|DEBUG   |F/libc|monodroid|mono-rt|DOTNET|Stride|AndroidRuntime" "$OUT/logcat.txt" \
   | grep -vE "ModernMediaScanner|Telephony|Conscrypt" | tail -200 || true
 echo "============================================"
 if ! alive; then
   echo "::error::the game is not running anymore (see logcat.txt)"
+  exit 1
+fi
+if ! grep -q "\[ArenaRush\] first-frame" "$OUT/logcat.txt"; then
+  echo "::error::the game never drew its first frame"
   exit 1
 fi
 echo "game still running - OK"

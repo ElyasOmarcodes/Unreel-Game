@@ -46,7 +46,10 @@ namespace ArenaRush.UI
                 GameFlow.Set(splashShown ? FlowState.MainMenu : FlowState.Splash);
             }
             lastState = GameFlow.State;
+            Console.WriteLine("[ArenaRush] ui-start state=" + GameFlow.State);
         }
+
+        private bool firstFrameLogged;
 
         public override void Update()
         {
@@ -54,10 +57,16 @@ namespace ArenaRush.UI
             Overlay.BeginFrame();
             CollectClicks();
 
+            if (!firstFrameLogged)
+            {
+                firstFrameLogged = true;
+                Console.WriteLine("[ArenaRush] first-frame state=" + GameFlow.State);
+            }
             if (GameFlow.State != lastState)
             {
                 lastState = GameFlow.State;
                 stateTime = 0;
+                Console.WriteLine("[ArenaRush] state=" + GameFlow.State);
             }
             stateTime += dt;
             if (dt > 0) fps = MathUtil.Lerp(fps, 1f / dt, 0.05f);
