@@ -1,7 +1,6 @@
 name: Asset probe (research)
 
-# Lists free (CC0) assets that the game can use: Poly Haven models, ambientCG textures,
-# Quaternius characters and guns. Read-only research, nothing is published.
+# Read-only research: looks inside the free (CC0) asset downloads the game is going to use.
 on:
   workflow_dispatch:
   push:
@@ -12,45 +11,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Poly Haven models
-        run: |
-          curl -s "https://api.polyhaven.com/assets?t=models" | python3 -c "
-          import sys,json
-          d=json.load(sys.stdin)
-          print(len(d),'models')
-          for k,v in sorted(d.items()):
-              print(k,'|',','.join(v.get('categories',[])),'|',v.get('polycount',''))
-          "
-      - name: ambientCG materials
-        run: |
-          for q in Corrugated Metal Concrete Asphalt Rust Chainlink Bricks PaintedMetal Plaster Wood; do
-            echo "== $q"
-            curl -s "https://ambientcg.com/api/v2/full_json?type=Material&q=$q&limit=40&include=downloadData" | python3 -c "
-          import sys,json
-          d=json.load(sys.stdin)
-          for a in d.get('foundAssets',[]):
-              zips=[f['attribute'] for c in a.get('downloadFolders',{}).values() for cat in c.get('downloadFiletypeCategories',{}).values() for f in cat.get('downloads',[])]
-              print(a['assetId'], '|', ','.join(z for z in zips if '1K' in z))
-          "
-          done
       - name: Quaternius Universal Base Characters (itch.io)
         run: |
-          set -x
           P=https://quaternius.itch.io/universal-base-characters
           curl -s -c jar -b jar "$P" -o page.html
-          grep -o 'csrf_token" value="[^"]*' page.html | head -1
-          grep -o 'data-upload_id="[0-9]*"' page.html | head
-          grep -o '"upload_id":[0-9]*' page.html | head
           CSRF=$(grep -o 'name="csrf_token" value="[^"]*' page.html | head -1 | sed 's/.*value="//')
-          curl -s -c jar -b jar -X POST "$P/download_url" -d "csrf_token=$CSRF" | tee dl.json
-          URL=$(python3 -c "import json;print(json.load(open('dl.json')).get('url',''))")
-          curl -s -c jar -b jar -L "$URL" -o dlpage.html
-          grep -o 'data-upload_id="[0-9]*"' dlpage.html | head
-          grep -o 'class="upload_name"[^<]*<strong[^>]*>[^<]*' dlpage.html | head
-          grep -o 'csrf_token" value="[^"]*' dlpage.html | head -1
-      - name: Quaternius Ultimate Gun Pack (OpenGameArt)
+          URL=$(curl -s -c jar -b jar -X POST "$P/download_url" -d "csrf_token=$CSRF" | python3 -c "import sys,json;print(json.load(sys.stdin)['url'])")
+          KEY=${URL##*/download/}
+          curl -s -c jar -b jar -L "$URL" -o dl.html
+          UP=$(grep -o 'data-upload_id="[0-9]*"' dl.html | head -1 | grep -o '[0-9]*')
+          FILE=$(curl -s -c jar -b jar -X POST "$P/file/$UP?source=game_download&key=$KEY" -d "csrf_token=$CSRF" | python3 -c "import sys,json;print(json.load(sys.stdin)['url'])")
+          curl -sL "$FILE" -o ubc.zip
+          ls -la ubc.zip
+          unzip -l ubc.zip | grep -v "\.blend" | head -150
+      - name: Ultimate Gun Pack (FBX part)
         run: |
-          curl -sL "https://opengameart.org/content/low-poly-guns-pack" -o oga.html
-          grep -o 'https://opengameart.org/sites/default/files/[^"]*' oga.html | sort -u
-          F=$(grep -o 'https://opengameart.org/sites/default/files/[^"]*\.zip' oga.html | head -1)
-          [ -n "$F" ] && curl -sL "$F" -o guns.zip && unzip -l guns.zip | head -120
+          curl -sL https://opengameart.org/sites/default/files/ultimate_gun_pack_by_quaternius.zip -o guns.zip
+          unzip -l guns.zip | grep -iv "blend" | head -150
+      - name: Poly Haven files for some props
+        run: |
+          for id in old_military_crate concrete_road_barrier metal_trash_can exterior_aircon_unit plastic_crate_03 modular_industrial_pipes_01 propane_tank rusted_wheel_rim_01; do
+            curl -s "https://api.polyhaven.com/files/$id" | python3 -c "
+          import sys,json
+          d=json.load(sys.stdin)
+          print('$id', list(d.keys()))
+          f=d.get('fbx',{}).get('1k',{}).get('fbx',{})
+          print('  fbx 1k:', f.get('url'), f.get('size'), list(f.get('include',{}).keys())[:6])
+          "
+          done
+          curl -s "https://api.polyhaven.com/assets?t=models&c=industrial" | python3 -c "import sys,json;print(sorted(json.load(sys.stdin).keys()))"
+      - name: ambientCG zip contents
+        run: |
+          curl -sL "https://ambientcg.com/get?file=CorrugatedSteel005_1K-JPG.zip" -o c.zip && unzip -l c.zip
