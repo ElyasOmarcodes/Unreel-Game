@@ -1,23 +1,27 @@
 !MaterialAsset
-Id: 66bec4a1-26c4-49d9-885b-4e113071e508
+Id: 0f499298-b91f-4273-9bf6-002dede230de
 SerializedVersion: {Stride: 2.0.0.0}
 Tags: []
 Attributes:
     MicroSurface: !MaterialGlossinessMapFeature
         GlossinessMap: !ComputeFloat
-            Value: 0.35
+            Value: 1.0
     Diffuse: !MaterialDiffuseMapFeature
         DiffuseMap: !ComputeColor
-            Value: {R: 0.18, G: 0.2, B: 0.22, A: 1.0}
+            Value: {R: 0.78125, G: 0.78125, B: 0.78125, A: 1.0}
     DiffuseModel: !MaterialDiffuseLambertModelFeature {}
     Specular: !MaterialMetalnessMapFeature
         MetalnessMap: !ComputeFloat
-            Value: 0.0
+            Value: 1.0
     SpecularModel: !MaterialSpecularMicrofacetModelFeature
         Fresnel: !MaterialSpecularMicrofacetFresnelSchlick {}
         Visibility: !MaterialSpecularMicrofacetVisibilitySmithSchlickGGX {}
         NormalDistribution: !MaterialSpecularMicrofacetNormalDistributionGGX {}
-        Environment: !MaterialSpecularMicrofacetEnvironmentGGXLUT {}
+    Emissive: !MaterialEmissiveMapFeature
+        EmissiveMap: !ComputeColor
+            Value: {R: 0.5875, G: 0.891718745, B: 1.0, A: 1.0}
+        Intensity: !ComputeFloat
+            Value: 2.0
     Overrides:
         UVScale: {X: 1.0, Y: 1.0}
 Layers: {}

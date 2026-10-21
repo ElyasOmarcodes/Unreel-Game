@@ -1,4 +1,4 @@
-name: Stride - build Android debug APK
+name: Stride - build, test on emulator, release APK
 
 on:
   workflow_dispatch:
@@ -10,16 +10,25 @@ on:
 permissions:
   contents: write
 
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  LAVAPIPE_VERSION: "2026.10.12"
+
 jobs:
-  build-apk:
-    # Stride's asset compiler runs on Windows.
-    runs-on: windows-latest
+  build:
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     defaults:
       run:
         working-directory: StrideGame
     steps:
       - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/swift /opt/hostedtoolcache/CodeQL /usr/local/lib/node_modules /usr/local/.ghcup /usr/share/dotnet/shared/Microsoft.AspNetCore.App 2>/dev/null || true
+          df -h /
 
       - uses: actions/setup-java@v4
         with:
@@ -33,49 +42,133 @@ jobs:
       - name: Install .NET Android workload
         run: dotnet workload install android
 
-      # Pass 1: compile the code only. Stride 4.4.1 compiles Android assets during
-      # PrepareResources, before the Android assembly exists in the output folder.
-      - name: Build code (pass 1, assets skipped)
-        run: >
-          dotnet build ArenaRush.Android/ArenaRush.Android.csproj
-          -c Debug
-          -p:StrideCompilerSkipBuild=true
-          -p:AndroidSdkDirectory="$env:ANDROID_HOME"
-          -p:JavaSdkDirectory="$env:JAVA_HOME"
+      - name: Android SDK packages
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          packages: platform-tools build-tools;36.0.0 platforms;android-36
 
-      # Pass 2: compile assets (the hosted runner has no GPU, so use D3D11 WARP) and package the APK.
-      - name: Build debug APK (pass 2, with assets)
-        env:
-          STRIDE_GRAPHICS_SOFTWARE_RENDERING: "1"
-        run: >
-          dotnet build ArenaRush.Android/ArenaRush.Android.csproj
-          -c Debug
-          -p:StrideHostGraphicsApi=Direct3D11
-          -p:AndroidSdkDirectory="$env:ANDROID_HOME"
-          -p:JavaSdkDirectory="$env:JAVA_HOME"
-
-      - name: Collect APK
-        shell: pwsh
+      - name: Vulkan (Lavapipe) + virtual display for the Stride asset compiler
         run: |
-          Get-ChildItem -Recurse -Filter *.apk Bin, ArenaRush.Android/bin -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize
-          $apk = Get-ChildItem -Recurse -Filter *-Signed.apk Bin, ArenaRush.Android/bin -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $apk) { throw "No signed APK produced" }
-          New-Item -ItemType Directory -Force out | Out-Null
-          Copy-Item $apk.FullName out/ArenaRush-debug.apk
+          sudo apt-get update
+          sudo apt-get install -y libvulkan1 xvfb libva2 libva-drm2 libva-x11-2
+          mkdir -p $RUNNER_TEMP/lavapipe && cd $RUNNER_TEMP/lavapipe
+          curl -sSL -o lvp.nupkg "https://api.nuget.org/v3-flatcontainer/stride.dependencies.lavapipe/${LAVAPIPE_VERSION}/stride.dependencies.lavapipe.${LAVAPIPE_VERSION}.nupkg"
+          unzip -q -o lvp.nupkg
+          LIB=$(find "$PWD" -path "*runtimes/linux-x64-nodmabuf/native/libvulkan_lvp.so" | head -1)
+          echo "Lavapipe: $LIB"
+          echo "{\"file_format_version\":\"1.0.0\",\"ICD\":{\"library_path\":\"$LIB\",\"api_version\":\"1.3.0\"}}" > lvp_icd.json
+          echo "VK_DRIVER_FILES=$PWD/lvp_icd.json" >> $GITHUB_ENV
+          Xvfb :99 -screen 0 1920x1080x24 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: Build the level (download CC0 Poly Haven assets, generate Stride assets + scene)
+        run: python3 tools/build_level.py
+
+      - name: Build APKs (arm64 for phones, x64 for the emulator test)
+        run: |
+          set -e
+          for RID in android-arm64 android-x64; do
+            # Pass 1 compiles code only: Stride 4.4.1 compiles Android assets before the app assembly exists.
+            dotnet build ArenaRush.Android/ArenaRush.Android.csproj -c Release -p:RuntimeIdentifier=$RID \
+              -p:StrideCompilerSkipBuild=true -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" -v:m
+            # Pass 2 compiles assets and packages the APK.
+            dotnet build ArenaRush.Android/ArenaRush.Android.csproj -c Release -p:RuntimeIdentifier=$RID \
+              -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" -v:m
+            mkdir -p out
+            APK=$(find Bin ArenaRush.Android/bin -name "*-Signed.apk" -path "*$RID*" -newer tools/build_level.py | head -1)
+            [ -z "$APK" ] && APK=$(ls -t $(find Bin ArenaRush.Android/bin -name "*-Signed.apk") | head -1)
+            echo "$RID -> $APK"
+            cp "$APK" out/ArenaRush-$RID.apk
+          done
+          ls -la out
+          python3 - <<'PY'
+          import zipfile, collections
+          for f in ["out/ArenaRush-android-arm64.apk"]:
+              z = zipfile.ZipFile(f); c = collections.Counter()
+              for i in z.infolist(): c["/".join(i.filename.split("/")[:2])] += i.compress_size
+              print(f); [print(f"  {v/1e6:7.2f} MB  {k}") for k, v in c.most_common(12)]
+          PY
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ArenaRush-debug-apk
-          path: StrideGame/out/ArenaRush-debug.apk
+          name: apks
+          path: StrideGame/out/*.apk
 
+  emulator-test:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: apks
+          path: apks
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Host Vulkan (Lavapipe) for the emulator GPU
+        run: |
+          sudo apt-get update && sudo apt-get install -y libvulkan1
+          mkdir -p $RUNNER_TEMP/lavapipe && cd $RUNNER_TEMP/lavapipe
+          curl -sSL -o lvp.nupkg "https://api.nuget.org/v3-flatcontainer/stride.dependencies.lavapipe/${LAVAPIPE_VERSION}/stride.dependencies.lavapipe.${LAVAPIPE_VERSION}.nupkg"
+          unzip -q -o lvp.nupkg
+          LIB=$(find "$PWD" -path "*runtimes/linux-x64-nodmabuf/native/libvulkan_lvp.so" | head -1)
+          echo "{\"file_format_version\":\"1.0.0\",\"ICD\":{\"library_path\":\"$LIB\",\"api_version\":\"1.3.0\"}}" > lvp_icd.json
+          echo "VK_DRIVER_FILES=$PWD/lvp_icd.json" >> $GITHUB_ENV
+
+      - name: Play the game on an Android emulator and take screenshots
+        env:
+          ANDROID_EMU_VK_ICD: ""
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-snapshot-save -no-window -no-boot-anim -no-audio -gpu host -feature ForceGpuHost
+          disable-animations: true
+          script: bash .github/scripts/emulator-play.sh apks/ArenaRush-android-x64.apk shots
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-screenshots
+          path: shots/
+
+  release:
+    needs: [build, emulator-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apks
+          path: apks
+      - uses: actions/download-artifact@v4
+        with:
+          name: emulator-screenshots
+          path: shots
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: arenarush-debug-${{ github.run_number }}
-          name: Arena Rush (Stride) - debug build ${{ github.run_number }}
+          tag_name: tropical-factory-${{ github.run_number }}
+          name: Tropical Factory (Stride) - build ${{ github.run_number }}
           prerelease: true
           body: |
-            Debug test build of the Arena Rush action game, made with the Stride engine (MIT, free).
-            Install ArenaRush-debug.apk on your Android phone (allow "install unknown apps").
-            Controls: drag your finger to move; the hero fires automatically at the nearest enemy.
-          files: StrideGame/out/ArenaRush-debug.apk
+            3D third-person test build made with the Stride engine (MIT, free, no licence needed).
+            Island factory level with CC0 Poly Haven assets, physics crates/barrels/tyres, animated character.
+
+            Install: download ArenaRush-android-arm64.apk on your phone and allow "install unknown apps".
+            Controls: drag on the left side to walk/run, drag on the right side to look around, tap the round button to jump.
+            Walk into crates, barrels and tyres to push them (physics).
+
+            Built and verified on an Android emulator in CI: see the screenshots attached to this release.
+          files: |
+            apks/ArenaRush-android-arm64.apk
+            shots/*.png

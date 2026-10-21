@@ -15,9 +15,12 @@
     <StrideCurrentPackagePath>$(MSBuildThisFileDirectory)..\ArenaRush.Game\ArenaRush.Game.sdpkg</StrideCurrentPackagePath>
     <StridePlatform>Android</StridePlatform>
     <AndroidApplicationIcon>@mipmap/appicon</AndroidApplicationIcon>
-    <!-- Standalone, sideloadable test APK (no fast deployment, no app bundle). -->
+    <!-- Standalone, sideloadable APK (no fast deployment, no app bundle), signed with the debug key. -->
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidUseSharedRuntime>false</AndroidUseSharedRuntime>
+    <!-- One CPU architecture per APK keeps the download small (pass -p:RuntimeIdentifier=android-arm64 or android-x64). -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">android-arm64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\ArenaRush.Game\ArenaRush.Game.csproj" />
