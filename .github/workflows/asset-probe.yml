@@ -42,13 +42,17 @@ jobs:
           ls -la ubc.zip
           unzip -l ubc.zip | grep -v -i "\.blend" | head -150
           mkdir -p x && cd x && unzip -q ../ubc.zip
-          find . -iname "*.fbx" | head -40
-          find . -iname "*.png" | head -60
           cat $(find . -iname "*license*" | head -1) 2>/dev/null | head -20
-          for f in $(find . -iname "*.fbx" -path "*Unity*" | head -6); do echo "== $f"; python3 - "$f" <<'PY'
-          import re, sys
-          d = open(sys.argv[1], 'rb').read()
-          print(sorted(set(m.decode('latin1') for m in re.findall(rb'([A-Za-z0-9_ .\-]+)\x00\x01Material', d))))
-          print(sorted(set(m.decode('latin1') for m in re.findall(rb'([A-Za-z0-9_ .\-]+)\x00\x01Model', d)))[:80])
+          python3 - <<'PY'
+          import re, glob
+          from PIL import Image
+          files = glob.glob('**/Base Characters/Unity/*.fbx', recursive=True) + glob.glob('**/Rigged to Head Bone/FBX (Unity)/*.fbx', recursive=True)
+          for f in files:
+              d = open(f, 'rb').read()
+              mats = sorted(set(m.decode('latin1') for m in re.findall(rb'([A-Za-z0-9_ .\-]+)\x00\x01Material', d)))
+              models = [m.decode('latin1') for m in re.findall(rb'([A-Za-z0-9_ .\-]+)\x00\x01Model', d)]
+              print('==', f, 'materials', mats)
+              print('   nodes', models[:12], '...', len(models))
+          for f in sorted(glob.glob('**/*.png', recursive=True)):
+              print(f, Image.open(f).size, Image.open(f).mode)
           PY
-          done

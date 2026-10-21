@@ -391,7 +391,7 @@ public static class AssetSetup
     // ------------------------------------------------------------------ agent prefab
 
     private static Transform Find(Transform root, string name) =>
-        root.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == name);
+        root.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => string.Equals(t.name, name, System.StringComparison.OrdinalIgnoreCase));
 
     private static GameObject Part(Transform parent, PrimitiveType type, Vector3 localPos, Vector3 size, Material material, Vector3? euler = null)
     {
