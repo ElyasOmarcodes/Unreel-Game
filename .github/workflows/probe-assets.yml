@@ -10,28 +10,27 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: List Poly Haven models and textures
+      - name: List Poly Haven models
         run: |
           curl -s -A "ArenaRush-CI" "https://api.polyhaven.com/assets?t=models" > models.json
-          curl -s -A "ArenaRush-CI" "https://api.polyhaven.com/assets?t=textures" > textures.json
-          curl -s -A "ArenaRush-CI" "https://api.polyhaven.com/assets?t=hdris" > hdris.json
           python3 - <<'PY'
           import json
-          for kind in ["models","textures","hdris"]:
-              d=json.load(open(kind+".json"))
-              print(f"===== {kind}: {len(d)}")
-              for k,v in sorted(d.items()):
-                  print(k, "|", ",".join(v.get("categories",[])), "|", v.get("polycount",""), "|", v.get("name",""))
+          d=json.load(open("models.json"))
+          print(f"===== models: {len(d)}")
+          for k,v in sorted(d.items()):
+              print("M", k, "|", ",".join(v.get("categories",[])), "|", v.get("polycount",""), "|", v.get("name",""))
           PY
-      - name: File layout of sample assets
+      - name: glTF/FBX layout of candidate models
         run: |
-          for id in wooden_crate_01 Barrel_01 island_tree_01 rocky_terrain_02 aerial_beach_01 kloofendal_48d_partly_cloudy_puresky; do
+          for id in island_tree_01 island_tree_02 island_tree_03 wooden_crate_01 Barrel_01; do
             echo "===== $id"
             curl -s -A "ArenaRush-CI" "https://api.polyhaven.com/files/$id" | python3 -c "
           import sys,json
-          def walk(d,p=''):
-              if isinstance(d,dict):
-                  if 'url' in d and 'size' in d: print(p, d['size'], d['url']); return
-                  for k,v in d.items(): walk(v,p+'/'+k)
-          walk(json.load(sys.stdin))" | grep -E "/1k/|/2k/" | head -40
+          d=json.load(sys.stdin)
+          for fmt in ('gltf','fbx'):
+              x=d.get(fmt,{}).get('1k',{})
+              for k,v in x.items():
+                  print('F', fmt, v.get('url'), v.get('size'))
+                  for p,i in v.get('include',{}).items(): print('   I', p, i.get('url'), i.get('size'))
+          "
           done
