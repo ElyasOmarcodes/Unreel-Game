@@ -1,82 +1,106 @@
+using System;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-/// <summary>Command line build used by GitHub Actions: -executeMethod CiBuild.BuildAndroid</summary>
+/// <summary>Command line build used by GitHub Actions: -executeMethod CiBuild.BuildAll</summary>
 public static class CiBuild
 {
-    private const string ScenePath = "Assets/Scenes/Main.unity";
-
-    public static void BuildAndroid()
+    public static void BuildAll()
     {
-        CreateScene();
+        int code = 1;
+        try
+        {
+            ConfigurePlayer();
+            AssetSetup.Run();
+            MapBuilder.BuildScene();
+            bool ok = true;
+            if (Environment.GetEnvironmentVariable("BUILD_LINUX") == "1") ok &= BuildLinux();
+            ok &= BuildAndroid();
+            code = ok ? 0 : 1;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("[CiBuild] failed: " + e);
+        }
+        EditorApplication.Exit(code);
+    }
 
+    private static void ConfigurePlayer()
+    {
         PlayerSettings.companyName = "ElyasOmar";
-        PlayerSettings.productName = "Unity Test";
-        PlayerSettings.bundleVersion = "0.1";
-        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.elyasomar.unitytest");
+        PlayerSettings.productName = "Urban Agents";
+        PlayerSettings.bundleVersion = "1.0";
+        if (int.TryParse(Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER"), out int run)) PlayerSettings.Android.bundleVersionCode = run;
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.elyasomar.urbanagents");
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, "com.elyasomar.urbanagents");
+        PlayerSettings.colorSpace = ColorSpace.Linear;
+
+        // Android
         PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
-        PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64 | AndroidArchitecture.X86_64;
+        PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
         PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
-        PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
-        EditorUserBuildSettings.buildAppBundle = false;
-        // Vulkan first (works on modern phones and on the CI emulator), OpenGL ES 3 as fallback
+        PlayerSettings.Android.forceInternetPermission = true;
+        PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Android, ManagedStrippingLevel.Low);
         PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
         PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan, GraphicsDeviceType.OpenGLES3 });
+        PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
+        PlayerSettings.allowedAutorotateToLandscapeLeft = true;
+        PlayerSettings.allowedAutorotateToLandscapeRight = true;
+        PlayerSettings.allowedAutorotateToPortrait = false;
+        PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
+        PlayerSettings.Android.renderOutsideSafeArea = true;
+        EditorUserBuildSettings.buildAppBundle = false;
+        EditorUserBuildSettings.androidBuildSubtarget = MobileTextureSubtarget.ASTC;
 
-        var output = "Builds/Android/UnityTest.apk";
+        // desktop test build
+        PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
+        PlayerSettings.defaultScreenWidth = 1280;
+        PlayerSettings.defaultScreenHeight = 720;
+        PlayerSettings.resizableWindow = true;
+        PlayerSettings.runInBackground = true;
+        PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneLinux64, false);
+        PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneLinux64, new[] { GraphicsDeviceType.OpenGLCore });
+
+        // the game uses the classic input manager
+        var settings = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset");
+        if (settings.Length > 0)
+        {
+            var so = new SerializedObject(settings[0]);
+            var input = so.FindProperty("activeInputHandler");
+            if (input != null) { input.intValue = 0; so.ApplyModifiedProperties(); }
+        }
+        QualitySettings.shadowDistance = 35;
+        AssetDatabase.SaveAssets();
+    }
+
+    private static bool Build(BuildTarget target, string output)
+    {
         Directory.CreateDirectory(Path.GetDirectoryName(output));
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
-            scenes = new[] { ScenePath },
+            scenes = new[] { MapBuilder.ScenePath },
             locationPathName = output,
-            target = BuildTarget.Android,
+            target = target,
             options = BuildOptions.None,
         });
-
-        Debug.Log($"[CiBuild] result={report.summary.result} size={report.summary.totalSize} errors={report.summary.totalErrors}");
-        EditorApplication.Exit(report.summary.result == BuildResult.Succeeded ? 0 : 1);
+        var s = report.summary;
+        Debug.Log($"[CiBuild] {target}: {s.result}, {s.totalSize / (1024 * 1024)} MB, {s.totalErrors} errors, {s.totalTime}");
+        return s.result == BuildResult.Succeeded;
     }
 
-    private static void CreateScene()
+    private static bool BuildAndroid() => Build(BuildTarget.Android, "Builds/Android/UrbanAgents.apk");
+
+    private static bool BuildLinux()
     {
-        var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
-
-        var camera = Camera.main;
-        camera.transform.SetPositionAndRotation(new Vector3(0, 3, -8), Quaternion.Euler(15, 0, 0));
-        camera.clearFlags = CameraClearFlags.Skybox;
-
-        var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        ground.name = "Ground";
-        ground.transform.localScale = new Vector3(4, 1, 4);
-        ground.GetComponent<Renderer>().sharedMaterial = Material(new Color(0.76f, 0.66f, 0.45f), "Ground");
-
-        var root = new GameObject("Cubes");
-        root.AddComponent<TestScene>();
-        var colors = new[] { new Color(0.9f, 0.3f, 0.2f), new Color(0.2f, 0.6f, 0.9f), new Color(0.3f, 0.8f, 0.3f) };
-        for (var i = 0; i < 3; i++)
+        if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Standalone, BuildTarget.StandaloneLinux64))
         {
-            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            cube.name = "Cube" + i;
-            cube.transform.SetParent(root.transform);
-            cube.transform.position = new Vector3((i - 1) * 2.5f, 1.2f, 0);
-            cube.GetComponent<Renderer>().sharedMaterial = Material(colors[i], "Cube" + i);
+            Debug.LogWarning("[CiBuild] Linux build support is not installed, skipping the desktop test build");
+            return true;
         }
-
-        Directory.CreateDirectory("Assets/Scenes");
-        EditorSceneManager.SaveScene(scene, ScenePath);
-        EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
-    }
-
-    private static Material Material(Color color, string name)
-    {
-        var material = new Material(Shader.Find("Standard")) { color = color };
-        Directory.CreateDirectory("Assets/Materials");
-        AssetDatabase.CreateAsset(material, $"Assets/Materials/{name}.mat");
-        return material;
+        return Build(BuildTarget.StandaloneLinux64, "Builds/Linux/UrbanAgents.x86_64");
     }
 }

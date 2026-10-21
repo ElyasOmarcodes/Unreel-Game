@@ -1,6 +1,7 @@
-name: Unity Android (test APK)
+name: Urban Agents (Unity Android)
 
-# Builds the Unity project in UnityGame/ into an Android APK with a Unity Personal license.
+# Builds "Urban Agents" (UnityGame/) into an Android APK with a Unity Personal license, then plays
+# a two-player LAN match with the desktop build on the runner and publishes the APK with screenshots.
 # The license is activated online from the UNITY_EMAIL / UNITY_PASSWORD secrets and returned
 # automatically at the end of the job (post step of activate-unity-license).
 on:
@@ -9,12 +10,12 @@ on:
     paths:
       - UnityGame/**
       - .github/workflows/unity-android.yml
-      - .github/scripts/unity-emulator-test.sh
+      - .github/scripts/lan-test.sh
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
       - name: Free disk space (the Unity editor with Android tools needs ~15 GB)
         uses: endersonmenezes/free-disk-space@7901478139cff6e9d44df5972fd8ab8fcade4db1 # v3.2.2
@@ -24,6 +25,27 @@ jobs:
           remove_tool_cache: false
 
       - uses: actions/checkout@v4
+
+      # CC0 assets by Quaternius (Universal Animation Library, Downtown City MegaKit), pinned to one commit
+      # of a public mirror. Textures are downscaled to 1024 and the ORM maps converted for Unity's
+      # Standard shader (metallic in R, smoothness in A).
+      - name: Cache the 3D assets
+        id: assets-cache
+        uses: actions/cache@v4
+        with:
+          path: UnityGame/Assets/ThirdParty
+          key: cc0-assets-v1-85064399-${{ hashFiles('.github/scripts/fetch-assets.sh') }}
+
+      - name: Download the 3D assets
+        if: steps.assets-cache.outputs.cache-hit != 'true'
+        run: bash .github/scripts/fetch-assets.sh UnityGame/Assets/ThirdParty
+
+      - name: Cache the Unity Library folder
+        uses: actions/cache@v4
+        with:
+          path: UnityGame/Library
+          key: unity-library-v1-${{ hashFiles('UnityGame/Packages/manifest.json') }}-${{ github.sha }}
+          restore-keys: unity-library-v1-${{ hashFiles('UnityGame/Packages/manifest.json') }}-
 
       # Unity Hub 3.20+ lives in /usr/lib/unityhub, but the released unity-setup action still
       # expects /opt/unityhub/unityhub. Install the Hub first and link the old location to it.
@@ -62,108 +84,44 @@ jobs:
 
       # Unity is started directly: the unity-action wrapper sets UNITY_THISISABUILDMACHINE=1, which makes
       # the editor's Gradle use Unity's internal package mirror (bfartifactory) that is not reachable from here.
-      - name: Build the APK
+      # Unity is started directly: the unity-action wrapper sets UNITY_THISISABUILDMACHINE=1, which makes
+      # the editor's Gradle use Unity's internal package mirror (bfartifactory) that is not reachable from here.
+      - name: Build the APK and the desktop test build
+        env:
+          BUILD_LINUX: "1"
         run: |
           set +e
           mkdir -p UnityGame/Builds/Logs
           "$UNITY_EDITOR_PATH" -projectPath "$GITHUB_WORKSPACE/UnityGame" -buildTarget Android \
-            -batchmode -nographics -quit -executeMethod CiBuild.BuildAndroid \
-            -logFile - 2>&1 | tee UnityGame/Builds/Logs/Android-Build.log | grep -E --line-buffered "CiBuild|error|Error|FAILURE|What went wrong|BUILD|Exception|Exiting"
-          code=${PIPESTATUS[0]}
-          echo "Unity exit code: $code"
-          tail -60 UnityGame/Builds/Logs/Android-Build.log
-          test -f UnityGame/Builds/Android/UnityTest.apk
+            -batchmode -nographics -quit -executeMethod CiBuild.BuildAll \
+            -logFile - 2>&1 | tee UnityGame/Builds/Logs/Build.log | grep -E --line-buffered "\[CiBuild\]|\[Setup\]|\[Map\]|error CS|Error|FAILURE|What went wrong|Exception|Exiting"
+          echo "Unity exit code: ${PIPESTATUS[0]}"
+          tail -40 UnityGame/Builds/Logs/Build.log
+          ls -la UnityGame/Builds/Android UnityGame/Builds/Linux 2>/dev/null
+          test -f UnityGame/Builds/Android/UrbanAgents.apk
 
-      - name: Show the APK
-        run: |
-          ls -la UnityGame/Builds/Android/
-          unzip -l UnityGame/Builds/Android/UnityTest.apk | tail -1
+      - name: Play a LAN match on the runner (host + client) and take screenshots
+        run: bash .github/scripts/lan-test.sh UnityGame/Builds/Linux shots
 
       - uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: UnityGame/Builds/Android/UnityTest.apk
+          path: UnityGame/Builds/Android/UrbanAgents.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots/
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: unity-logs
-          path: ${{ github.workspace }}/**/*.log
-
-  emulator-test:
-    needs: build
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: apk
-          path: apk
-
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - name: Host Vulkan (Lavapipe) for the emulator GPU
-        run: |
-          sudo apt-get update -q && sudo apt-get install -y -q libvulkan1
-          mkdir -p $RUNNER_TEMP/lavapipe && cd $RUNNER_TEMP/lavapipe
-          curl -sSL -o lvp.nupkg "https://api.nuget.org/v3-flatcontainer/stride.dependencies.lavapipe/2026.10.12/stride.dependencies.lavapipe.2026.10.12.nupkg"
-          unzip -q -o lvp.nupkg
-          LIB=$(find "$PWD" -path "*runtimes/linux-x64-nodmabuf/native/libvulkan_lvp.so" | head -1)
-          echo "{\"file_format_version\":\"1.0.0\",\"ICD\":{\"library_path\":\"$LIB\",\"api_version\":\"1.3.0\"}}" > lvp_icd.json
-          echo "VK_DRIVER_FILES=$PWD/lvp_icd.json" >> $GITHUB_ENV
-
-      - name: Cache the emulator image (AVD snapshot)
-        id: avd-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-34-google_apis-x86_64-pixel6
-
-      - name: Create the AVD snapshot (first run only)
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none
-          disable-animations: false
-          script: echo "AVD snapshot created"
-
-      - name: Run the game on an Android emulator and take screenshots
-        env:
-          ANDROID_EMU_VK_ICD: ""
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -no-boot-anim -no-audio -gpu swiftshader_indirect -camera-back none
-          disable-animations: true
-          script: bash .github/scripts/unity-emulator-test.sh apk/UnityTest.apk shots
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: emulator-screenshots
-          path: shots/
+          path: UnityGame/Builds/Logs/
 
   release:
-    # Publish whenever the APK was built; the emulator result is written into the release notes.
-    needs: [build, emulator-test]
-    if: always() && needs.build.result == 'success'
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -175,19 +133,19 @@ jobs:
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          name: emulator-screenshots
+          name: screenshots
           path: shots
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: unity-test-${{ github.run_number }}
-          name: Unity test APK - build ${{ github.run_number }}
+          tag_name: urban-agents-${{ github.run_number }}
+          name: Urban Agents - build ${{ github.run_number }}
           prerelease: true
           body: |
-            First Unity build made in GitHub Actions with a Unity Personal license (online activation).
-            Simple test scene: three spinning cubes on a ground plane, label and FPS counter.
-            Emulator test: ${{ needs.emulator-test.result }}
-            Install: download UnityTest.apk on your phone and allow "install unknown apps".
+            URBAN AGENTS - third person LAN multiplayer shooter (Unity 6, Personal license).
+            Play on the same Wi-Fi, or turn on the hotspot on one phone: CREATE GROUP on one phone, JOIN GROUP on the others.
+            Modes: Team Deathmatch, Free For All, Practice vs bots. Weapons: AK-47, M4A1, SPAS-12, L96 sniper, Glock 17, Desert Eagle.
+            3D characters, animations and city: Quaternius (CC0).
           files: |
-            apk/UnityTest.apk
+            apk/UrbanAgents.apk
             shots/*.png

@@ -1,0 +1,58 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace UA
+{
+    /// <summary>Plays the sounds in Resources/Audio through a small pool of audio sources.</summary>
+    public static class Sfx
+    {
+        private static readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
+        private static readonly List<AudioSource> pool = new List<AudioSource>();
+        private static Transform root;
+
+        public static void Play(string name, float volume = 1f, float pitch = 1f) => PlayAt(name, Vector3.zero, volume, pitch, false);
+
+        public static void PlayAt(string name, Vector3 position, float volume = 1f, float pitch = 1f, bool spatial = true)
+        {
+            var clip = Clip(name);
+            if (clip == null) return;
+            var source = Next();
+            source.transform.position = position;
+            source.spatialBlend = spatial ? 1f : 0f;
+            source.pitch = pitch * Random.Range(0.96f, 1.04f);
+            source.volume = volume;
+            source.clip = clip;
+            source.Play();
+        }
+
+        private static AudioClip Clip(string name)
+        {
+            if (!clips.TryGetValue(name, out var clip))
+                clips[name] = clip = Resources.Load<AudioClip>("Audio/" + name);
+            return clip;
+        }
+
+        private static AudioSource Next()
+        {
+            if (root == null)
+            {
+                root = new GameObject("Sfx").transform;
+                Object.DontDestroyOnLoad(root.gameObject);
+                pool.Clear();
+            }
+            foreach (var s in pool)
+                if (!s.isPlaying) return s;
+            if (pool.Count >= 24) return pool[Random.Range(0, pool.Count)];
+            var go = new GameObject("Voice");
+            go.transform.SetParent(root);
+            var source = go.AddComponent<AudioSource>();
+            source.playOnAwake = false;
+            source.rolloffMode = AudioRolloffMode.Linear;
+            source.minDistance = 4f;
+            source.maxDistance = 90f;
+            source.dopplerLevel = 0f;
+            pool.Add(source);
+            return source;
+        }
+    }
+}
