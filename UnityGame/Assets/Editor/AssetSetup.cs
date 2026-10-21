@@ -34,7 +34,6 @@ public static class AssetSetup
         Folder(Generated + "/Textures");
         Folder("Assets/Resources");
         Folder("Assets/Resources/Materials");
-        SetupFonts();
         CreateCityMaterials();
         RemapCityModels();
         Nature.Setup();
@@ -50,18 +49,6 @@ public static class AssetSetup
         BuildGunLineup();
         BuildWeaponPrefabs();
         AssetDatabase.SaveAssets();
-    }
-
-    /// <summary>The UI font falls back to Vazirmatn UA for Pashto, Dari and Arabic letters.</summary>
-    private static void SetupFonts()
-    {
-        const string ui = "Assets/Resources/Fonts/RussoOne-Regular.ttf";
-        var rtl = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/Vazirmatn-UA.ttf");
-        if (!(AssetImporter.GetAtPath(ui) is TrueTypeFontImporter importer) || rtl == null) { Debug.LogWarning("[Setup] fonts missing"); return; }
-        if (importer.fontReferences != null && importer.fontReferences.Length == 1 && importer.fontReferences[0] == rtl) return;
-        importer.fontReferences = new[] { rtl };
-        importer.SaveAndReimport();
-        Debug.Log("[Setup] UI font falls back to Vazirmatn UA");
     }
 
     public static void Folder(string path)

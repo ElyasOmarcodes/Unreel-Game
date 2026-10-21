@@ -12,7 +12,7 @@ import sys
 from fontTools.ttLib import TTFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT_FONT = os.path.join(HERE, "..", "Assets", "Resources", "Fonts", "Vazirmatn-UA.ttf")
+OUT_FONT = os.path.join(HERE, "fonts", "Vazirmatn-UA.ttf")
 OUT_CS = os.path.join(HERE, "..", "Assets", "Scripts", "Core", "RtlTable.cs")
 PUA = 0xE000
 FORMS = ["isol", "init", "medi", "fina"]

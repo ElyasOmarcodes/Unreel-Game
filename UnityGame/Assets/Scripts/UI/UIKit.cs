@@ -38,7 +38,7 @@ namespace UA
 
         public static void Init()
         {
-            Font = Resources.Load<Font>("Fonts/RussoOne-Regular");
+            Font = Resources.Load<Font>("Fonts/UAFont");   // Russo One letters + Vazirmatn Pashto / Dari forms (both OFL)
             if (Font == null) Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             Rounded = MakeSprite(128, (x, y) => RoundedAlpha(x, y, 128, 30), new Vector4(36, 36, 36, 36));
             // vertical light-to-dark gradient baked into the shape: tinted buttons get some depth

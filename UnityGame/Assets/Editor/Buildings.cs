@@ -135,7 +135,15 @@ public static class Buildings
         // outer railing along the whole escape, and at the ends
         float length = landing * 2 + run;
         for (int k = 1; k <= flights; k++)
-            MeshGen.TexBox("Rail", At(length / 2f, k * rise + 0.5f, depth + 0.03f), new Vector3(0.06f, 1f, length), steel, 1f, t, yaw);
+        {
+            // two thin bars to look at, one invisible wall to stop falls
+            MeshGen.TexBox("Rail", At(length / 2f, k * rise + 1.0f, depth + 0.03f), new Vector3(0.05f, 0.05f, length), steel, 1f, t, yaw, false);
+            MeshGen.TexBox("Rail", At(length / 2f, k * rise + 0.5f, depth + 0.03f), new Vector3(0.04f, 0.04f, length), steel, 1f, t, yaw, false);
+            var guard = new GameObject("RailCollider");
+            guard.transform.SetParent(t, false);
+            guard.transform.SetPositionAndRotation(At(length / 2f, k * rise + 0.5f, depth + 0.03f), Quaternion.Euler(0, yaw, 0));
+            guard.AddComponent<BoxCollider>().size = new Vector3(0.06f, 1f, length);
+        }
         // posts down to the street
         foreach (float a in new[] { 0.1f, length - 0.1f })
             MeshGen.TexBox("Post", At(a, flights * rise / 2f, depth), new Vector3(0.12f, flights * rise, 0.12f), steel, 1f, t, yaw);
