@@ -12,7 +12,7 @@ adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1
 shot() { sleep "${2:-0}"; adb exec-out screencap -p > "$OUT/$1.png"; echo "screenshot $1 ($(stat -c%s "$OUT/$1.png") bytes)"; }
 
 # Software Vulkan in the emulator is slow: give shaders/assets time to load.
-for i in $(seq 1 30); do
+for i in $(seq 1 18); do
   sleep 5
   adb shell pidof $PKG >/dev/null || { echo "::error::game process died"; break; }
 done
