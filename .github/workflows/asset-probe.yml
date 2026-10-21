@@ -34,14 +34,10 @@ jobs:
                   print('SCRIPT:', body[:1500])
           PY
           CSRF2=$(grep -o 'name="csrf_token" value="[^"]*' dl.html | head -1 | sed 's/.*value="//')
-          for UP in $(grep -o 'data-upload_id="[0-9]*"' dl.html | grep -o '[0-9]*' | sort -u); do
-            for K in "$SEG" "$(python3 -c "import urllib.parse,sys;print(urllib.parse.unquote(sys.argv[1]))" "$SEG")"; do
-              curl -s -A "$UA" -c jar -b jar -X POST "$P/file/$UP?source=game_download&key=$K" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $URL" --data-urlencode "csrf_token=$CSRF2" -o r2.json
-              echo "upload $UP: $(head -c 300 r2.json)"
-              if grep -q '"url"' r2.json; then
-                FILE=$(python3 -c "import json;print(json.load(open('r2.json'))['url'])")
-                curl -sIL "$FILE" | grep -i -E "content-length|content-disposition" | tail -2
-                break
-              fi
-            done
-          done
+          UP=$(grep -o 'data-upload_id="[0-9]*"' dl.html | grep -o '[0-9]*' | head -1)
+          try() { echo "== $1"; curl -s -A "$UA" -c jar -b jar -X POST "$1" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $URL" --data-urlencode "csrf_token=$CSRF2" | head -c 400; echo; }
+          try "$P/file/$UP?source=game_download"
+          try "$P/file/$UP?source=game_download&after_download_lightbox=1"
+          try "$P/file/$UP?source=view_game&as_props=1&after_download_lightbox=true"
+          try "$URL/file/$UP?source=game_download"
+          try "$P/file/$UP?source=game_download&download_key=$SEG"
