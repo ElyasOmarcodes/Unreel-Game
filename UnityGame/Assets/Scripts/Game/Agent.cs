@@ -23,6 +23,12 @@ namespace UA
         [Tooltip("Camo suits; the mannequin material named Suit* is replaced per look")]
         public Material[] Suits = new Material[0];
         public Renderer[] SuitRenderers = new Renderer[0];
+        [Tooltip("Realistic characters: light and dark skin (material named Skin_*) on these renderers")]
+        public Material[] Skins = new Material[0];
+        public Renderer[] SkinRenderers = new Renderer[0];
+        [Tooltip("Hair and eyebrows, hidden under the balaclava")]
+        public Renderer[] HairRenderers = new Renderer[0];
+        public GameObject Beard;
 
         public byte Id { get; private set; }
         public bool Alive { get; private set; } = true;
@@ -160,11 +166,31 @@ namespace UA
             }
         }
 
-        /// <summary>Outfit for this player: head gear and camo pattern.</summary>
+        /// <summary>
+        /// Outfit for this player. look = skin * 32 + body * 16 + camo * 4 + head gear
+        /// (the body picks the prefab; the beard grows on every other camo).
+        /// </summary>
         public void SetLook(int look)
         {
+            int gear = Headgear.Length > 0 ? look % Headgear.Length : 0;
             for (int i = 0; i < Headgear.Length; i++)
-                if (Headgear[i] != null) Headgear[i].SetActive(i == look % Headgear.Length);
+                if (Headgear[i] != null) Headgear[i].SetActive(i == gear);
+            bool masked = Headgear.Length > 3 && gear == 3;
+            foreach (var r in HairRenderers)
+                if (r != null) r.gameObject.SetActive(!masked);
+            if (Beard != null) Beard.SetActive(!masked && ((look >> 2) & 1) == 1);
+            if (Skins.Length > 0)
+            {
+                var tone = Skins[(look / 32) % Skins.Length];
+                foreach (var r in SkinRenderers)
+                {
+                    if (r == null) continue;
+                    var materials = r.sharedMaterials;
+                    for (int i = 0; i < materials.Length; i++)
+                        if (materials[i] != null && materials[i].name.StartsWith("Skin_")) materials[i] = tone;
+                    r.sharedMaterials = materials;
+                }
+            }
             if (Suits.Length == 0) return;
             var suit = Suits[(look / Mathf.Max(1, Headgear.Length)) % Suits.Length];
             foreach (var r in SuitRenderers)

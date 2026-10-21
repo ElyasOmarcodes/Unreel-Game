@@ -13,7 +13,7 @@ namespace UA
         private Text gunTitle, gunStats;
         private int previewWeapon;
 
-        private static readonly string[] BodyNames = { "MALE", "FEMALE" };
+        private static readonly string[] BodyNames = { "MALE - LIGHT", "MALE - DARK", "FEMALE - LIGHT", "FEMALE - DARK" };
         private static readonly string[] HeadNames = { "COMBAT HELMET", "CAP", "BERET", "BALACLAVA" };
         private static readonly string[] CamoNames = { "URBAN", "DESERT", "WOODLAND", "BLACK OPS" };
 
@@ -23,15 +23,16 @@ namespace UA
             public void OnDrag(PointerEventData e) { if (Stage != null) Stage.CharacterYaw -= e.delta.x * 0.4f; }
         }
 
-        private static int LookPart(int look, int part) => part == 0 ? look / 16 : part == 1 ? look % 4 : (look / 4) % 4;
+        // part 0: body and skin (0..3), 1: head gear, 2: camo
+        private static int LookPart(int look, int part) => part == 0 ? ((look / 16) % 2) * 2 + (look / 32) % 2 : part == 1 ? look % 4 : (look / 4) % 4;
 
         private static void SetLookPart(int part, int delta)
         {
-            int look = Settings.Look, body = look / 16, camo = (look / 4) % 4, head = look % 4;
-            if (part == 0) body = (body + 2 + delta) % 2;
+            int look = Settings.Look, person = LookPart(look, 0), camo = (look / 4) % 4, head = look % 4;
+            if (part == 0) person = (person + 4 + delta) % 4;
             else if (part == 1) head = (head + 4 + delta) % 4;
             else camo = (camo + 4 + delta) % 4;
-            Settings.Look = (byte)(body * 16 + camo * 4 + head);
+            Settings.Look = (byte)((person % 2) * 32 + (person / 2) * 16 + camo * 4 + head);
         }
 
         private void BuildProfile()
@@ -55,7 +56,7 @@ namespace UA
             profileName = UIKit.Input(nameRow, Settings.PlayerName, "Your name", 32);
             profileName.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 560, 70, 1f, 0.5f);
             profileName.onEndEdit.AddListener(v => Settings.PlayerName = v);
-            UIKit.Stepper(right, "BODY", -120, () => BodyNames[LookPart(Settings.Look, 0)], d => { SetLookPart(0, d); RefreshProfile(); }, 980);
+            UIKit.Stepper(right, "AGENT", -120, () => BodyNames[LookPart(Settings.Look, 0)], d => { SetLookPart(0, d); RefreshProfile(); }, 980);
             UIKit.Stepper(right, "HEAD", -210, () => HeadNames[LookPart(Settings.Look, 1)], d => { SetLookPart(1, d); RefreshProfile(); }, 980);
             UIKit.Stepper(right, "CAMO", -300, () => CamoNames[LookPart(Settings.Look, 2)], d => { SetLookPart(2, d); RefreshProfile(); }, 980);
             UIKit.Stepper(right, "WEAPON 1", -390, () => Weapons.Get(Settings.Primary).Name, d =>

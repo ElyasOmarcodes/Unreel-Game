@@ -86,13 +86,21 @@ namespace UA
                 if (prefab == null) continue;
                 var go = Instantiate(prefab, new Vector3(i * 1.1f, 300, 0), Quaternion.Euler(0, 180, 0));
                 var agent = go.GetComponent<Agent>();
-                agent.SetLook(i % 4 + (i / 2) % 2 * 4);
+                agent.SetLook(i % 4 + (i / 2) % 2 * 4 + (i % 2) * 32);
                 agent.SetWeapon(i % 6);
                 row.Add(go);
             }
             cam.transform.SetPositionAndRotation(new Vector3(3.85f, 301.1f, -6.5f), Quaternion.Euler(4, 0, 0));
             yield return Wait(1f);
             yield return Shot("00-characters");
+            // close-up of the faces and head gear
+            cam.Cam.fieldOfView = 28;
+            cam.transform.SetPositionAndRotation(new Vector3(1.65f, 301.62f, -3.2f), Quaternion.LookRotation(new Vector3(0, -0.02f, 1f)));
+            yield return Wait(0.5f);
+            yield return Shot("00-faces");
+            cam.transform.SetPositionAndRotation(new Vector3(6.05f, 301.55f, -3.2f), Quaternion.LookRotation(new Vector3(0, -0.02f, 1f)));
+            yield return Wait(0.5f);
+            yield return Shot("00-faces-female");
             foreach (var go in row) Destroy(go);
             CameraRig.Frozen = false;
             app.ShowScreen("menu");

@@ -28,15 +28,15 @@ namespace UA
         public static float AimSensitivity { get => PlayerPrefs.GetFloat("sensAim", 1f); set => PlayerPrefs.SetFloat("sensAim", Mathf.Clamp(value, 0.2f, 3f)); }
         /// <summary>Turning speed while looking through a scope.</summary>
         public static float ScopeSensitivity { get => PlayerPrefs.GetFloat("sensScope", 1f); set => PlayerPrefs.SetFloat("sensScope", Mathf.Clamp(value, 0.2f, 3f)); }
-        /// <summary>Character look: body * 16 + camo * 4 + head gear.</summary>
+        /// <summary>Character look: skin * 32 + body * 16 + camo * 4 + head gear.</summary>
         public static byte Look
         {
             get
             {
-                if (!PlayerPrefs.HasKey("look")) PlayerPrefs.SetInt("look", Random.Range(0, 32));
+                if (!PlayerPrefs.HasKey("look")) PlayerPrefs.SetInt("look", Random.Range(0, 64));
                 return (byte)PlayerPrefs.GetInt("look");
             }
-            set => PlayerPrefs.SetInt("look", value % 32);
+            set => PlayerPrefs.SetInt("look", value % 64);
         }
         public static float ControlsOpacity { get => PlayerPrefs.GetFloat("ctrlAlpha", 1f); set => PlayerPrefs.SetFloat("ctrlAlpha", Mathf.Clamp(value, 0.3f, 1.5f)); }
         public static bool ShowFps { get => PlayerPrefs.GetInt("fps", 0) == 1; set => PlayerPrefs.SetInt("fps", value ? 1 : 0); }

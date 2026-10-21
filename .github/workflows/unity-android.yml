@@ -11,6 +11,12 @@ on:
       - UnityGame/**
       - .github/workflows/unity-android.yml
       - .github/scripts/lan-test.sh
+      - .github/scripts/fetch-assets.sh
+
+# one build at a time (they share the Unity license): a newer push cancels the running build
+concurrency:
+  group: unity-android-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:

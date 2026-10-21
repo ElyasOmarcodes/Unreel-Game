@@ -85,8 +85,8 @@ namespace UA
             // look
             if (Controls.Enabled)
             {
-                float speed = !Aiming ? 1f : Mathf.Lerp(0.35f, 0.8f, Current.AimFov / 50f) * (Current.Scope ? Settings.ScopeSensitivity : Settings.AimSensitivity);
-                var look = Controls.Look * speed;
+                float turnSpeed = !Aiming ? 1f : Mathf.Lerp(0.35f, 0.8f, Current.AimFov / 50f) * (Current.Scope ? Settings.ScopeSensitivity : Settings.AimSensitivity);
+                var look = Controls.Look * turnSpeed;
                 rig.Yaw += look.x;
                 rig.Pitch = Mathf.Clamp(rig.Pitch + look.y, prone ? -25f : -70f, 75f);
             }

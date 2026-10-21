@@ -5,7 +5,7 @@ using UnityEngine;
 public class ImportRules : AssetPostprocessor
 {
     // bump to re-import everything with changed rules (Library caches keep old imports otherwise)
-    public override uint GetVersion() => 2;
+    public override uint GetVersion() => 3;
 
     private void OnPreprocessModel()
     {
@@ -30,6 +30,17 @@ public class ImportRules : AssetPostprocessor
             importer.importLights = false;
             importer.isReadable = assetPath.Contains("ThirdParty/Guns/");   // gun meshes get new texture coordinates
             importer.meshCompression = ModelImporterMeshCompression.Medium;
+        }
+        else if (assetPath.Contains("ThirdParty/UBC/"))
+        {
+            // realistic base characters and their hair: same skeleton as the animation library
+            importer.animationType = ModelImporterAnimationType.Generic;
+            importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+            importer.importAnimation = false;
+            importer.importCameras = false;
+            importer.importLights = false;
+            importer.isReadable = true;   // the clothes are built from the body mesh
+            importer.meshCompression = ModelImporterMeshCompression.Low;
         }
         else if (assetPath.Contains("ThirdParty/UAL/"))
         {

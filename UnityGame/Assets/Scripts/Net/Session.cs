@@ -414,7 +414,7 @@ namespace UA
                 {
                     Id = id, IsBot = true, Name = BotNames[(id - 100) % BotNames.Length] + " [BOT]", Team = SmallerTeam(),
                     Primary = Weapons.BotPrimaries[UnityEngine.Random.Range(0, Weapons.BotPrimaries.Length)], Secondary = (byte)UnityEngine.Random.Range(4, 6),
-                    Look = (byte)UnityEngine.Random.Range(0, 32),
+                    Look = (byte)UnityEngine.Random.Range(0, 64),
                 };
                 Players[id] = bot;
                 bots.Add(bot);
@@ -505,7 +505,7 @@ namespace UA
                 player = new PlayerState
                 {
                     Id = id, Token = tok, Name = name, Team = SmallerTeam(), Primary = (byte)(primary % Weapons.Count),
-                    Secondary = (byte)(secondary % Weapons.Count), Weapon = (byte)(primary % Weapons.Count), Look = (byte)(look % 32),
+                    Secondary = (byte)(secondary % Weapons.Count), Weapon = (byte)(primary % Weapons.Count), Look = (byte)(look % 64),
                 };
                 if (Phase == Phase.Playing || Phase == Phase.Countdown) player.RespawnAt = now + 1f;
                 Players[id] = player;

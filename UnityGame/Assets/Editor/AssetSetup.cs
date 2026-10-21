@@ -14,6 +14,11 @@ public static class AssetSetup
 {
     public const string UalPath = "Assets/ThirdParty/UAL/UAL1.fbx";
     public const string FemalePath = "Assets/ThirdParty/UAL/Mannequin_F.fbx";
+    // Quaternius Universal Base Characters (realistic skin, face, eyes, hair), same skeleton as the UAL
+    public const string UbcMale = "Assets/ThirdParty/UBC/Superhero_Male_FullBody.fbx";
+    public const string UbcFemale = "Assets/ThirdParty/UBC/Superhero_Female_FullBody.fbx";
+    public const string UbcHair = "Assets/ThirdParty/UBC/Hair";
+    public const string UbcTextures = "Assets/ThirdParty/UBC/Textures";
     public const string GunsPath = "Assets/ThirdParty/Guns";
     public const string CityModels = "Assets/ThirdParty/City/Models";
     public const string CityTextures = "Assets/ThirdParty/City/Textures";
@@ -35,8 +40,11 @@ public static class AssetSetup
         SetupAnimationClips();
         var controller = BuildAnimator();
         BuildEffectMaterials();
-        BuildAgent(controller, UalPath, "Agent");
-        if (AssetDatabase.LoadAssetAtPath<GameObject>(FemalePath) != null) BuildAgent(controller, FemalePath, "Agent_F");
+        bool realistic = AssetDatabase.LoadAssetAtPath<GameObject>(UbcMale) != null;
+        Debug.Log("[Setup] characters: " + (realistic ? "Universal Base Characters" : "mannequins"));
+        BuildAgent(controller, realistic ? UbcMale : UalPath, "Agent");
+        if (realistic && AssetDatabase.LoadAssetAtPath<GameObject>(UbcFemale) != null) BuildAgent(controller, UbcFemale, "Agent_F");
+        else if (AssetDatabase.LoadAssetAtPath<GameObject>(FemalePath) != null) BuildAgent(controller, FemalePath, "Agent_F");
         else AssetDatabase.DeleteAsset("Assets/Resources/Agent_F.prefab");
         BuildGunLineup();
         BuildWeaponPrefabs();
@@ -780,19 +788,72 @@ public static class AssetSetup
         var suitOptions = Suits();
         var suit = suitOptions[0];
         var skin = Mat("Skin", new Color(0.76f, 0.58f, 0.46f), 0.32f);
+        bool realistic = modelPath.Contains("/UBC/");
+        string sex = modelPath.Contains("Female") ? "Female" : "Male";
+        Texture2D U(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{UbcTextures}/{file}.png");
+        var skins = realistic
+            ? new[]
+            {
+                Mat($"Skin_{sex}_Light", Color.white, 0.55f, 0f, U($"T_{sex}_Light_BaseColor"), U($"T_{sex}_Normal"), U($"T_{sex}_MS")),
+                Mat($"Skin_{sex}_Dark", Color.white, 0.55f, 0f, U($"T_{sex}_Dark_BaseColor"), U($"T_{sex}_Normal"), U($"T_{sex}_MS")),
+            }
+            : new Material[0];
+        var eyes = Mat("Eyes", Color.white, 0.9f, 0f, U("T_Eye_BaseColor"), U("T_Eye_Normal"));
+        var hair1 = Mat("Hair_1", Color.white, 0.3f, 0f, U("T_Hair_1_BaseColor"), U("T_Hair_1_Normal"));
+        var hair2 = Mat("Hair_2", Color.white, 0.3f, 0f, U("T_Hair_2_BaseColor"), U("T_Hair_2_Normal"));
+        Material ForSlot(Material m)
+        {
+            string n = m != null ? m.name : "";
+            if (!realistic) return skin;
+            if (n.Contains("Eye")) return eyes;
+            if (n.Contains("Hair_2")) return hair2;
+            if (n.Contains("Hair")) return hair1;
+            return skins[0];
+        }
+        // the body is the biggest skinned mesh (the others are eyes and eyebrows)
+        var bodyRenderer = skinned.OrderByDescending(r => r.sharedMesh != null ? r.sharedMesh.vertexCount : 0).FirstOrDefault();
         var vestMat = Mat("TeamVest", new Color(0.45f, 0.46f, 0.48f), 0.25f);
         var gear = Solid("Gear", new Color(0.16f, 0.17f, 0.14f), 0.25f);
         var visor = Solid("Visor", new Color(0.05f, 0.06f, 0.08f), 0.92f, 0.4f);
         var boots = Mat("Boots", new Color(0.14f, 0.11f, 0.08f), 0.35f);
         var gloves = Mat("Gloves", new Color(0.09f, 0.09f, 0.1f), 0.3f);
         foreach (var s in skinned)
-            s.sharedMaterials = s.sharedMaterials.Select(_ => skin).ToArray();
+            s.sharedMaterials = s.sharedMaterials.Select(ForSlot).ToArray();
+        var hairRenderers = skinned.Where(r => r != bodyRenderer && r.sharedMaterials.Any(m => m == hair1 || m == hair2)).Cast<Renderer>().ToList();
+        GameObject beard = null;
+        if (realistic && bodyRenderer != null)
+        {
+            var bones = body.GetComponentsInChildren<Transform>(true).GroupBy(t => t.name).ToDictionary(g => g.Key, g => g.First());
+            // hair modelled on the same skeleton: re-bind its bones to this body
+            SkinnedMeshRenderer Attach(string file, Material m)
+            {
+                var hairModel = AssetDatabase.LoadAssetAtPath<GameObject>($"{UbcHair}/{file}.fbx");
+                var src = hairModel != null ? hairModel.GetComponentInChildren<SkinnedMeshRenderer>() : null;
+                if (src == null) { Debug.LogWarning("[Setup] hair missing: " + file); return null; }
+                var go = new GameObject(file);
+                go.transform.SetParent(bodyRenderer.transform.parent, false);
+                var hairRenderer = go.AddComponent<SkinnedMeshRenderer>();
+                hairRenderer.sharedMesh = src.sharedMesh;
+                hairRenderer.bones = src.bones.Select(bone => bone != null && bones.TryGetValue(bone.name, out var mapped) ? mapped : null).ToArray();
+                hairRenderer.rootBone = src.rootBone != null && bones.TryGetValue(src.rootBone.name, out var rootBone) ? rootBone : bodyRenderer.rootBone;
+                hairRenderer.sharedMaterials = Enumerable.Repeat(m, Mathf.Max(1, src.sharedMaterials.Length)).ToArray();
+                hairRenderer.localBounds = bodyRenderer.localBounds;
+                hairRenderers.Add(hairRenderer);
+                return hairRenderer;
+            }
+            Attach(sex == "Male" ? "Hair_Buzzed" : "Hair_Buns", sex == "Male" ? hair1 : hair2);
+            if (sex == "Male")
+            {
+                var beardRenderer = Attach("Hair_Beard", hair1);
+                if (beardRenderer != null) { beard = beardRenderer.gameObject; hairRenderers.Remove(beardRenderer); }
+            }
+        }
         var teamRenderers = new List<Renderer>();
         var headgear = new List<GameObject>();
 
         // clothes made from the body mesh (in the aim pose sampled above)
         var uniform = new List<Renderer>();
-        foreach (var s in skinned)
+        foreach (var s in new[] { bodyRenderer }.Where(r => r != null))
         {
             var shirt = Outfit.Shell(s, prefabName, "Shirt", new[] { Outfit.Region.Torso, Outfit.Region.Arms }, 0.012f, suit);
             var pants = Outfit.Shell(s, prefabName, "Trousers", new[] { Outfit.Region.Legs }, 0.010f, suit);
@@ -805,7 +866,7 @@ public static class AssetSetup
             if (vest != null) teamRenderers.Add(vest);
         }
         if (uniform.Count == 0)
-            foreach (var s in skinned)
+            foreach (var s in new[] { bodyRenderer }.Where(r => r != null))
             {
                 s.sharedMaterials = s.sharedMaterials.Select(_ => suit).ToArray();
                 uniform.Add(s);
@@ -830,7 +891,7 @@ public static class AssetSetup
             // measure the head in the character's frame (+Z forward, +Y up)
             var frame = new GameObject("HeadFrame").transform;
             frame.SetPositionAndRotation(head.position, root.transform.rotation);
-            var hb = Outfit.HeadBounds(skinned, head, frame) ?? new Bounds(new Vector3(0, 0.12f, 0.02f), new Vector3(0.2f, 0.25f, 0.23f));
+            var hb = Outfit.HeadBounds(new[] { bodyRenderer }, head, frame) ?? new Bounds(new Vector3(0, 0.12f, 0.02f), new Vector3(0.2f, 0.25f, 0.23f));
             Debug.Log($"[Setup] {prefabName} head bounds {hb.center} {hb.size}");
             Object.DestroyImmediate(frame.gameObject);
             Vector3 c = hb.center, sz = hb.size;
@@ -862,6 +923,7 @@ public static class AssetSetup
             Part(face, PrimitiveType.Cube, new Vector3(c.x, eyeY - sz.y * 0.3f, front - sz.z * 0.08f), new Vector3(0.045f, 0.008f, 0.012f), lips);
             Part(face, PrimitiveType.Sphere, new Vector3(c.x, top - sz.y * 0.24f, c.z - sz.z * 0.06f), new Vector3(sz.x * 1.06f, sz.y * 0.55f, sz.z * 1.04f), hair);
             face.SetParent(head, true);
+            if (realistic) Object.DestroyImmediate(face.gameObject);   // the real face has eyes, brows and hair
             // 0: combat helmet with goggles
             var helmet = Gear("Helmet").transform;
             teamRenderers.Add(Part(helmet, PrimitiveType.Sphere, new Vector3(c.x, top - sz.y * 0.28f, c.z - sz.z * 0.03f), new Vector3(sz.x * 1.3f, sz.y * 0.72f, sz.z * 1.28f), vestMat).GetComponent<Renderer>());
@@ -942,6 +1004,10 @@ public static class AssetSetup
         agent.Headgear = headgear.ToArray();
         agent.Suits = suitOptions;
         agent.SuitRenderers = uniform.ToArray();
+        agent.Skins = skins;
+        agent.SkinRenderers = realistic && bodyRenderer != null ? new Renderer[] { bodyRenderer } : new Renderer[0];
+        agent.HairRenderers = hairRenderers.ToArray();
+        agent.Beard = beard;
 
         PrefabUtility.SaveAsPrefabAsset(root, $"Assets/Resources/{prefabName}.prefab");
         Object.DestroyImmediate(root);

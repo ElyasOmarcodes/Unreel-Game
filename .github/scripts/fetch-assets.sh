@@ -141,4 +141,79 @@ for arm in glob.glob(props + "/*/arm.jpg"):
     ms(g, b).save(arm.replace("arm.jpg", os.path.basename(os.path.dirname(arm)) + "_MS.png"))
     os.remove(arm)
 PY
+# ---------------------------------------------------------------- characters: Quaternius Universal Base Characters (CC0)
+# Free (pay what you want, $0) download from itch.io: the same skeleton as the animation library,
+# realistic skin with a face, eyes, eyebrows, hair and beard. Skipped (mannequin fallback) if itch.io fails.
+cd "$WORK"
+ubc() {
+  local P=https://quaternius.itch.io/universal-base-characters
+  local UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+  rm -f jar
+  curl -sf -A "$UA" -c jar -b jar "$P" -o page.html || return 1
+  local CSRF URL SEG UP FILE
+  CSRF=$(grep -o 'name="csrf_token" value="[^"]*' page.html | head -1 | sed 's/.*value="//')
+  curl -sf -A "$UA" -c jar -b jar -X POST "$P/download_url" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $P" --data-urlencode "csrf_token=$CSRF" -o r1.json || return 1
+  URL=$(python3 -c "import json;print(json.load(open('r1.json'))['url'])") || return 1
+  SEG=${URL##*/download/}
+  curl -sf -A "$UA" -c jar -b jar -L "$URL" -o dl.html || return 1
+  CSRF=$(grep -o 'name="csrf_token" value="[^"]*' dl.html | head -1 | sed 's/.*value="//')
+  UP=$(grep -o 'data-upload_id="[0-9]*"' dl.html | grep -o '[0-9]*' | head -1)
+  curl -sf -A "$UA" -c jar -b jar -X POST "$P/file/$UP?source=game_download&download_key=$SEG" -H "X-Requested-With: XMLHttpRequest" -H "Referer: $URL" --data-urlencode "csrf_token=$CSRF" -o r2.json || return 1
+  FILE=$(python3 -c "import json;print(json.load(open('r2.json'))['url'])") || return 1
+  curl -sfL "$FILE" -o ubc.zip && unzip -q -o ubc.zip -d ubc
+}
+for i in 1 2 3; do ubc && break || { echo "UBC download attempt $i failed"; sleep 10; }; done
+if [ -d ubc ]; then
+  U=$(find ubc -maxdepth 1 -type d -name "Universal*" | head -1)
+  mkdir -p "$DEST/UBC/Hair" "$DEST/UBC/Textures"
+  cp "$U/Base Characters/Unity/"Superhero_*_FullBody.fbx "$DEST/UBC/"
+  for h in Hair_Buzzed Hair_BuzzedFemale Hair_Buns Hair_Beard Eyebrows_Regular Eyebrows_Female; do
+    cp "$U/Hairstyles/Rigged to Head Bone/FBX (Unity)/$h.fbx" "$DEST/UBC/Hair/" || true
+  done
+  cp "$U/License_Standard.txt" "$DEST/UBC/License.txt"
+  python3 - "$U" "$DEST/UBC/Textures" <<'PY'
+import sys, os
+from PIL import Image
+src, dst = sys.argv[1:3]
+T = src + "/Base Characters/Textures"
+N = T + "/Normals Unity - Godot"
+H = src + "/Hairstyles/Textures"
+def out(img, name, size=1024):
+    img = img.resize((size, size), Image.LANCZOS) if img.size[0] > size else img
+    img.save(f"{dst}/{name}")
+    print("ubc texture", name)
+def ms(rough):
+    r = rough.convert("L").resize((1024, 1024), Image.LANCZOS)
+    black = Image.new("L", r.size, 0)
+    return Image.merge("RGBA", (black, black, black, r.point(lambda v: 255 - v)))
+jobs = [
+    (T + "/T_Superhero_Male_Ligh.png", "T_Male_Light_BaseColor.png"),
+    (T + "/T_Superhero_Male_Dark.png", "T_Male_Dark_BaseColor.png"),
+    (T + "/T_Superhero_Female_Light_BaseColor.png", "T_Female_Light_BaseColor.png"),
+    (T + "/T_Superhero_Female_Dark_BaseColor.png", "T_Female_Dark_BaseColor.png"),
+    (N + "/T_Superhero_Male_Normal.png", "T_Male_Normal.png"),
+    (N + "/T_Superhero_Female_Normal.png", "T_Female_Normal.png"),
+    (T + "/T_Eye_Brown.png", "T_Eye_BaseColor.png"),
+    (N + "/T_Eye_Normal.png", "T_Eye_Normal.png"),
+    (H + "/T_Hair_1_BaseColor.png", "T_Hair_1_BaseColor.png"),
+    (H + "/T_Hair_2_BaseColor.png", "T_Hair_2_BaseColor.png"),
+    (H + "/Normals Unity - Godot/T_Hair_1_Normal.png", "T_Hair_1_Normal.png"),
+    (H + "/Normals Unity - Godot/T_Hair_2_Normal.png", "T_Hair_2_Normal.png"),
+]
+for path, name in jobs:
+    if os.path.exists(path):
+        img = Image.open(path)
+        out(img.convert("RGBA" if "Normal" in name or "Eye" in name else "RGB"), name, 512 if "Hair" in name else 1024)
+    else:
+        print("missing", path)
+for who in ("Male", "Female"):
+    p = f"{T}/T_Superhero_{who}_Roughness.png"
+    if os.path.exists(p):
+        ms(Image.open(p)).save(f"{dst}/T_{who}_MS.png")
+PY
+  ls -la "$DEST/UBC" "$DEST/UBC/Hair" "$DEST/UBC/Textures"
+else
+  echo "::warning::Universal Base Characters could not be downloaded; the mannequins are used"
+fi
+
 du -sh "$DEST"/*
