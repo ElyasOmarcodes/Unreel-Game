@@ -542,7 +542,7 @@ def build():
     print("Fetching textures ...")
     T = {name: fetch_texture_set(name) for name in [
         "sand_01", "sandstone_cracks", "worn_corrugated_iron", "rusty_metal_02", "rusty_metal_sheet",
-        "t_concrete_wall_002", "worn_concrete_floor", "rusty_painted_metal", "weathered_planks",
+        "stone_wall_03", "worn_concrete_floor", "rusty_painted_metal", "weathered_planks",
         "stacked_stone_wall", "rocky_terrain_02"]}
 
     def mat_from(name, tex, uv=(1, 1), **kw):
@@ -554,7 +554,7 @@ def build():
     corrugated = mat_from("CorrugatedIron", "worn_corrugated_iron")
     rusty = mat_from("RustyMetal", "rusty_metal_02")
     rusty_sheet = mat_from("RustySheet", "rusty_metal_sheet")
-    concrete = mat_from("Concrete", "t_concrete_wall_002")
+    concrete = mat_from("Concrete", "stone_wall_03")
     concrete_floor = mat_from("ConcreteFloor", "worn_concrete_floor")
     painted = mat_from("PaintedMetal", "rusty_painted_metal")
     planks = mat_from("Planks", "weathered_planks")

@@ -19,8 +19,8 @@
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
     <AndroidUseSharedRuntime>false</AndroidUseSharedRuntime>
-    <!-- One CPU architecture per APK keeps the download small (pass -p:RuntimeIdentifier=android-arm64 or android-x64). -->
-    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">android-arm64</RuntimeIdentifier>
+    <!-- One CPU architecture per APK keeps the download small (pass -p:RuntimeIdentifiers=android-arm64 or android-x64). -->
+    <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">android-arm64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\ArenaRush.Game\ArenaRush.Game.csproj" />

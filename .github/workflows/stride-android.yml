@@ -72,10 +72,10 @@ jobs:
           set -e
           for RID in android-arm64 android-x64; do
             # Pass 1 compiles code only: Stride 4.4.1 compiles Android assets before the app assembly exists.
-            dotnet build ArenaRush.Android/ArenaRush.Android.csproj -c Release -p:RuntimeIdentifier=$RID \
+            dotnet build ArenaRush.Android/ArenaRush.Android.csproj -c Release -p:RuntimeIdentifiers=$RID \
               -p:StrideCompilerSkipBuild=true -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" -v:m
             # Pass 2 compiles assets and packages the APK.
-            dotnet build ArenaRush.Android/ArenaRush.Android.csproj -c Release -p:RuntimeIdentifier=$RID \
+            dotnet build ArenaRush.Android/ArenaRush.Android.csproj -c Release -p:RuntimeIdentifiers=$RID \
               -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" -v:m
             mkdir -p out
             APK=$(find Bin ArenaRush.Android/bin -name "*-Signed.apk" -path "*$RID*" -newer tools/build_level.py | head -1)
