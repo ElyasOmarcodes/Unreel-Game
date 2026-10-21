@@ -71,13 +71,13 @@ namespace UA
                 RefreshProfile();
             }, 980);
             var gunBox = UIKit.Img(right, new Color(0, 0, 0, 0.35f), UIKit.Rounded);
-            gunBox.rectTransform.At(0.5f, 0f, -150, 30, 640, 250, 0.5f, 0f);
+            gunBox.rectTransform.At(0.5f, 0f, -150, 20, 640, 220, 0.5f, 0f);
             gunView = UIKit.Node(gunBox.transform, "Gun").gameObject.AddComponent<RawImage>();
             gunView.rectTransform.Fill(6);
             gunTitle = UIKit.Txt(right, "", 34, TextAnchor.UpperLeft, UIKit.Accent);
-            gunTitle.rectTransform.At(1f, 0f, -30, 250, 300, 50, 1f, 0f);
+            gunTitle.rectTransform.At(1f, 0f, -30, 190, 300, 50, 1f, 0f);
             gunStats = UIKit.Txt(right, "", 24, TextAnchor.UpperLeft, UIKit.TextColor);
-            gunStats.rectTransform.At(1f, 0f, -30, 40, 300, 200, 1f, 0f);
+            gunStats.rectTransform.At(1f, 0f, -30, 20, 300, 165, 1f, 0f);
             var back = UIKit.Btn(s, "SAVE", () => { Settings.PlayerName = profileName.text; ShowScreen("menu"); }, 36, UIKit.AccentDark, "play_arrow");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 30, 380, 90, 0.5f, 0f);
         }

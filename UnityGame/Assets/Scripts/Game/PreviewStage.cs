@@ -9,7 +9,7 @@ namespace UA
     public class PreviewStage : MonoBehaviour
     {
         public RenderTexture CharacterTexture, GunTexture;
-        public float CharacterYaw = 160f;
+        public float CharacterYaw = 20f;
 
         private Camera characterCam, gunCam;
         private GameObject character, gun;
@@ -111,12 +111,24 @@ namespace UA
             if (prefab != null)
             {
                 gun = Instantiate(prefab, gunPivot);
-                // fit the whole gun in the picture
-                var b = new Bounds(gunPivot.position, Vector3.zero);
-                foreach (var r in gun.GetComponentsInChildren<Renderer>()) b.Encapsulate(r.bounds);
-                gun.transform.position += gunPivot.position - b.center;
-                float size = Mathf.Max(b.size.z, b.size.x);
-                gunCam.transform.position = gunPivot.position + new Vector3(size * 1.6f + 0.2f, 0.05f, 0);
+                gun.transform.localPosition = Vector3.zero;
+                gun.transform.localRotation = Quaternion.identity;
+                // scale the gun to fill the picture, centred on the pivot
+                var renderers = gun.GetComponentsInChildren<Renderer>();
+                if (renderers.Length > 0)
+                {
+                    Bounds Measure()
+                    {
+                        var b = renderers[0].bounds;
+                        foreach (var r in renderers) b.Encapsulate(r.bounds);
+                        return b;
+                    }
+                    var before = Measure();
+                    float longest = Mathf.Max(before.size.x, Mathf.Max(before.size.y, before.size.z));
+                    if (longest > 0.001f) gun.transform.localScale *= 0.9f / longest;
+                    gun.transform.position += gunPivot.position - Measure().center;
+                }
+                gunCam.transform.position = gunPivot.position + new Vector3(1.15f, 0.08f, 0);
                 gunCam.transform.rotation = Quaternion.LookRotation(gunPivot.position - gunCam.transform.position);
             }
             shownGun = weapon;
@@ -125,7 +137,8 @@ namespace UA
         private void Update()
         {
             if (character != null) character.transform.rotation = Quaternion.Euler(0, CharacterYaw, 0);
-            gunPivot.Rotate(0, 22f * Time.unscaledDeltaTime, 0);
+            // swing around the side view so the whole gun stays readable
+            gunPivot.localRotation = Quaternion.Euler(0, Mathf.Sin(Time.unscaledTime * 0.7f) * 40f, 0);
         }
     }
 }
