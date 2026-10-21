@@ -164,6 +164,54 @@ def fetch_hdri(asset_id, res="1k"):
     return dest if download(url, dest) else None
 
 
+def hdr_to_png(hdr_path, exposure=1.0):
+    """Converts a Radiance .hdr (RGBE, RLE) to an 8-bit sRGB PNG (pure Python; Stride on Linux cannot load .hdr)."""
+    import struct, zlib
+    png_path = os.path.splitext(hdr_path)[0] + ".png"
+    if os.path.exists(png_path):
+        return png_path
+    data = open(hdr_path, "rb").read()
+    pos = 0
+    while True:
+        end = data.index(b"\n", pos)
+        line = data[pos:end]
+        pos = end + 1
+        if line.startswith(b"-Y") or line.startswith(b"+Y"):
+            parts = line.split()
+            h, w = int(parts[1]), int(parts[3])
+            break
+    out = bytearray()
+    for y in range(h):
+        if data[pos] == 2 and data[pos + 1] == 2:
+            pos += 4
+            chans = []
+            for c in range(4):
+                row = bytearray()
+                while len(row) < w:
+                    n = data[pos]; pos += 1
+                    if n > 128:
+                        row += bytes([data[pos]]) * (n - 128); pos += 1
+                    else:
+                        row += data[pos:pos + n]; pos += n
+                chans.append(row)
+            px = zip(chans[0], chans[1], chans[2], chans[3])
+        else:
+            px = [tuple(data[pos + 4 * i: pos + 4 * i + 4]) for i in range(w)]
+            pos += 4 * w
+        out.append(0)
+        for r, g, b, e in px:
+            sc = math.ldexp(1.0, e - 136) * exposure if e else 0.0
+            for v in (r * sc, g * sc, b * sc):
+                v = v / (1.0 + v)  # Reinhard
+                out.append(min(255, int(255 * (v ** (1 / 2.2)) + 0.5)))
+    def chunk(t, d):
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff)
+    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + \
+        chunk(b"IDAT", zlib.compress(bytes(out), 9)) + chunk(b"IEND", b"")
+    open(png_path, "wb").write(png)
+    return png_path
+
+
 # ---------------------------------------------------------------- stride assets
 def rel_from(asset_file, target):
     return os.path.relpath(target, os.path.dirname(asset_file)).replace(os.sep, "/")
@@ -567,7 +615,7 @@ def build():
 
     # ---- environment: sky, sun, ground
     hdri = fetch_hdri("kloofendal_48d_partly_cloudy_puresky")
-    sky_tex = texture_asset(hdri, "linear") if hdri else None
+    sky_tex = texture_asset(hdr_to_png(hdri, exposure=1.6), "color") if hdri else None
     sky_path = os.path.join(LEVEL_ASSETS, "Sky.sdsky")
     if sky_tex:
         write(sky_path, f"""!SkyboxAsset
@@ -585,7 +633,7 @@ CubeMap: {sky_tex}
                         Id: @ID@
                         Type: !LightSkybox
                             Skybox: {ref(sky_path)}
-                        Intensity: 1.0
+                        Intensity: 2.5
 """)
         sky.emit()
 
