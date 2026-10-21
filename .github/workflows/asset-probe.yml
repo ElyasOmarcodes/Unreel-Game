@@ -12,42 +12,26 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Quaternius Universal Base Characters (itch.io)
-        continue-on-error: true
         run: |
           P=https://quaternius.itch.io/universal-base-characters
           curl -s -c jar -b jar "$P" -o page.html
           CSRF=$(grep -o 'name="csrf_token" value="[^"]*' page.html | head -1 | sed 's/.*value="//')
-          curl -s -c jar -b jar -X POST "$P/download_url" -d "csrf_token=$CSRF" -o r1.json; cat r1.json; echo
+          curl -s -c jar -b jar -X POST "$P/download_url" -d "csrf_token=$CSRF" -o r1.json
           URL=$(python3 -c "import json;print(json.load(open('r1.json'))['url'])")
-          KEY=${URL##*/download/}
+          RAWKEY=$(python3 -c "import urllib.parse,sys;print(urllib.parse.unquote(sys.argv[1].split('/download/')[1]))" "$URL")
           curl -s -c jar -b jar -L "$URL" -o dl.html
           UP=$(grep -o 'data-upload_id="[0-9]*"' dl.html | head -1 | grep -o '[0-9]*')
           CSRF2=$(grep -o 'name="csrf_token" value="[^"]*' dl.html | head -1 | sed 's/.*value="//')
-          echo "upload=$UP key=$KEY"
-          grep -o 'data-upload_id="[0-9]*"[^>]*' dl.html | head -3
-          curl -s -c jar -b jar -X POST "$P/file/$UP?source=game_download&key=$KEY" -H "X-Requested-With: XMLHttpRequest" -d "csrf_token=$CSRF2" -o r2.json; cat r2.json; echo
+          for variant in a b c; do
+            case $variant in
+              a) curl -s -c jar -b jar -X POST "$P/file/$UP?source=game_download" --data-urlencode "key=$RAWKEY" --data-urlencode "csrf_token=$CSRF2" -o r2.json ;;
+              b) curl -s -c jar -b jar -X POST "$P/file/$UP" --data-urlencode "key=$RAWKEY" --data-urlencode "csrf_token=$CSRF2" --data "source=game_download" -o r2.json ;;
+              c) curl -s -c jar -b jar -X POST "$P/file/$UP?key=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$RAWKEY")&source=game_download" -H "X-Requested-With: XMLHttpRequest" --data-urlencode "csrf_token=$CSRF2" -o r2.json ;;
+            esac
+            echo "variant $variant: $(cat r2.json)"
+            grep -q '"url"' r2.json && break
+          done
           FILE=$(python3 -c "import json;print(json.load(open('r2.json'))['url'])")
           curl -sL "$FILE" -o ubc.zip
           ls -la ubc.zip
-          unzip -l ubc.zip | grep -v "\.blend" | head -150
-      - name: Ultimate Gun Pack (FBX part)
-        continue-on-error: true
-        run: |
-          curl -sL https://opengameart.org/sites/default/files/ultimate_gun_pack_by_quaternius.zip -o guns.zip
-          unzip -l guns.zip | grep -iv "blend" | head -150
-      - name: Poly Haven files for some props
-        continue-on-error: true
-        run: |
-          for id in old_military_crate concrete_road_barrier metal_trash_can exterior_aircon_unit plastic_crate_03 modular_industrial_pipes_01 propane_tank rusted_wheel_rim_01; do
-            curl -s "https://api.polyhaven.com/files/$id" | python3 -c "
-          import sys,json
-          d=json.load(sys.stdin)
-          print('$id', list(d.keys()))
-          f=d.get('fbx',{}).get('1k',{}).get('fbx',{})
-          print('  fbx 1k:', f.get('url'), f.get('size'), list(f.get('include',{}).keys())[:6])
-          "
-          done
-          curl -s "https://api.polyhaven.com/assets?t=models&c=industrial" | python3 -c "import sys,json;print(sorted(json.load(sys.stdin).keys()))"
-      - name: ambientCG zip contents
-        run: |
-          curl -sL "https://ambientcg.com/get?file=CorrugatedSteel005_1K-JPG.zip" -o c.zip && unzip -l c.zip
+          unzip -l ubc.zip | grep -v "\.blend" | head -200
