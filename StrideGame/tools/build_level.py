@@ -495,10 +495,11 @@ class Ent:
         return self
 
 
-def model_comp(model_ref):
+def model_comp(model_ref, cast_shadows=True):
     return f"""                    @KEY@: !ModelComponent
                         Id: @ID@
                         Model: {model_ref}
+                        IsShadowCaster: {'true' if cast_shadows else 'false'}
                         Materials: {{}}
 """
 
@@ -558,9 +559,9 @@ def rigidbody(shapes, mass):
 {''.join(shapes)}"""
 
 
-def shape(name, kind, dims, mat_ref, pos, rot=(0, 0, 0, 1), uv=(1, 1), collide=True, tess=None, offset=(0, 0, 0)):
+def shape(name, kind, dims, mat_ref, pos, rot=(0, 0, 0, 1), uv=(1, 1), collide=True, tess=None, offset=(0, 0, 0), shadows=True):
     """A procedural mesh placed in the world. Cylinders/cones are Y-up, cubes are centred."""
-    e = Ent(name, pos, rot).add(model_comp(proc_model(kind, dims, mat_ref, uv, tess, offset)))
+    e = Ent(name, pos, rot).add(model_comp(proc_model(kind, dims, mat_ref, uv, tess, offset), shadows))
     if collide:
         if kind == "Cube":
             e.add(static_collider([box_shape(dims, offset)]))
@@ -646,9 +647,13 @@ CubeMap: {sky_tex}
                             Shadow:
                                 Enabled: true
                                 Filter: !LightShadowMapFilterTypePcf
-                                    FilterSize: Filter5x5
-                                Size: Large
-                                DepthRange: {}
+                                    FilterSize: Filter3x3
+                                Size: Medium
+                                CascadeCount: TwoCascades
+                                DepthRange:
+                                    IsAutomatic: false
+                                    ManualMinDistance: 0.0
+                                    ManualMaxDistance: 45.0
                                 PartitionMode: !LightDirectionalShadowMap.PartitionLogarithmic {}
                                 ComputeTransmittance: false
                                 BiasParameters: {}
@@ -773,9 +778,28 @@ CubeMap: {sky_tex}
     prop("ammo_box", (1.5, 0.02, -1), 70, dynamic_mass=6)
     prop("wooden_barrels_01", (-24, 0.0, -14), 0)
 
+    # ---- energy cells to collect (first gameplay goal)
+    cell_mat = material("EnergyCell", color=(0.1, 0.9, 1.0), rough=0.3, metal=0.2, emissive=(0.2, 0.9, 1.0, 5.0))
+    cell_cap = material("EnergyCellCap", color=(0.15, 0.15, 0.16), rough=0.4, metal=1.0)
+    cell_spots = [(-6, -8), (8, -18), (-14, -26), (16, -26), (2, -36), (-22, -18), (24, -12), (-10, 4),
+                  (12, 6), (-26, 8), (28, 14), (0, 18)]
+    for i, (x, z) in enumerate(cell_spots):
+        cell = Ent(f"EnergyCell{i}", (x, 1.0, z))
+        core = Ent(f"EnergyCellCore{i}", (0, 0, 0))
+        cap_top = Ent(f"EnergyCellCapTop{i}", (0, 0.32, 0))
+        cap_bottom = Ent(f"EnergyCellCapBottom{i}", (0, -0.32, 0))
+        core.add(model_comp(proc_model("Cylinder", (0.16, 0.55), cell_mat, tess=16), False))
+        cap_top.add(model_comp(proc_model("Cylinder", (0.2, 0.1), cell_cap, tess=16), False))
+        cap_bottom.add(model_comp(proc_model("Cylinder", (0.2, 0.1), cell_cap, tess=16), False))
+        for c in (core, cap_top, cap_bottom):
+            cell.child(c)
+        cell.emit()
+        for c in (core, cap_top, cap_bottom):
+            c.emit(root=False)
+
     # ---- palm trees ringing the yard
     def palm(name, x, z, height, lean_deg, lean_dir):
-        segs = 4
+        segs = 3
         top = [x, 0.0, z]
         tilt = 0.0
         for s in range(segs):
@@ -793,14 +817,14 @@ CubeMap: {sky_tex}
             yaw = k * 360 / n + random.uniform(-12, 12)
             inner_p = random.uniform(-8, 6)
             inner = q_rot(yaw=yaw, pitch=inner_p)
-            shape(f"{name}_frondA{k}", "Plane", (1.3, 2.4, True), frond, top, inner, collide=False, offset=(0, 0, 1.2))
+            shape(f"{name}_frondA{k}", "Plane", (1.3, 2.4, True), frond, top, inner, collide=False, offset=(0, 0, 1.2), shadows=False)
             end = q_apply(inner, (0, 0, 2.3))
             outer = q_rot(yaw=yaw, pitch=inner_p + random.uniform(35, 55))
             shape(f"{name}_frondB{k}", "Plane", (1.2, 2.2, True), frond, [top[0] + end[0], top[1] + end[1], top[2] + end[2]], outer,
-                  collide=False, offset=(0, 0, 1.1))
+                  collide=False, offset=(0, 0, 1.1), shadows=False)
 
     spots = []
-    for i in range(18):
+    for i in range(12):
         for _ in range(40):
             a = random.uniform(0, 2 * math.pi)
             r = random.uniform(30, 70)
@@ -910,6 +934,11 @@ CubeMap: {sky_tex}
 
     Ent("TouchControls").add("""                    @KEY@: !ArenaRush.TouchHud,ArenaRush.Game
                         Id: @ID@
+                        Font: 3c1d7a52-9b0e-4f6a-8d21-6e5f0a9c4b11:HudFont
+""").emit()
+    Ent("GameManager").add("""                    @KEY@: !ArenaRush.CellHunt,ArenaRush.Game
+                        Id: @ID@
+                        PickupRadius: 1.4
 """).emit()
 
     # ---- scene file

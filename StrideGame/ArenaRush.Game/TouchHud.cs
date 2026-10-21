@@ -18,6 +18,12 @@ namespace ArenaRush
     {
         private const float VirtualHeight = 720f;
 
+        public SpriteFont Font { get; set; }
+
+        private TextBlock energyText;
+        private TextBlock timeText;
+        private TextBlock messageText;
+
         private ImageElement stickBase;
         private ImageElement stickKnob;
         private ImageElement stickHint;
@@ -34,6 +40,10 @@ namespace ArenaRush
             stickBase = AddImage(ring, 190, 0.8f);
             stickKnob = AddImage(disc, 86, 0.85f);
             jumpButton = AddImage(disc, 120, 0.55f);
+
+            energyText = AddText(30, new Vector2(0.03f, 0.05f), new Vector3(0, 0, 0), TextAlignment.Left);
+            timeText = AddText(30, new Vector2(0.97f, 0.05f), new Vector3(1, 0, 0), TextAlignment.Right);
+            messageText = AddText(38, new Vector2(0.5f, 0.3f), new Vector3(0.5f, 0.5f, 0), TextAlignment.Center);
 
             var ui = new UIComponent
             {
@@ -62,11 +72,19 @@ namespace ArenaRush
             {
                 Place(stickBase, TouchState.StickOrigin);
                 var aspect = bounds.Width / Math.Max(1f, bounds.Height);
-                var knob = TouchState.StickOrigin + new Vector2(TouchState.Stick.X / aspect, -TouchState.Stick.Y) * 0.11f;
+                var knob = TouchState.StickOrigin + new Vector2(TouchState.Stick.X / aspect, -TouchState.Stick.Y) * 0.08f;
                 Place(stickKnob, knob);
             }
 
             Place(jumpButton, TouchState.JumpButtonCenter);
+
+            if (energyText != null)
+            {
+                energyText.Text = $"ENERGY  {GameState.Collected} / {GameState.Total}";
+                timeText.Text = CellHunt.FormatTime(GameState.Elapsed);
+                messageText.Text = GameState.Message;
+                messageText.Opacity = MathUtil.Clamp(GameState.MessageTime, 0, 1);
+            }
             jumpButton.Opacity = TouchState.JumpPressedTime > 0 ? 0.95f : 0.55f;
         }
 
@@ -83,6 +101,25 @@ namespace ArenaRush
             image.SetCanvasPinOrigin(new Vector3(0.5f, 0.5f, 0));
             canvas.Children.Add(image);
             return image;
+        }
+
+        private TextBlock AddText(float size, Vector2 position, Vector3 pin, TextAlignment alignment)
+        {
+            if (Font == null)
+                return null;
+            var text = new TextBlock
+            {
+                Font = Font,
+                TextSize = size,
+                TextColor = Color.White,
+                OutlineColor = new Color(0, 0, 0, 200),
+                OutlineThickness = 2f,
+                TextAlignment = alignment,
+            };
+            text.SetCanvasPinOrigin(pin);
+            text.SetCanvasRelativePosition(new Vector3(position.X, position.Y, 0));
+            canvas.Children.Add(text);
+            return text;
         }
 
         private static void Place(UIElement element, Vector2 normalized)

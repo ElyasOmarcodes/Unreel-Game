@@ -83,6 +83,21 @@ jobs:
       - name: Build the level (download CC0 Poly Haven assets, generate Stride assets + scene)
         run: python3 tools/build_level.py
 
+      - name: Record shader permutations on desktop (precompiled shaders => fast start on phones)
+        continue-on-error: true
+        run: |
+          dotnet build ArenaRush.Linux/ArenaRush.Linux.csproj -c Release -v:m
+          cd Bin/Linux/Release
+          ARENARUSH_EFFECT_LOG=$GITHUB_WORKSPACE/StrideGame/effects.log timeout 900 ./ArenaRush.Linux 2>&1 \
+            | grep -E "\[effects\]|rror|xception" | tail -60 || true
+          cd $GITHUB_WORKSPACE/StrideGame
+          if [ -s effects.log ]; then
+            cp effects.log ArenaRush.Game/Assets/EffectCompileLog.sdeffectlog
+            echo "Effect log with $(grep -c '^!EffectCompileRequest' effects.log) permutations will be precompiled"
+          else
+            echo "::warning::no effect log recorded; shaders will compile on the device"
+          fi
+
       - name: Build APKs (arm64 for phones, x64 for the emulator test)
         run: |
           set -e
@@ -205,6 +220,7 @@ jobs:
           body: |
             3D third-person test build made with the Stride engine (MIT, free, no licence needed).
             Island factory level with CC0 Poly Haven assets, physics crates/barrels/tyres, animated character.
+            Goal: collect all 12 glowing energy cells around the factory as fast as you can.
 
             Install: download ArenaRush-android-arm64.apk on your phone and allow "install unknown apps".
             Controls: drag on the left side to walk/run, drag on the right side to look around, tap the round button to jump.

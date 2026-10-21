@@ -125,8 +125,10 @@ namespace ArenaRush.Player
             Vector3 newMoveDirection;
             moveDirectionEvent.TryReceive(out newMoveDirection);
 
-            // Allow very simple inertia to the character to make animation transitions more fluid
-            moveDirection = moveDirection*0.85f + newMoveDirection *0.15f;
+            // Short, frame-rate independent inertia (responsive even at low FPS)
+            var dt = (float)Game.UpdateTime.Elapsed.TotalSeconds;
+            var blend = 1f - MathF.Exp(-dt * 14f);
+            moveDirection = Vector3.Lerp(moveDirection, newMoveDirection, blend);
 
             character.SetVelocity(moveDirection * speed);
 

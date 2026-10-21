@@ -46,9 +46,9 @@ namespace ArenaRush.Player
         /// Touch: left part of the screen is a floating joystick, dragging on the right part turns the camera,
         /// the round button at the bottom right jumps. Positions are normalized (0..1).
         /// </summary>
-        public float TouchJoystickRadius { get; set; } = 0.11f;
+        public float TouchJoystickRadius { get; set; } = 0.08f;
 
-        public float TouchLookSensitivity { get; set; } = 1.6f;
+        public float TouchLookSensitivity { get; set; } = 2.6f;
 
         private int? movePointer;
         private int? lookPointer;
