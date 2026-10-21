@@ -413,7 +413,7 @@ public static class AssetSetup
 
     // Quaternius Ultimate Gun Pack model used for each weapon, its length in meters and where the hand
     // holds it (fraction of the length from the back, fraction of the height from the bottom)
-    public static readonly string[] GunModels = { "AssaultRifle2_1", "AssaultRifle_3", "Shotgun_1", "SniperRifle_1", "Pistol_1", "Revolver_1" };
+    public static readonly string[] GunModels = { "AssaultRifle_2", "AssaultRifle2_1", "Shotgun_1", "SniperRifle_1", "Pistol_1", "Revolver_1" };
     private static readonly float[] GunLengths = { 0.88f, 0.84f, 0.98f, 1.15f, 0.2f, 0.27f };
     private static readonly Vector2[] GunGrips = { new Vector2(0.36f, 0.35f), new Vector2(0.36f, 0.35f), new Vector2(0.32f, 0.35f), new Vector2(0.3f, 0.35f), new Vector2(0.2f, 0.45f), new Vector2(0.2f, 0.45f) };
 
