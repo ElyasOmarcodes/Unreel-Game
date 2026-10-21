@@ -439,7 +439,7 @@ namespace UA
 
             var loadout = UIKit.Node(s, "Loadout").At(0.5f, 0f, 0, 200, 1560, 84, 0.5f, 0.5f);
             primaryText = LoadoutStepper(loadout, -400, "PRIMARY", true);
-            secondaryText = LoadoutStepper(loadout, 400, "PISTOL", false);
+            secondaryText = LoadoutStepper(loadout, 400, "SECOND", false);
 
             var leave = UIKit.Btn(s, "LEAVE", LeaveGroup, 34, null, "exit_to_app");
             leave.GetComponent<RectTransform>().At(0.5f, 0f, -560, 50, 320, 96, 0.5f, 0f);
@@ -464,8 +464,8 @@ namespace UA
             System.Action<int> change = d =>
             {
                 byte p = Settings.Primary, sec = Settings.Secondary;
-                if (primary) p = (byte)((p + 4 + d) % 4);
-                else sec = (byte)(sec == 4 ? 5 : 4);
+                if (primary) p = (byte)((p + Weapons.Count + d) % Weapons.Count);
+                else sec = (byte)((sec + Weapons.Count + d) % Weapons.Count);
                 Session.I.SetLoadout(p, sec);
                 RefreshLobby();
             };
@@ -531,22 +531,31 @@ namespace UA
         {
             var s = MakeScreen("settings");
             UIKit.Title(s, "SETTINGS", -40, 66);
-            var panel = UIKit.Panel(s, 1180, 820, -10);
-            var nameRow = UIKit.Node(panel, "NameRow").At(0.5f, 1f, 0, -30, 1080, 84, 0.5f, 1f);
+            var panel = UIKit.Panel(s, 1760, 820, -10);
+            // left column: player and game, right column: controls
+            const float W = 820f, L = -440f, R = 440f;
+            void Row(float x, Text value) => ((RectTransform)value.transform.parent).anchoredPosition += new Vector2(x, 0);
+            string Speed(float v) => "x" + v.ToString("0.0");
+            float Step(float v, int d) => Mathf.Round((v + d * 0.1f) * 10f) / 10f;
+            var nameRow = UIKit.Node(panel, "NameRow").At(0.5f, 1f, L, -30, W, 84, 0.5f, 1f);
             var nameLabel = UIKit.Txt(nameRow, "PLAYER NAME", 34, TextAnchor.MiddleLeft, UIKit.Muted);
             nameLabel.rectTransform.Fill();
             nameLabel.rectTransform.offsetMin = new Vector2(30, 0);
             nameField = UIKit.Input(nameRow, Settings.PlayerName, "Your name", 34);
-            nameField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 560, 74, 1f, 0.5f);
+            nameField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 400, 74, 1f, 0.5f);
             nameField.onEndEdit.AddListener(v => Settings.PlayerName = v);
-            UIKit.Stepper(panel, "GRAPHICS", -130, () => Settings.QualityNames[Settings.Quality], d => Settings.Quality = Mathf.Clamp(Settings.Quality + d, 0, 2), 1080);
-            UIKit.Stepper(panel, "LOOK SENSITIVITY", -225, () => "x" + Settings.Sensitivity.ToString("0.0"), d => Settings.Sensitivity = Mathf.Round((Settings.Sensitivity + d * 0.1f) * 10f) / 10f, 1080);
-            UIKit.Stepper(panel, "LOOK LEFT / RIGHT", -320, () => Settings.ReverseHorizontal ? "REVERSED" : "NORMAL", d => Settings.ReverseHorizontal = !Settings.ReverseHorizontal, 1080);
-            UIKit.Stepper(panel, "LOOK UP / DOWN", -415, () => Settings.ReverseVertical ? "REVERSED" : "NORMAL", d => Settings.ReverseVertical = !Settings.ReverseVertical, 1080);
-            UIKit.Stepper(panel, "SOUND VOLUME", -510, () => Mathf.RoundToInt(Settings.Volume * 100) + "%", d => Settings.Volume = Mathf.Round(Settings.Volume * 10 + d) / 10f, 1080);
-            UIKit.Stepper(panel, "SHOW FPS", -605, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, 1080);
+            Row(L, UIKit.Stepper(panel, "GRAPHICS", -130, () => Settings.QualityNames[Settings.Quality], d => Settings.Quality = Mathf.Clamp(Settings.Quality + d, 0, 2), W));
+            Row(L, UIKit.Stepper(panel, "SOUND VOLUME", -225, () => Mathf.RoundToInt(Settings.Volume * 100) + "%", d => Settings.Volume = Mathf.Round(Settings.Volume * 10 + d) / 10f, W));
+            Row(L, UIKit.Stepper(panel, "SHOW FPS", -320, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, W));
+            Row(R, UIKit.Stepper(panel, "TURN SPEED", -30, () => Speed(Settings.Sensitivity), d => Settings.Sensitivity = Step(Settings.Sensitivity, d), W));
+            Row(R, UIKit.Stepper(panel, "AIM SPEED", -130, () => Speed(Settings.AimSensitivity), d => Settings.AimSensitivity = Step(Settings.AimSensitivity, d), W));
+            Row(R, UIKit.Stepper(panel, "SCOPE SPEED", -225, () => Speed(Settings.ScopeSensitivity), d => Settings.ScopeSensitivity = Step(Settings.ScopeSensitivity, d), W));
+            Row(R, UIKit.Stepper(panel, "LEFT / RIGHT", -320, () => Settings.ReverseHorizontal ? "REVERSED" : "NORMAL", d => Settings.ReverseHorizontal = !Settings.ReverseHorizontal, W));
+            Row(R, UIKit.Stepper(panel, "UP / DOWN", -415, () => Settings.ReverseVertical ? "REVERSED" : "NORMAL", d => Settings.ReverseVertical = !Settings.ReverseVertical, W));
+            var hint = UIKit.Txt(panel, "Running speed is the same for everyone and cannot be changed.", 24, TextAnchor.MiddleCenter, UIKit.Muted);
+            hint.rectTransform.At(0.5f, 1f, R, -515, W, 40, 0.5f, 1f);
             var layout = UIKit.Btn(panel, "CONTROLS LAYOUT", OpenLayoutEditor, 30, UIKit.AccentDark, "open_with");
-            layout.GetComponent<RectTransform>().At(0.5f, 0f, 0, 30, 480, 76, 0.5f, 0f);
+            layout.GetComponent<RectTransform>().At(0.5f, 1f, L, -440, 480, 76, 0.5f, 1f);
             var back = UIKit.Btn(s, "BACK", () => { Settings.PlayerName = nameField.text; Back(); }, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 50, 380, 96, 0.5f, 0f);
         }

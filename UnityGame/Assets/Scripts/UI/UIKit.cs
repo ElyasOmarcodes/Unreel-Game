@@ -194,9 +194,12 @@ namespace UA
             colors.fadeDuration = 0.06f;
             button.colors = colors;
             button.targetGraphic = image;
+            // soft tick for most buttons, a falling tick for back / leave, a chime for the main actions
+            string sound = icon == "arrow_back" || icon == "exit_to_app" || label == "<" ? "ui_back"
+                : color.HasValue && color.Value == AccentDark ? "ui_confirm" : "click";
             button.onClick.AddListener(() =>
             {
-                Sfx.Play("click", 0.5f);
+                Sfx.Play(sound, sound == "ui_confirm" ? 0.45f : 0.55f, 1f);
                 onClick?.Invoke();
             });
             var t = Txt(image.transform, label, size).Shadowed();

@@ -119,6 +119,7 @@ namespace UA
             AddButton(Controls.Button.Reload, "autorenew", "RELOAD");
             AddButton(Controls.Button.Swap, "swap_horiz", "SWAP");
             AddButton(Controls.Button.Prone, "airline_seat_flat", "PRONE");
+            AddButton(Controls.Button.Grenade, "grenade", "x2");
             AddButton(Controls.Button.Pause, "pause", "");
             AddButton(Controls.Button.Score, "leaderboard", "");
 
@@ -322,6 +323,8 @@ namespace UA
                     ? new Color(1f, 0.3f, 0.2f, (held ? 0.55f : 0.32f) * alpha)
                     : new Color(1, 1, 1, (held || active ? 0.4f : 0.14f) * alpha);
             }
+            if (buttonLabels.TryGetValue(Controls.Button.Grenade, out var grenadeLabel))
+                grenadeLabel.text = "x" + (lp != null ? lp.Grenades : 0);
             stickBase.enabled = stickKnob.enabled = touchUi;
             var stickCenter = Controls.StickActive ? Controls.StickCenter : new Vector2(260, 250);
             stickBase.rectTransform.At(0f, 0f, stickCenter.x, stickCenter.y, Controls.StickRadius * 2, Controls.StickRadius * 2);

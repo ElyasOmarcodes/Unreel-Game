@@ -44,7 +44,11 @@ public static class CiBuild
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
         PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
         PlayerSettings.Android.forceInternetPermission = true;
-        PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Android, ManagedStrippingLevel.Low);
+        // smaller APK: strip unused managed and engine code, optimise the IL2CPP output for size
+        PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Android, ManagedStrippingLevel.Medium);
+        PlayerSettings.stripEngineCode = true;
+        PlayerSettings.SetIl2CppCodeGeneration(NamedBuildTarget.Android, Il2CppCodeGeneration.OptimizeSize);
+        PlayerSettings.SetIl2CppCompilerConfiguration(NamedBuildTarget.Android, Il2CppCompilerConfiguration.Release);
         PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
         PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan, GraphicsDeviceType.OpenGLES3 });
         PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
@@ -92,7 +96,13 @@ public static class CiBuild
         return s.result == BuildResult.Succeeded;
     }
 
-    private static bool BuildAndroid() => Build(BuildTarget.Android, "Builds/Android/UrbanAgents.apk");
+    private static bool BuildAndroid()
+    {
+        // the gun lineup is only for the screenshots of the desktop test build: keep it out of the APK
+        AssetDatabase.DeleteAsset("Assets/Resources/Debug");
+        AssetDatabase.SaveAssets();
+        return Build(BuildTarget.Android, "Builds/Android/UrbanAgents.apk");
+    }
 
     private static bool BuildLinux()
     {

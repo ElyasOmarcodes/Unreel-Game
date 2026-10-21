@@ -10,16 +10,16 @@ namespace UA
     [DefaultExecutionOrder(-100)]
     public class Controls : MonoBehaviour
     {
-        public enum Button { Fire, FireLeft, Aim, Jump, Crouch, Reload, Swap, Pause, Score, Prone }
+        public enum Button { Fire, FireLeft, Aim, Jump, Crouch, Reload, Swap, Pause, Score, Prone, Grenade }
 
         public static bool Enabled;
         public static Vector2 Move;
         public static Vector2 Look;
-        public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, PronePressed;
+        public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, PronePressed, GrenadePressed;
 
         // automated test input
         public static Vector2 SimMove, SimLook;
-        public static bool SimFire, SimScore;
+        public static bool SimFire, SimScore, SimGrenade;
 
         // for drawing the stick
         public static bool StickActive;
@@ -45,6 +45,7 @@ namespace UA
                 case Button.Prone: return new Vector2(w - 100, 650);
                 case Button.Reload: return new Vector2(w - 480, 380);
                 case Button.Swap: return new Vector2(w - 470, 590);
+                case Button.Grenade: return new Vector2(w - 290, 560);
                 case Button.Pause: return new Vector2(80, 1000);
                 default: return new Vector2(200, 1000);
             }
@@ -87,7 +88,7 @@ namespace UA
 
         private void Update()
         {
-            bool fireTap = false, aim = false, jump = false, crouch = false, reload = false, swap = false, pause = false, prone = false;
+            bool fireTap = false, aim = false, jump = false, crouch = false, reload = false, swap = false, pause = false, prone = false, grenade = false;
             Move = Vector2.zero;
             Look = Vector2.zero;
             Held.Clear();
@@ -124,6 +125,7 @@ namespace UA
                             case Button.Swap: swap = true; break;
                             case Button.Pause: pause = true; break;
                             case Button.Prone: prone = true; break;
+                            case Button.Grenade: grenade = true; break;
                         }
                     }
                     fingers[t.fingerId] = f;
@@ -169,6 +171,7 @@ namespace UA
                 if (Input.GetKeyDown(KeyCode.Space)) jump = true;
                 if (Input.GetKeyDown(KeyCode.C) || Input.GetKeyDown(KeyCode.LeftControl)) crouch = true;
                 if (Input.GetKeyDown(KeyCode.Z)) prone = true;
+                if (Input.GetKeyDown(KeyCode.G)) grenade = true;
                 if (Input.GetKeyDown(KeyCode.R)) reload = true;
                 if (Input.GetKeyDown(KeyCode.Q) || Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Alpha2)) swap = true;
                 if (Input.GetKey(KeyCode.Tab)) Held.Add(Button.Score);
@@ -179,6 +182,7 @@ namespace UA
             Look += SimLook;
             if (SimFire) fireHeld = true;
             if (SimScore) Held.Add(Button.Score);
+            if (SimGrenade) { grenade = true; SimGrenade = false; }
             if (SimFire && !lastFireHeld) fireTap = true;
 
             FireHeld = fireHeld;
@@ -192,6 +196,7 @@ namespace UA
             PausePressed = pause;
             ScoreHeld = Held.Contains(Button.Score);
             PronePressed = prone;
+            GrenadePressed = grenade;
         }
     }
 }

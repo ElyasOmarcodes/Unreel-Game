@@ -4,6 +4,9 @@ using UnityEngine;
 /// <summary>Import settings for the downloaded CC0 assets and our sounds, applied on their first import.</summary>
 public class ImportRules : AssetPostprocessor
 {
+    // bump to re-import everything with changed rules (Library caches keep old imports otherwise)
+    public override uint GetVersion() => 2;
+
     private void OnPreprocessModel()
     {
         var importer = (ModelImporter)assetImporter;
@@ -25,7 +28,7 @@ public class ImportRules : AssetPostprocessor
             importer.animationType = ModelImporterAnimationType.None;
             importer.importCameras = false;
             importer.importLights = false;
-            importer.isReadable = false;
+            importer.isReadable = assetPath.Contains("ThirdParty/Guns/");   // gun meshes get new texture coordinates
             importer.meshCompression = ModelImporterMeshCompression.Medium;
         }
         else if (assetPath.Contains("ThirdParty/UAL/"))
@@ -35,7 +38,7 @@ public class ImportRules : AssetPostprocessor
             importer.importAnimation = true;
             importer.importCameras = false;
             importer.importLights = false;
-            importer.isReadable = false;
+            importer.isReadable = true;   // the clothes are built from the body mesh
             importer.meshCompression = ModelImporterMeshCompression.Low;
             importer.animationCompression = ModelImporterAnimationCompression.Optimal;
         }
@@ -76,7 +79,8 @@ public class ImportRules : AssetPostprocessor
         var android = importer.GetPlatformTextureSettings("Android");
         android.overridden = true;
         android.maxTextureSize = file.Contains("interior") || file.Contains("Ornaments") ? 512 : 1024;
-        android.format = TextureImporterFormat.ASTC_6x6;
+        // colour keeps the finer 6x6 blocks; normal and roughness maps can be coarser (smaller APK)
+        android.format = file.EndsWith("_Normal") || file.EndsWith("_MS") ? TextureImporterFormat.ASTC_8x8 : TextureImporterFormat.ASTC_6x6;
         android.compressionQuality = 50;
         importer.SetPlatformTextureSettings(android);
     }

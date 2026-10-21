@@ -167,24 +167,36 @@ namespace UA
 
         public bool LineOfSight(Vector3 from, Vector3 to) => !Physics.Linecast(from, to, EnvMask, QueryTriggerInteraction.Ignore);
 
-        /// <summary>Host: spawn point far from enemies, on the player's side of the map in team mode.</summary>
+        /// <summary>
+        /// Host: a random spawn point among the safe ones. Every point of the map's spawn list (spread
+        /// all over the map) is scored by its distance to the nearest enemy and to where this player
+        /// died; points too close to an enemy, or in the open line of sight of one, are skipped; one of
+        /// the best few is then picked at random, so players come back in many different places.
+        /// </summary>
         public (Vector3, float) PickSpawn(PlayerState p, Session s)
         {
             if (Spawns.Length == 0) return (Center, 0f);
             var enemies = s.Players.Values.Where(o => o.Alive && IsEnemy(p, o, s)).Select(o => o.Pos).ToList();
-            float best = float.MinValue;
-            Vector3 chosen = Spawns[0];
+            var scored = new List<(Vector3 point, float score)>();
             foreach (var sp in Spawns)
             {
-                float score = Random.Range(0f, 6f);
-                if (s.Config.Mode == Mode.TeamDeathmatch)
-                    score += (p.Team == 0 ? -sp.x : sp.x) * 0.6f;
                 float nearest = enemies.Count == 0 ? 60f : enemies.Min(e => Vector3.Distance(e, sp));
-                score += Mathf.Min(nearest, 60f);
-                if (score > best) { best = score; chosen = sp; }
+                if (nearest < 14f) continue;
+                bool seen = enemies.Any(e => Vector3.Distance(e, sp) < 45f && LineOfSight(e + Vector3.up * 1.5f, sp + Vector3.up * 1.4f));
+                float score = Mathf.Min(nearest, 50f) - (seen ? 25f : 0f);
+                // not the same place again: away from where this player died
+                if (p.Pos != Vector3.zero) score += Mathf.Min(Vector3.Distance(p.Pos, sp), 30f) * 0.5f;
+                scored.Add((sp, score));
+            }
+            Vector3 chosen;
+            if (scored.Count == 0) chosen = Spawns[Random.Range(0, Spawns.Length)];
+            else
+            {
+                var best = scored.OrderByDescending(x => x.score).Take(Mathf.Max(3, scored.Count / 3)).ToList();
+                chosen = best[Random.Range(0, best.Count)].point;
             }
             var toCenter = Center - chosen;
-            float yaw = Mathf.Atan2(toCenter.x, toCenter.z) * Mathf.Rad2Deg;
+            float yaw = Mathf.Atan2(toCenter.x, toCenter.z) * Mathf.Rad2Deg + Random.Range(-40f, 40f);
             return (chosen + Vector3.up * 0.1f, yaw);
         }
 

@@ -10,7 +10,8 @@ namespace UA
         private CharacterController cc;
         private int waypoint = -1, previousWaypoint = -1;
         private float verticalSpeed, nextThink, nextFire, reloadEnd, strafeUntil, strafeDir = 1f, stuckTime, reactionAt;
-        private int mag;
+        private int mag, grenades;
+        private float nextGrenade;
         private Agent target;
         private Vector3 lastPos;
         private float yaw, pitch;
@@ -32,6 +33,8 @@ namespace UA
             waypoint = -1;
             target = null;
             mag = Weapons.Get(agent.State.Primary).MagSize;
+            grenades = Grenade.PerLife;
+            nextGrenade = Time.time + Random.Range(4f, 10f);
             yaw = agent.State.Yaw;
             pitch = 0;
         }
@@ -76,6 +79,12 @@ namespace UA
                 bool aimed = Mathf.Abs(Mathf.DeltaAngle(yaw, wantYaw)) < 7f;
                 if (aimed && Time.time >= reactionAt && Time.time >= nextFire && reloadEnd <= 0 && mag > 0 && distance < def.Range * 0.8f)
                     Shoot(s, def, toTarget, distance);
+                // now and then a grenade at a target in the middle distance
+                if (grenades > 0 && Time.time >= nextGrenade && distance > 9f && distance < 24f && Time.time >= reactionAt)
+                {
+                    nextGrenade = Time.time + Random.Range(6f, 14f);
+                    if (Random.value < 0.25f + 0.15f * Skill) ThrowAt(s, target.transform.position);
+                }
                 st.MoveX = Vector3.Dot(move, right);
                 st.MoveY = Vector3.Dot(move, forward);
             }
@@ -112,6 +121,19 @@ namespace UA
             st.Pitch = pitch;
             st.Grounded = cc.isGrounded;
             st.Crouch = false;
+        }
+
+        /// <summary>Ballistic throw that lands next to the target after a short flight.</summary>
+        private void ThrowAt(Session s, Vector3 point)
+        {
+            grenades--;
+            var origin = agent.Eye + transform.forward * 0.4f + Vector3.up * 0.1f;
+            var delta = point + Random.insideUnitSphere * (2.5f - Skill) - origin;
+            delta.y = point.y - origin.y;
+            float time = Mathf.Clamp(delta.magnitude / 13f, 0.6f, 1.6f);
+            var velocity = (delta - 0.5f * Physics.gravity * time * time) / time;
+            s.BotThrow(agent.Id, origin, velocity);
+            agent.PlayReload();
         }
 
         private void NextWaypoint(World world)

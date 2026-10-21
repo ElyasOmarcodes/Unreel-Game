@@ -21,9 +21,13 @@ namespace UA
         public static float Sensitivity { get => PlayerPrefs.GetFloat("sens", 1f); set => PlayerPrefs.SetFloat("sens", Mathf.Clamp(value, 0.3f, 3f)); }
         public static float Volume { get => PlayerPrefs.GetFloat("volume", 0.8f); set { PlayerPrefs.SetFloat("volume", Mathf.Clamp01(value)); AudioListener.volume = value; } }
         public static bool InvertY { get => PlayerPrefs.GetInt("invert", 0) == 1; set => PlayerPrefs.SetInt("invert", value ? 1 : 0); }
-        /// <summary>Touch look directions (players asked for: left/right with the finger, up/down reversed).</summary>
+        /// <summary>Touch look directions: both follow the finger unless reversed here.</summary>
         public static bool ReverseHorizontal { get => PlayerPrefs.GetInt("revH", 0) == 1; set => PlayerPrefs.SetInt("revH", value ? 1 : 0); }
-        public static bool ReverseVertical { get => PlayerPrefs.GetInt("revV", 1) == 1; set => PlayerPrefs.SetInt("revV", value ? 1 : 0); }
+        public static bool ReverseVertical { get => PlayerPrefs.GetInt("revV2", 0) == 1; set => PlayerPrefs.SetInt("revV2", value ? 1 : 0); }
+        /// <summary>Turning speed while aiming down the sights (iron sights, red dot).</summary>
+        public static float AimSensitivity { get => PlayerPrefs.GetFloat("sensAim", 1f); set => PlayerPrefs.SetFloat("sensAim", Mathf.Clamp(value, 0.2f, 3f)); }
+        /// <summary>Turning speed while looking through a scope.</summary>
+        public static float ScopeSensitivity { get => PlayerPrefs.GetFloat("sensScope", 1f); set => PlayerPrefs.SetFloat("sensScope", Mathf.Clamp(value, 0.2f, 3f)); }
         /// <summary>Character look: body * 16 + camo * 4 + head gear.</summary>
         public static byte Look
         {

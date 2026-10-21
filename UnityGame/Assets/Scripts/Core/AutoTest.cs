@@ -140,6 +140,9 @@ namespace UA
             yield return Shot("08-match-start");
             yield return Play(10f, "09-running-firing", "10-fight");
             Controls.SimMove = Vector2.zero;
+            Controls.SimGrenade = true;
+            yield return Wait(3.25f);
+            yield return Shot("10b-grenade");
             yield return Wait(1f);
             Controls.SimScore = true;
             yield return Wait(0.3f);

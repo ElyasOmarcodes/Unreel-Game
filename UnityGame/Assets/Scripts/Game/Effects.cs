@@ -10,7 +10,8 @@ namespace UA
 
         private static readonly List<TracerItem> tracers = new List<TracerItem>();
         private static readonly List<(GameObject go, float until)> flashes = new List<(GameObject, float)>();
-        private static ParticleSystem sparks, dust, blood;
+        private static ParticleSystem sparks, dust, blood, fire, smoke, debris;
+        private static readonly List<(Light light, float start, float until)> blasts = new List<(Light, float, float)>();
         private static Material tracerMaterial, flashMaterial;
         private static Transform root;
         private static Runner runner;
@@ -31,6 +32,10 @@ namespace UA
             flashMaterial = Resources.Load<Material>("Materials/Flash");
             sparks = MakeParticles("Sparks", Resources.Load<Material>("Materials/Spark"), 0.15f, 0.06f, 9f, 0.25f, new Color(1f, 0.8f, 0.4f), 1f);
             dust = MakeParticles("Dust", Resources.Load<Material>("Materials/Dust"), 0.6f, 0.35f, 1.6f, 0.8f, new Color(0.62f, 0.6f, 0.55f, 0.7f), -0.1f);
+            fire = MakeParticles("Fire", flashMaterial, 0.45f, 1.6f, 7f, 0.6f, new Color(1f, 0.62f, 0.25f), -0.2f);
+            smoke = MakeParticles("Smoke", Resources.Load<Material>("Materials/Dust"), 3.2f, 2.4f, 2.8f, 1.2f, new Color(0.18f, 0.17f, 0.16f, 0.85f), -0.05f);
+            debris = MakeParticles("Debris", Resources.Load<Material>("Materials/Spark"), 1.1f, 0.08f, 16f, 0f, new Color(1f, 0.7f, 0.35f), 1.6f);
+            blasts.Clear();
             blood = MakeParticles("Blood", Resources.Load<Material>("Materials/Blood"), 0.45f, 0.18f, 2.5f, 0.5f, new Color(0.55f, 0.03f, 0.02f, 0.9f), 0.8f);
         }
 
@@ -161,9 +166,42 @@ namespace UA
             Emit(blood, pos, normal, 8, 0.7f);
         }
 
+        /// <summary>Grenade blast: fireball, sparks, smoke, a flash of light, the boom and a camera shake.</summary>
+        public static void Explosion(Vector3 pos)
+        {
+            Ensure();
+            Emit(fire, pos + Vector3.up * 0.3f, Vector3.up, 26, 1f);
+            Emit(debris, pos + Vector3.up * 0.2f, Vector3.up, 40, 0.85f);
+            Emit(smoke, pos + Vector3.up * 0.6f, Vector3.up, 14, 0.7f);
+            Emit(dust, pos + Vector3.up * 0.1f, Vector3.up, 16, 0.9f);
+            var go = new GameObject("Blast");
+            go.transform.SetParent(root);
+            go.transform.position = pos + Vector3.up * 0.8f;
+            var light = go.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.7f, 0.4f);
+            light.range = 16f;
+            light.intensity = 9f;
+            light.shadows = LightShadows.None;
+            blasts.Add((light, Time.time, Time.time + 0.35f));
+            Sfx.PlayAt("explosion", pos, 1f, Random.Range(0.92f, 1.05f));
+            if (CameraRig.I != null)
+            {
+                float d = Vector3.Distance(CameraRig.I.transform.position, pos);
+                CameraRig.I.Shake(Mathf.Clamp01(1f - d / 30f) * 2.2f);
+            }
+        }
+
         private static void Tick()
         {
             float now = Time.time;
+            for (int i = blasts.Count - 1; i >= 0; i--)
+            {
+                var b = blasts[i];
+                if (b.light == null) { blasts.RemoveAt(i); continue; }
+                if (now >= b.until) { Object.Destroy(b.light.gameObject); blasts.RemoveAt(i); continue; }
+                b.light.intensity = 9f * (1f - (now - b.start) / (b.until - b.start));
+            }
             foreach (var t in tracers)
                 if (t.Line.enabled && now > t.Until) t.Line.enabled = false;
             for (int i = flashes.Count - 1; i >= 0; i--)

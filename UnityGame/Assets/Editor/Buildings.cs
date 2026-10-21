@@ -70,6 +70,23 @@ public static class Buildings
         return list;
     }
 
+    /// <summary>
+    /// Balcony outside a door in the front (side -1) or back (side 1) wall: a slab at floor level and
+    /// a solid parapet around it, good cover for shooting down into the street.
+    /// </summary>
+    private static void Balcony(Transform t, float x, float y0, float wallZ, float side, Style s)
+    {
+        const float width = 3f, depth = 1.4f, rail = 1.05f;
+        float z = wallZ + side * depth / 2f;
+        Box(t, "Balcony", new Vector3(x, y0 - 0.1f, z), new Vector3(width, 0.2f, depth), s.Trim, 1.5f);
+        Box(t, "BalconyRail", new Vector3(x, y0 + rail / 2f, wallZ + side * (depth - 0.05f)), new Vector3(width, rail, 0.1f), s.Trim, 1.5f);
+        foreach (float e in new[] { -1f, 1f })
+            Box(t, "BalconyRail", new Vector3(x + e * (width / 2f - 0.05f), y0 + rail / 2f, z), new Vector3(0.1f, rail, depth), s.Trim, 1.5f);
+        // brackets under the slab
+        foreach (float e in new[] { -1f, 1f })
+            Box(t, "Bracket", new Vector3(x + e * (width / 2f - 0.3f), y0 - 0.45f, wallZ + side * 0.45f), new Vector3(0.15f, 0.5f, 0.8f), s.Trim, 1f);
+    }
+
     /// <summary>Solid steps going from start (bottom) in direction dir, rising height.</summary>
     public static void Stairs(Transform parent, Vector3 start, Vector3 dir, float height, float width, Material m)
     {
@@ -130,8 +147,17 @@ public static class Buildings
             float y0 = k * FloorHeight;
             if (k > 0) SlabWithHole(t, y0, -hw + Wall, hw - Wall, -hl + Wall, hl - Wall, LaneRect((k - 1) % 2), s.Floor);
             // outer walls with windows; doors on the ground floor front and back
-            WallStrip(t, true, -hl + Wall / 2f, y0, -hw, hw, Windows(w, k == 0, -w * 0.2f), s.Outer);
-            WallStrip(t, true, hl - Wall / 2f, y0, -hw, hw, Windows(w, k == 0, w * 0.2f), s.Outer);
+            // upper floors: a door out onto a balcony, on the front or the back (alternating)
+            float frontDoor = k == 0 ? -w * 0.2f : k % 2 == 1 ? -w * 0.25f : w * 0.12f;
+            float backDoor = k == 0 ? w * 0.2f : k % 2 == 0 ? -w * 0.22f : w * 0.12f;
+            bool frontBalcony = k > 0, backBalcony = k > 0 && k % 2 == 0;
+            WallStrip(t, true, -hl + Wall / 2f, y0, -hw, hw, Windows(w, k == 0 || frontBalcony, frontDoor), s.Outer);
+            WallStrip(t, true, hl - Wall / 2f, y0, -hw, hw, Windows(w, k == 0 || backBalcony, backDoor), s.Outer);
+            if (frontBalcony) Balcony(t, frontDoor, y0, -hl, -1f, s);
+            if (backBalcony) Balcony(t, backDoor, y0, hl, 1f, s);
+            if (k == 0)
+                foreach (var (x, z, side) in new[] { (frontDoor, -hl, -1f), (backDoor, hl, 1f) })
+                    Box(t, "Porch", new Vector3(x, 0.08f, z + side * 0.9f), new Vector3(2.6f, 0.16f, 1.6f), s.Trim, 1.5f);
             WallStrip(t, false, -hw + Wall / 2f, y0, -hl + Wall, hl - Wall, Windows(l - 2 * Wall, false), s.Outer);
             WallStrip(t, false, hw - Wall / 2f, y0, -hl + Wall, hl - Wall, Windows(l - 2 * Wall, false), s.Outer);
             // floor band on the outside of the walls (decoration, no collider)

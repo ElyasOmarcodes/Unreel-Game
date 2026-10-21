@@ -27,6 +27,11 @@ namespace UA
 
         public Ray AimRay() => new Ray(transform.position + transform.forward * 0.3f, transform.forward);
 
+        private float shake;
+
+        /// <summary>Short random camera shake (explosions), in degrees.</summary>
+        public void Shake(float degrees) => shake = Mathf.Max(shake, degrees);
+
         public void Kick(float degrees)
         {
             Pitch += degrees;
@@ -70,6 +75,11 @@ namespace UA
             float length = dir.magnitude;
             if (length > 0.01f && Physics.SphereCast(pivot, 0.18f, dir / length, out var hit, length, World.EnvMask, QueryTriggerInteraction.Ignore))
                 desired = pivot + dir / length * Mathf.Max(0.25f, hit.distance - 0.05f);
+            if (shake > 0.01f)
+            {
+                rotation *= Quaternion.Euler(Random.Range(-shake, shake), Random.Range(-shake, shake), Random.Range(-shake, shake) * 0.5f);
+                shake = Mathf.MoveTowards(shake, 0f, dt * 4f);
+            }
             transform.SetPositionAndRotation(desired, rotation);
 
             float want = Scope ? AimFov : Aim ? Mathf.Max(AimFov, 40f) : 62f;

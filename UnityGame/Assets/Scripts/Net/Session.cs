@@ -62,12 +62,15 @@ namespace UA
         public int Token;
         public float LastSeen;
         public float RespawnAt;
-        public int LastShotSeq;
+        public int LastShotSeq, LastThrowSeq;
         public float LastDamageTime;
     }
 
     public struct KillEvent { public ushort Seq; public byte Killer, Victim, Weapon; public bool Headshot; }
     public struct Shot { public int Seq; public byte Shooter, Weapon; public Vector3 Origin, Dir; public int Seed; }
+    public struct Throw { public int Seq; public byte Thrower; public Vector3 Origin, Velocity; }
+    /// <summary>Grenade event in the snapshot: Kind 0 thrown (A origin, B velocity), 1 exploded (A position).</summary>
+    public struct NadeEvent { public ushort Seq; public byte Thrower, Kind; public int ThrowSeq; public Vector3 A, B; }
     public struct ShotFx { public ushort Seq; public byte Shooter, Weapon; public Vector3 Origin, End; public byte HitKind; } // 0 wall, 1 player, 2 nothing
 
     /// <summary>
@@ -80,7 +83,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 2;
+        public const byte Version = 3;
         public const byte NoPlayer = 255;
 
         public bool Active, IsHost, Practice;
@@ -114,6 +117,11 @@ namespace UA
         private readonly List<ShotFx> fxRing = new List<ShotFx>();
         private readonly List<(Shot shot, float time)> pendingShots = new List<(Shot, float)>();
         private int shotSeq;
+        private readonly List<(Throw t, float time)> pendingThrows = new List<(Throw, float)>();
+        private readonly List<NadeEvent> nadeRing = new List<NadeEvent>();
+        private int throwSeq;
+        private ushort nadeSeq, lastNadeSeen;
+        private bool nadeInit;
 
         private static readonly string[] BotNames = { "Viper", "Ghost", "Falcon", "Rook", "Blaze", "Shadow", "Hunter", "Nova", "Raven", "Titan" };
 
@@ -200,7 +208,10 @@ namespace UA
             KillFeed.Clear();
             fxRing.Clear();
             pendingShots.Clear();
-            killInit = fxInit = false;
+            pendingThrows.Clear();
+            nadeRing.Clear();
+            Grenade.ClearAll();
+            killInit = fxInit = nadeInit = false;
             TeamScore[0] = TeamScore[1] = 0;
             Phase = Phase.Lobby;
             Time.timeScale = 1f;
@@ -402,7 +413,7 @@ namespace UA
                 var bot = new PlayerState
                 {
                     Id = id, IsBot = true, Name = BotNames[(id - 100) % BotNames.Length] + " [BOT]", Team = SmallerTeam(),
-                    Primary = (byte)UnityEngine.Random.Range(0, 4), Secondary = (byte)UnityEngine.Random.Range(4, 6),
+                    Primary = Weapons.BotPrimaries[UnityEngine.Random.Range(0, Weapons.BotPrimaries.Length)], Secondary = (byte)UnityEngine.Random.Range(4, 6),
                     Look = (byte)UnityEngine.Random.Range(0, 32),
                 };
                 Players[id] = bot;
@@ -460,6 +471,7 @@ namespace UA
         {
             if (Phase == phase && phase != Phase.Lobby) return;
             Phase = phase;
+            if (phase != Phase.Playing) Grenade.ClearAll();
             App.Log("phase=" + phase);
             PhaseChanged?.Invoke(phase);
         }
@@ -492,8 +504,8 @@ namespace UA
                 while (Players.ContainsKey(id)) id++;
                 player = new PlayerState
                 {
-                    Id = id, Token = tok, Name = name, Team = SmallerTeam(), Primary = (byte)(primary % 4),
-                    Secondary = (byte)(4 + secondary % 2), Weapon = primary, Look = (byte)(look % 32),
+                    Id = id, Token = tok, Name = name, Team = SmallerTeam(), Primary = (byte)(primary % Weapons.Count),
+                    Secondary = (byte)(secondary % Weapons.Count), Weapon = (byte)(primary % Weapons.Count), Look = (byte)(look % 32),
                 };
                 if (Phase == Phase.Playing || Phase == Phase.Countdown) player.RespawnAt = now + 1f;
                 Players[id] = player;
@@ -519,8 +531,8 @@ namespace UA
             if (Phase == Phase.Lobby)
             {
                 if (Config.Mode == Mode.TeamDeathmatch) p.Team = (byte)(team & 1);
-                p.Primary = (byte)(primary % 4);
-                p.Secondary = (byte)(4 + secondary % 2);
+                p.Primary = (byte)(primary % Weapons.Count);
+                p.Secondary = (byte)(secondary % Weapons.Count);
             }
             if (!r.ReadBoolean()) return;
             byte ack = r.ReadByte();
@@ -546,6 +558,14 @@ namespace UA
                 p.LastShotSeq = shot.Seq;
                 if (shot.Weapon != p.Primary && shot.Weapon != p.Secondary) continue;
                 ProcessShot(shot);
+            }
+            int throws = r.ReadByte();
+            for (int i = 0; i < throws; i++)
+            {
+                var t = new Throw { Seq = r.ReadInt32(), Origin = r.ReadVector3(), Velocity = r.ReadVector3(), Thrower = id };
+                if (t.Seq <= p.LastThrowSeq) continue;
+                p.LastThrowSeq = t.Seq;
+                HostThrow(t);
             }
         }
 
@@ -639,6 +659,11 @@ namespace UA
             {
                 w.Write(fx.Seq); w.Write(fx.Shooter); w.Write(fx.Weapon); w.Write(fx.Origin); w.Write(fx.End); w.Write(fx.HitKind);
             }
+            w.Write((byte)nadeRing.Count);
+            foreach (var n in nadeRing)
+            {
+                w.Write(n.Seq); w.Write(n.Thrower); w.Write(n.Kind); w.Write(n.ThrowSeq); w.Write(n.A); w.Write(n.B);
+            }
             SendToClients();
         }
 
@@ -702,6 +727,12 @@ namespace UA
                 {
                     var s = pendingShots[i].shot;
                     w.Write(s.Seq); w.Write(s.Weapon); w.Write(s.Origin); w.Write(s.Dir); w.Write(s.Seed);
+                }
+                pendingThrows.RemoveAll(t => now - t.time > 1f);
+                w.Write((byte)pendingThrows.Count);
+                foreach (var (t, _) in pendingThrows)
+                {
+                    w.Write(t.Seq); w.Write(t.Origin); w.Write(t.Velocity);
                 }
             }
             socket.Send(pw.Buffer, pw.Length, hostEndPoint);
@@ -786,10 +817,91 @@ namespace UA
                 if (fx.Shooter != LocalId) ShotSeen?.Invoke(fx);
             }
             fxInit = true;
+            int nades = r.ReadByte();
+            for (int i = 0; i < nades; i++)
+            {
+                var n = new NadeEvent { Seq = r.ReadUInt16(), Thrower = r.ReadByte(), Kind = r.ReadByte(), ThrowSeq = r.ReadInt32(), A = r.ReadVector3(), B = r.ReadVector3() };
+                if (!nadeInit) { lastNadeSeen = n.Seq; continue; }
+                if ((short)(n.Seq - lastNadeSeen) <= 0) continue;
+                lastNadeSeen = n.Seq;
+                if (n.Kind == 0)
+                {
+                    if (n.Thrower != LocalId) Grenade.Spawn(n.Thrower, n.ThrowSeq, n.A, n.B, false);
+                }
+                else
+                {
+                    var g = Grenade.Find(n.Thrower, n.ThrowSeq);
+                    if (g != null) Destroy(g.gameObject);
+                    Effects.Explosion(n.A);
+                }
+            }
+            nadeInit = true;
             if (phase != Phase) SetPhase(phase);
         }
 
         // ------------------------------------------------------------------ shooting
+
+        /// <summary>Called by the local player when a grenade leaves the hand.</summary>
+        public void ThrowLocal(Vector3 origin, Vector3 velocity)
+        {
+            var t = new Throw { Seq = ++throwSeq, Thrower = LocalId, Origin = origin, Velocity = velocity };
+            if (IsHost) HostThrow(t);
+            else
+            {
+                pendingThrows.Add((t, Time.unscaledTime));
+                Grenade.Spawn(LocalId, t.Seq, origin, velocity, false);
+            }
+        }
+
+        /// <summary>Host: a bot throws (seq numbers from a range of their own).</summary>
+        public void BotThrow(byte bot, Vector3 origin, Vector3 velocity)
+        {
+            if (!IsHost || !Players.TryGetValue(bot, out var p)) return;
+            HostThrow(new Throw { Seq = ++p.LastThrowSeq, Thrower = bot, Origin = origin, Velocity = velocity });
+        }
+
+        private void HostThrow(Throw t)
+        {
+            if (Phase != Phase.Playing || !Players.TryGetValue(t.Thrower, out var p) || !p.Alive) return;
+            Grenade.Spawn(t.Thrower, t.Seq, t.Origin, Vector3.ClampMagnitude(t.Velocity, 25f), true);
+            AddNade(new NadeEvent { Thrower = t.Thrower, ThrowSeq = t.Seq, Kind = 0, A = t.Origin, B = Vector3.ClampMagnitude(t.Velocity, 25f) });
+        }
+
+        private void AddNade(NadeEvent n)
+        {
+            n.Seq = ++nadeSeq;
+            nadeRing.Add(n);
+            if (nadeRing.Count > 12) nadeRing.RemoveAt(0);
+        }
+
+        /// <summary>
+        /// Host: the blast. Full damage up to 3 m, falling off to nothing at 8.5 m; walls and cover
+        /// between the grenade and the body (and the head) protect; lying down takes 30% less; the
+        /// thrower takes 60% of the damage from their own grenade; no team damage.
+        /// </summary>
+        public void HostExplode(Grenade g)
+        {
+            var pos = g.transform.position;
+            AddNade(new NadeEvent { Thrower = g.Thrower, ThrowSeq = g.ThrowSeq, Kind = 1, A = pos });
+            Effects.Explosion(pos);
+            Destroy(g.gameObject);
+            if (Phase != Phase.Playing || !Players.TryGetValue(g.Thrower, out var thrower)) return;
+            var blast = pos + Vector3.up * 0.25f;
+            foreach (var victim in Players.Values.ToList())
+            {
+                if (!victim.Alive) continue;
+                var body = victim.Pos + Vector3.up * (victim.Prone ? 0.3f : victim.Crouch ? 0.8f : 1.1f);
+                var head = victim.Pos + Vector3.up * (victim.Prone ? 0.4f : victim.Crouch ? 1.15f : 1.6f);
+                float amount = Grenade.DamageAt(Vector3.Distance(blast, body));
+                if (amount <= 0) continue;
+                bool exposed = !Physics.Linecast(blast, body, World.EnvMask, QueryTriggerInteraction.Ignore)
+                               || !Physics.Linecast(blast, head, World.EnvMask, QueryTriggerInteraction.Ignore);
+                if (!exposed) continue;
+                if (victim.Prone) amount *= 0.7f;
+                if (victim == thrower) amount *= 0.6f;
+                Damage(thrower, victim, Weapons.Grenade, false, amount);
+            }
+        }
 
         /// <summary>Called by the local player for every trigger pull.</summary>
         public void FireLocal(Shot shot)

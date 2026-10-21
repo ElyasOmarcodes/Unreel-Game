@@ -58,15 +58,15 @@ namespace UA
             UIKit.Stepper(right, "BODY", -120, () => BodyNames[LookPart(Settings.Look, 0)], d => { SetLookPart(0, d); RefreshProfile(); }, 980);
             UIKit.Stepper(right, "HEAD", -210, () => HeadNames[LookPart(Settings.Look, 1)], d => { SetLookPart(1, d); RefreshProfile(); }, 980);
             UIKit.Stepper(right, "CAMO", -300, () => CamoNames[LookPart(Settings.Look, 2)], d => { SetLookPart(2, d); RefreshProfile(); }, 980);
-            UIKit.Stepper(right, "PRIMARY", -390, () => Weapons.Get(Settings.Primary).Name, d =>
+            UIKit.Stepper(right, "WEAPON 1", -390, () => Weapons.Get(Settings.Primary).Name, d =>
             {
-                Settings.Primary = (byte)((Settings.Primary + 4 + d) % 4);
+                Settings.Primary = (byte)((Settings.Primary + Weapons.Count + d) % Weapons.Count);
                 previewWeapon = Settings.Primary;
                 RefreshProfile();
             }, 980);
-            UIKit.Stepper(right, "PISTOL", -480, () => Weapons.Get(Settings.Secondary).Name, d =>
+            UIKit.Stepper(right, "WEAPON 2", -480, () => Weapons.Get(Settings.Secondary).Name, d =>
             {
-                Settings.Secondary = (byte)(Settings.Secondary == 4 ? 5 : 4);
+                Settings.Secondary = (byte)((Settings.Secondary + Weapons.Count + d) % Weapons.Count);
                 previewWeapon = Settings.Secondary;
                 RefreshProfile();
             }, 980);
@@ -103,7 +103,7 @@ namespace UA
             int bodyShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets));
             int headShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets * w.HeadMultiplier));
             gunTitle.text = w.Name;
-            gunStats.text = $"Damage   {w.Damage * w.Pellets:0}\nFire rate   {w.FireRate * 60:0} rpm\nMagazine   {w.MagSize}\nKill: {bodyShots} body / {headShots} head";
+            gunStats.text = $"Damage   {w.Damage * w.Pellets:0}\nFire rate   {w.FireRate * 60:0} rpm\nMagazine   {w.MagSize}\nScope   {(w.Scope ? $"{60f / w.AimFov:0.#}x" : "none")}\nKill: {bodyShots} body / {headShots} head";
             var me = Session.I.Local;
             if (me != null && Session.I.Phase == Phase.Lobby) { me.Look = Settings.Look; Session.I.SetLoadout(Settings.Primary, Settings.Secondary); }
         }

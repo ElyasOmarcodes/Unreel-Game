@@ -19,7 +19,8 @@ namespace UA
             var source = Next();
             source.transform.position = position;
             source.spatialBlend = spatial ? 1f : 0f;
-            source.pitch = pitch * Random.Range(0.96f, 1.04f);
+            // a little variety for the world sounds, none for the interface
+            source.pitch = name == "click" || name.StartsWith("ui_") ? pitch : pitch * Random.Range(0.96f, 1.04f);
             source.volume = volume;
             source.clip = clip;
             source.Play();

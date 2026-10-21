@@ -41,6 +41,7 @@ namespace UA
             { Controls.Button.Crouch, ("keyboard_double_arrow_down", "CROUCH") }, { Controls.Button.Prone, ("airline_seat_flat", "PRONE") },
             { Controls.Button.Reload, ("autorenew", "RELOAD") }, { Controls.Button.Swap, ("swap_horiz", "SWAP") },
             { Controls.Button.Pause, ("pause", "PAUSE") }, { Controls.Button.Score, ("leaderboard", "SCORE") },
+            { Controls.Button.Grenade, ("grenade", "GRENADE") },
         };
 
         private void BuildLayoutEditor()

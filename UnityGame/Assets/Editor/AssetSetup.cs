@@ -413,12 +413,89 @@ public static class AssetSetup
 
     // Quaternius Ultimate Gun Pack model used for each weapon, its length in meters and where the hand
     // holds it (fraction of the length from the back, fraction of the height from the bottom)
-    public static readonly string[] GunModels = { "AssaultRifle_2", "AssaultRifle2_1", "Shotgun_1", "SniperRifle_1", "Pistol_1", "Revolver_1" };
-    private static readonly float[] GunLengths = { 0.88f, 0.84f, 0.98f, 1.15f, 0.2f, 0.27f };
-    private static readonly Vector2[] GunGrips = { new Vector2(0.36f, 0.35f), new Vector2(0.36f, 0.35f), new Vector2(0.32f, 0.35f), new Vector2(0.3f, 0.35f), new Vector2(0.2f, 0.45f), new Vector2(0.2f, 0.45f) };
+    // (several candidates per weapon: the first model found in the pack is used)
+    public static readonly string[][] GunModels =
+    {
+        new[] { "AssaultRifle_2" }, new[] { "AssaultRifle2_1" }, new[] { "Shotgun_1" }, new[] { "SniperRifle_1" },
+        new[] { "Pistol_1" }, new[] { "Revolver_1" }, new[] { "SubmachineGun_2", "SubmachineGun_1" }, new[] { "SniperRifle_4", "SniperRifle_2", "SniperRifle_1" },
+    };
+    private static readonly float[] GunLengths = { 0.88f, 0.84f, 0.98f, 1.15f, 0.2f, 0.27f, 0.55f, 1.12f };
+    private static readonly Vector2[] GunGrips =
+    {
+        new Vector2(0.36f, 0.35f), new Vector2(0.36f, 0.35f), new Vector2(0.32f, 0.35f), new Vector2(0.3f, 0.35f),
+        new Vector2(0.2f, 0.45f), new Vector2(0.2f, 0.45f), new Vector2(0.4f, 0.35f), new Vector2(0.3f, 0.35f),
+    };
+
+    private static readonly Dictionary<string, Material> gunMaterials = new Dictionary<string, Material>();
+
+    /// <summary>Gun steel or wood with real (ambientCG) detail textures, keeping the model's own colour.</summary>
+    private static Material GunMaterial(Material source)
+    {
+        var c = source != null && source.HasProperty("_Color") ? source.color : new Color(0.15f, 0.15f, 0.15f);
+        bool wood = c.r > c.g && c.g > c.b && c.r - c.b > 0.12f;
+        string key = (wood ? "Wood_" : "Metal_") + ColorUtility.ToHtmlStringRGB(c);
+        if (gunMaterials.TryGetValue(key, out var m) && m != null) return m;
+        string set = wood ? "Wood049" : "Metal032";
+        Texture2D T(string kind) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{PortBuilder.Textures}/{set}_{kind}");
+        var tint = wood ? new Color(Mathf.Max(c.r, 0.35f) * 1.3f, Mathf.Max(c.g, 0.2f) * 1.3f, Mathf.Max(c.b, 0.12f) * 1.3f) : new Color(c.r * 0.9f + 0.03f, c.g * 0.9f + 0.03f, c.b * 0.9f + 0.03f);
+        return gunMaterials[key] = Mat("Gun_" + key, tint, wood ? 0.45f : 0.75f, wood ? 0f : 0.8f, T("BaseColor.jpg"), T("Normal.jpg"), wood ? null : T("MS.png"));
+    }
+
+    /// <summary>
+    /// The pack's guns have no texture coordinates worth using: give every mesh box-projected UVs in
+    /// meters (from the vertex normals) so the detail textures keep the same scale on every gun.
+    /// </summary>
+    private static void TextureGun(GameObject holder, string key)
+    {
+        Folder(Generated + "/GunMeshes");
+        foreach (var filter in holder.GetComponentsInChildren<MeshFilter>())
+        {
+            var src = filter.sharedMesh;
+            if (src == null) continue;
+            string path = $"{Generated}/GunMeshes/{key}_{filter.name}_{src.name}.asset".Replace(" ", "_");
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null)
+            {
+                Vector3[] vertices, normals;
+                try { vertices = src.vertices; normals = src.normals; }
+                catch (System.Exception e) { Debug.LogWarning($"[Setup] gun mesh {src.name} not readable: {e.Message}"); continue; }
+                if (normals == null || normals.Length != vertices.Length) { src.RecalculateNormals(); normals = src.normals; }
+                var toHolder = holder.transform.worldToLocalMatrix * filter.transform.localToWorldMatrix;
+                var uv = new Vector2[vertices.Length];
+                const float tile = 0.18f; // meters per texture repeat
+                for (int i = 0; i < vertices.Length; i++)
+                {
+                    var p = toHolder.MultiplyPoint3x4(vertices[i]);
+                    var n = toHolder.MultiplyVector(normals[i]);
+                    n = new Vector3(Mathf.Abs(n.x), Mathf.Abs(n.y), Mathf.Abs(n.z));
+                    uv[i] = (n.x >= n.y && n.x >= n.z ? new Vector2(p.z, p.y) : n.y >= n.z ? new Vector2(p.x, p.z) : new Vector2(p.x, p.y)) / tile;
+                }
+                mesh = Object.Instantiate(src);
+                mesh.uv = uv;
+                mesh.RecalculateTangents();
+                AssetDatabase.CreateAsset(mesh, path);
+            }
+            filter.sharedMesh = mesh;
+            var r = filter.GetComponent<MeshRenderer>();
+            if (r != null) r.sharedMaterials = r.sharedMaterials.Select(GunMaterial).ToArray();
+        }
+    }
+
+    /// <summary>ACOG style sight on a rail, for rifles whose model has no optic.</summary>
+    private static void AddScope(Transform gun, float top, float z)
+    {
+        var black = Solid("ScopeBody", new Color(0.06f, 0.06f, 0.065f), 0.55f, 0.4f);
+        var lens = Solid("ScopeLens", new Color(0.15f, 0.32f, 0.38f), 0.97f, 0.6f);
+        Part(gun, PrimitiveType.Cube, new Vector3(0, top + 0.012f, z), new Vector3(0.03f, 0.024f, 0.09f), black);
+        Tube(gun, new Vector3(0, top + 0.05f, z), 0.15f, 0.022f, black);
+        Tube(gun, new Vector3(0, top + 0.05f, z + 0.085f), 0.03f, 0.027f, black);
+        Tube(gun, new Vector3(0, top + 0.05f, z - 0.08f), 0.03f, 0.024f, black);
+        Part(gun, PrimitiveType.Cylinder, new Vector3(0, top + 0.05f, z + 0.101f), new Vector3(0.048f, 0.002f, 0.048f), lens, new Vector3(90, 0, 0));
+        Part(gun, PrimitiveType.Cylinder, new Vector3(0, top + 0.05f, z - 0.096f), new Vector3(0.04f, 0.002f, 0.04f), lens, new Vector3(90, 0, 0));
+    }
 
     /// <summary>Instance of a gun model from the pack, barrel along +Z, scaled to the given length.</summary>
-    public static GameObject GunModel(string name, float length)
+    public static GameObject GunModel(string name, float length, bool textured = false)
     {
         var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{GunsPath}/{name}.fbx");
         if (model == null) return null;
@@ -442,6 +519,7 @@ public static class AssetSetup
             foreach (var m in r.sharedMaterials)
                 if (m != null && m.HasProperty("_Glossiness")) { m.SetFloat("_Glossiness", 0.55f); m.SetFloat("_Metallic", 0.35f); }
         }
+        if (textured) TextureGun(holder, name);
         return holder;
     }
 
@@ -456,7 +534,9 @@ public static class AssetSetup
 
     private static GameObject BuildGun(int id, Transform parent)
     {
-        var fromPack = GunModel(GunModels[id], GunLengths[id]);
+        GameObject fromPack = null;
+        foreach (var candidate in GunModels[id])
+            if ((fromPack = GunModel(candidate, GunLengths[id], true)) != null) break;
         if (fromPack != null)
         {
             fromPack.name = "W_" + Weapons.Get(id).Name;
@@ -469,6 +549,7 @@ public static class AssetSetup
             var tip = new GameObject("Muzzle").transform;
             tip.SetParent(fromPack.transform, false);
             tip.localPosition = new Vector3(0, size.y * (0.5f - grip.y) + size.y * 0.25f, size.z * (1f - grip.x));
+            if (id == 1) AddScope(fromPack.transform, size.y * (1f - grip.y), size.z * 0.06f);
             return fromPack;
         }
         var metal = Solid("GunMetal", new Color(0.13f, 0.13f, 0.14f), 0.55f, 0.75f);
@@ -534,6 +615,9 @@ public static class AssetSetup
                 Part(root, PrimitiveType.Cube, new Vector3(0, 0.0f, 0.0f), new Vector3(0.028f, 0.11f, 0.05f), polymer, new Vector3(-15, 0, 0));
                 muzzle = 0.15f;
                 break;
+            case 6: // MP5 (fallback: short M4)
+            case 7: // SVD (fallback: L96 shape)
+                return BuildGunFallback(id, root);
             default: // Desert Eagle
                 Part(root, PrimitiveType.Cube, new Vector3(0, 0.055f, 0.07f), new Vector3(0.036f, 0.045f, 0.25f), silver);
                 Part(root, PrimitiveType.Cube, new Vector3(0, 0.0f, 0.0f), new Vector3(0.032f, 0.12f, 0.055f), polymer, new Vector3(-15, 0, 0));
@@ -544,6 +628,16 @@ public static class AssetSetup
         m.SetParent(root, false);
         m.localPosition = new Vector3(0, id == 2 ? 0.05f : id >= 4 ? 0.055f : 0.035f, muzzle);
         return root.gameObject;
+    }
+
+    private static GameObject BuildGunFallback(int id, Transform root)
+    {
+        var parent = root.parent;
+        Object.DestroyImmediate(root.gameObject);
+        var gun = BuildGun(id == 6 ? 1 : 3, parent);
+        gun.name = "W_" + Weapons.Get(id).Name;
+        if (id == 6) gun.transform.localScale = new Vector3(1f, 1f, 0.7f);
+        return gun;
     }
 
     /// <summary>One prefab per weapon for the 3D preview in the profile screen.</summary>
@@ -682,57 +776,109 @@ public static class AssetSetup
             }
         }
 
-        // materials: camo suit (per look), joints, team coloured vest and helmet, gear
+        // materials: skin on the body, camo uniform (per look), team coloured plate carrier and helmet, gear
         var suitOptions = Suits();
         var suit = suitOptions[0];
-        var joints = Mat("Joints", new Color(0.1f, 0.1f, 0.11f), 0.45f, 0.2f);
+        var skin = Mat("Skin", new Color(0.76f, 0.58f, 0.46f), 0.32f);
         var vestMat = Mat("TeamVest", new Color(0.45f, 0.46f, 0.48f), 0.25f);
         var gear = Solid("Gear", new Color(0.16f, 0.17f, 0.14f), 0.25f);
         var visor = Solid("Visor", new Color(0.05f, 0.06f, 0.08f), 0.92f, 0.4f);
+        var boots = Mat("Boots", new Color(0.14f, 0.11f, 0.08f), 0.35f);
+        var gloves = Mat("Gloves", new Color(0.09f, 0.09f, 0.1f), 0.3f);
         foreach (var s in skinned)
-            s.sharedMaterials = s.sharedMaterials.Select(m => m != null && m.name.Contains("Joint") ? joints : suit).ToArray();
-
+            s.sharedMaterials = s.sharedMaterials.Select(_ => skin).ToArray();
         var teamRenderers = new List<Renderer>();
         var headgear = new List<GameObject>();
+
+        // clothes made from the body mesh (in the aim pose sampled above)
+        var uniform = new List<Renderer>();
+        foreach (var s in skinned)
+        {
+            var shirt = Outfit.Shell(s, prefabName, "Shirt", new[] { Outfit.Region.Torso, Outfit.Region.Arms }, 0.012f, suit);
+            var pants = Outfit.Shell(s, prefabName, "Trousers", new[] { Outfit.Region.Legs }, 0.010f, suit);
+            Outfit.Shell(s, prefabName, "Boots", new[] { Outfit.Region.Feet }, 0.018f, boots);
+            Outfit.Shell(s, prefabName, "Gloves", new[] { Outfit.Region.Hands }, 0.004f, gloves);
+            var vest = Outfit.Shell(s, prefabName, "PlateCarrier", new[] { Outfit.Region.Torso }, 0.04f, vestMat,
+                vertex => vertex.y < (head != null ? head.position.y - 0.12f : 1.45f));
+            if (shirt != null) uniform.Add(shirt);
+            if (pants != null) uniform.Add(pants);
+            if (vest != null) teamRenderers.Add(vest);
+        }
+        if (uniform.Count == 0)
+            foreach (var s in skinned)
+            {
+                s.sharedMaterials = s.sharedMaterials.Select(_ => suit).ToArray();
+                uniform.Add(s);
+            }
+        Debug.Log($"[Setup] {prefabName}: {uniform.Count} uniform parts, vest {teamRenderers.Count}");
+
         if (spine != null)
         {
-            // vest and backpack, placed in world space in the current pose then attached to the chest bone
+            // backpack and chest pouches, placed in the current pose then attached to the chest bone (+Z = forward)
             var holder = new GameObject("Gear").transform;
-            holder.SetPositionAndRotation(spine.position, root.transform.rotation * body.transform.localRotation);
-            teamRenderers.Add(Part(holder, PrimitiveType.Cube, new Vector3(0, -0.05f, 0.02f), new Vector3(0.34f, 0.32f, 0.22f), vestMat).GetComponent<Renderer>());
-            Part(holder, PrimitiveType.Cube, new Vector3(0, -0.04f, -0.15f), new Vector3(0.24f, 0.28f, 0.1f), gear);
-            Part(holder, PrimitiveType.Cube, new Vector3(-0.1f, -0.16f, 0.16f), new Vector3(0.08f, 0.09f, 0.05f), gear);
-            Part(holder, PrimitiveType.Cube, new Vector3(0.1f, -0.16f, 0.16f), new Vector3(0.08f, 0.09f, 0.05f), gear);
+            holder.SetPositionAndRotation(spine.position, root.transform.rotation);
+            if (teamRenderers.Count == 0)
+                teamRenderers.Add(Part(holder, PrimitiveType.Cube, new Vector3(0, -0.05f, 0.02f), new Vector3(0.34f, 0.32f, 0.22f), vestMat).GetComponent<Renderer>());
+            Part(holder, PrimitiveType.Cube, new Vector3(0, -0.06f, -0.2f), new Vector3(0.26f, 0.3f, 0.1f), gear);
+            Part(holder, PrimitiveType.Cube, new Vector3(-0.07f, -0.17f, 0.17f), new Vector3(0.07f, 0.1f, 0.045f), gear);
+            Part(holder, PrimitiveType.Cube, new Vector3(0.0f, -0.17f, 0.175f), new Vector3(0.07f, 0.1f, 0.045f), gear);
+            Part(holder, PrimitiveType.Cube, new Vector3(0.07f, -0.17f, 0.17f), new Vector3(0.07f, 0.1f, 0.045f), gear);
             holder.SetParent(spine, true);
         }
         if (head != null)
         {
-            var rotation = root.transform.rotation * body.transform.localRotation;
-            GameObject Gear(string name)
+            // measure the head in the character's frame (+Z forward, +Y up)
+            var frame = new GameObject("HeadFrame").transform;
+            frame.SetPositionAndRotation(head.position, root.transform.rotation);
+            var hb = Outfit.HeadBounds(skinned, head, frame) ?? new Bounds(new Vector3(0, 0.12f, 0.02f), new Vector3(0.2f, 0.25f, 0.23f));
+            Debug.Log($"[Setup] {prefabName} head bounds {hb.center} {hb.size}");
+            Object.DestroyImmediate(frame.gameObject);
+            Vector3 c = hb.center, sz = hb.size;
+            float top = hb.max.y, front = hb.max.z, eyeY = c.y + sz.y * 0.08f;
+            GameObject Gear(string name, bool headgearOption = true)
             {
                 var g = new GameObject(name);
-                g.transform.SetPositionAndRotation(head.position, rotation);
-                headgear.Add(g);
+                g.transform.SetPositionAndRotation(head.position, root.transform.rotation);
+                if (headgearOption) headgear.Add(g);
                 return g;
             }
             var dark = Solid("GearDark", new Color(0.08f, 0.08f, 0.09f), 0.3f);
+            // face: eyes, brows, nose, mouth, ears, short hair
+            var face = Gear("Face", false).transform;
+            var eyeWhite = Solid("EyeWhite", new Color(0.92f, 0.92f, 0.9f), 0.8f);
+            var iris = Solid("Iris", new Color(0.18f, 0.12f, 0.07f), 0.9f);
+            var brow = Solid("Brow", new Color(0.12f, 0.08f, 0.05f), 0.1f);
+            var lips = Solid("Lips", new Color(0.55f, 0.3f, 0.27f), 0.4f);
+            var hair = Solid("Hair", new Color(0.09f, 0.07f, 0.05f), 0.2f);
+            foreach (float side in new[] { -1f, 1f })
+            {
+                var eye = new Vector3(c.x + side * sz.x * 0.2f, eyeY, front - sz.z * 0.045f);
+                Part(face, PrimitiveType.Sphere, eye, new Vector3(0.026f, 0.02f, 0.02f), eyeWhite);
+                Part(face, PrimitiveType.Sphere, eye + new Vector3(0, 0, 0.008f), new Vector3(0.012f, 0.012f, 0.008f), iris);
+                Part(face, PrimitiveType.Cube, eye + new Vector3(0, 0.022f, 0.004f), new Vector3(0.032f, 0.006f, 0.01f), brow, new Vector3(0, 0, side * -8f));
+                Part(face, PrimitiveType.Sphere, new Vector3(c.x + side * sz.x * 0.5f, eyeY - 0.01f, c.z), new Vector3(0.016f, 0.05f, 0.035f), skin);
+            }
+            Part(face, PrimitiveType.Cube, new Vector3(c.x, eyeY - sz.y * 0.13f, front - 0.002f), new Vector3(0.022f, 0.045f, 0.03f), skin, new Vector3(-18, 0, 0));
+            Part(face, PrimitiveType.Cube, new Vector3(c.x, eyeY - sz.y * 0.3f, front - sz.z * 0.08f), new Vector3(0.045f, 0.008f, 0.012f), lips);
+            Part(face, PrimitiveType.Sphere, new Vector3(c.x, top - sz.y * 0.24f, c.z - sz.z * 0.06f), new Vector3(sz.x * 1.06f, sz.y * 0.55f, sz.z * 1.04f), hair);
+            face.SetParent(head, true);
             // 0: combat helmet with goggles
             var helmet = Gear("Helmet").transform;
-            teamRenderers.Add(Part(helmet, PrimitiveType.Sphere, new Vector3(0, 0.1f, -0.01f), new Vector3(0.27f, 0.21f, 0.29f), vestMat).GetComponent<Renderer>());
-            Part(helmet, PrimitiveType.Cube, new Vector3(0, 0.06f, 0.11f), new Vector3(0.2f, 0.05f, 0.06f), visor);
+            teamRenderers.Add(Part(helmet, PrimitiveType.Sphere, new Vector3(c.x, top - sz.y * 0.28f, c.z - sz.z * 0.03f), new Vector3(sz.x * 1.3f, sz.y * 0.72f, sz.z * 1.28f), vestMat).GetComponent<Renderer>());
+            Part(helmet, PrimitiveType.Cube, new Vector3(c.x, top - sz.y * 0.2f, front + 0.012f), new Vector3(sz.x * 0.85f, 0.045f, 0.04f), visor);
             // 1: baseball cap
             var cap = Gear("Cap").transform;
-            teamRenderers.Add(Part(cap, PrimitiveType.Sphere, new Vector3(0, 0.11f, 0), new Vector3(0.24f, 0.15f, 0.25f), vestMat).GetComponent<Renderer>());
-            Part(cap, PrimitiveType.Cube, new Vector3(0, 0.09f, 0.15f), new Vector3(0.2f, 0.015f, 0.12f), dark);
+            teamRenderers.Add(Part(cap, PrimitiveType.Sphere, new Vector3(c.x, top - sz.y * 0.2f, c.z), new Vector3(sz.x * 1.14f, sz.y * 0.56f, sz.z * 1.12f), vestMat).GetComponent<Renderer>());
+            Part(cap, PrimitiveType.Cube, new Vector3(c.x, top - sz.y * 0.3f, front + sz.z * 0.14f), new Vector3(sz.x * 0.85f, 0.014f, sz.z * 0.42f), dark, new Vector3(-6, 0, 0));
             // 2: beret and sunglasses
             var beret = Gear("Beret").transform;
-            teamRenderers.Add(Part(beret, PrimitiveType.Sphere, new Vector3(0.02f, 0.13f, 0), new Vector3(0.27f, 0.08f, 0.27f), vestMat, new Vector3(0, 0, -12)).GetComponent<Renderer>());
-            Part(beret, PrimitiveType.Cube, new Vector3(0, 0.04f, 0.12f), new Vector3(0.17f, 0.035f, 0.02f), visor);
-            // 3: balaclava with headset
+            teamRenderers.Add(Part(beret, PrimitiveType.Sphere, new Vector3(c.x + sz.x * 0.08f, top - sz.y * 0.06f, c.z), new Vector3(sz.x * 1.2f, sz.y * 0.3f, sz.z * 1.16f), vestMat, new Vector3(0, 0, -12)).GetComponent<Renderer>());
+            Part(beret, PrimitiveType.Cube, new Vector3(c.x, eyeY, front + 0.006f), new Vector3(sz.x * 0.8f, 0.032f, 0.016f), visor);
+            // 3: balaclava with goggles and headset
             var mask = Gear("Balaclava").transform;
-            Part(mask, PrimitiveType.Sphere, new Vector3(0, 0.05f, 0), new Vector3(0.235f, 0.27f, 0.25f), dark);
-            Part(mask, PrimitiveType.Cube, new Vector3(0, 0.06f, 0.115f), new Vector3(0.16f, 0.035f, 0.03f), visor);
-            teamRenderers.Add(Part(mask, PrimitiveType.Cylinder, new Vector3(0, 0.12f, 0), new Vector3(0.27f, 0.01f, 0.06f), vestMat, new Vector3(0, 0, 90)).GetComponent<Renderer>());
+            Part(mask, PrimitiveType.Sphere, c, new Vector3(sz.x * 1.18f, sz.y * 1.12f, sz.z * 1.18f), dark);
+            Part(mask, PrimitiveType.Cube, new Vector3(c.x, eyeY, front + 0.02f), new Vector3(sz.x * 0.82f, 0.04f, 0.035f), visor);
+            teamRenderers.Add(Part(mask, PrimitiveType.Cylinder, new Vector3(c.x, top - sz.y * 0.05f, c.z), new Vector3(sz.x * 1.3f, 0.01f, 0.05f), vestMat, new Vector3(0, 0, 90)).GetComponent<Renderer>());
             foreach (var g in headgear)
             {
                 g.transform.SetParent(head, true);
@@ -795,7 +941,7 @@ public static class AssetSetup
         agent.Controller = cc;
         agent.Headgear = headgear.ToArray();
         agent.Suits = suitOptions;
-        agent.SuitRenderers = skinned;
+        agent.SuitRenderers = uniform.ToArray();
 
         PrefabUtility.SaveAsPrefabAsset(root, $"Assets/Resources/{prefabName}.prefab");
         Object.DestroyImmediate(root);

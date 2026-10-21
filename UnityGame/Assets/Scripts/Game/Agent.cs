@@ -44,9 +44,41 @@ namespace UA
         private static readonly int FireId = Animator.StringToHash("Fire");
         private static readonly int ReloadId = Animator.StringToHash("Reload");
 
+        /// <summary>Where the local player's crosshair points this frame (others aim along their yaw / pitch).</summary>
+        [System.NonSerialized] public Vector3? AimPoint;
+        private Transform chestBone, handBone;
+
         public Transform Muzzle => weapon >= 0 && Muzzles[weapon] != null ? Muzzles[weapon] : Head;
         public Vector3 Eye => transform.position + Vector3.up * (State == null ? 1.6f : State.Prone ? 0.45f : State.Crouch ? 1.15f : 1.6f);
         public Vector3 Chest => transform.position + Vector3.up * (State == null ? 1.25f : State.Prone ? 0.3f : State.Crouch ? 0.85f : 1.25f);
+
+        private void Awake()
+        {
+            foreach (var t in GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "spine_03") chestBone = t;
+                else if (t.name == "hand_r") handBone = t;
+            }
+        }
+
+        /// <summary>
+        /// After the animation: turn the chest most of the way and the right hand the rest, so the
+        /// barrel points exactly at the aim point and the bullets visibly leave the muzzle towards it.
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
+            var muzzle = Muzzles[weapon];
+            var target = AimPoint ?? Eye + Quaternion.Euler(-State.Pitch, State.Yaw, 0) * Vector3.forward * 60f;
+            if ((target - muzzle.position).sqrMagnitude < 1f) target = Eye + (target - Eye).normalized * 1.5f;
+            if (chestBone != null && !State.Prone)
+            {
+                var turn = Quaternion.FromToRotation(muzzle.forward, (target - muzzle.position).normalized);
+                chestBone.rotation = Quaternion.Slerp(Quaternion.identity, turn, 0.75f) * chestBone.rotation;
+            }
+            for (int i = 0; i < 2; i++)
+                handBone.rotation = Quaternion.FromToRotation(muzzle.forward, (target - muzzle.position).normalized) * handBone.rotation;
+        }
 
         public void Init(PlayerState state, bool local, bool bot, Color teamColor)
         {

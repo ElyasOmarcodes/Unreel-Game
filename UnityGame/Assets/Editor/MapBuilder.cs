@@ -439,6 +439,47 @@ public static class MapBuilder
             }
             else Box("Dumpster", p + Vector3.up * 0.75f, new Vector3(1.8f, 1.5f, 1.2f), dumpster, props, yaw);
         }
+        // varied cover in the streets (keeping the middle of the street free for the bots)
+        Physics.SyncTransforms();
+        var cover = new GameObject("Cover").transform;
+        cover.SetParent(props, false);
+        var spawns = Spawns();
+        foreach (float line in lines)
+            for (int seg = 0; seg < 3; seg++)
+                for (int k = 0; k < 2; k++)
+                {
+                    float mid = -52f + seg * Pitch;
+                    float t = mid + R(-15f, 15f);
+                    if (lines.Any(l => Mathf.Abs(t - l) < Street / 2f + 2.5f)) continue;
+                    bool vertical = rng.NextDouble() < 0.5;
+                    float side = rng.NextDouble() < 0.5 ? -1f : 1f;
+                    int kind = rng.Next(6);
+                    float offset = side * (kind == 2 || kind == 0 ? 3.7f : kind == 3 ? 3.0f : 3.4f);
+                    var p = vertical ? new Vector3(line + offset, 0, t) : new Vector3(t, 0, line + offset);
+                    if (spawns.Any(sp => (sp - p).sqrMagnitude < 36f)) continue;
+                    if (Physics.CheckBox(p + Vector3.up * 1.1f, new Vector3(2f, 0.85f, 2f), Quaternion.identity)) continue;
+                    float streetYaw = vertical ? 0f : 90f;
+                    switch (kind)
+                    {
+                        case 0: Obstacles.SandbagBunker(cover, p, streetYaw + 90f + (side > 0 ? 180f : 0f)); break;
+                        case 1: Obstacles.CarWreck(cover, p, streetYaw + R(-12f, 12f)); break;
+                        case 2: Obstacles.Pipes(cover, p, streetYaw); break;
+                        case 3: Obstacles.Hedgehog(cover, p, R(0, 90)); break;
+                        case 4: Obstacles.CrateStack(cover, p, streetYaw + 90f, rng); break;
+                        default: Obstacles.Blocks(cover, p, streetYaw + 90f, 3); break;
+                    }
+                    Physics.SyncTransforms();
+                }
+        // sandbag positions on the corners of some crossings
+        foreach (float a in lines)
+            foreach (float b in lines)
+            {
+                if (rng.NextDouble() > 0.4) continue;
+                float sx = rng.NextDouble() < 0.5 ? -1f : 1f, sz = rng.NextDouble() < 0.5 ? -1f : 1f;
+                var p = new Vector3(a + sx * 4.3f, 0, b + sz * 4.3f);
+                Obstacles.SandbagBunker(cover, p, Mathf.Atan2(-sx, -sz) * Mathf.Rad2Deg);
+            }
+
         // street lights on the sidewalk corners (lamps glow at night)
         var pole = AssetSetup.Solid("Pole", new Color(0.15f, 0.15f, 0.16f), 0.4f, 0.6f);
         var lampMat = AssetSetup.Mat("Lamp", new Color(1f, 0.9f, 0.7f), 0.5f, 0f, null, null, null, null, new Color(2.2f, 1.8f, 1.2f));
@@ -537,19 +578,21 @@ public static class MapBuilder
         Link(new Vector3(0, 0, -26), new Vector3(-26, 0, 0));
     }
 
+    /// <summary>Spawn points all over the map: every crossing, the middle of every street, park corners.</summary>
     private static List<Vector3> Spawns()
     {
         var list = new List<Vector3>();
-        foreach (float t in new[] { -52f, 0f, 52f })
+        float[] lines = { -78f, -26f, 26f, 78f };
+        foreach (float a in lines)
         {
-            list.Add(new Vector3(-78, 0, t));
-            list.Add(new Vector3(78, 0, t));
-            list.Add(new Vector3(t, 0, -78));
-            list.Add(new Vector3(t, 0, 78));
+            foreach (float b in lines) list.Add(new Vector3(a, 0, b));
+            foreach (float t in new[] { -60f, -44f, -8f, 8f, 44f, 60f })
+            {
+                list.Add(new Vector3(a, 0, t));
+                list.Add(new Vector3(t, 0, a));
+            }
         }
-        foreach (float x in new[] { -78f, 78f })
-            foreach (float z in new[] { -78f, 78f })
-                list.Add(new Vector3(x, 0, z));
+        foreach (var (x, z) in new[] { (-14f, -14f), (14f, -14f), (-14f, 14f), (14f, 14f) }) list.Add(new Vector3(x, 0.2f, z));
         return list;
     }
 }

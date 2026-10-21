@@ -463,6 +463,20 @@ public static class PortBuilder
 
         Greenery();
 
+        // varied cover across the yard: sandbag bunkers, wrecks, pipes, hedgehogs, crates, blocks
+        Physics.SyncTransforms();
+        var cover = new GameObject("Cover").transform;
+        cover.SetParent(root, false);
+        int placed = 0;
+        for (int i = 0; i < 80 && placed < 18; i++)
+        {
+            var p = new Vector3(R(-HalfX + 7, HalfX - 7), 0, R(-HalfZ + 7, HalfZ - 7));
+            if (Physics.CheckBox(p + Vector3.up * 1.2f, new Vector3(3.2f, 1f, 3.2f), Quaternion.identity, World.EnvMask | (1 << World.FenceLayer))) continue;
+            Obstacles.Random(cover, p, R(0, 360), rng);
+            Physics.SyncTransforms();
+            placed++;
+        }
+
         // props: pallets, drums, crates, barriers, lamps
         var small = new GameObject("Props").transform;
         small.SetParent(root, false);
@@ -526,7 +540,7 @@ public static class PortBuilder
             }
         layout.Waypoints = points.ToArray();
         layout.Links = links.ToArray();
-        layout.Spawns = points.Where(p => Mathf.Abs(p.x) > HalfX - 20f).ToArray();
-        if (layout.Spawns.Length < 6) layout.Spawns = points.ToArray();
+        // players come back all over the yard (the host picks a safe one at random)
+        layout.Spawns = points.ToArray();
     }
 }

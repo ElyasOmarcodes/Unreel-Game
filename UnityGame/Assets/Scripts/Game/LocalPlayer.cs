@@ -11,6 +11,8 @@ namespace UA
         public readonly int[] Mag = new int[2];
         public readonly int[] Reserve = new int[2];
         public bool Aiming;
+        public int Grenades = Grenade.PerLife;
+        private float nextThrow;
         public bool Reloading => reloadEnd > 0;
         public float ReloadProgress => Reloading ? 1f - (reloadEnd - Time.time) / Current.ReloadTime : 0f;
         public float Spread { get; private set; }
@@ -45,6 +47,7 @@ namespace UA
         public void OnRespawn()
         {
             Refill();
+            Grenades = Grenade.PerLife;
             Slot = 0;
             Aiming = false;
             crouch = false;
@@ -82,7 +85,8 @@ namespace UA
             // look
             if (Controls.Enabled)
             {
-                var look = Controls.Look * (Aiming ? Mathf.Lerp(0.35f, 0.8f, Current.AimFov / 50f) : 1f);
+                float speed = !Aiming ? 1f : Mathf.Lerp(0.35f, 0.8f, Current.AimFov / 50f) * (Current.Scope ? Settings.ScopeSensitivity : Settings.AimSensitivity);
+                var look = Controls.Look * speed;
                 rig.Yaw += look.x;
                 rig.Pitch = Mathf.Clamp(rig.Pitch + look.y, prone ? -25f : -70f, 75f);
             }
@@ -95,6 +99,7 @@ namespace UA
                 if (Controls.AimPressed) Aiming = !Aiming;
                 if (Controls.CrouchPressed) { crouch = !crouch; prone = false; }
                 if (Controls.PronePressed) { prone = !prone; crouch = false; Aiming = false; }
+                if (Controls.GrenadePressed && Grenades > 0 && Time.time >= nextThrow) ThrowGrenade();
             }
             if (!alive) { Aiming = false; reloadEnd = 0; }
             var def = Current;
@@ -159,6 +164,14 @@ namespace UA
             rig.AimFov = def.AimFov;
             agent.SetVisible(!rig.Scope);
 
+            // the barrel follows the crosshair exactly
+            if (alive && !rig.Scope)
+            {
+                var ray = rig.AimRay();
+                agent.AimPoint = World.I.TraceShot(ray.origin, ray.direction, Current.Range, agent.Id).Point;
+            }
+            else agent.AimPoint = null;
+
             // write our state for the network and the animations
             state.Pos = transform.position;
             state.Yaw = rig.Yaw;
@@ -203,8 +216,24 @@ namespace UA
             agent.PlayFire();
             bloom = Mathf.Min(bloom + def.Recoil * 0.5f, 6f);
             rig.Kick(def.Recoil * (Aiming ? 0.6f : 1f));
-            if (def.Scope) Aiming = false;   // bolt action: re-aim after every shot
+            if (def.BoltAction) Aiming = false;   // bolt action: re-aim after every shot
             if (Mag[Slot] == 0) StartReload();
+        }
+
+        /// <summary>Throw a frag grenade along the crosshair, a little upwards, from the right shoulder.</summary>
+        private void ThrowGrenade()
+        {
+            Grenades--;
+            nextThrow = Time.time + 1f;
+            Aiming = false;
+            var rig = CameraRig.I;
+            var aim = rig.AimRay().direction;
+            var origin = agent.Eye + Quaternion.Euler(0, rig.Yaw, 0) * new Vector3(0.3f, 0.15f, 0.45f);
+            if (Physics.Linecast(agent.Eye, origin, World.EnvMask, QueryTriggerInteraction.Ignore)) origin = agent.Eye;
+            var velocity = (aim + Vector3.up * 0.22f).normalized * (prone ? 9f : 15f) + cc.velocity * 0.5f;
+            Session.I.ThrowLocal(origin, velocity);
+            Sfx.Play("grenade_pin", 0.7f);
+            agent.PlayReload();
         }
 
         public void Swap()
@@ -235,9 +264,10 @@ namespace UA
             Reserve[Slot] -= take;
         }
 
-        /// <summary>A kill gives back one magazine for both weapons.</summary>
+        /// <summary>A kill gives back one magazine for both weapons and a grenade (up to 3).</summary>
         public void OnKill()
         {
+            Grenades = Mathf.Min(Grenades + 1, Grenade.Max);
             for (int i = 0; i < 2; i++)
             {
                 var def = Weapons.Get(i == 0 ? agent.State.Primary : agent.State.Secondary);
