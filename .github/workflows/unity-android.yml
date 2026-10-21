@@ -108,6 +108,16 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Host Vulkan (Lavapipe) for the emulator GPU
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q libvulkan1
+          mkdir -p $RUNNER_TEMP/lavapipe && cd $RUNNER_TEMP/lavapipe
+          curl -sSL -o lvp.nupkg "https://api.nuget.org/v3-flatcontainer/stride.dependencies.lavapipe/2026.10.12/stride.dependencies.lavapipe.2026.10.12.nupkg"
+          unzip -q -o lvp.nupkg
+          LIB=$(find "$PWD" -path "*runtimes/linux-x64-nodmabuf/native/libvulkan_lvp.so" | head -1)
+          echo "{\"file_format_version\":\"1.0.0\",\"ICD\":{\"library_path\":\"$LIB\",\"api_version\":\"1.3.0\"}}" > lvp_icd.json
+          echo "VK_DRIVER_FILES=$PWD/lvp_icd.json" >> $GITHUB_ENV
+
       - name: Cache the emulator image (AVD snapshot)
         id: avd-cache
         uses: actions/cache@v4
@@ -131,6 +141,8 @@ jobs:
           script: echo "AVD snapshot created"
 
       - name: Run the game on an Android emulator and take screenshots
+        env:
+          ANDROID_EMU_VK_ICD: ""
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -149,7 +161,9 @@ jobs:
           path: shots/
 
   release:
+    # Publish whenever the APK was built; the emulator result is written into the release notes.
     needs: [build, emulator-test]
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -159,6 +173,7 @@ jobs:
           name: apk
           path: apk
       - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: emulator-screenshots
           path: shots
@@ -171,6 +186,7 @@ jobs:
           body: |
             First Unity build made in GitHub Actions with a Unity Personal license (online activation).
             Simple test scene: three spinning cubes on a ground plane, label and FPS counter.
+            Emulator test: ${{ needs.emulator-test.result }}
             Install: download UnityTest.apk on your phone and allow "install unknown apps".
           files: |
             apk/UnityTest.apk

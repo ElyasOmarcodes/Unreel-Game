@@ -4,6 +4,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 /// <summary>Command line build used by GitHub Actions: -executeMethod CiBuild.BuildAndroid</summary>
 public static class CiBuild
@@ -23,6 +24,9 @@ public static class CiBuild
         PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
         PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
         EditorUserBuildSettings.buildAppBundle = false;
+        // Vulkan first (works on modern phones and on the CI emulator), OpenGL ES 3 as fallback
+        PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
+        PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan, GraphicsDeviceType.OpenGLES3 });
 
         var output = "Builds/Android/UnityTest.apk";
         Directory.CreateDirectory(Path.GetDirectoryName(output));
