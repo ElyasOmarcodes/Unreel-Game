@@ -447,9 +447,9 @@ public static class AssetSetup
             var grip = GunGrips[id];
             foreach (Transform child in fromPack.transform)
                 child.localPosition += new Vector3(0, size.y * (0.5f - grip.y), size.z * (0.5f - grip.x));
-            var muzzle = new GameObject("Muzzle").transform;
-            muzzle.SetParent(fromPack.transform, false);
-            muzzle.localPosition = new Vector3(0, size.y * (0.5f - grip.y) + size.y * 0.25f, size.z * (1f - grip.x));
+            var tip = new GameObject("Muzzle").transform;
+            tip.SetParent(fromPack.transform, false);
+            tip.localPosition = new Vector3(0, size.y * (0.5f - grip.y) + size.y * 0.25f, size.z * (1f - grip.x));
             return fromPack;
         }
         var metal = Solid("GunMetal", new Color(0.13f, 0.13f, 0.14f), 0.55f, 0.75f);
