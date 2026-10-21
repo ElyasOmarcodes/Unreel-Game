@@ -3,6 +3,7 @@ using Stride.Core;
 using Stride.Core.Mathematics;
 using Stride.Engine;
 using Stride.Graphics;
+using Stride.Rendering;
 using Stride.Rendering.Sprites;
 using Stride.UI;
 using Stride.UI.Controls;
