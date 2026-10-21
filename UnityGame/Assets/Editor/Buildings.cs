@@ -15,11 +15,12 @@ public static class Buildings
 
     private const float FloorHeight = 3.4f, Wall = 0.25f, Slab = 0.25f, StepH = 0.2f, StepRun = 0.36f, Lane = 1.4f;
 
-    private static GameObject Box(Transform t, string name, Vector3 localCenter, Vector3 size, Material m, float tex = 2f)
+    private static GameObject Box(Transform t, string name, Vector3 localCenter, Vector3 size, Material m, float tex = 2f, float round = 0f)
     {
         if (size.x < 0.01f || size.y < 0.01f || size.z < 0.01f) return null;
-        var go = MeshGen.TexBox(name, t.TransformPoint(localCenter), size, m, tex, t, t.eulerAngles.y);
-        return go;
+        return round > 0f
+            ? MeshGen.RoundBox(name, t.TransformPoint(localCenter), size, round, m, tex, t, t.eulerAngles.y)
+            : MeshGen.TexBox(name, t.TransformPoint(localCenter), size, m, tex, t, t.eulerAngles.y);
     }
 
     /// <summary>A rectangle (x0..x1, z0..z1) at height y with an optional rectangular hole, as up to four boxes.</summary>
@@ -78,10 +79,10 @@ public static class Buildings
     {
         const float width = 3f, depth = 1.4f, rail = 1.05f;
         float z = wallZ + side * depth / 2f;
-        Box(t, "Balcony", new Vector3(x, y0 - 0.1f, z), new Vector3(width, 0.2f, depth), s.Trim, 1.5f);
-        Box(t, "BalconyRail", new Vector3(x, y0 + rail / 2f, wallZ + side * (depth - 0.05f)), new Vector3(width, rail, 0.1f), s.Trim, 1.5f);
+        Box(t, "Balcony", new Vector3(x, y0 - 0.1f, z), new Vector3(width, 0.2f, depth), s.Trim, 1.5f, 0.05f);
+        Box(t, "BalconyRail", new Vector3(x, y0 + rail / 2f, wallZ + side * (depth - 0.05f)), new Vector3(width, rail, 0.1f), s.Trim, 1.5f, 0.04f);
         foreach (float e in new[] { -1f, 1f })
-            Box(t, "BalconyRail", new Vector3(x + e * (width / 2f - 0.05f), y0 + rail / 2f, z), new Vector3(0.1f, rail, depth), s.Trim, 1.5f);
+            Box(t, "BalconyRail", new Vector3(x + e * (width / 2f - 0.05f), y0 + rail / 2f, z), new Vector3(0.1f, rail, depth), s.Trim, 1.5f, 0.04f);
         // brackets under the slab
         foreach (float e in new[] { -1f, 1f })
             Box(t, "Bracket", new Vector3(x + e * (width / 2f - 0.3f), y0 - 0.45f, wallZ + side * 0.45f), new Vector3(0.15f, 0.5f, 0.8f), s.Trim, 1f);
@@ -218,15 +219,15 @@ public static class Buildings
             if (backBalcony) Balcony(t, backDoor, y0, hl, 1f, s);
             if (k == 0)
                 foreach (var (x, z, side) in new[] { (frontDoor, -hl, -1f), (backDoor, hl, 1f) })
-                    Box(t, "Porch", new Vector3(x, 0.08f, z + side * 0.9f), new Vector3(2.6f, 0.16f, 1.6f), s.Trim, 1.5f);
+                    Box(t, "Porch", new Vector3(x, 0.08f, z + side * 0.9f), new Vector3(2.6f, 0.16f, 1.6f), s.Trim, 1.5f, 0.05f);
             WallStrip(t, false, -hw + Wall / 2f, y0, -hl + Wall, hl - Wall, Windows(l - 2 * Wall, false), s.Outer);
             WallStrip(t, false, hw - Wall / 2f, y0, -hl + Wall, hl - Wall, Windows(l - 2 * Wall, false), s.Outer);
             // floor band on the outside of the walls (decoration, no collider)
             if (k > 0)
                 foreach (float sgn in new[] { -1f, 1f })
                 {
-                    MeshGen.TexBox("Band", t.TransformPoint(new Vector3(0, y0 - 0.1f, sgn * (hl + 0.05f))), new Vector3(w + 0.2f, 0.3f, 0.1f), s.Trim, 2f, t, t.eulerAngles.y, false);
-                    MeshGen.TexBox("Band", t.TransformPoint(new Vector3(sgn * (hw + 0.05f), y0 - 0.1f, 0)), new Vector3(0.1f, 0.3f, l), s.Trim, 2f, t, t.eulerAngles.y, false);
+                    MeshGen.RoundBox("Band", t.TransformPoint(new Vector3(0, y0 - 0.1f, sgn * (hl + 0.05f))), new Vector3(w + 0.2f, 0.3f, 0.12f), 0.04f, s.Trim, 2f, t, t.eulerAngles.y, false);
+                    MeshGen.RoundBox("Band", t.TransformPoint(new Vector3(sgn * (hw + 0.05f), y0 - 0.1f, 0)), new Vector3(0.12f, 0.3f, l), 0.04f, s.Trim, 2f, t, t.eulerAngles.y, false);
                 }
             // flight from this floor to the next one (the last one reaches the roof)
             int lane = k % 2;
@@ -250,10 +251,18 @@ public static class Buildings
         // roof with the stair opening and a parapet
         float roofY = floors * FloorHeight;
         SlabWithHole(t, roofY, -hw, hw, -hl, hl, LaneRect((floors - 1) % 2), s.Trim);
-        Box(t, "Parapet", new Vector3(0, roofY + 0.5f, -hl + 0.12f), new Vector3(w, 1f, 0.24f), s.Outer);
-        Box(t, "Parapet", new Vector3(0, roofY + 0.5f, hl - 0.12f), new Vector3(w, 1f, 0.24f), s.Outer);
-        Box(t, "Parapet", new Vector3(-hw + 0.12f, roofY + 0.5f, 0), new Vector3(0.24f, 1f, l), s.Outer);
-        Box(t, "Parapet", new Vector3(hw - 0.12f, roofY + 0.5f, 0), new Vector3(0.24f, 1f, l), s.Outer);
+        Box(t, "Parapet", new Vector3(0, roofY + 0.5f, -hl + 0.12f), new Vector3(w, 1f, 0.24f), s.Outer, 2f, 0.06f);
+        Box(t, "Parapet", new Vector3(0, roofY + 0.5f, hl - 0.12f), new Vector3(w, 1f, 0.24f), s.Outer, 2f, 0.06f);
+        Box(t, "Parapet", new Vector3(-hw + 0.12f, roofY + 0.5f, 0), new Vector3(0.24f, 1f, l), s.Outer, 2f, 0.06f);
+        Box(t, "Parapet", new Vector3(hw - 0.12f, roofY + 0.5f, 0), new Vector3(0.24f, 1f, l), s.Outer, 2f, 0.06f);
+        // coping stone on the parapet and rounded corner pillars up the whole building
+        foreach (float sgn in new[] { -1f, 1f })
+        {
+            MeshGen.RoundBox("Coping", t.TransformPoint(new Vector3(0, roofY + 1.04f, sgn * (hl - 0.12f))), new Vector3(w + 0.1f, 0.1f, 0.36f), 0.04f, s.Trim, 1.5f, t, t.eulerAngles.y, false);
+            MeshGen.RoundBox("Coping", t.TransformPoint(new Vector3(sgn * (hw - 0.12f), roofY + 1.04f, 0)), new Vector3(0.36f, 0.1f, l + 0.1f), 0.04f, s.Trim, 1.5f, t, t.eulerAngles.y, false);
+            foreach (float sgn2 in new[] { -1f, 1f })
+                MeshGen.RoundBox("CornerPillar", t.TransformPoint(new Vector3(sgn * (hw - 0.1f), (roofY + 1f) / 2f, sgn2 * (hl - 0.1f))), new Vector3(0.5f, roofY + 1f, 0.5f), 0.14f, s.Trim, 2f, t, t.eulerAngles.y, false);
+        }
         // rail around the stair opening on the roof
         var top = LaneRect((floors - 1) % 2);
         Box(t, "RoofRail", new Vector3(top.xMin - 0.05f, roofY + 0.5f, top.center.y), new Vector3(0.1f, 1f, top.height), s.Trim, 1f);

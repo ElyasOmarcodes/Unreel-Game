@@ -58,8 +58,8 @@ namespace UA
         public Vector3 Center => layout.Center;
         public float Radius => layout.Radius;
 
-        /// <summary>Map index (as in MatchConfig.MapNames) to layout: 0-2 downtown, 3-4 port.</summary>
-        public static int LayoutOf(int map) => map >= 3 ? 1 : 0;
+        /// <summary>Map index (as in MatchConfig.MapNames) to layout: 0-2 downtown, 3-4 port, 5-6 village.</summary>
+        public static int LayoutOf(int map) => map >= 5 ? 2 : map >= 3 ? 1 : 0;
 
         private void Awake()
         {
@@ -218,7 +218,8 @@ namespace UA
             appliedMap = map;
             if (Layouts.Length > 0) UseLayout(LayoutOf(map));
             if (Sun == null) return;
-            int preset = map < 3 ? map : map == 3 ? 0 : 1;
+            // downtown: day, sunset, night; port and village: day, sunset
+            int preset = map < 3 ? map : (map - 3) % 2;
             bool night = preset == 2;
             switch (preset)
             {
@@ -260,8 +261,8 @@ namespace UA
             if (Skybox != null)
             {
                 RenderSettings.skybox = Skybox;
-                Skybox.SetFloat("_Exposure", night ? 0.15f : map == 1 ? 1.0f : 1.25f);
-                Skybox.SetFloat("_AtmosphereThickness", map == 1 ? 1.6f : 1f);
+                Skybox.SetFloat("_Exposure", night ? 0.15f : preset == 1 ? 1.0f : 1.25f);
+                Skybox.SetFloat("_AtmosphereThickness", preset == 1 ? 1.6f : 1f);
             }
             foreach (var lamp in NightLamps)
                 if (lamp != null) lamp.enabled = night;

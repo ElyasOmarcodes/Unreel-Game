@@ -53,10 +53,14 @@ public static class PortBuilder
     private static Material Wood => Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
     private static Material Planks => Pbr("Planks", "Planks037A", Color.white, 0.5f);
 
+    /// <summary>Container paint: five colours of worn paint and two weathered, rusty ones.</summary>
     private static Material ContainerMat(int i)
     {
-        Color[] colors = { new Color(0.2f, 0.42f, 0.75f), new Color(0.72f, 0.22f, 0.18f), new Color(0.28f, 0.55f, 0.32f), new Color(0.88f, 0.55f, 0.15f), new Color(0.75f, 0.75f, 0.72f) };
-        return Pbr("Container" + i, "CorrugatedSteel005", colors[i % colors.Length], 0.7f);
+        Color[] colors = { new Color(0.16f, 0.32f, 0.58f), new Color(0.6f, 0.17f, 0.13f), new Color(0.22f, 0.42f, 0.26f), new Color(0.78f, 0.45f, 0.1f), new Color(0.7f, 0.7f, 0.67f) };
+        i %= colors.Length + 2;
+        if (i == colors.Length) return Pbr("ContainerRust", "MetalPlates013", new Color(0.85f, 0.6f, 0.5f), 0.4f);
+        if (i == colors.Length + 1) return Pbr("ContainerRustBlue", "MetalPlates013", new Color(0.5f, 0.62f, 0.75f), 0.4f);
+        return Pbr("Container" + i, "Metal032", colors[i], 0.45f);
     }
 
     private static Material Glass => AssetSetup.Solid("Port_Glass", new Color(0.1f, 0.14f, 0.18f), 0.95f, 0.5f);
@@ -201,14 +205,11 @@ public static class PortBuilder
 
     private static void Container(Vector3 bottomCenter, float yaw, int color, Transform parent)
     {
-        var size = new Vector3(2.44f, 2.59f, 6.06f);
-        var go = Box("Container", bottomCenter + Vector3.up * size.y / 2f, size, ContainerMat(color), 2.6f, parent, yaw);
-        // door end and corner frame
-        var t = go.transform;
-        Box("Doors", t.TransformPoint(new Vector3(0, 0, 3.04f)), new Vector3(2.3f, 2.45f, 0.05f), DarkMetal, 1f, t, yaw, false);
-        foreach (float x in new[] { -1.2f, 1.2f })
-            foreach (float z in new[] { -3f, 3f })
-                Box("Post", t.TransformPoint(new Vector3(x, 0, z)), new Vector3(0.12f, 2.6f, 0.12f), DarkMetal, 1f, t, yaw, false);
+        var go = MeshGen.Object("Container", MeshGen.Container(), ContainerMat(color), parent, bottomCenter, yaw);
+        go.GetComponent<MeshRenderer>().sharedMaterials = new[] { ContainerMat(color), DarkMetal };
+        var box = go.AddComponent<BoxCollider>();
+        box.size = new Vector3(2.44f, 2.59f, 6.06f);
+        box.center = new Vector3(0, 2.59f / 2f, 0);
     }
 
     private static void ContainerStack(Vector3 c, float yaw, int columns, int maxHeight)
@@ -220,7 +221,7 @@ public static class PortBuilder
         {
             int height = 1 + rng.Next(maxHeight);
             for (int k = 0; k < height; k++)
-                Container(c + right * (i * 2.6f) + Vector3.up * (k * 2.6f), yaw + (k > 0 ? R(-3, 3) : 0), rng.Next(5), t);
+                Container(c + right * (i * 2.6f) + Vector3.up * (k * 2.6f), yaw + (k > 0 ? R(-3, 3) : 0), rng.Next(7), t);
         }
     }
 
@@ -234,11 +235,11 @@ public static class PortBuilder
         for (int i = 0; i < panels; i++)
         {
             var mid = a + dir * ((i + 0.5f) / panels);
-            Box("Wall", mid + Vector3.up * height / 2f, new Vector3(0.3f, height, panel), Concrete, 2.5f, parent, yaw);
+            MeshGen.RoundBox("Wall", mid + Vector3.up * height / 2f, new Vector3(0.3f, height, panel), 0.05f, Concrete, 2.5f, parent, yaw);
             var post = a + dir * ((float)i / panels);
-            Box("Pillar", post + Vector3.up * (height + 0.3f) / 2f, new Vector3(0.6f, height + 0.3f, 0.6f), OldConcrete, 1.5f, parent, yaw);
+            MeshGen.RoundBox("Pillar", post + Vector3.up * (height + 0.3f) / 2f, new Vector3(0.6f, height + 0.3f, 0.6f), 0.1f, OldConcrete, 1.5f, parent, yaw);
         }
-        Box("Pillar", b + Vector3.up * (height + 0.3f) / 2f, new Vector3(0.6f, height + 0.3f, 0.6f), OldConcrete, 1.5f, parent, yaw);
+        MeshGen.RoundBox("Pillar", b + Vector3.up * (height + 0.3f) / 2f, new Vector3(0.6f, height + 0.3f, 0.6f), 0.1f, OldConcrete, 1.5f, parent, yaw);
     }
 
     private static void FenceLine(Vector3 a, Vector3 b, Transform parent)
@@ -247,7 +248,7 @@ public static class PortBuilder
         float length = dir.magnitude;
         float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
         var mid = (a + b) / 2f;
-        Box("FenceBase", mid + Vector3.up * 0.35f, new Vector3(0.35f, 0.7f, length), Concrete, 2f, parent, yaw);
+        MeshGen.RoundBox("FenceBase", mid + Vector3.up * 0.35f, new Vector3(0.35f, 0.7f, length), 0.06f, Concrete, 2f, parent, yaw);
         // the mesh does not stop bullets or sight, only players
         var fence = Box("ChainLink", mid + Vector3.up * 1.75f, new Vector3(0.02f, 2.1f, length), Fence(), 2f, parent, yaw, false);
         var blocker = new GameObject("FenceBlocker");

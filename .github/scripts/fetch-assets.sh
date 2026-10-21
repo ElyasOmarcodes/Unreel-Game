@@ -88,7 +88,7 @@ ls "$DEST/Guns" | wc -l
 
 # ---------------------------------------------------------------- PBR textures: ambientCG (CC0)
 mkdir -p "$DEST/Port/Textures" tex
-for id in CorrugatedSteel005 CorrugatedSteel007A CorrugatedSteel009 Concrete034 Concrete042A Asphalt025C Metal032 MetalPlates013 Bricks076A PaintedPlaster017 DiamondPlate009 Wood049 Planks037A Grass001 Grass004 PavingStones070 Road007 Tiles101 WoodFloor051 Plaster001; do
+for id in CorrugatedSteel005 CorrugatedSteel007A CorrugatedSteel009 Concrete034 Concrete042A Asphalt025C Metal032 MetalPlates013 Bricks076A PaintedPlaster017 DiamondPlate009 Wood049 Planks037A Grass001 Grass004 PavingStones070 Road007 Tiles101 WoodFloor051 Plaster001 Clay002 Clay007 Ground104 Gravel036L Rock055; do
   rm -f t.zip
   for i in 1 2 3; do curl -sfL "https://ambientcg.com/get?file=${id}_1K-JPG.zip" -o t.zip && break || sleep 5; done
   unzip -q -o t.zip -d "tex/$id" || echo "missing texture $id"

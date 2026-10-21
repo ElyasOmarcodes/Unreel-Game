@@ -481,7 +481,7 @@ public static class Outfit
         public float OpenFrom = 0.08f;
         public float Tile = 0.3f;
         /// <summary>How much of the thigh swing the hem follows (0 = only the hips).</summary>
-        public float Follow = 0.7f;
+        public float Follow = 0.85f;
     }
 
     private const int Segments = 32;
@@ -523,6 +523,7 @@ public static class Outfit
         var hip = body.At("pelvis");
         var knee = (body.At("calf_l") + body.At("calf_r")) / 2f;
         int pelvis = body.Bone("pelvis"), spine = body.Bone("spine_01"), thighL = body.Bone("thigh_l"), thighR = body.Bone("thigh_r");
+        int calfL = body.Bone("calf_l"), calfR = body.Bone("calf_r");
         bool rightPlusX = body.At("thigh_r").x > hip.x;
         float cx = hip.x, cz = hip.z;
         int rings = Mathf.Max(3, Mathf.CeilToInt((d.Top - d.Hem) / 0.04f) + 1);
@@ -557,8 +558,11 @@ public static class Outfit
         for (int i = 0; i < rings; i++)
         {
             float y = Mathf.Lerp(d.Top, d.Hem, i / (rings - 1f));
-            float below = Mathf.Clamp01((hip.y - 0.02f - y) / Mathf.Max(0.1f, hip.y - knee.y));
+            // the cloth follows the thighs from the top of the legs on (else the legs show through
+            // when a leg goes forward), below the knee partly the shins too
+            float below = Mathf.Clamp01((hip.y - 0.02f - y) / Mathf.Max(0.1f, (hip.y - knee.y) * 0.55f));
             float follow = d.Follow * Mathf.SmoothStep(0, 1, below);
+            float shin = 0.45f * Mathf.SmoothStep(0, 1, Mathf.InverseLerp(knee.y + 0.02f, knee.y - 0.3f, y));
             float up = y > hip.y ? Mathf.Clamp01((y - hip.y) / Mathf.Max(0.01f, d.Top - hip.y)) * 0.5f : 0f;
             for (int k = 0; k <= Segments; k++)
             {
@@ -567,7 +571,9 @@ public static class Outfit
                 float r = radii[i][k % Segments];
                 float side = Mathf.Clamp(Mathf.Cos(a) * 1.5f, -1f, 1f) * (rightPlusX ? 1 : -1);
                 float right = 0.5f + 0.5f * side;
-                var w = Weight((pelvis, (1 - follow) * (1 - up)), (spine, (1 - follow) * up), (thighR, follow * right), (thighL, follow * (1 - right)));
+                var w = Weight((pelvis, (1 - follow) * (1 - up)), (spine, (1 - follow) * up),
+                    (thighR, follow * right * (1 - shin)), (thighL, follow * (1 - right) * (1 - shin)),
+                    (calfR, follow * right * shin), (calfL, follow * (1 - right) * shin));
                 var uv = new Vector2(k / (float)Segments * circumference / d.Tile, y / d.Tile);
                 var c = new Vector3(cx, y, cz);
                 outer[i, k] = g.Add(c + dir * r, dir, uv, w);

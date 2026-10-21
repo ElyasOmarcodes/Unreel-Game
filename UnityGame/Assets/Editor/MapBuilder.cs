@@ -95,14 +95,16 @@ public static class MapBuilder
         // the port is built while the downtown map is switched off so their colliders do not mix
         map.gameObject.SetActive(false);
         var port = PortBuilder.Build(null);
-        map.gameObject.SetActive(true);
         port.Root.SetActive(false);
+        var village = VillageBuilder.Build();
+        village.Root.SetActive(false);
+        map.gameObject.SetActive(true);
 
         var worldGo = new GameObject("World");
         var world = worldGo.AddComponent<World>();
         world.Sun = sun;
         world.Skybox = skybox;
-        world.Layouts = new[] { downtown, port };
+        world.Layouts = new[] { downtown, port, village };
         world.NightLamps = lamps.ToArray();
 
         new GameObject("App").AddComponent<App>();
@@ -235,13 +237,17 @@ public static class MapBuilder
 
     private static void SidewalkSlab(Vector3 center, Material material)
     {
-        MeshGen.TexBox("Sidewalk", center + new Vector3(0, 0.08f, 0), new Vector3(BlockSize, 0.16f, BlockSize), material, 2.5f, map);
-        var curb = AssetSetup.Solid("Curb", new Color(0.55f, 0.55f, 0.53f), 0.2f);
+        MeshGen.RoundBox("Sidewalk", center + new Vector3(0, 0.08f, 0), new Vector3(BlockSize - 0.2f, 0.16f, BlockSize - 0.2f), 0.06f, material, 2.5f, map);
+        // granite curbs with rounded edges, and rounded corner stones where they meet
+        var curb = PortBuilder.Pbr("CurbStone", "Concrete034", new Color(0.78f, 0.78f, 0.76f), 0.35f);
         float h = BlockSize / 2f;
-        Box("Curb", center + new Vector3(0, 0.1f, h), new Vector3(BlockSize, 0.2f, 0.3f), curb);
-        Box("Curb", center + new Vector3(0, 0.1f, -h), new Vector3(BlockSize, 0.2f, 0.3f), curb);
-        Box("Curb", center + new Vector3(h, 0.1f, 0), new Vector3(0.3f, 0.2f, BlockSize), curb);
-        Box("Curb", center + new Vector3(-h, 0.1f, 0), new Vector3(0.3f, 0.2f, BlockSize), curb);
+        MeshGen.RoundBox("Curb", center + new Vector3(0, 0.1f, h), new Vector3(BlockSize - 0.6f, 0.2f, 0.3f), 0.06f, curb, 1f, map);
+        MeshGen.RoundBox("Curb", center + new Vector3(0, 0.1f, -h), new Vector3(BlockSize - 0.6f, 0.2f, 0.3f), 0.06f, curb, 1f, map);
+        MeshGen.RoundBox("Curb", center + new Vector3(h, 0.1f, 0), new Vector3(0.3f, 0.2f, BlockSize - 0.6f), 0.06f, curb, 1f, map);
+        MeshGen.RoundBox("Curb", center + new Vector3(-h, 0.1f, 0), new Vector3(0.3f, 0.2f, BlockSize - 0.6f), 0.06f, curb, 1f, map);
+        foreach (float x in new[] { -h, h })
+            foreach (float z in new[] { -h, h })
+                MeshGen.TexCylinder("CurbCorner", center + new Vector3(x, 0, z), 0.3f, 0.2f, curb, 1f, map);
     }
 
     private static readonly string[] BuildingKits = { "Building_Large_2", "Building_Medium_2_001", "Building_Small_1" };
@@ -260,6 +266,40 @@ public static class MapBuilder
         float inner = BlockSize / 2f - Sidewalk;  // 17: buildings stay inside the sidewalk ring
         var occupied = new List<Rect>();
         var placed = new List<(GameObject go, Vector3 along, Vector3 outward, float start, float width)>();
+        // a tall tower and medium buildings players can enter, with stairs inside up to the roof
+        var (bw, bl, floors) = (bx, bz) switch
+        {
+            (1, 1) => (14f, 14f, 8),
+            (-1, -1) => (16f, 12f, 5),
+            (0, -1) => (12f, 12f, 4),
+            (-1, 0) => (12f, 14f, 3),
+            _ => (0f, 0f, 0),
+        };
+        if (floors > 0)
+        {
+            var pos = center + new Vector3(inner - bw / 2f, 0.16f, -inner + bl / 2f);
+            occupied.Add(new Rect(pos.x - bw / 2f - 0.5f, pos.z - bl / 2f - 0.5f, bw + 1f, bl + 1f));
+            var style = floors >= 6
+                ? new global::Buildings.Style
+                {
+                    Outer = PortBuilder.Pbr("TowerPlaster", "PaintedPlaster017", new Color(0.78f, 0.82f, 0.86f), 0.5f),
+                    Inner = PortBuilder.Pbr("PlasterInner", "Plaster001", new Color(0.93f, 0.92f, 0.88f), 0.5f),
+                    Floor = PortBuilder.Pbr("Tiles", "Tiles101", Color.white, 0.6f),
+                    Stairs = PortBuilder.Pbr("Concrete", "Concrete034", Color.white, 0.6f),
+                    Trim = PortBuilder.Pbr("Concrete", "Concrete034", Color.white, 0.6f),
+                    Furniture = PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f),
+                }
+                : new global::Buildings.Style
+                {
+                    Outer = floors == 5 ? PortBuilder.Pbr("Bricks", "Bricks076A", Color.white, 0.6f) : PortBuilder.Pbr("PlasterBeige", "PaintedPlaster017", new Color(0.95f, 0.86f, 0.72f), 0.5f),
+                    Inner = PortBuilder.Pbr("PlasterInner", "Plaster001", new Color(0.93f, 0.92f, 0.88f), 0.5f),
+                    Floor = PortBuilder.Pbr("WoodFloor", "WoodFloor051", Color.white, 0.6f),
+                    Stairs = PortBuilder.Pbr("Concrete", "Concrete034", Color.white, 0.6f),
+                    Trim = PortBuilder.Pbr("OldConcrete", "Concrete042A", Color.white, 0.6f),
+                    Furniture = PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f),
+                };
+            global::Buildings.Build(block, floors >= 6 ? "Tower" : "MidRise", pos, 0f, bw, bl, floors, style);
+        }
         // walk around the four edges, buildings facing the street
         for (int edge = 0; edge < 4; edge++)
         {
@@ -312,6 +352,7 @@ public static class MapBuilder
     }
 
     private static Material Paving => PortBuilder.Pbr("Paving", "PavingStones070", new Color(0.92f, 0.9f, 0.88f), 0.5f);
+    private static Material BrickWall => PortBuilder.Pbr("Bricks", "Bricks076A", Color.white, 0.6f);
 
     /// <summary>
     /// A block with one large building players can walk into: four floors joined by a stairwell that
@@ -344,74 +385,113 @@ public static class MapBuilder
         global::Buildings.Build(block, "Apartment", center + new Vector3(0, 0.16f, bx < 0 ? -5f : 5f), bx < 0 ? 0f : 180f, 22f, 16f, 4, style);
         float yard = bx < 0 ? 9.5f : -9.5f;
         var grass = PortBuilder.Pbr("Grass", "Grass004", new Color(0.9f, 0.95f, 0.85f), 0.25f);
-        MeshGen.TexBox("Lawn", center + new Vector3(0, 0.2f, yard + (bx < 0 ? 3.5f : -3.5f)), new Vector3(BlockSize - Sidewalk * 2, 0.08f, 6f), grass, 3f, block);
+        MeshGen.RoundBox("Lawn", center + new Vector3(0, 0.2f, yard + (bx < 0 ? 3.5f : -3.5f)), new Vector3(BlockSize - Sidewalk * 2, 0.08f, 6f), 0.035f, grass, 3f, block);
         foreach (float x in new[] { -13f, -4f, 5f, 13f })
         {
             var p = center + new Vector3(x + R(-1f, 1f), 0.24f, yard + (bx < 0 ? 4f : -4f));
             Nature.Tree(Nature.Trees, rng, p, 6f, 9f, block);
             Nature.Place(Nature.Bushes[rng.Next(Nature.Bushes.Length)], p + new Vector3(R(-2f, 2f), 0, R(-1f, 1f)), R(0, 360), R(0.9f, 1.4f), block);
         }
-        var wall = Tiled("Wall_Brick", "MI_RedBrick", new Vector2(2, 1));
-        Box("LowWall", center + new Vector3(-6f, 0.76f, yard), new Vector3(6f, 1.2f, 0.5f), wall, block);
-        Box("LowWall", center + new Vector3(8f, 0.76f, yard), new Vector3(5f, 1.2f, 0.5f), wall, block);
+        MeshGen.RoundBox("LowWall", center + new Vector3(-6f, 0.76f, yard), new Vector3(6f, 1.2f, 0.5f), 0.07f, BrickWall, 2f, block);
+        MeshGen.RoundBox("LowWall", center + new Vector3(8f, 0.76f, yard), new Vector3(5f, 1.2f, 0.5f), 0.07f, BrickWall, 2f, block);
         var crate = AssetSetup.Solid("Crate", new Color(0.5f, 0.36f, 0.2f), 0.25f);
         Box("Crate", center + new Vector3(1.5f, 0.76f, yard - (bx < 0 ? 1.5f : -1.5f)), Vector3.one * 1.2f, crate, block, R(0, 90));
         Box("Crate", center + new Vector3(-12f, 0.76f, yard - (bx < 0 ? 1.5f : -1.5f)), Vector3.one * 1.2f, crate, block, R(0, 90));
     }
 
+    /// <summary>
+    /// The park: a raised stone terrace (1.6 m) around a sunken court with the fountain, joined by
+    /// concrete stairs: up from the four streets, down into the court. Parapets along the court edge
+    /// give cover for fighting between the high ring and the low middle.
+    /// </summary>
     private static void BuildPark(Vector3 center)
     {
         var grass = PortBuilder.Pbr("Grass", "Grass004", new Color(0.9f, 0.95f, 0.85f), 0.25f);
         var stone = PortBuilder.Pbr("ParkPath", "PavingStones070", new Color(0.85f, 0.83f, 0.78f), 0.5f);
+        var concrete = PortBuilder.Pbr("Concrete", "Concrete034", Color.white, 0.6f);
+        var steps = PortBuilder.Pbr("StairConcrete", "Concrete034", new Color(0.9f, 0.89f, 0.86f), 0.5f);
         SidewalkSlab(center, Paving);
         var park = new GameObject("Park").transform;
         park.SetParent(map, false);
-        MeshGen.TexBox("Lawn", center + new Vector3(0, 0.17f, 0), new Vector3(BlockSize - Sidewalk * 2, 0.04f, BlockSize - Sidewalk * 2), grass, 3f, park);
-        // paths in a cross
-        MeshGen.TexBox("Path", center + new Vector3(0, 0.19f, 0), new Vector3(4f, 0.02f, BlockSize - Sidewalk * 2), stone, 2f, park, 0, false);
-        MeshGen.TexBox("Path", center + new Vector3(0, 0.19f, 0), new Vector3(BlockSize - Sidewalk * 2, 0.02f, 4f), stone, 2f, park, 0, false);
-        // fountain
+        const float y0 = 0.16f, rise = 1.6f, outer = 15f, inner = 9f, stairHalf = 1.8f;
+        float top = y0 + rise;
+        // lawn strips around the terrace
+        float margin = BlockSize / 2f - Sidewalk;
+        foreach (float s in new[] { -1f, 1f })
+        {
+            MeshGen.RoundBox("Lawn", center + new Vector3(0, y0 + 0.02f, s * (outer + margin) / 2f), new Vector3(margin * 2, 0.06f, margin - outer), 0.025f, grass, 3f, park, 0, false);
+            MeshGen.RoundBox("Lawn", center + new Vector3(s * (outer + margin) / 2f, y0 + 0.02f, 0), new Vector3(margin - outer, 0.06f, outer * 2), 0.025f, grass, 3f, park, 0, false);
+        }
+        // the terrace ring: concrete walls with a stone top, in four pieces
+        void Terrace(Vector3 c, Vector3 size)
+        {
+            MeshGen.RoundBox("Terrace", center + c + Vector3.up * (y0 + (rise - 0.1f) / 2f), new Vector3(size.x, rise - 0.1f, size.z), 0.08f, concrete, 2f, park);
+            MeshGen.RoundBox("TerraceTop", center + c + Vector3.up * (top - 0.05f), new Vector3(size.x + 0.1f, 0.1f, size.z + 0.1f), 0.04f, stone, 2.5f, park);
+        }
+        float ring = outer - inner;
+        foreach (float s in new[] { -1f, 1f })
+        {
+            Terrace(new Vector3(0, 0, s * (inner + ring / 2f)), new Vector3(outer * 2, 0, ring));
+            Terrace(new Vector3(s * (inner + ring / 2f), 0, 0), new Vector3(ring, 0, inner * 2));
+        }
+        // stairs: up from the street side, down into the court, with cheek walls
+        var dirs = new[] { Vector3.forward, Vector3.back, Vector3.right, Vector3.left };
+        float run = Mathf.CeilToInt(rise / 0.2f) * 0.36f;
+        foreach (var d in dirs)
+        {
+            var side = Vector3.Cross(Vector3.up, d);
+            float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+            // outside: from the lawn up onto the terrace (going towards the middle)
+            global::Buildings.Stairs(park, center + d * (outer + run) + Vector3.up * y0, -d, rise, stairHalf * 2f, steps);
+            // inside: from the court up onto the terrace (going outwards)
+            global::Buildings.Stairs(park, center + d * (inner - run) + Vector3.up * y0, d, rise, stairHalf * 2f, steps);
+            foreach (float k in new[] { -1f, 1f })
+            {
+                MeshGen.RoundBox("CheekWall", center + d * (inner - run / 2f) + side * (k * (stairHalf + 0.15f)) + Vector3.up * (y0 + (rise + 0.9f) / 2f),
+                    new Vector3(0.3f, rise + 0.9f, run), 0.06f, concrete, 2f, park, yaw);
+                MeshGen.RoundBox("CheekWall", center + d * (outer + run / 2f) + side * (k * (stairHalf + 0.15f)) + Vector3.up * (y0 + rise / 2f),
+                    new Vector3(0.3f, rise, run), 0.06f, concrete, 2f, park, yaw);
+                // parapet along the edge of the court, open at the stairs
+                float length = inner - stairHalf - 0.3f;
+                MeshGen.RoundBox("Parapet", center + d * (inner + 0.2f) + side * (k * (stairHalf + 0.3f + length / 2f)) + Vector3.up * (top + 0.45f),
+                    new Vector3(length, 0.9f, 0.35f), 0.07f, concrete, 2f, park, yaw + 90f);
+            }
+        }
+        // corner planters with trees and bushes on the terrace
+        foreach (float x in new[] { -1f, 1f })
+            foreach (float z in new[] { -1f, 1f })
+            {
+                var p = center + new Vector3(x * 11.6f, top, z * 11.6f);
+                MeshGen.RoundBox("Planter", p + Vector3.up * 0.3f, new Vector3(2.6f, 0.6f, 2.6f), 0.1f, concrete, 2f, park);
+                MeshGen.RoundBox("PlanterSoil", p + Vector3.up * 0.58f, new Vector3(2.3f, 0.06f, 2.3f), 0.03f, grass, 2f, park, 0, false);
+                if (Nature.Tree(Nature.Trees, rng, p + Vector3.up * 0.6f, 6f, 8.5f, park) == null)
+                    Cylinder("Trunk", p + Vector3.up * 2.2f, 0.22f, 3.2f, AssetSetup.Solid("Bark", new Color(0.3f, 0.22f, 0.15f), 0.1f), park);
+                Nature.Place(Nature.Bushes[rng.Next(Nature.Bushes.Length)], p + new Vector3(x * 1.7f, 0, -z * 0.4f), R(0, 360), R(0.8f, 1.2f), park);
+            }
+        // the sunken court: stone paving, lawn corners, the fountain and benches
+        MeshGen.RoundBox("Court", center + Vector3.up * (y0 + 0.02f), new Vector3(inner * 2, 0.04f, inner * 2), 0.02f, stone, 2f, park, 0, false);
+        foreach (float x in new[] { -1f, 1f })
+            foreach (float z in new[] { -1f, 1f })
+                MeshGen.RoundBox("CourtLawn", center + new Vector3(x * 6.3f, y0 + 0.06f, z * 6.3f), new Vector3(4.6f, 0.06f, 4.6f), 0.03f, grass, 3f, park, 0, false);
         var water = AssetSetup.Mat("Water", new Color(0.15f, 0.3f, 0.38f), 0.95f, 0.1f);
-        Cylinder("Fountain", center + new Vector3(0, 0.55f, 0), 4.2f, 0.8f, stone, park);
-        Cylinder("Water", center + new Vector3(0, 0.96f, 0), 3.8f, 0.02f, water, park, false);
-        Cylinder("Pillar", center + new Vector3(0, 1.9f, 0), 0.5f, 2.2f, stone, park);
-        Cylinder("Bowl", center + new Vector3(0, 3.0f, 0), 1.3f, 0.3f, stone, park);
-        // low walls and planters for cover, trees for the look
-        var wall = Tiled("Wall_Brick", "MI_RedBrick", new Vector2(2, 1));
-        foreach (var (x, z, yaw) in new[] { (-9f, 9f, 45f), (9f, 9f, -45f), (-9f, -9f, -45f), (9f, -9f, 45f) })
-            Box("LowWall", center + new Vector3(x, 0.75f, z), new Vector3(5f, 1.2f, 0.5f), wall, park, yaw);
-        var bark = AssetSetup.Solid("Bark", new Color(0.3f, 0.22f, 0.15f), 0.1f);
-        var leaves = AssetSetup.Solid("Leaves", new Color(0.22f, 0.4f, 0.15f), 0.15f);
-        foreach (var (x, z) in new[] { (-13f, -5f), (-13f, 6f), (13f, -6f), (13f, 5f), (-5f, 13f), (6f, 13f), (-6f, -13f), (5f, -13f) })
+        MeshGen.TexCylinder("Fountain", center + Vector3.up * y0, 2.8f, 0.7f, stone, 2f, park);
+        MeshGen.TexCylinder("Water", center + Vector3.up * (y0 + 0.62f), 2.55f, 0.1f, water, 2f, park, false);
+        MeshGen.TexCylinder("Pillar", center + Vector3.up * (y0 + 0.7f), 0.4f, 1.6f, stone, 1f, park);
+        MeshGen.TexCylinder("Bowl", center + Vector3.up * (y0 + 2.2f), 1.1f, 0.3f, stone, 1f, park);
+        var bench = PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
+        foreach (var (x, z, yaw) in new[] { (-3.7f, -3.7f, -45f), (3.7f, 3.7f, -45f), (-3.7f, 3.7f, 45f), (3.7f, -3.7f, 45f) })
         {
-            var p = center + new Vector3(x, 0, z);
-            if (Nature.Tree(Nature.Trees, rng, p + Vector3.up * 0.19f, 7f, 10f, park) != null)
-            {
-                Nature.Place(Nature.Bushes[rng.Next(Nature.Bushes.Length)], p + new Vector3(R(-1.5f, 1.5f), 0.19f, R(-1.5f, 1.5f)), R(0, 360), R(0.9f, 1.4f), park);
-                continue;
-            }
-            Cylinder("Trunk", p + Vector3.up * 1.6f, 0.22f, 3.2f, bark, park);
-            for (int k = 0; k < 3; k++)
-            {
-                var leaf = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                Object.DestroyImmediate(leaf.GetComponent<Collider>());
-                leaf.name = "Leaves";
-                leaf.transform.SetParent(park, false);
-                leaf.transform.position = p + new Vector3(R(-0.8f, 0.8f), 3.6f + k * 0.7f, R(-0.8f, 0.8f));
-                leaf.transform.localScale = Vector3.one * R(2.2f, 3.2f) * (1f - k * 0.18f);
-                leaf.GetComponent<Renderer>().sharedMaterial = leaves;
-            }
+            MeshGen.RoundBox("Bench", center + new Vector3(x, y0 + 0.48f, z), new Vector3(0.6f, 0.1f, 2.2f), 0.04f, bench, 1f, park, yaw);
+            MeshGen.RoundBox("BenchLeg", center + new Vector3(x, y0 + 0.22f, z), new Vector3(0.5f, 0.44f, 1.8f), 0.05f, concrete, 1f, park, yaw);
         }
-        // grass tufts and ferns on the lawn, away from the paths
-        for (int i = 0; i < 50; i++)
+        // grass tufts on the lawns around the terrace
+        for (int i = 0; i < 40; i++)
         {
-            var p = new Vector3(R(-16.5f, 16.5f), 0.19f, R(-16.5f, 16.5f));
-            if (Mathf.Abs(p.x) < 2.6f || Mathf.Abs(p.z) < 2.6f || p.magnitude < 5f) continue;
-            Nature.Place(Nature.Ground[rng.Next(Nature.Ground.Length)], center + p, R(0, 360), R(0.35f, 0.7f), park);
+            float a = R(-margin + 0.5f, margin - 0.5f), b = R(outer + 0.5f, margin - 0.5f);
+            if (Mathf.Abs(a) < stairHalf + 0.8f) continue;
+            var p = (i % 4) switch { 0 => new Vector3(a, 0, b), 1 => new Vector3(a, 0, -b), 2 => new Vector3(b, 0, a), _ => new Vector3(-b, 0, a) };
+            Nature.Place(Nature.Ground[rng.Next(Nature.Ground.Length)], center + p + Vector3.up * (y0 + 0.05f), R(0, 360), R(0.35f, 0.7f), park);
         }
-        var bench = AssetSetup.Solid("BenchWood", new Color(0.42f, 0.28f, 0.16f), 0.3f);
-        foreach (var (x, z, yaw) in new[] { (-2.6f, 10f, 90f), (2.6f, -10f, 90f), (10f, 2.6f, 0f), (-10f, -2.6f, 0f) })
-            Box("Bench", center + new Vector3(x, 0.55f, z), new Vector3(2.2f, 0.12f, 0.6f), bench, park, yaw);
     }
 
     // ------------------------------------------------------------------ street props
@@ -630,11 +710,20 @@ public static class MapBuilder
                 Link(new Vector3(a, 0, line), new Vector3(mid, 0, line));
                 Link(new Vector3(mid, 0, line), new Vector3(b, 0, line));
             }
-        // across the park
-        Link(new Vector3(-26, 0, 0), new Vector3(0, 0, 26));
-        Link(new Vector3(0, 0, 26), new Vector3(26, 0, 0));
-        Link(new Vector3(26, 0, 0), new Vector3(0, 0, -26));
-        Link(new Vector3(0, 0, -26), new Vector3(-26, 0, 0));
+        // across the park: up the outer stairs, over the terrace, down into the court and around it
+        var court = new List<Vector3>();
+        foreach (var d in new[] { Vector3.forward, Vector3.right, Vector3.back, Vector3.left })
+        {
+            var street = d * 26f;
+            var foot = d * 18.6f;
+            var terrace = d * 12f + Vector3.up * 1.76f;
+            var down = d * 5.4f + Vector3.up * 0.2f;
+            Link(street, foot);
+            Link(foot, terrace);
+            Link(terrace, down);
+            court.Add(down);
+        }
+        for (int i = 0; i < court.Count; i++) Link(court[i], court[(i + 1) % court.Count]);
     }
 
     /// <summary>Spawn points all over the map: every crossing, the middle of every street, park corners.</summary>
@@ -651,7 +740,9 @@ public static class MapBuilder
                 list.Add(new Vector3(t, 0, a));
             }
         }
-        foreach (var (x, z) in new[] { (-14f, -14f), (14f, -14f), (-14f, 14f), (14f, 14f) }) list.Add(new Vector3(x, 0.2f, z));
+        // on the park terrace corners and in the sunken court
+        foreach (var (x, z) in new[] { (-14f, -14f), (14f, -14f), (-14f, 14f), (14f, 14f) }) list.Add(new Vector3(x, 1.8f, z));
+        foreach (var (x, z) in new[] { (-6.5f, -3.5f), (6.5f, 3.5f) }) list.Add(new Vector3(x, 0.25f, z));
         return list;
     }
 }

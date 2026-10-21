@@ -89,7 +89,9 @@ public class ImportRules : AssetPostprocessor
         }
         var android = importer.GetPlatformTextureSettings("Android");
         android.overridden = true;
-        android.maxTextureSize = file.Contains("interior") || file.Contains("Ornaments") ? 512 : 1024;
+        // interiors and the village ground and mud are seen up close only in small patches: half size
+        bool small = file.Contains("interior") || file.Contains("Ornaments") || file.StartsWith("Clay") || file.StartsWith("Ground1") || file.StartsWith("Gravel") || file.StartsWith("Rock0");
+        android.maxTextureSize = small ? 512 : 1024;
         // colour keeps the finer 6x6 blocks; normal and roughness maps can be coarser (smaller APK)
         android.format = file.EndsWith("_Normal") || file.EndsWith("_MS") ? TextureImporterFormat.ASTC_8x8 : TextureImporterFormat.ASTC_6x6;
         android.compressionQuality = 50;

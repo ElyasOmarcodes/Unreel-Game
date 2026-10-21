@@ -15,8 +15,10 @@ public static class Obstacles
     private static Material Steel => PortBuilder.Pbr("HedgehogSteel", "Metal032", new Color(0.35f, 0.36f, 0.37f), 0.7f);
     private static Material Crate => PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
 
-    private static GameObject Box(string name, Transform parent, Vector3 localPos, Vector3 size, Material m, float tex, float localYaw = 0f, bool collider = true)
-        => MeshGen.TexBox(name, parent.TransformPoint(localPos), size, m, tex, parent, parent.eulerAngles.y + localYaw, collider);
+    private static GameObject Box(string name, Transform parent, Vector3 localPos, Vector3 size, Material m, float tex, float localYaw = 0f, bool collider = true, float round = 0f)
+        => round > 0f
+            ? MeshGen.RoundBox(name, parent.TransformPoint(localPos), size, round, m, tex, parent, parent.eulerAngles.y + localYaw, collider)
+            : MeshGen.TexBox(name, parent.TransformPoint(localPos), size, m, tex, parent, parent.eulerAngles.y + localYaw, collider);
 
     private static Transform Root(Transform parent, string name, Vector3 pos, float yaw)
     {
@@ -38,7 +40,7 @@ public static class Obstacles
             for (int i = 0; i < count; i++)
             {
                 float x = -length / 2f + shift + bag * (i + 0.5f);
-                Box("Bag", t, new Vector3(x, row * h + h / 2f, 0), new Vector3(bag * 0.96f, h * 0.95f, 0.42f - row * 0.03f), Sandbag, 0.6f, (i * 7 % 5 - 2) * 1.5f, false);
+                Box("Bag", t, new Vector3(x, row * h + h / 2f, 0), new Vector3(bag * 0.96f, h * 0.95f, 0.42f - row * 0.03f), Sandbag, 0.6f, (i * 7 % 5 - 2) * 1.5f, false, 0.075f);
             }
         }
         // one collider for the whole wall
@@ -117,7 +119,7 @@ public static class Obstacles
     {
         var t = Root(parent, "ConcreteBlocks", pos, yaw);
         for (int i = 0; i < count; i++)
-            Box("Block", t, new Vector3((i - (count - 1) / 2f) * 1.9f, 0.45f, 0), new Vector3(1.5f, 0.9f, 0.9f), Concrete, 1.5f, i % 2 == 0 ? 0f : 4f);
+            Box("Block", t, new Vector3((i - (count - 1) / 2f) * 1.9f, 0.45f, 0), new Vector3(1.5f, 0.9f, 0.9f), Concrete, 1.5f, i % 2 == 0 ? 0f : 4f, true, 0.06f);
     }
 
     /// <summary>

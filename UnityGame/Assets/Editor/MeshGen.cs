@@ -149,6 +149,191 @@ public static class MeshGen
         return Save(key, mesh);
     }
 
+    /// <summary>
+    /// Box with rounded edges and corners (radius r), so walls, curbs and lawns do not look cut with a
+    /// knife. UVs in meters projected along each face.
+    /// </summary>
+    public static Mesh Rounded(Vector3 size, float r, float texScale, int arc = 2)
+    {
+        r = Mathf.Min(r, Mathf.Min(size.x, Mathf.Min(size.y, size.z)) * 0.45f);
+        string key = $"rbox_{K(size.x)}_{K(size.y)}_{K(size.z)}_{K(r)}_{K(texScale)}_{arc}";
+        if (cache.TryGetValue(key, out var cached)) return cached;
+        var v = new List<Vector3>(); var n = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
+        var h = size / 2f;
+        var inner = h - Vector3.one * r;
+        // positions along one face axis: the edge arcs (sampled by angle) and the flat middle
+        List<float> Axis(float half, float ir)
+        {
+            var list = new List<float>();
+            for (int i = arc; i >= 1; i--) list.Add(-ir - r * Mathf.Tan(i / (float)arc * Mathf.PI / 4f));
+            list.Add(-ir);
+            list.Add(ir);
+            for (int i = 1; i <= arc; i++) list.Add(ir + r * Mathf.Tan(i / (float)arc * Mathf.PI / 4f));
+            return list;
+        }
+        void Face(Vector3 normal, Vector3 u, Vector3 w)
+        {
+            float hu = Vector3.Dot(Abs(u), h), hw = Vector3.Dot(Abs(w), h);
+            float iu = Vector3.Dot(Abs(u), inner), iw = Vector3.Dot(Abs(w), inner);
+            var us = Axis(hu, iu);
+            var ws = Axis(hw, iw);
+            int start = v.Count;
+            var plane = Vector3.Scale(normal, h);
+            foreach (var b in ws)
+                foreach (var a in us)
+                {
+                    var p = plane + u * a + w * b;
+                    var core = new Vector3(Mathf.Clamp(p.x, -inner.x, inner.x), Mathf.Clamp(p.y, -inner.y, inner.y), Mathf.Clamp(p.z, -inner.z, inner.z));
+                    var dir = (p - core).normalized;
+                    var q = core + dir * r;
+                    v.Add(q);
+                    n.Add(dir);
+                    uv.Add(new Vector2(Vector3.Dot(q, u), Vector3.Dot(q, w)) / texScale);
+                }
+            int cols = us.Count;
+            for (int j = 0; j + 1 < ws.Count; j++)
+                for (int i = 0; i + 1 < cols; i++)
+                {
+                    int a = start + j * cols + i, b = a + 1, c = a + cols, d = c + 1;
+                    // same winding as Box: (c - a - b), (c + a - b), (c + a + b) seen from outside
+                    t.Add(a); t.Add(d); t.Add(b); t.Add(a); t.Add(c); t.Add(d);
+                }
+        }
+        Face(Vector3.forward, Vector3.left, Vector3.up);
+        Face(Vector3.back, Vector3.right, Vector3.up);
+        Face(Vector3.right, Vector3.forward, Vector3.up);
+        Face(Vector3.left, Vector3.back, Vector3.up);
+        Face(Vector3.up, Vector3.right, Vector3.forward);
+        Face(Vector3.down, Vector3.left, Vector3.forward);
+        var mesh = new Mesh();
+        mesh.SetVertices(v); mesh.SetNormals(n); mesh.SetUVs(0, uv); mesh.SetTriangles(t, 0);
+        return Save(key, mesh);
+    }
+
+    private static Vector3 Abs(Vector3 a) => new Vector3(Mathf.Abs(a.x), Mathf.Abs(a.y), Mathf.Abs(a.z));
+
+    public static GameObject RoundBox(string name, Vector3 center, Vector3 size, float radius, Material material, float texScale, Transform parent, float yaw = 0f, bool collider = true)
+    {
+        // small pieces (sandbags, curbs) need fewer steps around the edge
+        var go = Object(name, Rounded(size, radius, texScale, size.magnitude < 1.2f ? 1 : 2), material, parent, center, yaw);
+        if (collider) go.AddComponent<BoxCollider>().size = size;
+        return go;
+    }
+
+    /// <summary>
+    /// A 20 ft shipping container (origin at the bottom centre, doors at +Z): corrugated walls, frame
+    /// rails, corner posts and castings, door leaves with locking bars and hinges. Sub mesh 0 is the
+    /// painted steel, 1 the dark hardware.
+    /// </summary>
+    public static Mesh Container()
+    {
+        const string key = "container20";
+        if (cache.TryGetValue(key, out var cached)) return cached;
+        var v = new List<Vector3>(); var n = new List<Vector3>(); var uv = new List<Vector2>();
+        var paint = new List<int>(); var dark = new List<int>();
+        const float W = 2.44f, H = 2.59f, L = 6.06f, tex = 1.6f;
+        void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 na, Vector3 nb, List<int> t)
+        {
+            // a b on top, c d below: wound clockwise as seen from the side the normal points to
+            if (Vector3.Dot(Vector3.Cross(b - a, d - a), na) < 0) { (a, b) = (b, a); (c, d) = (d, c); (na, nb) = (nb, na); }
+            int i = v.Count;
+            v.Add(a); v.Add(b); v.Add(c); v.Add(d);
+            n.Add(na); n.Add(nb); n.Add(na); n.Add(nb);
+            var axisU = (b - a).normalized;
+            var axisV = (a - c).normalized;
+            foreach (var p in new[] { a, b, c, d }) uv.Add(new Vector2(Vector3.Dot(p, axisU), Vector3.Dot(p, axisV)) / tex);
+            t.Add(i); t.Add(i + 1); t.Add(i + 3); t.Add(i); t.Add(i + 3); t.Add(i + 2);
+        }
+        void Block(Vector3 c, Vector3 size, List<int> t)
+        {
+            var h = size / 2f;
+            Vector3 P(float x, float y, float z) => c + new Vector3(x * h.x, y * h.y, z * h.z);
+            Quad(P(1, 1, -1), P(-1, 1, -1), P(1, -1, -1), P(-1, -1, -1), Vector3.back, Vector3.back, t);
+            Quad(P(-1, 1, 1), P(1, 1, 1), P(-1, -1, 1), P(1, -1, 1), Vector3.forward, Vector3.forward, t);
+            Quad(P(1, 1, 1), P(1, 1, -1), P(1, -1, 1), P(1, -1, -1), Vector3.right, Vector3.right, t);
+            Quad(P(-1, 1, -1), P(-1, 1, 1), P(-1, -1, -1), P(-1, -1, 1), Vector3.left, Vector3.left, t);
+            Quad(P(-1, 1, -1), P(1, 1, -1), P(-1, 1, 1), P(1, 1, 1), Vector3.up, Vector3.up, t);
+        }
+        // corrugated wall: ribs along "along" (length), pushed in along -outward, from y0 to y1
+        void Corrugated(Vector3 origin, Vector3 along, Vector3 outward, float length, float y0, float y1)
+        {
+            const float pitch = 0.278f, flat = 0.1f, slope = 0.039f, depth = 0.036f;
+            var profile = new List<(float s, float d)>();
+            for (float s = 0; s < length - 0.001f; s += pitch)
+            {
+                profile.Add((s, 0)); profile.Add((Mathf.Min(length, s + flat), 0));
+                profile.Add((Mathf.Min(length, s + flat + slope), depth)); profile.Add((Mathf.Min(length, s + 2 * flat + slope), depth));
+            }
+            profile.Add((length, 0));
+            for (int i = 0; i + 1 < profile.Count; i++)
+            {
+                var (s0, d0) = profile[i];
+                var (s1, d1) = profile[i + 1];
+                if (s1 - s0 < 0.001f) continue;
+                var a = origin + along * s0 - outward * d0;
+                var b = origin + along * s1 - outward * d1;
+                var face = Vector3.Cross(Vector3.up, b - a).normalized;
+                if (Vector3.Dot(face, outward) < 0) face = -face;
+                var na = Vector3.Lerp(face, outward, 0.35f).normalized;
+                Quad(a + Vector3.up * y1, b + Vector3.up * y1, a + Vector3.up * y0, b + Vector3.up * y0, na, na, paint);
+            }
+        }
+        float hw = W / 2f, hl = L / 2f;
+        const float post = 0.16f, rail = 0.16f;
+        // long sides: ribs from the back post to the door post (the quads face +X / -X)
+        Corrugated(new Vector3(hw - 0.01f, 0, hl - post), Vector3.back, Vector3.right, L - 2 * post, rail, H - 0.1f);
+        Corrugated(new Vector3(-hw + 0.01f, 0, -hl + post), Vector3.forward, Vector3.left, L - 2 * post, rail, H - 0.1f);
+        // front end (no doors), ribs across
+        Corrugated(new Vector3(-hw + post, 0, -hl + 0.01f), Vector3.right, Vector3.back, W - 2 * post, rail, H - 0.1f);
+        // roof panel and floor
+        Quad(new Vector3(-hw, H - 0.04f, -hl), new Vector3(hw, H - 0.04f, -hl), new Vector3(-hw, H - 0.04f, hl), new Vector3(hw, H - 0.04f, hl), Vector3.up, Vector3.up, paint);
+        // door end: two leaves with locking bars, cam handles and hinges
+        float doorZ = hl - 0.03f;
+        foreach (float side in new[] { -1f, 1f })
+        {
+            float x0 = side < 0 ? -hw + post : 0.005f, x1 = side < 0 ? -0.005f : hw - post;
+            Quad(new Vector3(x0, H - 0.1f, doorZ), new Vector3(x1, H - 0.1f, doorZ), new Vector3(x0, rail, doorZ), new Vector3(x1, rail, doorZ), Vector3.forward, Vector3.forward, paint);
+            // pressed panels on the door
+            for (int k = 0; k < 3; k++)
+            {
+                float y0 = rail + 0.12f + k * 0.76f, y1 = y0 + 0.62f;
+                Block(new Vector3((x0 + x1) / 2f, (y0 + y1) / 2f, doorZ + 0.008f), new Vector3((x1 - x0) * 0.8f, y1 - y0, 0.016f), paint);
+            }
+            foreach (float bx in new[] { 0.3f, 0.92f })
+            {
+                float x = side * bx;
+                Block(new Vector3(x, (rail + H - 0.1f) / 2f, doorZ + 0.05f), new Vector3(0.035f, H - 0.1f - rail + 0.1f, 0.035f), dark);
+                Block(new Vector3(x, H - 0.13f, doorZ + 0.04f), new Vector3(0.08f, 0.08f, 0.06f), dark);
+                Block(new Vector3(x, rail + 0.03f, doorZ + 0.04f), new Vector3(0.08f, 0.08f, 0.06f), dark);
+                Block(new Vector3(x + side * 0.09f, 1.2f, doorZ + 0.07f), new Vector3(0.2f, 0.04f, 0.03f), dark);
+            }
+            for (int k = 0; k < 4; k++)
+                Block(new Vector3(side * (hw - post - 0.02f), rail + 0.3f + k * 0.62f, doorZ + 0.03f), new Vector3(0.07f, 0.12f, 0.06f), dark);
+        }
+        // frame: corner posts, top and bottom rails, corner castings
+        foreach (float x in new[] { -1f, 1f })
+            foreach (float z in new[] { -1f, 1f })
+            {
+                Block(new Vector3(x * (hw - post / 2f), H / 2f, z * (hl - post / 2f)), new Vector3(post, H, post), paint);
+                foreach (float y in new[] { 0.09f, H - 0.09f })
+                    Block(new Vector3(x * (hw - 0.09f), y, z * (hl - 0.09f)), new Vector3(0.19f, 0.18f, 0.19f), dark);
+            }
+        foreach (float x in new[] { -1f, 1f })
+        {
+            Block(new Vector3(x * (hw - 0.05f), rail / 2f, 0), new Vector3(0.1f, rail, L - 0.36f), paint);
+            Block(new Vector3(x * (hw - 0.05f), H - 0.06f, 0), new Vector3(0.1f, 0.12f, L - 0.36f), paint);
+        }
+        foreach (float z in new[] { -1f, 1f })
+        {
+            Block(new Vector3(0, rail / 2f, z * (hl - 0.05f)), new Vector3(W - 0.36f, rail, 0.1f), paint);
+            Block(new Vector3(0, H - 0.08f, z * (hl - 0.05f)), new Vector3(W - 0.36f, 0.16f, 0.1f), paint);
+        }
+        var mesh = new Mesh { subMeshCount = 2 };
+        mesh.SetVertices(v); mesh.SetNormals(n); mesh.SetUVs(0, uv);
+        mesh.SetTriangles(paint, 0); mesh.SetTriangles(dark, 1);
+        return Save(key, mesh);
+    }
+
     /// <summary>Game object with a generated mesh, a material and (optionally) a collider.</summary>
     public static GameObject Object(string name, Mesh mesh, Material material, Transform parent, Vector3 position, float yaw = 0f, Collider collider = null)
     {

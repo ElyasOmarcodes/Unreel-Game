@@ -259,7 +259,7 @@ public static class Dresser
                 var g = Outfit.Derive(topShells[option], p =>
                 {
                     float t = Vector3.Dot(p - a, b - a) / (b - a).sqrMagnitude;
-                    return t > 0.3f && t < 0.44f && Vector3.Cross(b - a, p - a).magnitude / (b - a).magnitude < 0.16f;
+                    return t > 0.24f && t < 0.46f && Vector3.Cross(b - a, p - a).magnitude / (b - a).magnitude < 0.16f;
                 }, 0.004f);
                 if (g == null) continue;
                 if (band == null) band = g; else band.Append(g);
@@ -275,21 +275,21 @@ public static class Dresser
 
         float hemThigh(float f) => hip.y - f * legs;
         Top(0, "CombatJacket", new Cut { Thickness = 0.014f, Smooth = 12, UpperArm = 0.066f * slim, LowerArm = 0.055f * slim, Tile = 0.5f },
-            new Drape { Hem = hemThigh(0.45f), FrontOpen = true, OpenFrom = 0.1f, Ease = 0.012f, Flare = 0.015f, Folds = 0.006f, Follow = 0.6f, Tile = 0.5f }, camos[0], null);
+            new Drape { Hem = hemThigh(0.45f), FrontOpen = true, OpenFrom = 0.1f, Ease = 0.012f, Flare = 0.015f, Folds = 0.006f, Tile = 0.5f }, camos[0], null);
         Top(1, "Perahan", new Cut { Thickness = 0.016f, Smooth = 16, UpperArm = 0.076f * slim, LowerArm = 0.067f * slim },
-            new Drape { Hem = knee.y - 0.03f, SideSlits = true, OpenFrom = 0.2f, Ease = 0.026f, Flare = 0.05f, Folds = 0.013f, Follow = 0.65f }, cloth, Wardrobe.TopColors[1]);
+            new Drape { Hem = knee.y - 0.03f, SideSlits = true, OpenFrom = 0.2f, Ease = 0.026f, Flare = 0.05f, Folds = 0.013f }, cloth, Wardrobe.TopColors[1]);
         Top(2, "Thobe", new Cut { Thickness = 0.014f, Smooth = 16, UpperArm = 0.071f * slim, LowerArm = 0.063f * slim },
-            new Drape { Hem = ankle.y + 0.05f, Ease = 0.036f, Flare = 0.065f, Folds = 0.015f, Follow = 0.6f }, cloth, Wardrobe.TopColors[2]);
+            new Drape { Hem = ankle.y + 0.05f, Ease = 0.03f, Flare = 0.025f, Folds = 0.012f }, cloth, Wardrobe.TopColors[2]);
         Top(3, "Suit", new Cut { Thickness = 0.016f, Smooth = 12, UpperArm = 0.062f * slim, LowerArm = 0.052f * slim, Tile = 0.25f },
-            new Drape { Hem = hemThigh(0.4f), FrontOpen = true, OpenFrom = 0.03f, Ease = 0.01f, Flare = 0.012f, Folds = 0.004f, Follow = 0.55f, Tile = 0.25f }, wool, Wardrobe.TopColors[3]);
+            new Drape { Hem = hemThigh(0.4f), FrontOpen = true, OpenFrom = 0.03f, Ease = 0.01f, Flare = 0.012f, Folds = 0.004f, Tile = 0.25f }, wool, Wardrobe.TopColors[3]);
         Top(4, "LongShirt", new Cut { Thickness = 0.012f, Smooth = 12, UpperArm = 0.062f * slim, LowerArm = 0.054f * slim },
-            new Drape { Hem = hemThigh(0.58f), SideSlits = true, OpenFrom = 0.13f, Ease = 0.016f, Flare = 0.022f, Folds = 0.008f, Follow = 0.62f }, cloth, Wardrobe.TopColors[4]);
+            new Drape { Hem = hemThigh(0.58f), SideSlits = true, OpenFrom = 0.13f, Ease = 0.016f, Flare = 0.022f, Folds = 0.008f }, cloth, Wardrobe.TopColors[4]);
         Top(5, "Chapan", new Cut { Thickness = 0.022f, Smooth = 16, UpperArm = 0.084f * slim, LowerArm = 0.08f * slim, Tile = 0.35f },
-            new Drape { Hem = knee.y - 0.16f, FrontOpen = true, OpenFrom = 0.02f, Ease = 0.036f, Flare = 0.07f, Folds = 0.016f, Follow = 0.55f, Tile = 0.35f }, stripes, Wardrobe.TopColors[5]);
+            new Drape { Hem = knee.y - 0.16f, FrontOpen = true, OpenFrom = 0.02f, Ease = 0.036f, Flare = 0.07f, Folds = 0.016f, Tile = 0.35f }, stripes, Wardrobe.TopColors[5]);
         Top(6, "Abaya", new Cut { Thickness = 0.016f, Smooth = 16, UpperArm = 0.075f * slim, LowerArm = 0.071f * slim },
-            new Drape { Hem = ankle.y + 0.03f, Ease = 0.04f, Flare = 0.09f, Folds = 0.017f, Follow = 0.6f }, cloth, Wardrobe.TopColors[6]);
+            new Drape { Hem = ankle.y + 0.03f, Ease = 0.035f, Flare = 0.045f, Folds = 0.015f }, cloth, Wardrobe.TopColors[6]);
         Top(7, "LongCoat", new Cut { Thickness = 0.016f, Smooth = 12, UpperArm = 0.066f * slim, LowerArm = 0.058f * slim, Tile = 0.25f },
-            new Drape { Hem = knee.y - 0.06f, FrontOpen = true, SideSlits = true, OpenFrom = 0.14f, Ease = 0.02f, Flare = 0.045f, Folds = 0.01f, Follow = 0.6f, Tile = 0.25f }, wool, Wardrobe.TopColors[7]);
+            new Drape { Hem = knee.y - 0.06f, FrontOpen = true, SideSlits = true, OpenFrom = 0.14f, Ease = 0.02f, Flare = 0.045f, Folds = 0.01f, Tile = 0.25f }, wool, Wardrobe.TopColors[7]);
 
         // front details: a button placket on the shirts, collar, white shirt front and tie on the suit
         float FrontZ(Garment g, float y) => g.P.Where(p => Mathf.Abs(p.y - y) < 0.02f && Mathf.Abs(p.x - neck.x) < 0.03f).Select(p => p.z).DefaultIfEmpty(chest.z + 0.12f).Max();
@@ -297,7 +297,7 @@ public static class Dresser
         {
             if (topShells[option] == null) continue;
             var placket = Outfit.Derive(topShells[option], p => Mathf.Abs(p.x - neck.x) < 0.017f && p.z > neck.z && p.y < neck.y - 0.03f && p.y > neck.y - (option == 2 ? 0.3f : 0.24f), 0.003f);
-            var collar = Outfit.Derive(topShells[option], p => p.y > neck.y - 0.035f, 0.004f);
+            var collar = Outfit.Derive(topShells[option], p => p.y > neck.y - 0.035f && Mathf.Abs(p.x - neck.x) < 0.12f, 0.004f);
             if (placket != null && collar != null) placket.Append(collar);
             Tint(Part(result, Outfit.Wear(body, placket ?? collar, "Top_Placket" + option, cloth), Slot.Top, M(option)), Slot.TopColor, Wardrobe.TopColors[option]);
         }
@@ -307,7 +307,7 @@ public static class Dresser
             float vBottom = spine2.y - 0.02f, vTop = neck.y - 0.02f;
             var shirt = Outfit.Derive(topShells[3], p => p.z > neck.z && p.y > vBottom && p.y < vTop + 0.05f
                 && Mathf.Abs(p.x - neck.x) < 0.012f + 0.075f * Mathf.Clamp01((p.y - vBottom) / (vTop - vBottom)), 0.002f);
-            var shirtCollar = Outfit.Derive(topShells[3], p => p.y > neck.y - 0.03f, 0.005f);
+            var shirtCollar = Outfit.Derive(topShells[3], p => p.y > neck.y - 0.03f && Mathf.Abs(p.x - neck.x) < 0.12f, 0.005f);
             if (shirt != null && shirtCollar != null) shirt.Append(shirtCollar);
             Part(result, Outfit.Wear(body, shirt ?? shirtCollar, "Top_SuitShirt", white), Slot.Top, M(3));
             var path = new List<Vector3>();
@@ -358,7 +358,7 @@ public static class Dresser
         // ---- head wear, fitted to the head and hair at rest
         var hb = Outfit.HeadBounds(body);
         var headPts = Outfit.HeadPoints(body);
-        var hairPts = hair != null ? RestPoints(hair.GetComponent<SkinnedMeshRenderer>()) : new List<Vector3>();
+        var hairPts = hair != null && !female ? RestPoints(hair.GetComponent<SkinnedMeshRenderer>()) : new List<Vector3>();
         headPts.AddRange(hairPts);
         float top = headPts.Max(p => p.y);
         var eyePts = extras.Where(r => r != null && r.sharedMaterials.Any(m => m != null && m.name.Contains("Eye"))).SelectMany(RestPoints).ToList();
@@ -454,8 +454,9 @@ public static class Dresser
 
         // 6, 7: ghutra (white) and shemagh (red checks) with the black agal: cloth over the head that
         // falls to the shoulders, the face open
-        var neckPts = body.PointsIn(Region.Torso, Region.Head).ToList();
-        neckPts.AddRange(shells.SelectMany(s => s.P).Where(p => p.y > shoulderY - 0.15f));
+        // around the neck and the top of the shoulders only (the arms stand out sideways at rest)
+        var neckPts = body.PointsIn(Region.Torso, Region.Head).Where(p => Mathf.Abs(p.x - hx) < 0.2f).ToList();
+        neckPts.AddRange(shells.SelectMany(s => s.P).Where(p => p.y > shoulderY - 0.15f && Mathf.Abs(p.x - hx) < 0.2f));
         Garment Headcloth(float headRoom, float hang, float faceHalfAngle, bool closedBelowChin)
         {
             var rings = new List<(float y, float[] r)>();
@@ -608,8 +609,9 @@ public static class Dresser
                 foreach (var p in pts) fb.Encapsulate(p);
                 var kb = kit.Bounds;
                 float len = (fb.size.z + 0.03f) / kb.size.z, wid = (fb.size.x + 0.028f) / kb.size.x;
-                var placed = Outfit.Place(kit, new Vector3(kb.center.x, kb.min.y, kb.min.z), new Vector3(fb.center.x, ground - 0.004f, fb.min.z - 0.013f),
-                    new Vector3(wid, Mathf.Max(len, wid), len), 0, side == "l");
+                // the kit's boots point to -Z: turned around, the heel (max z) goes to the back of the foot
+                var placed = Outfit.Place(kit, new Vector3(kb.center.x, kb.min.y, kb.max.z), new Vector3(fb.center.x, ground - 0.004f, fb.min.z - 0.013f),
+                    new Vector3(wid, Mathf.Max(len, wid), len), 180f, side == "l");
                 int footBone = body.Bone("foot_" + side), ballBone = body.Bone("ball_" + side), calfBone = body.Bone("calf_" + side);
                 for (int i = 0; i < placed.P.Count; i++)
                 {
@@ -649,7 +651,7 @@ public static class Dresser
         {
             float beltY = hip.y + 0.06f;
             var around = new List<Vector3>(under.Where(p => Mathf.Abs(p.y - beltY) < 0.03f));
-            around.AddRange(shells.SelectMany(s => s.P).Where(p => Mathf.Abs(p.y - beltY) < 0.03f && Mathf.Abs(p.x - hip.x) < 0.3f));
+            if (topShells[0] != null) around.AddRange(topShells[0].P.Where(p => Mathf.Abs(p.y - beltY) < 0.03f && Mathf.Abs(p.x - hip.x) < 0.3f));
             float w = around.Max(p => p.x) - around.Min(p => p.x), d = around.Max(p => p.z) - around.Min(p => p.z);
             var c = new Vector3((around.Max(p => p.x) + around.Min(p => p.x)) / 2f, beltY, (around.Max(p => p.z) + around.Min(p => p.z)) / 2f);
             var kb = beltKit.Bounds;
