@@ -25,7 +25,14 @@ jobs:
           curl -s -A "$UA" -c jar -b jar -L "$URL" -o dl.html
           grep -o 'data-upload_id="[0-9]*"' dl.html | sort -u
           grep -o '.\{200\}upload_id.\{200\}' dl.html | head -3
-          grep -o 'I\.[A-Za-z]*Page([^)]\{0,600\})' dl.html | head -3
+          python3 - <<'PY'
+          import re
+          h = open('dl.html', encoding='utf-8', errors='replace').read()
+          for m in re.finditer(r'<script[^>]*>(.*?)</script>', h, re.S):
+              body = m.group(1).strip()
+              if body and ('download' in body.lower() or 'key' in body.lower()):
+                  print('SCRIPT:', body[:1500])
+          PY
           CSRF2=$(grep -o 'name="csrf_token" value="[^"]*' dl.html | head -1 | sed 's/.*value="//')
           for UP in $(grep -o 'data-upload_id="[0-9]*"' dl.html | grep -o '[0-9]*' | sort -u); do
             for K in "$SEG" "$(python3 -c "import urllib.parse,sys;print(urllib.parse.unquote(sys.argv[1]))" "$SEG")"; do
