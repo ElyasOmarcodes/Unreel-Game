@@ -1,0 +1,56 @@
+name: Asset probe (research)
+
+# Lists free (CC0) assets that the game can use: Poly Haven models, ambientCG textures,
+# Quaternius characters and guns. Read-only research, nothing is published.
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/asset-probe.yml']
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Poly Haven models
+        run: |
+          curl -s "https://api.polyhaven.com/assets?t=models" | python3 -c "
+          import sys,json
+          d=json.load(sys.stdin)
+          print(len(d),'models')
+          for k,v in sorted(d.items()):
+              print(k,'|',','.join(v.get('categories',[])),'|',v.get('polycount',''))
+          "
+      - name: ambientCG materials
+        run: |
+          for q in Corrugated Metal Concrete Asphalt Rust Chainlink Bricks PaintedMetal Plaster Wood; do
+            echo "== $q"
+            curl -s "https://ambientcg.com/api/v2/full_json?type=Material&q=$q&limit=40&include=downloadData" | python3 -c "
+          import sys,json
+          d=json.load(sys.stdin)
+          for a in d.get('foundAssets',[]):
+              zips=[f['attribute'] for c in a.get('downloadFolders',{}).values() for cat in c.get('downloadFiletypeCategories',{}).values() for f in cat.get('downloads',[])]
+              print(a['assetId'], '|', ','.join(z for z in zips if '1K' in z))
+          "
+          done
+      - name: Quaternius Universal Base Characters (itch.io)
+        run: |
+          set -x
+          P=https://quaternius.itch.io/universal-base-characters
+          curl -s -c jar -b jar "$P" -o page.html
+          grep -o 'csrf_token" value="[^"]*' page.html | head -1
+          grep -o 'data-upload_id="[0-9]*"' page.html | head
+          grep -o '"upload_id":[0-9]*' page.html | head
+          CSRF=$(grep -o 'name="csrf_token" value="[^"]*' page.html | head -1 | sed 's/.*value="//')
+          curl -s -c jar -b jar -X POST "$P/download_url" -d "csrf_token=$CSRF" | tee dl.json
+          URL=$(python3 -c "import json;print(json.load(open('dl.json')).get('url',''))")
+          curl -s -c jar -b jar -L "$URL" -o dlpage.html
+          grep -o 'data-upload_id="[0-9]*"' dlpage.html | head
+          grep -o 'class="upload_name"[^<]*<strong[^>]*>[^<]*' dlpage.html | head
+          grep -o 'csrf_token" value="[^"]*' dlpage.html | head -1
+      - name: Quaternius Ultimate Gun Pack (OpenGameArt)
+        run: |
+          curl -sL "https://opengameart.org/content/low-poly-guns-pack" -o oga.html
+          grep -o 'https://opengameart.org/sites/default/files/[^"]*' oga.html | sort -u
+          F=$(grep -o 'https://opengameart.org/sites/default/files/[^"]*\.zip' oga.html | head -1)
+          [ -n "$F" ] && curl -sL "$F" -o guns.zip && unzip -l guns.zip | head -120
