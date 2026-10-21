@@ -21,7 +21,7 @@ namespace UA
         public byte Bots = 2;
         public byte BotSkill = 1;
 
-        public static readonly string[] MapNames = { "DOWNTOWN - DAY", "DOWNTOWN - SUNSET", "DOWNTOWN - NIGHT" };
+        public static readonly string[] MapNames = { "DOWNTOWN - DAY", "DOWNTOWN - SUNSET", "DOWNTOWN - NIGHT", "PORT - DAY", "PORT - SUNSET" };
         public static readonly string[] ModeNames = { "TEAM DEATHMATCH", "FREE FOR ALL" };
         public static readonly string[] SkillNames = { "EASY", "NORMAL", "HARD" };
 

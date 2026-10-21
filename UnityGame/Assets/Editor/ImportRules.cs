@@ -18,6 +18,16 @@ public class ImportRules : AssetPostprocessor
             importer.meshCompression = ModelImporterMeshCompression.Medium;
             importer.importBlendShapes = false;
         }
+        else if (assetPath.Contains("ThirdParty/Props/") || assetPath.Contains("ThirdParty/Guns/"))
+        {
+            importer.addCollider = false;
+            importer.importAnimation = false;
+            importer.animationType = ModelImporterAnimationType.None;
+            importer.importCameras = false;
+            importer.importLights = false;
+            importer.isReadable = false;
+            importer.meshCompression = ModelImporterMeshCompression.Medium;
+        }
         else if (assetPath.Contains("ThirdParty/UAL/"))
         {
             importer.animationType = ModelImporterAnimationType.Generic;
@@ -33,6 +43,15 @@ public class ImportRules : AssetPostprocessor
 
     private void OnPreprocessTexture()
     {
+        if (assetPath.Contains("Resources/Icons/"))
+        {
+            var icon = (TextureImporter)assetImporter;
+            icon.alphaIsTransparency = true;
+            icon.mipmapEnabled = true;
+            icon.textureCompression = TextureImporterCompression.Uncompressed;
+            icon.wrapMode = TextureWrapMode.Clamp;
+            return;
+        }
         if (!assetPath.Contains("ThirdParty/")) return;
         var importer = (TextureImporter)assetImporter;
         string file = System.IO.Path.GetFileNameWithoutExtension(assetPath);

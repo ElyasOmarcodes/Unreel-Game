@@ -65,7 +65,8 @@ public static class MapBuilder
         RenderSettings.skybox = skybox;
         RenderSettings.sun = sun;
 
-        map = new GameObject("Map").transform;
+        MeshGen.Reset();
+        map = new GameObject("Map_Downtown").transform;
         MeasureKit();
         BuildGround();
         for (int bx = -1; bx <= 1; bx++)
@@ -85,22 +86,29 @@ public static class MapBuilder
             if (t.gameObject.layer != 0) t.gameObject.layer = 0;
         }
 
+        var downtown = new MapLayout
+        {
+            Name = "DOWNTOWN", Root = map.gameObject, Center = Vector3.zero, Radius = Half,
+            Waypoints = waypoints.ToArray(), Links = links.ToArray(), Spawns = Spawns().ToArray(),
+        };
+        // the port is built while the downtown map is switched off so their colliders do not mix
+        map.gameObject.SetActive(false);
+        var port = PortBuilder.Build(null);
+        map.gameObject.SetActive(true);
+        port.Root.SetActive(false);
+
         var worldGo = new GameObject("World");
         var world = worldGo.AddComponent<World>();
         world.Sun = sun;
         world.Skybox = skybox;
-        world.Center = Vector3.zero;
-        world.Radius = Half;
-        world.Waypoints = waypoints.ToArray();
-        world.Links = links.ToArray();
-        world.Spawns = Spawns().ToArray();
+        world.Layouts = new[] { downtown, port };
         world.NightLamps = lamps.ToArray();
 
         new GameObject("App").AddComponent<App>();
 
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
-        Debug.Log($"[Map] built: {map.GetComponentsInChildren<Renderer>().Length} renderers, {waypoints.Count} waypoints, {world.Spawns.Length} spawns");
+        Debug.Log($"[Map] built: {map.GetComponentsInChildren<Renderer>().Length} renderers, {waypoints.Count} waypoints, {downtown.Spawns.Length} spawns");
     }
 
     // ------------------------------------------------------------------ helpers

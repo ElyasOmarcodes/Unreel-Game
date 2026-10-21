@@ -111,14 +111,14 @@ namespace UA
             stickBase.rectTransform.sizeDelta = Vector2.one * Controls.StickRadius * 2f;
             stickKnob = UIKit.Img(root, new Color(1, 1, 1, 0.45f), UIKit.Circle);
             stickKnob.rectTransform.sizeDelta = Vector2.one * 110f;
-            AddButton(Controls.Button.Fire, "FIRE", 40);
-            AddButton(Controls.Button.FireLeft, "FIRE", 26);
-            AddButton(Controls.Button.Aim, "AIM", 28);
-            AddButton(Controls.Button.Jump, "JUMP", 24);
-            AddButton(Controls.Button.Crouch, "CROUCH", 20);
-            AddButton(Controls.Button.Reload, "R", 34);
-            AddButton(Controls.Button.Pause, "II", 30);
-            AddButton(Controls.Button.Score, "TAB", 22);
+            AddButton(Controls.Button.Fire, "gps_fixed", "FIRE");
+            AddButton(Controls.Button.FireLeft, "gps_fixed", "");
+            AddButton(Controls.Button.Aim, "center_focus_strong", "AIM");
+            AddButton(Controls.Button.Jump, "expand_less", "JUMP");
+            AddButton(Controls.Button.Crouch, "keyboard_double_arrow_down", "CROUCH");
+            AddButton(Controls.Button.Reload, "autorenew", "RELOAD");
+            AddButton(Controls.Button.Pause, "pause", "");
+            AddButton(Controls.Button.Score, "leaderboard", "");
 
             scoreboard = UIKit.Panel(root, 1300, 760);
             var sbTitle = UIKit.Txt(scoreboard, "SCOREBOARD", 44, TextAnchor.UpperCenter, UIKit.Accent);
@@ -143,15 +143,17 @@ namespace UA
             if (Session.I != null) Session.I.KillHappened -= OnKill;
         }
 
-        private void AddButton(Controls.Button b, string label, int size)
+        private void AddButton(Controls.Button b, string icon, string label)
         {
             var img = UIKit.Img(root, new Color(1, 1, 1, 0.16f), UIKit.Circle);
             float r = Controls.ButtonRadius(b);
             img.rectTransform.At(0f, 0f, 0, 0, r * 2, r * 2);
-            var ring = UIKit.Img(img.transform, new Color(1, 1, 1, 0.5f), UIKit.Ring);
+            var ring = UIKit.Img(img.transform, new Color(1, 1, 1, 0.55f), UIKit.Ring);
             ring.rectTransform.Fill();
-            var t = UIKit.Txt(img.transform, label, size).Shadowed();
-            t.rectTransform.Fill();
+            var ic = UIKit.IconImage(img.transform, icon, r * (label.Length > 0 ? 0.95f : 1.1f), new Color(1, 1, 1, 0.92f));
+            ic.rectTransform.At(0.5f, 0.5f, 0, label.Length > 0 ? r * 0.14f : 0, r * (label.Length > 0 ? 0.95f : 1.1f), r * (label.Length > 0 ? 0.95f : 1.1f));
+            var t = UIKit.Txt(img.transform, label, Mathf.RoundToInt(Mathf.Clamp(r * 0.26f, 14, 30))).Shadowed();
+            t.rectTransform.At(0.5f, 0f, 0, r * 0.32f, r * 2, r * 0.5f);
             buttons[b] = img;
             buttonLabels[b] = t;
         }

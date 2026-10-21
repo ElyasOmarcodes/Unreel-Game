@@ -6,6 +6,7 @@ namespace UA
     public class CameraRig : MonoBehaviour
     {
         public static CameraRig I;
+        public static bool Frozen;   // the auto test positions the camera itself
 
         public Camera Cam;
         public Agent Target;
@@ -35,6 +36,7 @@ namespace UA
 
         private void LateUpdate()
         {
+            if (Frozen) return;
             float dt = Time.unscaledDeltaTime;
             var world = World.I;
             if (Target == null)

@@ -59,12 +59,52 @@ namespace UA
             while (!condition() && Time.realtimeSinceStartup < end) yield return null;
         }
 
+        /// <summary>Photograph the gun models and the character looks (used to check the assets).</summary>
+        private IEnumerator Showcase()
+        {
+            var app = App.I;
+            var cam = CameraRig.I;
+            CameraRig.Frozen = true;
+            app.ShowScreen("showcase");
+            var lineupPrefab = Resources.Load<GameObject>("Debug/GunLineup");
+            if (lineupPrefab != null)
+            {
+                var lineup = Instantiate(lineupPrefab, new Vector3(0, 300, 0), Quaternion.identity);
+                var bounds = new Bounds(lineup.transform.position, Vector3.zero);
+                foreach (var r in lineup.GetComponentsInChildren<Renderer>()) bounds.Encapsulate(r.bounds);
+                cam.transform.SetPositionAndRotation(bounds.center + new Vector3(bounds.size.z * 0.9f + 2f, 0.2f, 0), Quaternion.Euler(0, -90, 0));
+                cam.Cam.fieldOfView = 50;
+                yield return Wait(1f);
+                yield return Shot("00-guns");
+                Destroy(lineup);
+            }
+            var row = new System.Collections.Generic.List<GameObject>();
+            string[] prefabs = { "Agent", "Agent_F" };
+            for (int i = 0; i < 8; i++)
+            {
+                var prefab = Resources.Load<GameObject>(prefabs[i / 4]);
+                if (prefab == null) continue;
+                var go = Instantiate(prefab, new Vector3(i * 1.1f, 300, 0), Quaternion.Euler(0, 180, 0));
+                var agent = go.GetComponent<Agent>();
+                agent.SetLook(i % 4 + (i / 2) % 2 * 4);
+                agent.SetWeapon(i % 6);
+                row.Add(go);
+            }
+            cam.transform.SetPositionAndRotation(new Vector3(3.85f, 301.1f, -6.5f), Quaternion.Euler(4, 0, 0));
+            yield return Wait(1f);
+            yield return Shot("00-characters");
+            foreach (var go in row) Destroy(go);
+            CameraRig.Frozen = false;
+            app.ShowScreen("menu");
+        }
+
         private IEnumerator Host()
         {
             var app = App.I;
             yield return Wait(1.2f);
             yield return Shot("01-splash");
             yield return Until(() => app.Current == "menu", 10);
+            yield return Showcase();
             yield return Wait(2f);
             yield return Shot("02-main-menu");
             app.ShowScreen("settings");
@@ -74,6 +114,7 @@ namespace UA
             yield return Wait(1f);
             yield return Shot("04-wifi");
             app.Draft.Mode = Mode.TeamDeathmatch;
+            app.Draft.Map = 3; // PORT
             app.Draft.Bots = 4;
             app.Draft.Minutes = 3;
             app.OpenCreate(false);

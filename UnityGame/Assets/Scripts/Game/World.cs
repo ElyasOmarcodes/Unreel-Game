@@ -13,6 +13,19 @@ namespace UA
         public bool Head;
     }
 
+    /// <summary>One playable map in the scene: its root object, spawn points and bot waypoint graph.</summary>
+    [System.Serializable]
+    public class MapLayout
+    {
+        public string Name;
+        public GameObject Root;
+        public Vector3[] Spawns = new Vector3[0];
+        public Vector3[] Waypoints = new Vector3[0];
+        public Vector2Int[] Links = new Vector2Int[0];
+        public Vector3 Center;
+        public float Radius = 80f;
+    }
+
     /// <summary>
     /// The map (spawn points, bot waypoints, lighting presets) and the agents of the current match.
     /// The map geometry itself is built by the editor (MapBuilder) into the scene.
@@ -23,36 +36,51 @@ namespace UA
 
         public const int HitboxLayer = 8;
         public const int AgentLayer = 10;
+        public const int FenceLayer = 11;   // blocks players, not bullets or sight
         public const int EnvMask = 1 << 0;
         public const int ShotMask = EnvMask | (1 << HitboxLayer);
 
         [Header("Filled by MapBuilder")]
-        public Vector3[] Spawns = new Vector3[0];
-        public Vector3[] Waypoints = new Vector3[0];
-        public Vector2Int[] Links = new Vector2Int[0];
-        public Vector3 Center;
-        public float Radius = 80f;
+        public MapLayout[] Layouts = new MapLayout[0];
         public Light Sun;
         public Material Skybox;
         public Renderer[] NightLamps = new Renderer[0];
 
         public readonly Dictionary<byte, Agent> Agents = new Dictionary<byte, Agent>();
         public List<int>[] Neighbours;
-        private GameObject agentPrefab;
+        private GameObject[] agentPrefabs;
         private int appliedMap = -1;
+        private MapLayout layout;
+
+        public MapLayout Layout => layout;
+        public Vector3[] Spawns => layout.Spawns;
+        public Vector3[] Waypoints => layout.Waypoints;
+        public Vector3 Center => layout.Center;
+        public float Radius => layout.Radius;
+
+        /// <summary>Map index (as in MatchConfig.MapNames) to layout: 0-2 downtown, 3-4 port.</summary>
+        public static int LayoutOf(int map) => map >= 3 ? 1 : 0;
 
         private void Awake()
         {
             I = this;
-            agentPrefab = Resources.Load<GameObject>("Agent");
-            Neighbours = new List<int>[Waypoints.Length];
+            agentPrefabs = new[] { Resources.Load<GameObject>("Agent"), Resources.Load<GameObject>("Agent_F") }.Where(p => p != null).ToArray();
+            ApplyLighting(0);
+        }
+
+        private void UseLayout(int index)
+        {
+            index = Mathf.Clamp(index, 0, Layouts.Length - 1);
+            for (int i = 0; i < Layouts.Length; i++)
+                if (Layouts[i].Root != null) Layouts[i].Root.SetActive(i == index);
+            layout = Layouts[index];
+            Neighbours = new List<int>[layout.Waypoints.Length];
             for (int i = 0; i < Neighbours.Length; i++) Neighbours[i] = new List<int>();
-            foreach (var l in Links)
+            foreach (var l in layout.Links)
             {
                 Neighbours[l.x].Add(l.y);
                 Neighbours[l.y].Add(l.x);
             }
-            ApplyLighting(0);
         }
 
         private void Update()
@@ -79,12 +107,16 @@ namespace UA
 
         private void Create(PlayerState p, Session s)
         {
-            var go = Instantiate(agentPrefab, p.Pos, Quaternion.Euler(0, p.Yaw, 0));
+            // every player gets a stable look: body (male / female mannequin), outfit and camo
+            int look = (p.Id * 7 + p.Name.Length * 3) % 16;
+            var prefab = agentPrefabs[(look / 8) % agentPrefabs.Length];
+            var go = Instantiate(prefab, p.Pos, Quaternion.Euler(0, p.Yaw, 0));
             go.name = "Agent " + p.Name;
             var agent = go.GetComponent<Agent>();
             bool local = p.Id == s.LocalId;
             bool bot = p.IsBot && s.IsHost;
             agent.Init(p, local, bot, TeamColor(p, s));
+            agent.SetLook(look);
             Agents[p.Id] = agent;
         }
 
@@ -172,9 +204,11 @@ namespace UA
         public void ApplyLighting(int map)
         {
             appliedMap = map;
+            if (Layouts.Length > 0) UseLayout(LayoutOf(map));
             if (Sun == null) return;
-            bool night = map == 2;
-            switch (map)
+            int preset = map < 3 ? map : map == 3 ? 0 : 1;
+            bool night = preset == 2;
+            switch (preset)
             {
                 case 1:
                     Sun.transform.rotation = Quaternion.Euler(14f, -60f, 0f);

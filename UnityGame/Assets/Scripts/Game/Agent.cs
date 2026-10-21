@@ -18,6 +18,11 @@ namespace UA
         public Renderer[] AllRenderers = new Renderer[0];
         public Hitbox[] Hitboxes = new Hitbox[0];
         public CharacterController Controller;
+        [Tooltip("Head gear options (helmet, cap, beret, mask); one is shown per look")]
+        public GameObject[] Headgear = new GameObject[0];
+        [Tooltip("Camo suits; the mannequin material named Suit* is replaced per look")]
+        public Material[] Suits = new Material[0];
+        public Renderer[] SuitRenderers = new Renderer[0];
 
         public byte Id { get; private set; }
         public bool Alive { get; private set; } = true;
@@ -115,6 +120,22 @@ namespace UA
             Controller.enabled = false;
             transform.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
             Controller.enabled = cc;
+        }
+
+        /// <summary>Outfit for this player: head gear and camo pattern.</summary>
+        public void SetLook(int look)
+        {
+            for (int i = 0; i < Headgear.Length; i++)
+                if (Headgear[i] != null) Headgear[i].SetActive(i == look % Headgear.Length);
+            if (Suits.Length == 0) return;
+            var suit = Suits[(look / Mathf.Max(1, Headgear.Length)) % Suits.Length];
+            foreach (var r in SuitRenderers)
+            {
+                var materials = r.sharedMaterials;
+                for (int i = 0; i < materials.Length; i++)
+                    if (materials[i] != null && materials[i].name.StartsWith("Suit")) materials[i] = suit;
+                r.sharedMaterials = materials;
+            }
         }
 
         public void SetWeapon(int id)

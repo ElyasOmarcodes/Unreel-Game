@@ -236,6 +236,7 @@ namespace UA
             var tag = UIKit.Txt(side.transform, "Squad up on the same Wi-Fi or hotspot. No internet needed.", 28, TextAnchor.UpperLeft, UIKit.Muted);
             tag.rectTransform.At(0f, 1f, 92, -350, 620, 80, 0f, 1f);
             string[] labels = { "PLAY ON WI-FI", "PRACTICE VS BOTS", "SETTINGS", "QUIT" };
+            string[] iconNames = { "wifi", "smart_toy", "settings", "exit_to_app" };
             System.Action[] actions =
             {
                 () => ShowScreen("wifi"),
@@ -245,7 +246,7 @@ namespace UA
             };
             for (int i = 0; i < labels.Length; i++)
             {
-                var b = UIKit.Btn(side.transform, labels[i], actions[i], 44, i == 0 ? UIKit.AccentDark : (Color?)null);
+                var b = UIKit.Btn(side.transform, labels[i], actions[i], 42, i == 0 ? UIKit.AccentDark : (Color?)null, iconNames[i]);
                 b.GetComponent<RectTransform>().At(0f, 1f, 90, -470 - i * 118, 560, 98, 0f, 1f);
             }
             menuPlayer = UIKit.Txt(side.transform, "", 30, TextAnchor.LowerLeft);
@@ -260,20 +261,24 @@ namespace UA
             UIKit.Title(s, "PLAY ON WI-FI / HOTSPOT", -70, 70);
             var help = UIKit.Txt(s, "All phones must be on the same Wi-Fi - or one phone turns on its hotspot and the others connect to it.", 30, TextAnchor.MiddleCenter, UIKit.Muted);
             help.rectTransform.At(0.5f, 1f, 0, -180, 1500, 80, 0.5f, 1f);
-            Card(s, -390, "CREATE GROUP", "Host a match on this phone.\nChoose the mode, map, time and bots,\nthen start when everyone has joined.", () => OpenCreate(false));
-            Card(s, 390, "JOIN GROUP", "Find the groups hosted nearby\nand join with one tap - or type the\nhost's IP address.", () => ShowScreen("join"));
-            var back = UIKit.Btn(s, "BACK", () => ShowScreen("menu"), 38);
+            Card(s, -390, "CREATE GROUP", "Host a match on this phone.\nChoose the mode, map, time and bots,\nthen start when everyone has joined.", () => OpenCreate(false), "group_add");
+            Card(s, 390, "JOIN GROUP", "Find the groups hosted nearby\nand join with one tap - or type the\nhost's IP address.", () => ShowScreen("join"), "login");
+            var back = UIKit.Btn(s, "BACK", () => ShowScreen("menu"), 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 70, 360, 90, 0.5f, 0f);
         }
 
-        private void Card(Transform parent, float x, string title, string text, System.Action onClick)
+        private void Card(Transform parent, float x, string title, string text, System.Action onClick, string icon)
         {
-            var b = UIKit.Btn(parent, "", onClick, 10, UIKit.PanelColor);
-            b.GetComponent<RectTransform>().At(0.5f, 0.5f, x, -40, 700, 470);
-            var t = UIKit.Txt(b.transform, title, 58, TextAnchor.UpperCenter, UIKit.Accent).Shadowed();
-            t.rectTransform.At(0.5f, 1f, 0, -60, 640, 80, 0.5f, 1f);
-            var d = UIKit.Txt(b.transform, text, 30, TextAnchor.UpperCenter, UIKit.TextColor);
-            d.rectTransform.At(0.5f, 1f, 0, -190, 640, 220, 0.5f, 1f);
+            var b = UIKit.Btn(parent, "", onClick, 10, new Color(0.1f, 0.13f, 0.18f, 0.95f));
+            b.GetComponent<RectTransform>().At(0.5f, 0.5f, x, -40, 700, 500);
+            var circle = UIKit.Img(b.transform, UIKit.AccentDark, UIKit.Circle);
+            circle.rectTransform.At(0.5f, 1f, 0, -40, 150, 150, 0.5f, 1f);
+            var ic = UIKit.IconImage(circle.transform, icon, 96);
+            ic.rectTransform.At(0.5f, 0.5f, 0, 0, 96, 96);
+            var t = UIKit.Txt(b.transform, title, 54, TextAnchor.UpperCenter, UIKit.Accent).Shadowed();
+            t.rectTransform.At(0.5f, 1f, 0, -210, 640, 70, 0.5f, 1f);
+            var d = UIKit.Txt(b.transform, text, 28, TextAnchor.UpperCenter, UIKit.TextColor);
+            d.rectTransform.At(0.5f, 1f, 0, -300, 640, 180, 0.5f, 1f);
         }
 
         public void OpenCreate(bool practice)
@@ -302,7 +307,7 @@ namespace UA
             groupNameField.onEndEdit.AddListener(v => Draft.GroupName = Settings.Clean(v, 24));
             byte[] minutes = { 3, 5, 8, 10, 15 };
             UIKit.Stepper(panel, "GAME MODE", -130, () => MatchConfig.ModeNames[(int)Draft.Mode], d => Draft.Mode = (Mode)(((int)Draft.Mode + 2 + d) % 2), 1080);
-            UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapNames[Draft.Map], d => Draft.Map = (byte)((Draft.Map + 3 + d) % 3), 1080);
+            UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapNames[Draft.Map], d => Draft.Map = (byte)((Draft.Map + MatchConfig.MapNames.Length + d) % MatchConfig.MapNames.Length), 1080);
             UIKit.Stepper(panel, "MATCH TIME", -320, () => Draft.Minutes + " MIN", d =>
             {
                 int i = System.Array.IndexOf(minutes, Draft.Minutes);
@@ -311,9 +316,9 @@ namespace UA
             UIKit.Stepper(panel, "MAX PLAYERS", -415, () => Draft.MaxPlayers.ToString(), d => Draft.MaxPlayers = (byte)Mathf.Clamp(Draft.MaxPlayers + d, 2, 10), 1080);
             UIKit.Stepper(panel, "BOTS", -510, () => Draft.Bots == 0 ? "NONE" : Draft.Bots.ToString(), d => Draft.Bots = (byte)Mathf.Clamp(Draft.Bots + d, 0, 9), 1080);
             UIKit.Stepper(panel, "BOT SKILL", -605, () => MatchConfig.SkillNames[Draft.BotSkill], d => Draft.BotSkill = (byte)Mathf.Clamp(Draft.BotSkill + d, 0, 2), 1080);
-            var back = UIKit.Btn(s, "BACK", Back, 38);
+            var back = UIKit.Btn(s, "BACK", Back, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, -300, 50, 380, 96, 0.5f, 0f);
-            createButton = UIKit.Btn(s, "CREATE GROUP", CreateFromDraft, 40, UIKit.AccentDark);
+            createButton = UIKit.Btn(s, "CREATE GROUP", CreateFromDraft, 38, UIKit.AccentDark, "play_arrow");
             createButton.GetComponent<RectTransform>().At(0.5f, 0f, 200, 50, 560, 96, 0.5f, 0f);
         }
 
@@ -347,9 +352,9 @@ namespace UA
             ipField = UIKit.Input(ipRow, PlayerPrefs.GetString("lastip", ""), "192.168.43.1", 34, 21);
             ipField.contentType = InputField.ContentType.Standard;
             ipField.GetComponent<RectTransform>().At(0.5f, 0.5f, 120, 0, 520, 80);
-            var connect = UIKit.Btn(ipRow, "CONNECT", ConnectToTypedIp, 34, UIKit.AccentDark);
+            var connect = UIKit.Btn(ipRow, "CONNECT", ConnectToTypedIp, 32, UIKit.AccentDark, "link");
             connect.GetComponent<RectTransform>().At(1f, 0.5f, 0, 0, 300, 80, 1f, 0.5f);
-            var back = UIKit.Btn(s, "BACK", Back, 38);
+            var back = UIKit.Btn(s, "BACK", Back, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 50, 380, 96, 0.5f, 0f);
         }
 
@@ -392,7 +397,7 @@ namespace UA
                 var g = groups[i];
                 var row = UIKit.Img(joinList, new Color(1, 1, 1, 0.05f), UIKit.Rounded);
                 row.rectTransform.At(0.5f, 1f, 0, -i * 112, 1440, 100, 0.5f, 1f);
-                var name = UIKit.Txt(row.transform, $"{g.Name}\n<size=24><color=#9aa4b0>{MatchConfig.ModeNames[(int)g.Mode]}  -  {MatchConfig.MapNames[g.Map % 3]}  -  {g.Address.Address}</color></size>", 34, TextAnchor.MiddleLeft);
+                var name = UIKit.Txt(row.transform, $"{g.Name}\n<size=24><color=#9aa4b0>{MatchConfig.ModeNames[(int)g.Mode]}  -  {MatchConfig.MapNames[g.Map % MatchConfig.MapNames.Length]}  -  {g.Address.Address}</color></size>", 34, TextAnchor.MiddleLeft);
                 name.rectTransform.Fill();
                 name.rectTransform.offsetMin = new Vector2(30, 0);
                 var count = UIKit.Txt(row.transform, $"{g.Players}/{g.MaxPlayers}" + (g.Phase != Phase.Lobby ? "\n<size=22>IN MATCH</size>" : ""), 32, TextAnchor.MiddleCenter, UIKit.Accent);
@@ -430,11 +435,11 @@ namespace UA
             primaryText = LoadoutStepper(loadout, -400, "PRIMARY", true);
             secondaryText = LoadoutStepper(loadout, 400, "PISTOL", false);
 
-            var leave = UIKit.Btn(s, "LEAVE", LeaveGroup, 36);
+            var leave = UIKit.Btn(s, "LEAVE", LeaveGroup, 34, null, "exit_to_app");
             leave.GetComponent<RectTransform>().At(0.5f, 0f, -560, 50, 320, 96, 0.5f, 0f);
-            lobbyTeam = UIKit.Btn(s, "SWITCH TEAM", () => { var me = Session.I.Local; if (me != null) Session.I.SetTeam((byte)(1 - me.Team)); RefreshLobby(); }, 34);
+            lobbyTeam = UIKit.Btn(s, "SWITCH TEAM", () => { var me = Session.I.Local; if (me != null) Session.I.SetTeam((byte)(1 - me.Team)); RefreshLobby(); }, 32, null, "swap_horiz");
             lobbyTeam.GetComponent<RectTransform>().At(0.5f, 0f, -160, 50, 400, 96, 0.5f, 0f);
-            lobbyStart = UIKit.Btn(s, "START MATCH", () => Session.I.StartMatch(), 40, UIKit.AccentDark);
+            lobbyStart = UIKit.Btn(s, "START MATCH", () => Session.I.StartMatch(), 38, UIKit.AccentDark, "play_arrow");
             lobbyStart.GetComponent<RectTransform>().At(0.5f, 0f, 340, 50, 560, 96, 0.5f, 0f);
             lobbyWait = UIKit.Txt(s, "Waiting for the host to start ...", 32, TextAnchor.MiddleCenter, UIKit.Muted);
             lobbyWait.rectTransform.At(0.5f, 0f, 340, 98, 700, 96);
@@ -484,7 +489,7 @@ namespace UA
                 return;
             }
             lobbyTitle.text = s.Practice ? "PRACTICE" : s.Config.GroupName.ToUpperInvariant();
-            lobbyInfo.text = $"{MatchConfig.ModeNames[(int)s.Config.Mode]}   -   {MatchConfig.MapNames[s.Config.Map % 3]}   -   {s.Config.Minutes} MIN   -   BOTS: {s.Config.Bots} ({MatchConfig.SkillNames[s.Config.BotSkill % 3]})";
+            lobbyInfo.text = $"{MatchConfig.ModeNames[(int)s.Config.Mode]}   -   {MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length]}   -   {s.Config.Minutes} MIN   -   BOTS: {s.Config.Bots} ({MatchConfig.SkillNames[s.Config.BotSkill % 3]})";
             lobbyIp.text = s.Practice ? "Only you and the bots - no network used" :
                 s.IsHost ? "Friends: JOIN GROUP, or type this IP:  " + (s.HostAddresses.Length > 0 ? s.HostAddresses : "(no Wi-Fi found)") : "Connected - " + s.Players.Count(p => !p.Value.IsBot) + " players in the group";
             lobbyLeftTitle.text = tdm ? "TEAM BLUE" : "PLAYERS";
@@ -535,7 +540,7 @@ namespace UA
             UIKit.Stepper(panel, "SHOW FPS", -510, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, 1080);
             var hint = UIKit.Txt(panel, "Controls: left side = move, drag right side = look, drag the FIRE button to aim while shooting.", 24, TextAnchor.MiddleCenter, UIKit.Muted);
             hint.rectTransform.At(0.5f, 0f, 0, 50, 1080, 60);
-            var back = UIKit.Btn(s, "BACK", () => { Settings.PlayerName = nameField.text; Back(); }, 38);
+            var back = UIKit.Btn(s, "BACK", () => { Settings.PlayerName = nameField.text; Back(); }, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 50, 380, 96, 0.5f, 0f);
         }
 
@@ -548,11 +553,11 @@ namespace UA
             var panel = UIKit.Panel(pausePanel, 700, 620);
             var title = UIKit.Txt(panel, "PAUSED", 64, TextAnchor.UpperCenter, UIKit.Accent).Shadowed();
             title.rectTransform.At(0.5f, 1f, 0, -40, 600, 90, 0.5f, 1f);
-            var resume = UIKit.Btn(panel, "RESUME", () => SetPaused(false), 40, UIKit.AccentDark);
+            var resume = UIKit.Btn(panel, "RESUME", () => SetPaused(false), 38, UIKit.AccentDark, "play_arrow");
             resume.GetComponent<RectTransform>().At(0.5f, 1f, 0, -170, 520, 96, 0.5f, 1f);
-            var settings = UIKit.Btn(panel, "SETTINGS", () => { settingsReturn = "game"; OpenSettings(); }, 40);
+            var settings = UIKit.Btn(panel, "SETTINGS", () => { settingsReturn = "game"; OpenSettings(); }, 38, null, "settings");
             settings.GetComponent<RectTransform>().At(0.5f, 1f, 0, -290, 520, 96, 0.5f, 1f);
-            var leave = UIKit.Btn(panel, "LEAVE MATCH", LeaveGroup, 40);
+            var leave = UIKit.Btn(panel, "LEAVE MATCH", LeaveGroup, 38, null, "exit_to_app");
             leave.GetComponent<RectTransform>().At(0.5f, 1f, 0, -410, 520, 96, 0.5f, 1f);
             var hint = UIKit.Txt(panel, "", 22, TextAnchor.MiddleCenter, UIKit.Muted);
             hint.rectTransform.At(0.5f, 0f, 0, 40, 640, 40);
@@ -568,9 +573,9 @@ namespace UA
             resultsTable.rectTransform.Fill(50);
             resultsInfo = UIKit.Txt(s, "", 30, TextAnchor.MiddleCenter, UIKit.Muted);
             resultsInfo.rectTransform.At(0.5f, 0f, 0, 170, 1200, 50);
-            var leave = UIKit.Btn(s, "LEAVE GROUP", LeaveGroup, 36);
+            var leave = UIKit.Btn(s, "LEAVE GROUP", LeaveGroup, 34, null, "exit_to_app");
             leave.GetComponent<RectTransform>().At(0.5f, 0f, -300, 50, 440, 96, 0.5f, 0f);
-            resultsLobby = UIKit.Btn(s, "BACK TO LOBBY", () => Session.I.BackToLobby(), 38, UIKit.AccentDark);
+            resultsLobby = UIKit.Btn(s, "BACK TO LOBBY", () => Session.I.BackToLobby(), 36, UIKit.AccentDark, "groups");
             resultsLobby.GetComponent<RectTransform>().At(0.5f, 0f, 260, 50, 500, 96, 0.5f, 0f);
         }
 
