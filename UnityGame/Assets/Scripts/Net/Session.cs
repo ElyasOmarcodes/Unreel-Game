@@ -51,7 +51,8 @@ namespace UA
         public byte Weapon;
         public Vector3 Pos;
         public float Yaw, Pitch, MoveX, MoveY;
-        public bool Crouch, Grounded = true, Aiming;
+        public bool Crouch, Grounded = true, Aiming, Prone;
+        public byte Look;
         public short Kills, Deaths;
         public byte SpawnSeq;
         public ushort Hits;
@@ -79,7 +80,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 1;
+        public const byte Version = 2;
         public const byte NoPlayer = 255;
 
         public bool Active, IsHost, Practice;
@@ -142,7 +143,7 @@ namespace UA
             }
             Active = true;
             Players.Clear();
-            Players[0] = new PlayerState { Id = 0, Name = Settings.PlayerName, Team = 0, Primary = Settings.Primary, Secondary = Settings.Secondary };
+            Players[0] = new PlayerState { Id = 0, Name = Settings.PlayerName, Team = 0, Primary = Settings.Primary, Secondary = Settings.Secondary, Look = Settings.Look };
             LocalId = 0;
             SyncBots();
             HostAddresses = string.Join("   ", LanUtil.LocalAddresses());
@@ -402,6 +403,7 @@ namespace UA
                 {
                     Id = id, IsBot = true, Name = BotNames[(id - 100) % BotNames.Length] + " [BOT]", Team = SmallerTeam(),
                     Primary = (byte)UnityEngine.Random.Range(0, 4), Secondary = (byte)UnityEngine.Random.Range(4, 6),
+                    Look = (byte)UnityEngine.Random.Range(0, 32),
                 };
                 Players[id] = bot;
                 bots.Add(bot);
@@ -480,6 +482,7 @@ namespace UA
             int tok = r.ReadInt32();
             string name = Settings.Clean(r.ReadString());
             byte primary = r.ReadByte(), secondary = r.ReadByte();
+            byte look = r.ReadByte();
             var player = Players.Values.FirstOrDefault(p => !p.IsBot && p.Id != 0 && p.Token == tok);
             if (player == null)
             {
@@ -490,7 +493,7 @@ namespace UA
                 player = new PlayerState
                 {
                     Id = id, Token = tok, Name = name, Team = SmallerTeam(), Primary = (byte)(primary % 4),
-                    Secondary = (byte)(4 + secondary % 2), Weapon = primary,
+                    Secondary = (byte)(4 + secondary % 2), Weapon = primary, Look = (byte)(look % 32),
                 };
                 if (Phase == Phase.Playing || Phase == Phase.Countdown) player.RespawnAt = now + 1f;
                 Players[id] = player;
@@ -529,7 +532,7 @@ namespace UA
             if (p.Alive && ack == p.SpawnSeq)
             {
                 p.Pos = pos; p.Yaw = yaw; p.Pitch = pitch; p.MoveX = mx; p.MoveY = my;
-                p.Crouch = (flags & 1) != 0; p.Grounded = (flags & 2) != 0; p.Aiming = (flags & 4) != 0;
+                p.Crouch = (flags & 1) != 0; p.Grounded = (flags & 2) != 0; p.Aiming = (flags & 4) != 0; p.Prone = (flags & 8) != 0;
                 if (weapon == p.Primary || weapon == p.Secondary) p.Weapon = weapon;
             }
             int count = r.ReadByte();
@@ -602,7 +605,7 @@ namespace UA
             w.Write((byte)Players.Count);
             foreach (var p in Players.Values)
             {
-                w.Write(p.Id); w.Write(p.Name); w.Write(p.Team); w.Write(p.IsBot); w.Write(p.Primary); w.Write(p.Secondary);
+                w.Write(p.Id); w.Write(p.Name); w.Write(p.Team); w.Write(p.IsBot); w.Write(p.Primary); w.Write(p.Secondary); w.Write(p.Look);
             }
             SendToClients();
         }
@@ -617,7 +620,7 @@ namespace UA
             w.Write((byte)Players.Count);
             foreach (var p in Players.Values)
             {
-                byte flags = (byte)((p.Alive ? 1 : 0) | (p.Crouch ? 2 : 0) | (p.Grounded ? 4 : 0) | (p.Aiming ? 8 : 0));
+                byte flags = (byte)((p.Alive ? 1 : 0) | (p.Crouch ? 2 : 0) | (p.Grounded ? 4 : 0) | (p.Aiming ? 8 : 0) | (p.Prone ? 16 : 0));
                 w.Write(p.Id); w.Write(flags); w.Write((byte)Mathf.Clamp(Mathf.CeilToInt(p.Health), 0, 255)); w.Write(p.Weapon);
                 w.Write(p.Pos); w.Write(p.Yaw); w.Write(p.Pitch);
                 w.Write((sbyte)Mathf.Clamp(Mathf.RoundToInt(p.MoveX * 50), -127, 127));
@@ -663,7 +666,7 @@ namespace UA
                 {
                     joinTimer = 0.5f;
                     var w = pw.Begin(Msg.Join);
-                    w.Write(Version); w.Write(token); w.Write(Settings.PlayerName); w.Write(Settings.Primary); w.Write(Settings.Secondary);
+                    w.Write(Version); w.Write(token); w.Write(Settings.PlayerName); w.Write(Settings.Primary); w.Write(Settings.Secondary); w.Write(Settings.Look);
                     socket.Send(pw.Buffer, pw.Length, hostEndPoint);
                 }
                 if (now > joinDeadline) Disconnect("Could not reach the group. Check that you are on the same Wi-Fi or hotspot.");
@@ -687,7 +690,7 @@ namespace UA
             w.Write(inMatch);
             if (inMatch)
             {
-                byte flags = (byte)((me.Crouch ? 1 : 0) | (me.Grounded ? 2 : 0) | (me.Aiming ? 4 : 0));
+                byte flags = (byte)((me.Crouch ? 1 : 0) | (me.Grounded ? 2 : 0) | (me.Aiming ? 4 : 0) | (me.Prone ? 8 : 0));
                 w.Write(me.SpawnSeq); w.Write(me.Pos); w.Write(me.Yaw); w.Write(me.Pitch);
                 w.Write((sbyte)Mathf.Clamp(Mathf.RoundToInt(me.MoveX * 50), -127, 127));
                 w.Write((sbyte)Mathf.Clamp(Mathf.RoundToInt(me.MoveY * 50), -127, 127));
@@ -718,6 +721,7 @@ namespace UA
                 if (isNew) Players[id] = p = new PlayerState { Id = id };
                 p.Name = r.ReadString(); byte team = r.ReadByte(); p.IsBot = r.ReadBoolean();
                 byte primary = r.ReadByte(), secondary = r.ReadByte();
+                p.Look = r.ReadByte();
                 // our own team / loadout are decided locally while in the lobby and sent with the input
                 if (id != LocalId || phase != Phase.Lobby || isNew) { p.Team = team; p.Primary = primary; p.Secondary = secondary; }
                 seen.Add(id);
@@ -757,7 +761,7 @@ namespace UA
                 if (id != LocalId)
                 {
                     p.MoveX = mx; p.MoveY = my; p.Weapon = weapon;
-                    p.Crouch = (flags & 2) != 0; p.Grounded = (flags & 4) != 0; p.Aiming = (flags & 8) != 0;
+                    p.Crouch = (flags & 2) != 0; p.Grounded = (flags & 4) != 0; p.Aiming = (flags & 8) != 0; p.Prone = (flags & 16) != 0;
                 }
             }
             int kills = r.ReadByte();

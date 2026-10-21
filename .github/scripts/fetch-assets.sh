@@ -15,7 +15,24 @@ git sparse-checkout set --no-cone \
   "quaternius/universal-animation-library-2/Female Mannequin/Unity/Mannequin_F.fbx" \
   "quaternius/downtown-city-megakit/Exports/FBX (Unity)/*" \
   "quaternius/downtown-city-megakit/Textures/*.png" \
-  "quaternius/downtown-city-megakit/License_Standard.txt"
+  "quaternius/downtown-city-megakit/License_Standard.txt" \
+  "quaternius/stylized-nature-megakit/FBX (Unity)/CommonTree_*.fbx" \
+  "quaternius/stylized-nature-megakit/FBX (Unity)/Pine_*.fbx" \
+  "quaternius/stylized-nature-megakit/FBX (Unity)/Bush_*.fbx" \
+  "quaternius/stylized-nature-megakit/FBX (Unity)/Fern_1.fbx" \
+  "quaternius/stylized-nature-megakit/FBX (Unity)/Grass_Common_Tall.fbx" \
+  "quaternius/stylized-nature-megakit/FBX (Unity)/Grass_Wispy_Tall.fbx" \
+  "quaternius/stylized-nature-megakit/FBX (Unity)/Plant_1_Big.fbx" \
+  "quaternius/stylized-nature-megakit/FBX (Unity)/Rock_Medium_*.fbx" \
+  "quaternius/stylized-nature-megakit/glTF/Bark_NormalTree*.png" \
+  "quaternius/stylized-nature-megakit/glTF/Bark_TwistedTree.png" \
+  "quaternius/stylized-nature-megakit/glTF/Leaves_NormalTree_C.png" \
+  "quaternius/stylized-nature-megakit/glTF/Leaves_TwistedTree_C.png" \
+  "quaternius/stylized-nature-megakit/glTF/Leaf_Pine_C.png" \
+  "quaternius/stylized-nature-megakit/glTF/Grass.png" \
+  "quaternius/stylized-nature-megakit/glTF/Flowers.png" \
+  "quaternius/stylized-nature-megakit/glTF/Rocks_Diffuse.png" \
+  "quaternius/stylized-nature-megakit/License_Source.txt"
 for i in 1 2 3; do git fetch -q --depth 1 --filter=blob:none origin "$COMMIT" && break || sleep 10; done
 git checkout -q FETCH_HEAD
 Q="$WORK/quaternius"
@@ -25,6 +42,19 @@ cp "$Q/universal-animation-library/License.txt" "$DEST/UAL/License.txt"
 cp "$Q/universal-animation-library-2/Female Mannequin/Unity/Mannequin_F.fbx" "$DEST/UAL/" || true
 cp "$Q/downtown-city-megakit/Exports/FBX (Unity)/"*.fbx "$DEST/City/Models/"
 cp "$Q/downtown-city-megakit/License_Standard.txt" "$DEST/City/License.txt"
+mkdir -p "$DEST/Nature"
+cp "$Q/stylized-nature-megakit/FBX (Unity)/"*.fbx "$DEST/Nature/"
+cp "$Q/stylized-nature-megakit/glTF/"*.png "$DEST/Nature/"
+python3 -m pip install -q pillow
+python3 - "$DEST/Nature" <<'PY'
+import sys, glob
+from PIL import Image
+for f in glob.glob(sys.argv[1] + "/*.png"):
+    im = Image.open(f)
+    if max(im.size) > 1024:
+        im.resize((1024, 1024), Image.LANCZOS).save(f)
+PY
+cp "$Q/stylized-nature-megakit/License_Source.txt" "$DEST/Nature/License.txt"
 python3 -m pip install -q pillow
 python3 - "$Q/downtown-city-megakit/Textures" "$DEST/City/Textures" <<'PY'
 import sys, os
@@ -58,7 +88,8 @@ ls "$DEST/Guns" | wc -l
 
 # ---------------------------------------------------------------- PBR textures: ambientCG (CC0)
 mkdir -p "$DEST/Port/Textures" tex
-for id in CorrugatedSteel005 CorrugatedSteel007A CorrugatedSteel009 Concrete034 Concrete042A Asphalt025C Metal032 MetalPlates013 Bricks076A PaintedPlaster017 DiamondPlate009 Wood049 Planks037A; do
+for id in CorrugatedSteel005 CorrugatedSteel007A CorrugatedSteel009 Concrete034 Concrete042A Asphalt025C Metal032 MetalPlates013 Bricks076A PaintedPlaster017 DiamondPlate009 Wood049 Planks037A Grass001 Grass004 PavingStones070 Road007 Tiles101 WoodFloor051 Plaster001; do
+  rm -f t.zip
   for i in 1 2 3; do curl -sfL "https://ambientcg.com/get?file=${id}_1K-JPG.zip" -o t.zip && break || sleep 5; done
   unzip -q -o t.zip -d "tex/$id" || echo "missing texture $id"
 done

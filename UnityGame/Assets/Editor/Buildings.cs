@@ -1,0 +1,176 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// Buildings players can walk into: several floors with door and window openings, a two-lane
+/// switchback staircase that goes up to every floor and out onto the roof, interior cover and a
+/// roof parapet. Also free-standing outdoor staircases (for secret routes onto roofs).
+/// </summary>
+public static class Buildings
+{
+    public class Style
+    {
+        public Material Outer, Inner, Floor, Stairs, Trim, Furniture;
+    }
+
+    private const float FloorHeight = 3.4f, Wall = 0.25f, Slab = 0.25f, StepH = 0.2f, StepRun = 0.36f, Lane = 1.4f;
+
+    private static GameObject Box(Transform t, string name, Vector3 localCenter, Vector3 size, Material m, float tex = 2f)
+    {
+        if (size.x < 0.01f || size.y < 0.01f || size.z < 0.01f) return null;
+        var go = MeshGen.TexBox(name, t.TransformPoint(localCenter), size, m, tex, t, t.eulerAngles.y);
+        return go;
+    }
+
+    /// <summary>A rectangle (x0..x1, z0..z1) at height y with an optional rectangular hole, as up to four boxes.</summary>
+    private static void SlabWithHole(Transform t, float y, float x0, float x1, float z0, float z1, Rect? hole, Material m)
+    {
+        if (hole == null)
+        {
+            Box(t, "Slab", new Vector3((x0 + x1) / 2f, y - Slab / 2f, (z0 + z1) / 2f), new Vector3(x1 - x0, Slab, z1 - z0), m, 3f);
+            return;
+        }
+        var h = hole.Value;
+        Box(t, "Slab", new Vector3((x0 + h.xMin) / 2f, y - Slab / 2f, (z0 + z1) / 2f), new Vector3(h.xMin - x0, Slab, z1 - z0), m, 3f);
+        Box(t, "Slab", new Vector3((h.xMax + x1) / 2f, y - Slab / 2f, (z0 + z1) / 2f), new Vector3(x1 - h.xMax, Slab, z1 - z0), m, 3f);
+        Box(t, "Slab", new Vector3(h.center.x, y - Slab / 2f, (z0 + h.yMin) / 2f), new Vector3(h.width, Slab, h.yMin - z0), m, 3f);
+        Box(t, "Slab", new Vector3(h.center.x, y - Slab / 2f, (h.yMax + z1) / 2f), new Vector3(h.width, Slab, z1 - h.yMax), m, 3f);
+    }
+
+    /// <summary>One wall of one floor, from u0 to u1 along the side, with openings (center, width, bottom, top).</summary>
+    private static void WallStrip(Transform t, bool alongX, float fixedCoord, float y0, float u0, float u1, List<(float c, float w, float b, float top)> openings, Material m)
+    {
+        float cursor = u0;
+        openings.Sort((a, b) => a.c.CompareTo(b.c));
+        Vector3 Pos(float u, float y) => alongX ? new Vector3(u, y, fixedCoord) : new Vector3(fixedCoord, y, u);
+        Vector3 Size(float length, float height) => alongX ? new Vector3(length, height, Wall) : new Vector3(Wall, height, length);
+        foreach (var o in openings)
+        {
+            float a = o.c - o.w / 2f, b = o.c + o.w / 2f;
+            if (a > cursor) Box(t, "Wall", Pos((cursor + a) / 2f, y0 + FloorHeight / 2f), Size(a - cursor, FloorHeight), m);
+            if (o.b > 0.01f) Box(t, "Sill", Pos(o.c, y0 + o.b / 2f), Size(o.w, o.b), m);
+            if (o.top < FloorHeight - 0.01f) Box(t, "Lintel", Pos(o.c, y0 + (o.top + FloorHeight) / 2f), Size(o.w, FloorHeight - o.top), m);
+            cursor = b;
+        }
+        if (u1 > cursor) Box(t, "Wall", Pos((cursor + u1) / 2f, y0 + FloorHeight / 2f), Size(u1 - cursor, FloorHeight), m);
+    }
+
+    private static List<(float, float, float, float)> Windows(float length, bool door, float doorAt = 0f)
+    {
+        var list = new List<(float, float, float, float)>();
+        int count = Mathf.FloorToInt((length - 2f) / 3.6f);
+        float spacing = (length - 2f) / Mathf.Max(1, count);
+        for (int i = 0; i < count; i++)
+        {
+            float c = -length / 2f + 1f + spacing * (i + 0.5f);
+            if (door && Mathf.Abs(c - doorAt) < 2.2f) continue;
+            list.Add((c, 1.4f, 0.95f, 2.3f));
+        }
+        if (door) list.Add((doorAt, 1.8f, 0f, 2.5f));
+        return list;
+    }
+
+    /// <summary>Solid steps going from start (bottom) in direction dir, rising height.</summary>
+    public static void Stairs(Transform parent, Vector3 start, Vector3 dir, float height, float width, Material m)
+    {
+        int steps = Mathf.CeilToInt(height / StepH);
+        float stepH = height / steps;
+        float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        for (int i = 0; i < steps; i++)
+        {
+            float top = (i + 1) * stepH;
+            var p = start + dir * (StepRun * (i + 0.5f)) + Vector3.up * (top / 2f);
+            MeshGen.TexBox("Step", p, new Vector3(width, top, StepRun), m, 1.5f, parent, yaw);
+        }
+    }
+
+    /// <summary>Outdoor staircase with side walls, from a ground point up to the given height.</summary>
+    public static float OutdoorStairs(Transform parent, Vector3 start, Vector3 dir, float height, Material steps, Material rails)
+    {
+        var t = new GameObject("OutdoorStairs").transform;
+        t.SetParent(parent, false);
+        dir.y = 0;
+        dir.Normalize();
+        Stairs(t, start, dir, height, 1.6f, steps);
+        int count = Mathf.CeilToInt(height / StepH);
+        float run = count * StepRun;
+        var side = Vector3.Cross(Vector3.up, dir);
+        float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        foreach (float s in new[] { -1f, 1f })
+        {
+            var p = start + dir * (run / 2f) + side * (s * 0.85f) + Vector3.up * (height / 2f + 0.45f);
+            var rail = MeshGen.TexBox("Rail", p, new Vector3(0.06f, 0.06f, run * 1.05f), rails, 1f, t, yaw, false);
+            rail.transform.rotation = Quaternion.LookRotation(dir * run + Vector3.up * height);
+            rail.transform.position = start + dir * (run / 2f) + side * (s * 0.85f) + Vector3.up * (height / 2f + 0.95f);
+        }
+        return run;
+    }
+
+    /// <summary>
+    /// Builds the building centred at center (front = -Z before yaw), size w x l, floors high.
+    /// Returns the root transform.
+    /// </summary>
+    public static Transform Build(Transform parent, string name, Vector3 center, float yaw, float w, float l, int floors, Style s)
+    {
+        var t = new GameObject(name).transform;
+        t.SetParent(parent, false);
+        t.SetPositionAndRotation(center, Quaternion.Euler(0, yaw, 0));
+        float hw = w / 2f, hl = l / 2f;
+        int steps = Mathf.CeilToInt(FloorHeight / StepH);
+        float run = steps * StepRun;
+        // stair core along the +X wall, centred in Z
+        float coreX1 = hw - Wall, coreX0 = coreX1 - 2 * Lane;
+        float zA = -run / 2f, zB = run / 2f;
+        Rect LaneRect(int lane) => new Rect(lane == 0 ? coreX0 : coreX0 + Lane, zA, Lane, run);
+
+        // ground floor
+        Box(t, "GroundFloor", new Vector3(0, 0.05f, 0), new Vector3(w, 0.1f, l), s.Floor, 3f);
+        for (int k = 0; k < floors; k++)
+        {
+            float y0 = k * FloorHeight;
+            if (k > 0) SlabWithHole(t, y0, -hw + Wall, hw - Wall, -hl + Wall, hl - Wall, LaneRect((k - 1) % 2), s.Floor);
+            // outer walls with windows; doors on the ground floor front and back
+            WallStrip(t, true, -hl + Wall / 2f, y0, -hw, hw, Windows(w, k == 0, -w * 0.2f), s.Outer);
+            WallStrip(t, true, hl - Wall / 2f, y0, -hw, hw, Windows(w, k == 0, w * 0.2f), s.Outer);
+            WallStrip(t, false, -hw + Wall / 2f, y0, -hl + Wall, hl - Wall, Windows(l - 2 * Wall, false), s.Outer);
+            WallStrip(t, false, hw - Wall / 2f, y0, -hl + Wall, hl - Wall, Windows(l - 2 * Wall, false), s.Outer);
+            // floor band on the outside of the walls (decoration, no collider)
+            if (k > 0)
+                foreach (float sgn in new[] { -1f, 1f })
+                {
+                    MeshGen.TexBox("Band", t.TransformPoint(new Vector3(0, y0 - 0.1f, sgn * (hl + 0.05f))), new Vector3(w + 0.2f, 0.3f, 0.1f), s.Trim, 2f, t, t.eulerAngles.y, false);
+                    MeshGen.TexBox("Band", t.TransformPoint(new Vector3(sgn * (hw + 0.05f), y0 - 0.1f, 0)), new Vector3(0.1f, 0.3f, l), s.Trim, 2f, t, t.eulerAngles.y, false);
+                }
+            // flight from this floor to the next one (the last one reaches the roof)
+            int lane = k % 2;
+            var laneRect = LaneRect(lane);
+            bool up = k % 2 == 0;
+            var start = new Vector3(laneRect.center.x, y0, up ? zA : zB);
+            Stairs(t, t.TransformPoint(start), t.TransformDirection(up ? Vector3.forward : Vector3.back), FloorHeight, Lane - 0.1f, s.Stairs);
+            // low wall between the two lanes
+            Box(t, "StairDivider", new Vector3(coreX0 + Lane, y0 + 0.5f, 0), new Vector3(0.12f, 1f, run), s.Trim, 1f);
+            // some interior cover: a partition wall with a doorway, desks and cabinets
+            if (w > 9f && l > 9f)
+            {
+                float partitionEnd = coreX0 - 0.4f, door = (-hw + Wall + partitionEnd) / 2f + (k % 2 == 0 ? -1.5f : 1.5f);
+                WallStrip(t, true, hl * 0.35f, y0, -hw + Wall, partitionEnd, new List<(float, float, float, float)> { (door, 1.3f, 0f, 2.3f) }, s.Inner ?? s.Outer);
+                Box(t, "Desk", new Vector3(-hw + 2.2f, y0 + 0.45f, -hl + 3f), new Vector3(2f, 0.9f, 0.9f), s.Furniture, 1f);
+                Box(t, "Desk", new Vector3(-hw + 2.2f, y0 + 0.45f, hl - 3f), new Vector3(2f, 0.9f, 0.9f), s.Furniture, 1f);
+                Box(t, "Cabinet", new Vector3(coreX0 - 1.4f, y0 + 1f, hl - 1f), new Vector3(1.6f, 2f, 0.6f), s.Furniture, 1f);
+                Box(t, "Crate", new Vector3(-1f, y0 + 0.5f, 0.5f), new Vector3(1f, 1f, 1f), s.Furniture, 1f);
+            }
+        }
+        // roof with the stair opening and a parapet
+        float roofY = floors * FloorHeight;
+        SlabWithHole(t, roofY, -hw, hw, -hl, hl, LaneRect((floors - 1) % 2), s.Trim);
+        Box(t, "Parapet", new Vector3(0, roofY + 0.5f, -hl + 0.12f), new Vector3(w, 1f, 0.24f), s.Outer);
+        Box(t, "Parapet", new Vector3(0, roofY + 0.5f, hl - 0.12f), new Vector3(w, 1f, 0.24f), s.Outer);
+        Box(t, "Parapet", new Vector3(-hw + 0.12f, roofY + 0.5f, 0), new Vector3(0.24f, 1f, l), s.Outer);
+        Box(t, "Parapet", new Vector3(hw - 0.12f, roofY + 0.5f, 0), new Vector3(0.24f, 1f, l), s.Outer);
+        // rail around the stair opening on the roof
+        var top = LaneRect((floors - 1) % 2);
+        Box(t, "RoofRail", new Vector3(top.xMin - 0.05f, roofY + 0.5f, top.center.y), new Vector3(0.1f, 1f, top.height), s.Trim, 1f);
+        Box(t, "RoofHut", new Vector3(-hw + 2f, roofY + 0.9f, hl - 2f), new Vector3(2.4f, 1.8f, 2.4f), s.Trim, 2f);
+        return t;
+    }
+}

@@ -31,6 +31,7 @@ public static class AssetSetup
         Folder("Assets/Resources/Materials");
         CreateCityMaterials();
         RemapCityModels();
+        Nature.Setup();
         SetupAnimationClips();
         var controller = BuildAnimator();
         BuildEffectMaterials();
@@ -38,6 +39,7 @@ public static class AssetSetup
         if (AssetDatabase.LoadAssetAtPath<GameObject>(FemalePath) != null) BuildAgent(controller, FemalePath, "Agent_F");
         else AssetDatabase.DeleteAsset("Assets/Resources/Agent_F.prefab");
         BuildGunLineup();
+        BuildWeaponPrefabs();
         AssetDatabase.SaveAssets();
     }
 
@@ -161,6 +163,7 @@ public static class AssetSetup
         "Jog_Bwd_L_Loop", "Jog_Bwd_R_Loop", "Sprint_Loop", "Crouch_Idle_Loop", "Crouch_Fwd_Loop", "Crouch_Bwd_Loop",
         "Crouch_Left_Loop", "Crouch_Right_Loop", "Jump_Loop", "Death01", "Pistol_Idle_Loop", "Pistol_Aim_Down",
         "Pistol_Aim_Neutral", "Pistol_Aim_Up", "Pistol_Shoot", "Pistol_Reload", "Hit_Chest",
+        "Crawl_Idle_Loop", "Crawl_Fwd_Loop", "Crawl_Bwd_Loop", "Crawl_Left_Loop", "Crawl_Right_Loop",
     };
 
     private static void SetupAnimationClips()
@@ -203,6 +206,7 @@ public static class AssetSetup
         c.AddParameter("Crouch", AnimatorControllerParameterType.Bool);
         c.AddParameter("Grounded", AnimatorControllerParameterType.Bool);
         c.AddParameter("Dead", AnimatorControllerParameterType.Bool);
+        c.AddParameter("Prone", AnimatorControllerParameterType.Bool);
         c.AddParameter("Fire", AnimatorControllerParameterType.Trigger);
         c.AddParameter("Reload", AnimatorControllerParameterType.Trigger);
         var parameters = c.parameters;
@@ -237,6 +241,16 @@ public static class AssetSetup
         Add(crouchTree, "Crouch_Left_Loop", -1, 0);
         Add(crouchTree, "Crouch_Right_Loop", 1, 0);
 
+        var prone = c.CreateBlendTreeInController("Prone", out var proneTree, 0);
+        proneTree.blendType = BlendTreeType.FreeformDirectional2D;
+        proneTree.blendParameter = "MoveX";
+        proneTree.blendParameterY = "MoveY";
+        Add(proneTree, "Crawl_Idle_Loop", 0, 0);
+        Add(proneTree, "Crawl_Fwd_Loop", 0, 1);
+        Add(proneTree, "Crawl_Bwd_Loop", 0, -1);
+        Add(proneTree, "Crawl_Left_Loop", -1, 0);
+        Add(proneTree, "Crawl_Right_Loop", 1, 0);
+
         var air = sm.AddState("Air");
         air.motion = Clip("Jump_Loop");
         var dead = sm.AddState("Dead");
@@ -255,6 +269,9 @@ public static class AssetSetup
         Link(crouch, air, "Grounded", false, 0.1f);
         Link(air, loco, "Grounded", true, 0.1f);
         Link(dead, loco, "Dead", false, 0.1f);
+        Link(loco, prone, "Prone", true, 0.3f);
+        Link(crouch, prone, "Prone", true, 0.3f);
+        Link(prone, loco, "Prone", false, 0.3f);
         var toDead = sm.AddAnyStateTransition(dead);
         toDead.hasExitTime = false;
         toDead.duration = 0.1f;
@@ -396,7 +413,7 @@ public static class AssetSetup
 
     // Quaternius Ultimate Gun Pack model used for each weapon, its length in meters and where the hand
     // holds it (fraction of the length from the back, fraction of the height from the bottom)
-    public static readonly string[] GunModels = { "AssaultRifle_1", "AssaultRifle2_1", "Shotgun_1", "SniperRifle_1", "Pistol_1", "Revolver_1" };
+    public static readonly string[] GunModels = { "AssaultRifle2_1", "AssaultRifle_3", "Shotgun_1", "SniperRifle_1", "Pistol_1", "Revolver_1" };
     private static readonly float[] GunLengths = { 0.88f, 0.84f, 0.98f, 1.15f, 0.2f, 0.27f };
     private static readonly Vector2[] GunGrips = { new Vector2(0.36f, 0.35f), new Vector2(0.36f, 0.35f), new Vector2(0.32f, 0.35f), new Vector2(0.3f, 0.35f), new Vector2(0.2f, 0.45f), new Vector2(0.2f, 0.45f) };
 
@@ -410,8 +427,10 @@ public static class AssetSetup
         foreach (var c in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
         var b = RendererBounds(go);
         // longest side becomes the barrel axis
-        if (b.size.x >= b.size.z && b.size.x >= b.size.y) go.transform.localRotation = Quaternion.Euler(0, -90, 0) * go.transform.localRotation;
+        // longest side becomes the barrel axis; in this pack the barrel then points to -Z, so turn it round
+        if (b.size.x >= b.size.z && b.size.x >= b.size.y) go.transform.localRotation = Quaternion.Euler(0, 90, 0) * go.transform.localRotation;
         else if (b.size.y > b.size.z) go.transform.localRotation = Quaternion.Euler(90, 0, 0) * go.transform.localRotation;
+        else go.transform.localRotation = Quaternion.Euler(0, 180, 0) * go.transform.localRotation;
         b = RendererBounds(go);
         float scale = length / Mathf.Max(0.001f, b.size.z);
         go.transform.localScale *= scale;
@@ -525,6 +544,19 @@ public static class AssetSetup
         m.SetParent(root, false);
         m.localPosition = new Vector3(0, id == 2 ? 0.05f : id >= 4 ? 0.055f : 0.035f, muzzle);
         return root.gameObject;
+    }
+
+    /// <summary>One prefab per weapon for the 3D preview in the profile screen.</summary>
+    private static void BuildWeaponPrefabs()
+    {
+        Folder("Assets/Resources/Weapons");
+        for (int i = 0; i < Weapons.Count; i++)
+        {
+            var holder = new GameObject("W" + i);
+            BuildGun(i, holder.transform);
+            PrefabUtility.SaveAsPrefabAsset(holder, $"Assets/Resources/Weapons/W{i}.prefab");
+            Object.DestroyImmediate(holder);
+        }
     }
 
     /// <summary>All guns of the pack in a grid with labels, photographed by the auto test to pick models.</summary>

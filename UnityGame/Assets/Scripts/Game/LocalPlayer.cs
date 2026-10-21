@@ -22,7 +22,7 @@ namespace UA
         private float nextFire;
         private float reloadEnd;
         private float bloom;
-        private bool crouch;
+        private bool crouch, prone;
         private System.Random rng;
 
         public WeaponDef Current => Weapons.Get(Slot == 0 ? agent.State.Primary : agent.State.Secondary);
@@ -48,6 +48,9 @@ namespace UA
             Slot = 0;
             Aiming = false;
             crouch = false;
+            prone = false;
+            cc.height = 1.8f;
+            cc.center = new Vector3(0, 0.92f, 0);
             reloadEnd = 0;
             verticalSpeed = 0;
             CameraRig.I.Yaw = agent.State.Yaw;
@@ -81,7 +84,7 @@ namespace UA
             {
                 var look = Controls.Look * (Aiming ? Mathf.Lerp(0.35f, 0.8f, Current.AimFov / 50f) : 1f);
                 rig.Yaw += look.x;
-                rig.Pitch = Mathf.Clamp(rig.Pitch + look.y * (Settings.InvertY ? -1f : 1f), -70f, 75f);
+                rig.Pitch = Mathf.Clamp(rig.Pitch + look.y, prone ? -25f : -70f, 75f);
             }
 
             // weapon actions
@@ -90,7 +93,8 @@ namespace UA
                 if (Controls.SwapPressed) Swap();
                 if (Controls.ReloadPressed) StartReload();
                 if (Controls.AimPressed) Aiming = !Aiming;
-                if (Controls.CrouchPressed) crouch = !crouch;
+                if (Controls.CrouchPressed) { crouch = !crouch; prone = false; }
+                if (Controls.PronePressed) { prone = !prone; crouch = false; Aiming = false; }
             }
             if (!alive) { Aiming = false; reloadEnd = 0; }
             var def = Current;
@@ -112,8 +116,17 @@ namespace UA
             var input = canMove ? Controls.Move : Vector2.zero;
             if (s.Phase == Phase.Countdown) input = Vector2.zero;
             bool firing = Time.time - LastShotTime < 0.25f;
-            bool sprint = input.y > 0.85f && Mathf.Abs(input.x) < 0.45f && !firing && !Aiming && !crouch && !Reloading;
-            float speed = (crouch ? 2.3f : sprint ? 6.6f : 4.5f) * def.MoveSpeed * (Aiming ? 0.65f : 1f);
+            bool sprint = input.y > 0.85f && Mathf.Abs(input.x) < 0.45f && !firing && !Aiming && !crouch && !prone && !Reloading;
+            float speed = (prone ? 1.1f : crouch ? 2.3f : sprint ? 6.6f : 4.5f) * def.MoveSpeed * (Aiming ? 0.65f : 1f);
+            // lying down: a low, flat capsule
+            float wantHeight = prone ? 0.7f : 1.8f;
+            bool roomToStand = prone || !Physics.SphereCast(transform.position + Vector3.up * 0.4f, 0.3f, Vector3.up, out _, 1.2f, World.EnvMask);
+            if (Mathf.Abs(cc.height - wantHeight) > 0.01f && roomToStand)
+            {
+                cc.height = wantHeight;
+                cc.center = new Vector3(0, wantHeight / 2f + 0.02f, 0);
+            }
+            else if (!prone && cc.height < 1f) prone = true; // no room to stand up
             var move = Quaternion.Euler(0, rig.Yaw, 0) * new Vector3(input.x, 0, input.y) * speed;
             if (cc.enabled)
             {
@@ -122,7 +135,7 @@ namespace UA
                     verticalSpeed = -2f;
                     if (canMove && Controls.JumpPressed && s.Phase == Phase.Playing)
                     {
-                        if (crouch) crouch = false;
+                        if (crouch || prone) { crouch = false; prone = false; }
                         else verticalSpeed = 6.2f;
                     }
                 }
@@ -136,11 +149,13 @@ namespace UA
             float moving = input.magnitude;
             Spread = (Aiming ? def.AimSpread : def.Spread) + bloom + moving * def.Spread * 0.6f + (cc.isGrounded ? 0f : def.Spread);
             if (crouch) Spread *= 0.75f;
+            if (prone) Spread *= 0.5f;
 
             // scope: first person view for the sniper
             rig.Aim = Aiming && alive;
             rig.Scope = Aiming && def.Scope && alive;
             rig.Crouch = crouch;
+            rig.Prone = prone;
             rig.AimFov = def.AimFov;
             agent.SetVisible(!rig.Scope);
 
@@ -151,6 +166,7 @@ namespace UA
             state.MoveX = alive ? input.x : 0f;
             state.MoveY = alive ? (sprint ? 2f : input.y) : 0f;
             state.Crouch = crouch;
+            state.Prone = prone;
             state.Grounded = !cc.enabled || cc.isGrounded;
             state.Aiming = Aiming;
             state.Weapon = def.Id;

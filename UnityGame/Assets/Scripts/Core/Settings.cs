@@ -21,8 +21,20 @@ namespace UA
         public static float Sensitivity { get => PlayerPrefs.GetFloat("sens", 1f); set => PlayerPrefs.SetFloat("sens", Mathf.Clamp(value, 0.3f, 3f)); }
         public static float Volume { get => PlayerPrefs.GetFloat("volume", 0.8f); set { PlayerPrefs.SetFloat("volume", Mathf.Clamp01(value)); AudioListener.volume = value; } }
         public static bool InvertY { get => PlayerPrefs.GetInt("invert", 0) == 1; set => PlayerPrefs.SetInt("invert", value ? 1 : 0); }
-        /// <summary>Touch look direction: true = the view moves the other way than the finger (default, as players asked).</summary>
-        public static bool ReverseLook { get => PlayerPrefs.GetInt("reverse", 1) == 1; set => PlayerPrefs.SetInt("reverse", value ? 1 : 0); }
+        /// <summary>Touch look directions (players asked for: left/right with the finger, up/down reversed).</summary>
+        public static bool ReverseHorizontal { get => PlayerPrefs.GetInt("revH", 0) == 1; set => PlayerPrefs.SetInt("revH", value ? 1 : 0); }
+        public static bool ReverseVertical { get => PlayerPrefs.GetInt("revV", 1) == 1; set => PlayerPrefs.SetInt("revV", value ? 1 : 0); }
+        /// <summary>Character look: body * 16 + camo * 4 + head gear.</summary>
+        public static byte Look
+        {
+            get
+            {
+                if (!PlayerPrefs.HasKey("look")) PlayerPrefs.SetInt("look", Random.Range(0, 32));
+                return (byte)PlayerPrefs.GetInt("look");
+            }
+            set => PlayerPrefs.SetInt("look", value % 32);
+        }
+        public static float ControlsOpacity { get => PlayerPrefs.GetFloat("ctrlAlpha", 1f); set => PlayerPrefs.SetFloat("ctrlAlpha", Mathf.Clamp(value, 0.3f, 1.5f)); }
         public static bool ShowFps { get => PlayerPrefs.GetInt("fps", 0) == 1; set => PlayerPrefs.SetInt("fps", value ? 1 : 0); }
         public static byte Primary { get => (byte)PlayerPrefs.GetInt("primary", 0); set => PlayerPrefs.SetInt("primary", value); }
         public static byte Secondary { get => (byte)PlayerPrefs.GetInt("secondary", 4); set => PlayerPrefs.SetInt("secondary", value); }

@@ -10,12 +10,12 @@ namespace UA
     [DefaultExecutionOrder(-100)]
     public class Controls : MonoBehaviour
     {
-        public enum Button { Fire, FireLeft, Aim, Jump, Crouch, Reload, Swap, Pause, Score }
+        public enum Button { Fire, FireLeft, Aim, Jump, Crouch, Reload, Swap, Pause, Score, Prone }
 
         public static bool Enabled;
         public static Vector2 Move;
         public static Vector2 Look;
-        public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld;
+        public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, PronePressed;
 
         // automated test input
         public static Vector2 SimMove, SimLook;
@@ -32,42 +32,62 @@ namespace UA
         private readonly Dictionary<int, Finger> fingers = new Dictionary<int, Finger>();
         private bool lastFireHeld;
 
-        public static Vector2 ButtonCenter(Button b)
+        public static Vector2 DefaultCenter(Button b)
         {
             float w = UIKit.Width;
             switch (b)
             {
-                case Button.Fire: return new Vector2(w - 250, 290);
+                case Button.Fire: return new Vector2(w - 260, 300);
                 case Button.FireLeft: return new Vector2(250, 610);
-                case Button.Aim: return new Vector2(w - 490, 150);
-                case Button.Jump: return new Vector2(w - 110, 500);
-                case Button.Crouch: return new Vector2(w - 110, 120);
-                case Button.Reload: return new Vector2(w - 480, 360);
-                case Button.Swap: return new Vector2(w - 230, 930);
+                case Button.Aim: return new Vector2(w - 500, 170);
+                case Button.Jump: return new Vector2(w - 100, 470);
+                case Button.Crouch: return new Vector2(w - 90, 170);
+                case Button.Prone: return new Vector2(w - 100, 650);
+                case Button.Reload: return new Vector2(w - 480, 380);
+                case Button.Swap: return new Vector2(w - 470, 590);
                 case Button.Pause: return new Vector2(80, 1000);
                 default: return new Vector2(200, 1000);
             }
         }
 
-        public static float ButtonRadius(Button b)
+        public static float DefaultRadius(Button b)
         {
             switch (b)
             {
                 case Button.Fire: return 120;
                 case Button.FireLeft: return 72;
-                case Button.Aim: return 72;
-                case Button.Swap: return 90;
+                case Button.Aim: return 70;
                 case Button.Pause:
                 case Button.Score: return 52;
-                default: return 62;
+                default: return 58;
             }
+        }
+
+        // the player can move and resize every button (settings > controls layout)
+        public static Vector2 ButtonCenter(Button b) => DefaultCenter(b) + new Vector2(PlayerPrefs.GetFloat($"btn_{b}_x", 0f), PlayerPrefs.GetFloat($"btn_{b}_y", 0f));
+        public static float ButtonRadius(Button b) => DefaultRadius(b) * PlayerPrefs.GetFloat($"btn_{b}_s", 1f);
+        public static bool ButtonVisible(Button b) => PlayerPrefs.GetInt($"btn_{b}_on", 1) == 1;
+
+        public static void SaveButton(Button b, Vector2 center, float scale, bool visible)
+        {
+            var offset = center - DefaultCenter(b);
+            PlayerPrefs.SetFloat($"btn_{b}_x", offset.x);
+            PlayerPrefs.SetFloat($"btn_{b}_y", offset.y);
+            PlayerPrefs.SetFloat($"btn_{b}_s", scale);
+            PlayerPrefs.SetInt($"btn_{b}_on", visible ? 1 : 0);
+        }
+
+        public static void ResetLayout()
+        {
+            foreach (var b in AllButtons)
+                foreach (var k in new[] { "x", "y", "s", "on" }) PlayerPrefs.DeleteKey($"btn_{b}_{k}");
         }
 
         private static readonly Button[] AllButtons = (Button[])System.Enum.GetValues(typeof(Button));
 
         private void Update()
         {
-            bool fireTap = false, aim = false, jump = false, crouch = false, reload = false, swap = false, pause = false;
+            bool fireTap = false, aim = false, jump = false, crouch = false, reload = false, swap = false, pause = false, prone = false;
             Move = Vector2.zero;
             Look = Vector2.zero;
             Held.Clear();
@@ -85,7 +105,7 @@ namespace UA
                     var f = new Finger();
                     foreach (var b in AllButtons)
                     {
-                        if (Vector2.Distance(p, ButtonCenter(b)) <= ButtonRadius(b) * 1.1f) { f.Button = b; break; }
+                        if (ButtonVisible(b) && Vector2.Distance(p, ButtonCenter(b)) <= ButtonRadius(b) * 1.1f) { f.Button = b; break; }
                     }
                     if (f.Button == null)
                     {
@@ -103,6 +123,7 @@ namespace UA
                             case Button.Reload: reload = true; break;
                             case Button.Swap: swap = true; break;
                             case Button.Pause: pause = true; break;
+                            case Button.Prone: prone = true; break;
                         }
                     }
                     fingers[t.fingerId] = f;
@@ -123,7 +144,8 @@ namespace UA
                 else if (finger.LookDrag || finger.Button == Button.Fire)
                 {
                     // dragging the fire button also aims, like most mobile shooters
-                    Look += t.deltaPosition * scale * sens * (Settings.ReverseLook ? -1f : 1f);
+                    var d = t.deltaPosition * scale * sens;
+                    Look += new Vector2(Settings.ReverseHorizontal ? -d.x : d.x, Settings.ReverseVertical ? -d.y : d.y);
                 }
                 if (finger.Button.HasValue)
                 {
@@ -146,6 +168,7 @@ namespace UA
                 }
                 if (Input.GetKeyDown(KeyCode.Space)) jump = true;
                 if (Input.GetKeyDown(KeyCode.C) || Input.GetKeyDown(KeyCode.LeftControl)) crouch = true;
+                if (Input.GetKeyDown(KeyCode.Z)) prone = true;
                 if (Input.GetKeyDown(KeyCode.R)) reload = true;
                 if (Input.GetKeyDown(KeyCode.Q) || Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Alpha2)) swap = true;
                 if (Input.GetKey(KeyCode.Tab)) Held.Add(Button.Score);
@@ -168,6 +191,7 @@ namespace UA
             SwapPressed = swap;
             PausePressed = pause;
             ScoreHeld = Held.Contains(Button.Score);
+            PronePressed = prone;
         }
     }
 }

@@ -117,6 +117,8 @@ namespace UA
             AddButton(Controls.Button.Jump, "expand_less", "JUMP");
             AddButton(Controls.Button.Crouch, "keyboard_double_arrow_down", "CROUCH");
             AddButton(Controls.Button.Reload, "autorenew", "RELOAD");
+            AddButton(Controls.Button.Swap, "swap_horiz", "SWAP");
+            AddButton(Controls.Button.Prone, "airline_seat_flat", "PRONE");
             AddButton(Controls.Button.Pause, "pause", "");
             AddButton(Controls.Button.Score, "leaderboard", "");
 
@@ -150,10 +152,18 @@ namespace UA
             img.rectTransform.At(0f, 0f, 0, 0, r * 2, r * 2);
             var ring = UIKit.Img(img.transform, new Color(1, 1, 1, 0.55f), UIKit.Ring);
             ring.rectTransform.Fill();
-            var ic = UIKit.IconImage(img.transform, icon, r * (label.Length > 0 ? 0.95f : 1.1f), new Color(1, 1, 1, 0.92f));
-            ic.rectTransform.At(0.5f, 0.5f, 0, label.Length > 0 ? r * 0.14f : 0, r * (label.Length > 0 ? 0.95f : 1.1f), r * (label.Length > 0 ? 0.95f : 1.1f));
-            var t = UIKit.Txt(img.transform, label, Mathf.RoundToInt(Mathf.Clamp(r * 0.26f, 14, 30))).Shadowed();
-            t.rectTransform.At(0.5f, 0f, 0, r * 0.32f, r * 2, r * 0.5f);
+            var ic = UIKit.IconImage(img.transform, icon, r, new Color(1, 1, 1, 0.92f));
+            float k = label.Length > 0 ? 0.24f : 0.2f;
+            ic.rectTransform.anchorMin = new Vector2(k, label.Length > 0 ? 0.3f : k);
+            ic.rectTransform.anchorMax = new Vector2(1 - k, label.Length > 0 ? 0.78f : 1 - k);
+            ic.rectTransform.offsetMin = ic.rectTransform.offsetMax = Vector2.zero;
+            var t = UIKit.Txt(img.transform, label, Mathf.RoundToInt(Mathf.Clamp(r * 0.24f, 13, 30))).Shadowed();
+            t.resizeTextForBestFit = true;
+            t.resizeTextMinSize = 10;
+            t.resizeTextMaxSize = t.fontSize;
+            t.rectTransform.anchorMin = new Vector2(0.1f, 0.1f);
+            t.rectTransform.anchorMax = new Vector2(0.9f, 0.32f);
+            t.rectTransform.offsetMin = t.rectTransform.offsetMax = Vector2.zero;
             buttons[b] = img;
             buttonLabels[b] = t;
         }
@@ -296,18 +306,21 @@ namespace UA
 
             // controls
             bool touchUi = Application.isMobilePlatform || Input.touchSupported || ForceTouchUi;
+            float alpha = Settings.ControlsOpacity;
             foreach (var pair in buttons)
             {
                 var c = Controls.ButtonCenter(pair.Key);
+                float r = Controls.ButtonRadius(pair.Key);
                 pair.Value.rectTransform.anchoredPosition = c;
-                bool show = touchUi || pair.Key == Controls.Button.Pause || pair.Key == Controls.Button.Score;
+                pair.Value.rectTransform.sizeDelta = new Vector2(r * 2, r * 2);
+                bool show = (touchUi || pair.Key == Controls.Button.Pause || pair.Key == Controls.Button.Score) && Controls.ButtonVisible(pair.Key);
                 pair.Value.enabled = show;
                 foreach (var g in pair.Value.GetComponentsInChildren<Graphic>()) g.enabled = show;
                 bool held = Controls.Held.Contains(pair.Key);
                 bool active = pair.Key == Controls.Button.Aim && lp != null && lp.Aiming;
                 pair.Value.color = pair.Key == Controls.Button.Fire || pair.Key == Controls.Button.FireLeft
-                    ? new Color(1f, 0.3f, 0.2f, held ? 0.55f : 0.32f)
-                    : new Color(1, 1, 1, held || active ? 0.4f : 0.14f);
+                    ? new Color(1f, 0.3f, 0.2f, (held ? 0.55f : 0.32f) * alpha)
+                    : new Color(1, 1, 1, (held || active ? 0.4f : 0.14f) * alpha);
             }
             stickBase.enabled = stickKnob.enabled = touchUi;
             var stickCenter = Controls.StickActive ? Controls.StickCenter : new Vector2(260, 250);

@@ -209,9 +209,8 @@ public static class MapBuilder
     private static void BuildGround()
     {
         float size = Half * 2 + 120;
-        var asphalt = Tiled("Ground_Asphalt", "MI_Asphalt", new Vector2(size / 6f, size / 6f), new Color(0.78f, 0.78f, 0.8f));
-        var ground = Box("Asphalt", new Vector3(0, -0.5f, 0), new Vector3(size, 1f, size), asphalt);
-        ground.GetComponent<Renderer>().receiveShadows = true;
+        var asphalt = PortBuilder.Pbr("Road", "Asphalt025C", new Color(0.8f, 0.8f, 0.83f), 0.55f);
+        MeshGen.TexBox("Asphalt", new Vector3(0, -0.5f, 0), new Vector3(size, 1f, size), asphalt, 4f, map);
         var white = AssetSetup.Solid("LineWhite", new Color(0.85f, 0.85f, 0.82f), 0.2f);
         var yellow = AssetSetup.Solid("LineYellow", new Color(0.95f, 0.75f, 0.15f), 0.2f);
         // lane markings on every street line
@@ -235,7 +234,7 @@ public static class MapBuilder
 
     private static void SidewalkSlab(Vector3 center, Material material)
     {
-        Box("Sidewalk", center + new Vector3(0, 0.08f, 0), new Vector3(BlockSize, 0.16f, BlockSize), material);
+        MeshGen.TexBox("Sidewalk", center + new Vector3(0, 0.08f, 0), new Vector3(BlockSize, 0.16f, BlockSize), material, 2.5f, map);
         var curb = AssetSetup.Solid("Curb", new Color(0.55f, 0.55f, 0.53f), 0.2f);
         float h = BlockSize / 2f;
         Box("Curb", center + new Vector3(0, 0.1f, h), new Vector3(BlockSize, 0.2f, 0.3f), curb);
@@ -244,12 +243,17 @@ public static class MapBuilder
         Box("Curb", center + new Vector3(-h, 0.1f, 0), new Vector3(0.3f, 0.2f, BlockSize), curb);
     }
 
-    private static readonly string[] Buildings = { "Building_Large_2", "Building_Medium_2_001", "Building_Small_1" };
+    private static readonly string[] BuildingKits = { "Building_Large_2", "Building_Medium_2_001", "Building_Small_1" };
 
     private static void BuildBlock(Vector3 center, int bx, int bz)
     {
-        var concrete = Tiled("Sidewalk_Concrete", "MI_Concrete", new Vector2(10, 10));
-        SidewalkSlab(center, concrete);
+        var paving = Paving;
+        SidewalkSlab(center, paving);
+        if ((bx == -1 && bz == 1) || (bx == 1 && bz == -1))
+        {
+            EnterableBlock(center, bx);
+            return;
+        }
         var block = new GameObject($"Block {bx},{bz}").transform;
         block.SetParent(map, false);
         float inner = BlockSize / 2f - Sidewalk;  // 17: buildings stay inside the sidewalk ring
@@ -264,7 +268,7 @@ public static class MapBuilder
             int guard = 0;
             while (cursor < inner - 4f && guard++ < 10)
             {
-                string kit = Buildings[rng.Next(Buildings.Length)];
+                string kit = BuildingKits[rng.Next(BuildingKits.Length)];
                 var size = FootprintSize(kit, yaw);
                 if (size == Vector3.zero) break;
                 float width = Mathf.Abs(Vector3.Dot(size, along));
@@ -289,18 +293,65 @@ public static class MapBuilder
         }
     }
 
+    private static Material Paving => PortBuilder.Pbr("Paving", "PavingStones070", new Color(0.92f, 0.9f, 0.88f), 0.5f);
+
+    /// <summary>
+    /// A block with one large building players can walk into: four floors joined by a stairwell that
+    /// continues onto the roof, and a back yard with trees, a low wall and crates.
+    /// </summary>
+    private static void EnterableBlock(Vector3 center, int bx)
+    {
+        var block = new GameObject("Block Enterable").transform;
+        block.SetParent(map, false);
+        var style = bx < 0
+            ? new global::Buildings.Style
+            {
+                Outer = PortBuilder.Pbr("Bricks", "Bricks076A", Color.white, 0.6f),
+                Inner = PortBuilder.Pbr("PlasterInner", "Plaster001", new Color(0.93f, 0.92f, 0.88f), 0.5f),
+                Floor = PortBuilder.Pbr("WoodFloor", "WoodFloor051", Color.white, 0.6f),
+                Stairs = PortBuilder.Pbr("Concrete", "Concrete034", Color.white, 0.6f),
+                Trim = PortBuilder.Pbr("Concrete", "Concrete034", Color.white, 0.6f),
+                Furniture = PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f),
+            }
+            : new global::Buildings.Style
+            {
+                Outer = PortBuilder.Pbr("PlasterBeige", "PaintedPlaster017", new Color(0.95f, 0.86f, 0.72f), 0.5f),
+                Inner = PortBuilder.Pbr("PlasterInner", "Plaster001", new Color(0.93f, 0.92f, 0.88f), 0.5f),
+                Floor = PortBuilder.Pbr("Tiles", "Tiles101", Color.white, 0.6f),
+                Stairs = PortBuilder.Pbr("Concrete", "Concrete034", Color.white, 0.6f),
+                Trim = PortBuilder.Pbr("OldConcrete", "Concrete042A", Color.white, 0.6f),
+                Furniture = PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f),
+            };
+        // the front door faces the street, the back door opens onto the yard
+        global::Buildings.Build(block, "Apartment", center + new Vector3(0, 0.16f, bx < 0 ? -5f : 5f), bx < 0 ? 0f : 180f, 22f, 16f, 4, style);
+        float yard = bx < 0 ? 9.5f : -9.5f;
+        var grass = PortBuilder.Pbr("Grass", "Grass004", new Color(0.9f, 0.95f, 0.85f), 0.25f);
+        MeshGen.TexBox("Lawn", center + new Vector3(0, 0.2f, yard + (bx < 0 ? 3.5f : -3.5f)), new Vector3(BlockSize - Sidewalk * 2, 0.08f, 6f), grass, 3f, block);
+        foreach (float x in new[] { -13f, -4f, 5f, 13f })
+        {
+            var p = center + new Vector3(x + R(-1f, 1f), 0.24f, yard + (bx < 0 ? 4f : -4f));
+            Nature.Tree(Nature.Trees, rng, p, 6f, 9f, block);
+            Nature.Place(Nature.Bushes[rng.Next(Nature.Bushes.Length)], p + new Vector3(R(-2f, 2f), 0, R(-1f, 1f)), R(0, 360), R(0.9f, 1.4f), block);
+        }
+        var wall = Tiled("Wall_Brick", "MI_RedBrick", new Vector2(2, 1));
+        Box("LowWall", center + new Vector3(-6f, 0.76f, yard), new Vector3(6f, 1.2f, 0.5f), wall, block);
+        Box("LowWall", center + new Vector3(8f, 0.76f, yard), new Vector3(5f, 1.2f, 0.5f), wall, block);
+        var crate = AssetSetup.Solid("Crate", new Color(0.5f, 0.36f, 0.2f), 0.25f);
+        Box("Crate", center + new Vector3(1.5f, 0.76f, yard - (bx < 0 ? 1.5f : -1.5f)), Vector3.one * 1.2f, crate, block, R(0, 90));
+        Box("Crate", center + new Vector3(-12f, 0.76f, yard - (bx < 0 ? 1.5f : -1.5f)), Vector3.one * 1.2f, crate, block, R(0, 90));
+    }
+
     private static void BuildPark(Vector3 center)
     {
-        var grass = AssetSetup.Mat("Grass", new Color(0.32f, 0.45f, 0.2f), 0.15f);
-        var stone = Tiled("Park_Stone", "MI_Concrete", new Vector2(6, 6), new Color(0.82f, 0.8f, 0.75f));
-        var concrete = Tiled("Sidewalk_Concrete2", "MI_Concrete", new Vector2(10, 10));
-        SidewalkSlab(center, concrete);
+        var grass = PortBuilder.Pbr("Grass", "Grass004", new Color(0.9f, 0.95f, 0.85f), 0.25f);
+        var stone = PortBuilder.Pbr("ParkPath", "PavingStones070", new Color(0.85f, 0.83f, 0.78f), 0.5f);
+        SidewalkSlab(center, Paving);
         var park = new GameObject("Park").transform;
         park.SetParent(map, false);
-        Box("Lawn", center + new Vector3(0, 0.17f, 0), new Vector3(BlockSize - Sidewalk * 2, 0.04f, BlockSize - Sidewalk * 2), grass, park);
+        MeshGen.TexBox("Lawn", center + new Vector3(0, 0.17f, 0), new Vector3(BlockSize - Sidewalk * 2, 0.04f, BlockSize - Sidewalk * 2), grass, 3f, park);
         // paths in a cross
-        Box("Path", center + new Vector3(0, 0.19f, 0), new Vector3(4f, 0.02f, BlockSize - Sidewalk * 2), stone, park, 0, false);
-        Box("Path", center + new Vector3(0, 0.19f, 0), new Vector3(BlockSize - Sidewalk * 2, 0.02f, 4f), stone, park, 0, false);
+        MeshGen.TexBox("Path", center + new Vector3(0, 0.19f, 0), new Vector3(4f, 0.02f, BlockSize - Sidewalk * 2), stone, 2f, park, 0, false);
+        MeshGen.TexBox("Path", center + new Vector3(0, 0.19f, 0), new Vector3(BlockSize - Sidewalk * 2, 0.02f, 4f), stone, 2f, park, 0, false);
         // fountain
         var water = AssetSetup.Mat("Water", new Color(0.15f, 0.3f, 0.38f), 0.95f, 0.1f);
         Cylinder("Fountain", center + new Vector3(0, 0.55f, 0), 4.2f, 0.8f, stone, park);
@@ -316,6 +367,11 @@ public static class MapBuilder
         foreach (var (x, z) in new[] { (-13f, -5f), (-13f, 6f), (13f, -6f), (13f, 5f), (-5f, 13f), (6f, 13f), (-6f, -13f), (5f, -13f) })
         {
             var p = center + new Vector3(x, 0, z);
+            if (Nature.Tree(Nature.Trees, rng, p + Vector3.up * 0.19f, 7f, 10f, park) != null)
+            {
+                Nature.Place(Nature.Bushes[rng.Next(Nature.Bushes.Length)], p + new Vector3(R(-1.5f, 1.5f), 0.19f, R(-1.5f, 1.5f)), R(0, 360), R(0.9f, 1.4f), park);
+                continue;
+            }
             Cylinder("Trunk", p + Vector3.up * 1.6f, 0.22f, 3.2f, bark, park);
             for (int k = 0; k < 3; k++)
             {
@@ -327,6 +383,13 @@ public static class MapBuilder
                 leaf.transform.localScale = Vector3.one * R(2.2f, 3.2f) * (1f - k * 0.18f);
                 leaf.GetComponent<Renderer>().sharedMaterial = leaves;
             }
+        }
+        // grass tufts and ferns on the lawn, away from the paths
+        for (int i = 0; i < 90; i++)
+        {
+            var p = new Vector3(R(-16.5f, 16.5f), 0.19f, R(-16.5f, 16.5f));
+            if (Mathf.Abs(p.x) < 2.6f || Mathf.Abs(p.z) < 2.6f || p.magnitude < 5f) continue;
+            Nature.Place(Nature.Ground[rng.Next(Nature.Ground.Length)], center + p, R(0, 360), R(0.35f, 0.7f), park);
         }
         var bench = AssetSetup.Solid("BenchWood", new Color(0.42f, 0.28f, 0.16f), 0.3f);
         foreach (var (x, z, yaw) in new[] { (-2.6f, 10f, 90f), (2.6f, -10f, 90f), (10f, 2.6f, 0f), (-10f, -2.6f, 0f) })
@@ -431,7 +494,7 @@ public static class MapBuilder
         for (float t = -ring; t <= ring; t += 24f)
         {
             foreach (var (pos, yaw) in new[] { (new Vector3(t, 0, ring), 180f), (new Vector3(t, 0, -ring), 0f), (new Vector3(ring, 0, t), 270f), (new Vector3(-ring, 0, t), 90f) })
-                Place(Buildings[rng.Next(Buildings.Length)], pos, yaw, back);
+                Place(BuildingKits[rng.Next(BuildingKits.Length)], pos, yaw, back);
         }
         foreach (var (c, s) in new[] { (new Vector3(0, 10, Half + 1), new Vector3(Half * 2 + 4, 20, 1)), (new Vector3(0, 10, -Half - 1), new Vector3(Half * 2 + 4, 20, 1)),
                                        (new Vector3(Half + 1, 10, 0), new Vector3(1, 20, Half * 2 + 4)), (new Vector3(-Half - 1, 10, 0), new Vector3(1, 20, Half * 2 + 4)) })

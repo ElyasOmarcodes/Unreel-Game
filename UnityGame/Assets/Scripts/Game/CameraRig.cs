@@ -11,7 +11,7 @@ namespace UA
         public Camera Cam;
         public Agent Target;
         public float Yaw, Pitch;
-        public bool Aim, Scope, Crouch;
+        public bool Aim, Scope, Crouch, Prone;
         public float AimFov = 45f;
 
         private float fov = 62f;
@@ -59,7 +59,7 @@ namespace UA
 
             var rotation = Quaternion.Euler(-Pitch, Yaw, 0);
             bool dead = Target.State != null && !Target.State.Alive;
-            var pivot = Target.transform.position + Vector3.up * (dead ? 0.8f : Crouch ? 1.25f : 1.62f);
+            var pivot = Target.transform.position + Vector3.up * (dead ? 0.8f : Prone ? 0.75f : Crouch ? 1.25f : 1.62f);
             Vector3 offset;
             if (Scope) offset = new Vector3(0f, 0f, 0.25f);
             else if (Aim) offset = new Vector3(0.55f * shoulder, 0.05f, -1.35f);

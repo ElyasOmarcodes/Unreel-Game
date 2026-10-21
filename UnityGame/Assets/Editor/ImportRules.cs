@@ -18,7 +18,7 @@ public class ImportRules : AssetPostprocessor
             importer.meshCompression = ModelImporterMeshCompression.Medium;
             importer.importBlendShapes = false;
         }
-        else if (assetPath.Contains("ThirdParty/Props/") || assetPath.Contains("ThirdParty/Guns/"))
+        else if (assetPath.Contains("ThirdParty/Props/") || assetPath.Contains("ThirdParty/Guns/") || assetPath.Contains("ThirdParty/Nature/"))
         {
             importer.addCollider = false;
             importer.importAnimation = false;
@@ -65,6 +65,13 @@ public class ImportRules : AssetPostprocessor
         else if (file.EndsWith("_MS"))
         {
             importer.sRGBTexture = false;
+        }
+        else if (assetPath.Contains("ThirdParty/Nature/") && (file.StartsWith("Leaves") || file.StartsWith("Leaf") || file.StartsWith("Grass") || file.StartsWith("Flowers")))
+        {
+            // leaf cards: alpha-tested, keep the alpha in the mip maps
+            importer.alphaIsTransparency = true;
+            importer.mipMapsPreserveCoverage = true;
+            importer.alphaTestReferenceValue = 0.45f;
         }
         var android = importer.GetPlatformTextureSettings("Android");
         android.overridden = true;

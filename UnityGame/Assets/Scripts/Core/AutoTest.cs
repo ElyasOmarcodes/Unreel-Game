@@ -110,6 +110,14 @@ namespace UA
             app.ShowScreen("settings");
             yield return Wait(1f);
             yield return Shot("03-settings");
+            app.OpenLayoutEditor();
+            yield return Wait(1f);
+            yield return Shot("03b-controls-layout");
+            app.OpenProfile();
+            yield return Wait(2f);
+            yield return Shot("03c-profile");
+            app.ShowScreen("menu");
+            yield return Wait(0.5f);
             app.ShowScreen("wifi");
             yield return Wait(1f);
             yield return Shot("04-wifi");
@@ -149,6 +157,39 @@ namespace UA
             yield return Shot("15-results");
             yield return Wait(8f); // give the client time to see the results too
             app.LeaveGroup();
+            yield return Wait(1f);
+            yield return Tour();
+        }
+
+        /// <summary>Photographs of the maps from fixed points: buildings, interiors, roofs, trees.</summary>
+        private IEnumerator Tour()
+        {
+            var app = App.I;
+            var cam = CameraRig.I;
+            CameraRig.Frozen = true;
+            app.ShowScreen("showcase");
+            cam.Cam.fieldOfView = 62;
+            (int map, string name, Vector3 from, Vector3 to)[] views =
+            {
+                (0, "16-downtown-building", new Vector3(-40f, 6f, 24f), new Vector3(-52f, 7f, 42f)),
+                (0, "17-downtown-inside", new Vector3(-58.5f, 1.9f, 40.5f), new Vector3(-44f, 1.5f, 45f)),
+                (0, "18-downtown-stairs", new Vector3(-47.5f, 5.2f, 41f), new Vector3(-43f, 3.8f, 47f)),
+                (0, "19-downtown-roof", new Vector3(-61f, 15.6f, 40.5f), new Vector3(-20f, 6f, 10f)),
+                (0, "20-downtown-park", new Vector3(-14f, 2.6f, -16f), new Vector3(0f, 2f, 0f)),
+                (3, "21-port-office", new Vector3(44f, 4f, 4f), new Vector3(58f, 5f, 24f)),
+                (3, "22-port-office-inside", new Vector3(53f, 1.7f, 16.3f), new Vector3(63f, 1.6f, 24f)),
+                (3, "23-port-office-roof", new Vector3(52f, 12f, 17f), new Vector3(10f, 3f, 0f)),
+                (3, "24-port-hidden-route", new Vector3(-38f, 5f, -32f), new Vector3(-56f, 3f, -45f)),
+                (3, "25-port-trees", new Vector3(52f, 2.5f, 34f), new Vector3(58f, 3f, 48f)),
+            };
+            foreach (var v in views)
+            {
+                World.I.ApplyLighting(v.map);
+                cam.transform.SetPositionAndRotation(v.from, Quaternion.LookRotation(v.to - v.from));
+                yield return Wait(0.8f);
+                yield return Shot(v.name);
+            }
+            CameraRig.Frozen = false;
         }
 
         private IEnumerator Client()

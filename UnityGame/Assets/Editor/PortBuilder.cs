@@ -28,7 +28,7 @@ public static class PortBuilder
 
     private static Texture2D T(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Textures}/{file}") ;
 
-    private static Material Pbr(string name, string set, Color tint, float smoothness = 0.8f, float metallic = 0f)
+    public static Material Pbr(string name, string set, Color tint, float smoothness = 0.8f, float metallic = 0f)
     {
         if (mats.TryGetValue(name, out var m)) return m;
         var albedo = T(set + "_BaseColor.jpg");
@@ -175,29 +175,6 @@ public static class PortBuilder
         // roof vents
         for (float z = -l / 2f + 4f; z < l / 2f - 3f; z += 8f)
             MeshGen.TexCylinder("Vent", t.TransformPoint(new Vector3(0, h + rise - 0.1f, z)), 0.18f, 1.2f, DarkMetal, 1f, t, false);
-    }
-
-    private static void Office(Vector3 c, float w, float l, int floors, float yaw)
-    {
-        var t = new GameObject("Office").transform;
-        t.SetParent(root, false);
-        t.SetPositionAndRotation(c, Quaternion.Euler(0, yaw, 0));
-        float fh = 3.6f, h = floors * fh;
-        Box("Ground", t.TransformPoint(new Vector3(0, fh / 2f, 0)), new Vector3(w, fh, l), Bricks, 2.5f, t, yaw);
-        Box("Upper", t.TransformPoint(new Vector3(0, fh + (h - fh) / 2f, 0)), new Vector3(w, h - fh, l), Plaster, 3f, t, yaw);
-        Box("Cornice", t.TransformPoint(new Vector3(0, h + 0.2f, 0)), new Vector3(w + 0.5f, 0.4f, l + 0.5f), Concrete, 2f, t, yaw, false);
-        for (int f = 0; f < floors; f++)
-            foreach (float s in new[] { -1f, 1f })
-            {
-                Box("WindowStrip", t.TransformPoint(new Vector3(0, f * fh + 2f, s * (l / 2f + 0.04f))), new Vector3(w - 2f, 1.3f, 0.08f), Glass, 1f, t, yaw, false);
-                Box("WindowStrip", t.TransformPoint(new Vector3(s * (w / 2f + 0.04f), f * fh + 2f, 0)), new Vector3(0.08f, 1.3f, l - 2f), Glass, 1f, t, yaw, false);
-            }
-        for (int i = 0; i < 3; i++)
-        {
-            var p = t.TransformPoint(new Vector3((i - 1) * w * 0.28f, h + 0.9f, 0));
-            Box("RoofHouse", p, new Vector3(w * 0.2f, 1.4f, l * 0.25f), Walkway, 2f, t, yaw, false);
-        }
-        Box("AC", t.TransformPoint(new Vector3(w / 2f + 0.45f, 2.6f, 2f)), new Vector3(0.8f, 0.7f, 1.1f), AssetSetup.Solid("Port_AC", new Color(0.85f, 0.86f, 0.84f), 0.4f), 1f, t, yaw, false);
     }
 
     private static void Tank(Vector3 c, float radius, float height)
@@ -349,6 +326,67 @@ public static class PortBuilder
         }
     }
 
+    /// <summary>
+    /// A trick route onto the small shed roof: a steel stair hidden behind the shed and the perimeter
+    /// wall climbs onto two stacked containers, and a plank bridges the gap to the roof.
+    /// </summary>
+    private static void HiddenRoute()
+    {
+        var t = new GameObject("HiddenRoute").transform;
+        t.SetParent(root, false);
+        const float z = -46.6f;
+        Container(new Vector3(-58f, 0, z), 90, 3, t);
+        Container(new Vector3(-58f, 2.6f, z), 90, 1, t);
+        float top = 5.2f;
+        Buildings.OutdoorStairs(t, new Vector3(-44.2f, 0, z), Vector3.left, top, Walkway, RustPlates);
+        // landing between the top of the stair and the container roof
+        Box("Landing", new Vector3(-54.3f, top - 0.1f, z), new Vector3(1.6f, 0.2f, 1.8f), Walkway, 1f, t);
+        // plank over to the shed roof (eave at about 5 m)
+        Box("Plank", new Vector3(-58f, top + 0.02f, -43.9f), new Vector3(1f, 0.08f, 3.4f), Planks, 1f, t);
+    }
+
+    /// <summary>Strips of grass with trees and bushes along the perimeter and next to the office.</summary>
+    private static void Greenery()
+    {
+        var t = new GameObject("Greenery").transform;
+        t.SetParent(root, false);
+        var grass = Pbr("Grass", "Grass004", new Color(0.9f, 0.95f, 0.85f), 0.25f);
+        var curb = Concrete;
+        foreach (var (c, size) in new[]
+        {
+            (new Vector3(55f, 0, 46f), new Vector3(22f, 0, 8f)),
+            (new Vector3(-20f, 0, -47f), new Vector3(30f, 0, 6f)),
+            (new Vector3(68f, 0, -10f), new Vector3(5f, 0, 24f)),
+        })
+        {
+            Box("Lawn", c + Vector3.up * 0.08f, new Vector3(size.x, 0.16f, size.z), grass, 3f, t);
+            Box("Curb", c + new Vector3(0, 0.12f, size.z / 2f), new Vector3(size.x, 0.24f, 0.25f), curb, 1f, t, 0, false);
+            Box("Curb", c + new Vector3(0, 0.12f, -size.z / 2f), new Vector3(size.x, 0.24f, 0.25f), curb, 1f, t, 0, false);
+            Box("Curb", c + new Vector3(size.x / 2f, 0.12f, 0), new Vector3(0.25f, 0.24f, size.z), curb, 1f, t, 0, false);
+            Box("Curb", c + new Vector3(-size.x / 2f, 0.12f, 0), new Vector3(0.25f, 0.24f, size.z), curb, 1f, t, 0, false);
+            int trees = Mathf.Max(2, Mathf.RoundToInt(Mathf.Max(size.x, size.z) / 7f));
+            for (int i = 0; i < trees; i++)
+            {
+                float u = (i + 0.5f) / trees - 0.5f;
+                var p = c + (size.x > size.z ? new Vector3(u * size.x, 0.16f, R(-1f, 1f)) : new Vector3(R(-0.8f, 0.8f), 0.16f, u * size.z));
+                Nature.Tree(rng.NextDouble() < 0.4 ? Nature.Pines : Nature.Trees, rng, p, 7f, 11f, t);
+                var q = p + new Vector3(R(-2.5f, 2.5f), 0, R(-1.5f, 1.5f));
+                Nature.Place(Nature.Bushes[rng.Next(Nature.Bushes.Length)], q, R(0, 360), R(1f, 1.6f), t);
+            }
+            for (int i = 0; i < size.x * size.z / 6f; i++)
+            {
+                var p = c + new Vector3(R(-0.48f, 0.48f) * size.x, 0.16f, R(-0.48f, 0.48f) * size.z);
+                Nature.Place(Nature.Ground[rng.Next(Nature.Ground.Length)], p, R(0, 360), R(0.4f, 0.8f), t);
+            }
+        }
+        // a few lone trees and rocks in the open yard corners
+        foreach (var (x, z) in new[] { (-66f, -46f), (-66f, 46f), (30f, -46f), (-30f, 46f) })
+        {
+            Nature.Tree(Nature.Trees, rng, new Vector3(x, 0, z), 6f, 9f, t);
+            Nature.Place(Nature.Rocks[rng.Next(Nature.Rocks.Length)], new Vector3(x + 2.5f, 0, z + 1f), R(0, 360), R(0.8f, 1.4f), t);
+        }
+    }
+
     // ------------------------------------------------------------------ the map
 
     public static MapLayout Build(Transform parent)
@@ -377,7 +415,14 @@ public static class PortBuilder
         Warehouse(new Vector3(54, 0, -34), 14, 18, 7, WallTeal, WallWhite, Roof, 0);
         Warehouse(new Vector3(-58, 0, -38), 9, 12, 5, WallRust, null, RoofRust, 90);
         Warehouse(new Vector3(6, 0, -42), 10, 14, 5.5f, WallTeal, WallRed, RoofRust, 90);
-        Office(new Vector3(58, 0, 24), 14, 18, 3, 0);
+        // three-floor office players can enter, with stairs inside up to the roof
+        var office = Buildings.Build(root, "Office", new Vector3(58, 0, 24), 0, 14, 18, 3, new Buildings.Style
+        {
+            Outer = Bricks, Inner = Pbr("PlasterInner", "Plaster001", new Color(0.93f, 0.92f, 0.88f), 0.5f),
+            Floor = Pbr("Tiles", "Tiles101", Color.white, 0.6f), Stairs = Concrete, Trim = Concrete, Furniture = Wood,
+        });
+        Box("AC", office.TransformPoint(new Vector3(7.45f, 2.6f, -5f)), new Vector3(0.8f, 0.7f, 1.1f), AssetSetup.Solid("Port_AC", new Color(0.85f, 0.86f, 0.84f), 0.4f), 1f, office, 0, false);
+        HiddenRoute();
 
         // oil tanks with a pipe bridge to the long warehouse, yellow silos
         Tank(new Vector3(22, 0, 10), 5.5f, 9f);
@@ -415,6 +460,8 @@ public static class PortBuilder
         FenceLine(new Vector3(40, 0, -20), new Vector3(62, 0, -20), fences);
         ConcreteWall(new Vector3(-24, 0, 20), new Vector3(-4, 0, 20), 1.3f, fences);
         ConcreteWall(new Vector3(18, 0, -6), new Vector3(30, 0, -6), 1.3f, fences);
+
+        Greenery();
 
         // props: pallets, drums, crates, barriers, lamps
         var small = new GameObject("Props").transform;

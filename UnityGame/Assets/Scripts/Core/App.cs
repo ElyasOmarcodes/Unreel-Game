@@ -8,7 +8,7 @@ using UnityEngine.UI;
 namespace UA
 {
     /// <summary>Entry point: builds the menus and moves between screens following the session state.</summary>
-    public class App : MonoBehaviour
+    public partial class App : MonoBehaviour
     {
         public static App I;
         public const string GameName = "URBAN AGENTS";
@@ -61,6 +61,8 @@ namespace UA
             BuildJoin();
             BuildLobby();
             BuildSettings();
+            BuildLayoutEditor();
+            BuildProfile();
             BuildGame();
             BuildResults();
             toast = UIKit.Txt(root, "", 34, TextAnchor.MiddleCenter, UIKit.TextColor).Shadowed();
@@ -102,6 +104,7 @@ namespace UA
             if (name == "join") Session.I.StartDiscovery(); else Session.I.StopDiscovery();
             if (name == "menu") menuPlayer.text = "PLAYER:  <color=#ffa020>" + Settings.PlayerName + "</color>";
             if (name == "lobby") RefreshLobby();
+            if (name != "profile" && stage != null) stage.SetActive(false);
             Log("state=" + name);
         }
 
@@ -155,6 +158,8 @@ namespace UA
             switch (Current)
             {
                 case "wifi": ShowScreen("menu"); break;
+                case "layout": ShowScreen("settings"); break;
+                case "profile": ShowScreen("menu"); break;
                 case "settings":
                     ShowScreen(settingsReturn);
                     if (settingsReturn == "game") SetPaused(true);
@@ -235,19 +240,20 @@ namespace UA
             title.rectTransform.At(0f, 1f, 90, -80, 700, 260, 0f, 1f);
             var tag = UIKit.Txt(side.transform, "Squad up on the same Wi-Fi or hotspot. No internet needed.", 28, TextAnchor.UpperLeft, UIKit.Muted);
             tag.rectTransform.At(0f, 1f, 92, -350, 620, 80, 0f, 1f);
-            string[] labels = { "PLAY ON WI-FI", "PRACTICE VS BOTS", "SETTINGS", "QUIT" };
-            string[] iconNames = { "wifi", "smart_toy", "settings", "exit_to_app" };
+            string[] labels = { "PLAY ON WI-FI", "PRACTICE VS BOTS", "PROFILE", "SETTINGS", "QUIT" };
+            string[] iconNames = { "wifi", "smart_toy", "person", "settings", "exit_to_app" };
             System.Action[] actions =
             {
                 () => ShowScreen("wifi"),
                 () => OpenCreate(true),
+                () => OpenProfile(),
                 () => { settingsReturn = "menu"; OpenSettings(); },
                 () => Application.Quit(),
             };
             for (int i = 0; i < labels.Length; i++)
             {
                 var b = UIKit.Btn(side.transform, labels[i], actions[i], 42, i == 0 ? UIKit.AccentDark : (Color?)null, iconNames[i]);
-                b.GetComponent<RectTransform>().At(0f, 1f, 90, -470 - i * 118, 560, 98, 0f, 1f);
+                b.GetComponent<RectTransform>().At(0f, 1f, 90, -440 - i * 106, 560, 90, 0f, 1f);
             }
             menuPlayer = UIKit.Txt(side.transform, "", 30, TextAnchor.LowerLeft);
             menuPlayer.rectTransform.At(0f, 0f, 92, 50, 620, 50, 0f, 0f);
@@ -525,7 +531,7 @@ namespace UA
         {
             var s = MakeScreen("settings");
             UIKit.Title(s, "SETTINGS", -40, 66);
-            var panel = UIKit.Panel(s, 1180, 720, -20);
+            var panel = UIKit.Panel(s, 1180, 820, -10);
             var nameRow = UIKit.Node(panel, "NameRow").At(0.5f, 1f, 0, -30, 1080, 84, 0.5f, 1f);
             var nameLabel = UIKit.Txt(nameRow, "PLAYER NAME", 34, TextAnchor.MiddleLeft, UIKit.Muted);
             nameLabel.rectTransform.Fill();
@@ -535,11 +541,12 @@ namespace UA
             nameField.onEndEdit.AddListener(v => Settings.PlayerName = v);
             UIKit.Stepper(panel, "GRAPHICS", -130, () => Settings.QualityNames[Settings.Quality], d => Settings.Quality = Mathf.Clamp(Settings.Quality + d, 0, 2), 1080);
             UIKit.Stepper(panel, "LOOK SENSITIVITY", -225, () => "x" + Settings.Sensitivity.ToString("0.0"), d => Settings.Sensitivity = Mathf.Round((Settings.Sensitivity + d * 0.1f) * 10f) / 10f, 1080);
-            UIKit.Stepper(panel, "LOOK DIRECTION", -320, () => Settings.ReverseLook ? "REVERSED" : "NORMAL", d => Settings.ReverseLook = !Settings.ReverseLook, 1080);
-            UIKit.Stepper(panel, "SOUND VOLUME", -415, () => Mathf.RoundToInt(Settings.Volume * 100) + "%", d => Settings.Volume = Mathf.Round(Settings.Volume * 10 + d) / 10f, 1080);
-            UIKit.Stepper(panel, "SHOW FPS", -510, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, 1080);
-            var hint = UIKit.Txt(panel, "Controls: left side = move, drag right side = look, drag the FIRE button to aim while shooting.", 24, TextAnchor.MiddleCenter, UIKit.Muted);
-            hint.rectTransform.At(0.5f, 0f, 0, 50, 1080, 60);
+            UIKit.Stepper(panel, "LOOK LEFT / RIGHT", -320, () => Settings.ReverseHorizontal ? "REVERSED" : "NORMAL", d => Settings.ReverseHorizontal = !Settings.ReverseHorizontal, 1080);
+            UIKit.Stepper(panel, "LOOK UP / DOWN", -415, () => Settings.ReverseVertical ? "REVERSED" : "NORMAL", d => Settings.ReverseVertical = !Settings.ReverseVertical, 1080);
+            UIKit.Stepper(panel, "SOUND VOLUME", -510, () => Mathf.RoundToInt(Settings.Volume * 100) + "%", d => Settings.Volume = Mathf.Round(Settings.Volume * 10 + d) / 10f, 1080);
+            UIKit.Stepper(panel, "SHOW FPS", -605, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, 1080);
+            var layout = UIKit.Btn(panel, "CONTROLS LAYOUT", OpenLayoutEditor, 30, UIKit.AccentDark, "open_with");
+            layout.GetComponent<RectTransform>().At(0.5f, 0f, 0, 30, 480, 76, 0.5f, 0f);
             var back = UIKit.Btn(s, "BACK", () => { Settings.PlayerName = nameField.text; Back(); }, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 50, 380, 96, 0.5f, 0f);
         }
