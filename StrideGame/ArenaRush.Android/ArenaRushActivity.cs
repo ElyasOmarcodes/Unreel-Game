@@ -12,7 +12,8 @@ namespace ArenaRush.Android;
           Label = "Arena Rush",
           ScreenOrientation = ScreenOrientation.SensorLandscape,
           Theme = "@android:style/Theme.NoTitleBar.Fullscreen",
-          ConfigurationChanges = ConfigChanges.UiMode | ConfigChanges.Orientation | ConfigChanges.KeyboardHidden | ConfigChanges.ScreenSize)]
+          ConfigurationChanges = ConfigChanges.UiMode | ConfigChanges.Orientation | ConfigChanges.KeyboardHidden | ConfigChanges.Keyboard |
+                                 ConfigChanges.ScreenSize | ConfigChanges.SmallestScreenSize | ConfigChanges.ScreenLayout | ConfigChanges.Density)]
 public class ArenaRushActivity : StrideActivity
 {
     protected Game Game;
@@ -45,8 +46,15 @@ public class ArenaRushActivity : StrideActivity
 
     protected override void OnDestroy()
     {
-        Game?.Dispose();
-
-        base.OnDestroy();
+        try
+        {
+            Game?.Dispose();
+            base.OnDestroy();
+        }
+        catch (Exception e)
+        {
+            // Android can destroy the activity before Stride has started (e.g. a configuration change at launch)
+            global::Android.Util.Log.Warn("ArenaRush", "OnDestroy: " + e.Message);
+        }
     }
 }
