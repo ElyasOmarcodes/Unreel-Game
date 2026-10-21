@@ -33,10 +33,24 @@ jobs:
       - name: Install .NET Android workload
         run: dotnet workload install android
 
-      - name: Build debug APK
+      # Pass 1: compile the code only. Stride 4.4.1 compiles Android assets during
+      # PrepareResources, before the Android assembly exists in the output folder.
+      - name: Build code (pass 1, assets skipped)
         run: >
           dotnet build ArenaRush.Android/ArenaRush.Android.csproj
           -c Debug
+          -p:StrideCompilerSkipBuild=true
+          -p:AndroidSdkDirectory="$env:ANDROID_HOME"
+          -p:JavaSdkDirectory="$env:JAVA_HOME"
+
+      # Pass 2: compile assets (the hosted runner has no GPU, so use D3D11 WARP) and package the APK.
+      - name: Build debug APK (pass 2, with assets)
+        env:
+          STRIDE_GRAPHICS_SOFTWARE_RENDERING: "1"
+        run: >
+          dotnet build ArenaRush.Android/ArenaRush.Android.csproj
+          -c Debug
+          -p:StrideHostGraphicsApi=Direct3D11
           -p:AndroidSdkDirectory="$env:ANDROID_HOME"
           -p:JavaSdkDirectory="$env:JAVA_HOME"
 
