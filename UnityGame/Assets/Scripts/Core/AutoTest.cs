@@ -256,6 +256,10 @@ namespace UA
                 (4, "27e-port-ship", new Vector3(40f, 9f, 48f), new Vector3(10f, 4f, 88f)),
                 (3, "27f-port-tunnel", new Vector3(79f, -2.3f, -9f), new Vector3(79f, -3f, 20f)),
                 (3, "27g-port-slopes", new Vector3(44f, 4f, 46f), new Vector3(62f, 1f, 56f)),
+                (3, "27h-port-factory-climb", new Vector3(-22f, 8f, 12f), new Vector3(-37f, 4f, 27f)),
+                (3, "27i-port-yards", new Vector3(10f, 20f, -26f), new Vector3(-34f, 1f, -56f)),
+                (3, "27j-port-store-rooms", new Vector3(-10f, 3f, 36f), new Vector3(-10f, 1.5f, 20f)),
+                (3, "27k-port-factory-east", new Vector3(76f, 10f, -52f), new Vector3(58f, 4f, -36f)),
                 (6, "28-village-bazaar", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
                 (6, "29-village-compound", new Vector3(-16f, 8f, -4f), new Vector3(-34f, 2f, 12f)),
                 (6, "30-village-house", new Vector3(18f, 3f, 12f), new Vector3(32f, 2f, 18f)),
@@ -277,6 +281,9 @@ namespace UA
                 (9, "41-town-tower-view", new Vector3(0f, 18.6f, 38.4f), new Vector3(0f, 2f, 0f)),
                 (9, "42-town-canal", new Vector3(50f, 3f, -20f), new Vector3(58f, 0f, 10f)),
                 (10, "43-town-sunset", new Vector3(-70f, 25f, -70f), new Vector3(0f, 0f, 0f)),
+                (9, "44-town-wall-climb", new Vector3(-58f, 5f, 22f), new Vector3(-71f, 3f, 31f)),
+                (9, "45-town-wall-walk", new Vector3(-71.5f, 6.4f, -20f), new Vector3(-50f, 2f, 10f)),
+                (9, "46-town-garden-terrace", new Vector3(44f, 6f, 36f), new Vector3(50f, 2f, 56f)),
             };
             foreach (var v in views)
             {

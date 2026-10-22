@@ -178,9 +178,8 @@ public static class PortBuilder
         foreach (float s in new[] { -1f, 1f })
         {
             MeshGen.Object("Gable", MeshGen.Gable(w, rise, 3f), wall, t, t.TransformPoint(new Vector3(0, h, s * l / 2f)), yaw);
-            // big roller door and windows on both long ends
-            Box("Door", t.TransformPoint(new Vector3(0, 2.4f, s * (l / 2f + 0.06f))), new Vector3(Mathf.Min(5f, w * 0.4f), 4.8f, 0.12f), DarkMetal, 1f, t, yaw, false);
-            Box("DoorFrame", t.TransformPoint(new Vector3(0, 4.95f, s * (l / 2f + 0.1f))), new Vector3(Mathf.Min(5.4f, w * 0.44f), 0.3f, 0.2f), Concrete, 1f, t, yaw, false);
+            // big roller shutter door on both ends
+            RollUpDoor(t, new Vector3(0, 2.4f, s * l / 2f), new Vector3(0, 0, s), Vector3.right, Mathf.Min(5f, w * 0.4f), 4.8f, s < 0);
         }
         foreach (float s in new[] { -1f, 1f })
             for (float z = -l / 2f + 3f; z < l / 2f - 2f; z += 4.5f)
@@ -188,6 +187,207 @@ public static class PortBuilder
         // roof vents
         for (float z = -l / 2f + 4f; z < l / 2f - 3f; z += 8f)
             MeshGen.TexCylinder("Vent", t.TransformPoint(new Vector3(0, h + rise - 0.1f, z)), 0.18f, 1.2f, DarkMetal, 1f, t, false);
+    }
+
+
+    // ------------------------------------------------------------------ yards, factories, doors
+
+    private static Material Shutter => Pbr("Shutter", "CorrugatedSteel005", new Color(0.72f, 0.74f, 0.76f), 0.55f, 0.4f);
+    private static Material Hazard => AssetSetup.Solid("Port_Hazard", new Color(0.95f, 0.75f, 0.1f), 0.4f);
+
+    /// <summary>
+    /// A closed roller shutter door as factories have them: steel slats in side guides, the rolled-up
+    /// drum in its box above, a bottom bar with a handle, yellow and black bump posts and a small
+    /// people door beside it. center = middle of the door at the wall face (local), normal outwards.
+    /// </summary>
+    private static void RollUpDoor(Transform t, Vector3 center, Vector3 normal, Vector3 along, float width, float height, bool personDoor = true)
+    {
+        Vector3 S(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
+        var face = center + normal * 0.08f;
+        int slats = Mathf.Max(6, Mathf.RoundToInt(height / 0.16f));
+        float slat = height / slats;
+        for (int i = 0; i < slats; i++)
+            Box("Slat", t.TransformPoint(face + Vector3.up * (-height / 2f + slat * (i + 0.5f))), S(along * width + Vector3.up * (slat - 0.025f) + normal * 0.05f), Shutter, 1f, t, t.eulerAngles.y, false);
+        Box("ShutterBack", t.TransformPoint(center + normal * 0.03f), S(along * width + Vector3.up * height + normal * 0.04f), DarkMetal, 1f, t, t.eulerAngles.y, false);
+        Box("BottomBar", t.TransformPoint(face + Vector3.up * (-height / 2f + 0.08f) + normal * 0.02f), S(along * width + Vector3.up * 0.16f + normal * 0.09f), DarkMetal, 1f, t, t.eulerAngles.y, false);
+        Box("Handle", t.TransformPoint(face + Vector3.up * (-height / 2f + 0.35f) + normal * 0.06f), S(along * 0.35f + Vector3.up * 0.05f + normal * 0.06f), DarkMetal, 1f, t, t.eulerAngles.y, false);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            Box("Guide", t.TransformPoint(face + along * s * (width / 2f + 0.07f)), S(along * 0.14f + Vector3.up * height + normal * 0.16f), DarkMetal, 1f, t, t.eulerAngles.y, false);
+            var post = face + along * s * (width / 2f + 0.45f) + normal * 0.45f + Vector3.up * (-height / 2f + 0.55f);
+            MeshGen.TexCylinder("BumpPost", t.TransformPoint(post - Vector3.up * 0.55f), 0.12f, 1.1f, Hazard, 0.5f, t);
+        }
+        Box("DrumBox", t.TransformPoint(face + Vector3.up * (height / 2f + 0.3f) + normal * 0.1f), S(along * (width + 0.5f) + Vector3.up * 0.6f + normal * 0.45f), Shutter, 1f, t, t.eulerAngles.y, false);
+        if (personDoor)
+        {
+            var d = center + along * (width / 2f + 1.4f) + Vector3.up * (-height / 2f + 1.05f) + normal * 0.05f;
+            Box("PersonDoor", t.TransformPoint(d), S(along * 0.95f + Vector3.up * 2.1f + normal * 0.06f), DarkMetal, 1f, t, t.eulerAngles.y, false);
+            Box("DoorSign", t.TransformPoint(d + Vector3.up * 1.35f), S(along * 0.6f + Vector3.up * 0.25f + normal * 0.03f), Hazard, 1f, t, t.eulerAngles.y, false);
+        }
+    }
+
+    /// <summary>A wall around or between yards, with gates (from, to: metres along it from a).</summary>
+    private static void YardWall(Vector3 a, Vector3 b, float height, params (float from, float to)[] gates)
+    {
+        var t = new GameObject("YardWall").transform;
+        t.SetParent(root, false);
+        var dir = (b - a).normalized;
+        float length = (b - a).magnitude, cursor = 0f;
+        foreach (var g in gates.OrderBy(g => g.from).Concat(new[] { (length, length) }))
+        {
+            if (g.Item1 - cursor > 0.5f) ConcreteWall(a + dir * cursor, a + dir * g.Item1, height, t);
+            if (g.Item2 > g.Item1 && g.Item1 < length)
+            {
+                // gate posts with a yellow and black barrier arm left open
+                foreach (float u in new[] { g.Item1, g.Item2 })
+                    MeshGen.RoundBox("GatePost", a + dir * u + Vector3.up * (height + 0.6f) / 2f, new Vector3(0.8f, height + 0.6f, 0.8f), 0.08f, Concrete, 1.5f, t, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg);
+            }
+            cursor = Mathf.Max(cursor, g.Item2);
+        }
+    }
+
+    /// <summary>
+    /// A raised yard: concrete deck from the ground up to top, a waist-high rim along its edges (gaps
+    /// where you come up), with a ramp and/or stairs. Rect in x/z.
+    /// </summary>
+    private static void Terrace(Rect r, float top, (char side, float at)[] stairs, (char side, float at)[] ramps, params (char side, float at)[] openings)
+    {
+        var t = new GameObject("Terrace").transform;
+        t.SetParent(root, false);
+        MeshGen.RoundBox("TerraceDeck", new Vector3(r.center.x, top / 2f, r.center.y), new Vector3(r.width, top, r.height), 0.1f, OldConcrete, 3f, t);
+        var gaps = stairs.Concat(ramps).Concat(openings).ToList();
+        void Rim(char side, float u0, float u1, Vector3 a, Vector3 dir)
+        {
+            float cursor = u0;
+            foreach (var g in gaps.Where(g => g.side == side).OrderBy(g => g.at).Select(g => (g.at - 2f, g.at + 2f)).Concat(new[] { (u1, u1) }))
+            {
+                if (g.Item1 - cursor > 0.4f)
+                {
+                    var mid = a + dir * ((cursor + g.Item1) / 2f) + Vector3.up * (top + 0.45f);
+                    MeshGen.RoundBox("TerraceRim", mid, Abs(dir * (g.Item1 - cursor)) + new Vector3(0.3f, 0.9f, 0.3f) - Abs(dir) * 0.3f, 0.06f, Concrete, 2f, t);
+                }
+                cursor = Mathf.Max(cursor, g.Item2);
+            }
+        }
+        Rim('S', 0, r.width, new Vector3(r.xMin, 0, r.yMin + 0.15f), Vector3.right);
+        Rim('N', 0, r.width, new Vector3(r.xMin, 0, r.yMax - 0.15f), Vector3.right);
+        Rim('W', 0, r.height, new Vector3(r.xMin + 0.15f, 0, r.yMin), Vector3.forward);
+        Rim('E', 0, r.height, new Vector3(r.xMax - 0.15f, 0, r.yMin), Vector3.forward);
+        Vector3 Edge(char side, float at) => side == 'S' ? new Vector3(r.xMin + at, 0, r.yMin) : side == 'N' ? new Vector3(r.xMin + at, 0, r.yMax)
+            : side == 'W' ? new Vector3(r.xMin, 0, r.yMin + at) : new Vector3(r.xMax, 0, r.yMin + at);
+        Vector3 Out(char side) => side == 'S' ? Vector3.back : side == 'N' ? Vector3.forward : side == 'W' ? Vector3.left : Vector3.right;
+        foreach (var (side, at) in stairs)
+        {
+            var e = Edge(side, at);
+            int steps = Mathf.CeilToInt(top / 0.2f);
+            Buildings.Stairs(t, e + Out(side) * (steps * 0.36f), -Out(side), top, 2.6f, Concrete);
+        }
+        foreach (var (side, at) in ramps)
+        {
+            var e = Edge(side, at);
+            Underground.Wedge(t, "TerraceRamp", e + Out(side) * (top * 4f), e + Vector3.up * top, 3.6f, OldConcrete);
+        }
+    }
+
+    private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
+
+    /// <summary>
+    /// A row of small store rooms, high and low, that splits a yard in two without closing it: a gap to
+    /// walk through every two or three rooms. From a towards b.
+    /// </summary>
+    private static void RoomRow(Vector3 a, Vector3 b, float depth)
+    {
+        var t = new GameObject("StoreRooms").transform;
+        t.SetParent(root, false);
+        var dir = (b - a).normalized;
+        float length = (b - a).magnitude, u = 0f;
+        float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg + 90f;
+        var side = Vector3.Cross(Vector3.up, dir);
+        var walls = new[] { Plaster, Bricks, WallRust, WallTeal };
+        int k = 0;
+        while (u < length - 3f)
+        {
+            int run = 2 + rng.Next(2);
+            for (int i = 0; i < run && u < length - 3f; i++, k++)
+            {
+                float w = R(3f, 4.2f), h = new[] { 2.6f, 3.4f, 2.2f, 4.2f }[k % 4];
+                var c = a + dir * (u + w / 2f) + side * (depth / 2f);
+                var room = MeshGen.TexBox("StoreRoom", c + Vector3.up * h / 2f, new Vector3(w, h, depth), walls[k % walls.Length], 2f, t, yaw);
+                Box("RoomRoof", c + Vector3.up * (h + 0.08f), new Vector3(w + 0.3f, 0.16f, depth + 0.3f), Concrete, 1f, t, yaw, false);
+                // its own small shutter on the yard side
+                var rt = new GameObject("RoomFront").transform;
+                rt.SetParent(t, false);
+                rt.SetPositionAndRotation(c, Quaternion.Euler(0, yaw, 0));
+                RollUpDoor(rt, new Vector3(0, 1.1f, -depth / 2f), Vector3.back, Vector3.right, Mathf.Min(2.2f, w - 0.8f), 2.2f, false);
+                u += w;
+            }
+            u += R(2.4f, 3.2f);   // a way through
+        }
+    }
+
+    /// <summary>
+    /// A two-storey factory hall with a flat roof (a strong point over its yards), built so its roof is
+    /// reached the hard way: a wooden stair up to a one-storey annex, crates on the annex roof up to a
+    /// higher block, an air-conditioner and a crate on that roof up to a gap in the hall's parapet.
+    /// The annex and the block are on the +X side (local). Front (doors) faces -Z.
+    /// </summary>
+    private static void Factory(Vector3 c, float yaw, float w, float l, float hallH, Material wall, Material band)
+    {
+        var t = new GameObject("Factory").transform;
+        t.SetParent(root, false);
+        t.SetPositionAndRotation(c, Quaternion.Euler(0, yaw, 0));
+        float hw = w / 2f, hl = l / 2f;
+        void B(string name, Vector3 local, Vector3 size, Material m, float tex = 3f, bool col = true) => Box(name, t.TransformPoint(local), size, m, tex, t, yaw, col);
+        // the hall: two floors of windows, a band, a flat roof with a parapet (gap where the route arrives)
+        B("Hall", new Vector3(0, hallH / 2f, 0), new Vector3(w, hallH, l), wall);
+        B("Plinth", new Vector3(0, 0.45f, 0), new Vector3(w + 0.2f, 0.9f, l + 0.2f), Concrete, 2f, false);
+        if (band != null) B("Band", new Vector3(0, hallH * 0.5f, 0), new Vector3(w + 0.06f, 0.5f, l + 0.06f), band, 3f, false);
+        B("RoofSlab", new Vector3(0, hallH + 0.12f, 0), new Vector3(w + 0.3f, 0.24f, l + 0.3f), Concrete, 3f);
+        float gapZ = hl * 0.45f;
+        foreach (float s in new[] { -1f, 1f })
+            B("Parapet", new Vector3(0, hallH + 0.6f, s * (hl + 0.05f)), new Vector3(w + 0.3f, 0.8f, 0.2f), Concrete, 2f);
+        B("Parapet", new Vector3(-hw - 0.05f, hallH + 0.6f, 0), new Vector3(0.2f, 0.8f, l + 0.3f), Concrete, 2f);
+        // east parapet with the gap
+        B("Parapet", new Vector3(hw + 0.05f, hallH + 0.6f, (-hl + gapZ - 1.3f) / 2f), new Vector3(0.2f, 0.8f, gapZ - 1.3f + hl), Concrete, 2f);
+        B("Parapet", new Vector3(hw + 0.05f, hallH + 0.6f, (gapZ + 1.3f + hl) / 2f), new Vector3(0.2f, 0.8f, hl - gapZ - 1.3f), Concrete, 2f);
+        // roof cover: skylights, vents and air-conditioners
+        for (float x = -hw + 3f; x < hw - 2f; x += 5f)
+            B("Skylight", new Vector3(x, hallH + 0.55f, -hl * 0.3f), new Vector3(2.2f, 0.9f, 3.2f), Glass, 1f);
+        B("RoofAC", new Vector3(-hw + 2.5f, hallH + 0.75f, hl - 3f), new Vector3(1.6f, 1.3f, 2.2f), DarkMetal, 1f);
+        for (int floor = 0; floor < 2; floor++)
+            foreach (float s in new[] { -1f, 1f })
+                for (float z = -hl + 2.5f; z < hl - 1.5f; z += 3.6f)
+                    B("Window", new Vector3(s * (hw + 0.05f), 2.2f + floor * hallH * 0.5f, z), new Vector3(0.1f, 1.2f, 2.2f), Glass, 1f, false);
+        RollUpDoor(t, new Vector3(-hw * 0.35f, 2.5f, -hl), Vector3.back, Vector3.right, Mathf.Min(5f, w * 0.32f), 5f);
+        RollUpDoor(t, new Vector3(hw * 0.35f, 2.2f, -hl), Vector3.back, Vector3.right, Mathf.Min(4f, w * 0.25f), 4.4f, false);
+        RollUpDoor(t, new Vector3(-hw * 0.2f, 2.5f, hl), Vector3.forward, Vector3.right, Mathf.Min(5f, w * 0.32f), 5f);
+
+        // the climb: annex (3.0 m) - crates - block (5.0 m) - a.c. unit and crate - hall roof (7 m)
+        const float annexH = 3.0f, blockH = 5.0f, step = 0.7f;
+        float ax0 = hw, ax1 = hw + 3.6f, axc = (ax0 + ax1) / 2f;
+        float annexZ0 = -hl, annexZ1 = gapZ - 4f, blockZ0 = annexZ1, blockZ1 = Mathf.Min(hl, gapZ + 3.5f);
+        B("Annex", new Vector3(axc, annexH / 2f, (annexZ0 + annexZ1) / 2f), new Vector3(3.6f, annexH, annexZ1 - annexZ0), Bricks, 2.5f);
+        B("AnnexRoof", new Vector3(axc, annexH + 0.08f, (annexZ0 + annexZ1) / 2f), new Vector3(3.9f, 0.16f, annexZ1 - annexZ0 + 0.3f), Concrete, 2f);
+        B("Block", new Vector3(axc, blockH / 2f, (blockZ0 + blockZ1) / 2f), new Vector3(3.6f, blockH, blockZ1 - blockZ0), Plaster, 2.5f);
+        B("BlockRoof", new Vector3(axc, blockH + 0.08f, (blockZ0 + blockZ1) / 2f), new Vector3(3.9f, 0.16f, blockZ1 - blockZ0 + 0.3f), Concrete, 2f);
+        RollUpDoor(t, new Vector3(ax1, 1.3f, (annexZ0 + annexZ1) / 2f), Vector3.right, Vector3.forward, 2.4f, 2.6f, false);
+        // a steep wooden stair along the outside of the annex, from the front corner up to its roof
+        var wood = Wood;
+        Buildings.Stairs(t, t.TransformPoint(new Vector3(ax1 + 0.6f, 0, annexZ0 - 0.2f + 15 * 0.36f + 0.36f)), t.TransformDirection(Vector3.back), annexH, 1.0f, wood);
+        foreach (float y in new[] { 0.5f, 1.0f })
+        {
+            var rail = Box("StairRail", t.TransformPoint(new Vector3(ax1 + 1.15f, annexH / 2f + y, annexZ0 + 2.9f)), new Vector3(0.06f, 0.06f, 6.4f), wood, 1f, t, yaw, false);
+            rail.transform.rotation = t.rotation * Quaternion.Euler(Mathf.Atan2(annexH, 5.8f) * Mathf.Rad2Deg, 0, 0);
+        }
+        // annex roof: two crates like steps up to the block
+        B("Crate", new Vector3(axc, annexH + 0.16f + step / 2f, annexZ1 - 1.6f), new Vector3(1f, step, 1f), Planks, 1f);
+        B("Crate", new Vector3(axc, annexH + 0.16f + step, annexZ1 - 0.6f), new Vector3(1f, step * 2f, 1f), Planks, 1f);
+        // block roof: an a.c. unit, a crate on top of it next to the parapet gap
+        B("BlockAC", new Vector3(axc, blockH + 0.16f + step / 2f, gapZ - 1.4f), new Vector3(1.4f, step, 1.1f), DarkMetal, 1f);
+        // the last crate reaches 0.6 m under the hall roof (a jump), whatever the hall's height
+        float lastTop = hallH + 0.24f - 0.6f, lastH = lastTop - (blockH + 0.16f);
+        B("Crate", new Vector3(axc - 0.6f, blockH + 0.16f + lastH / 2f, gapZ - 0.3f), new Vector3(1f, lastH, 1f), Planks, 1f);
+        Obstacles.AmmoCrate(t, t.TransformPoint(new Vector3(-hw + 3f, hallH + 0.24f, 0)), yaw);
     }
 
     private static void Tank(Vector3 c, float radius, float height)
@@ -606,12 +806,10 @@ public static class PortBuilder
         for (int i = 0; i < 4; i++) ConcreteWall(corners[i], corners[(i + 1) % 4], 3.2f, walls);
 
         // buildings
-        Warehouse(new Vector3(-46, 0, 30), 22, 30, 9, WallWhite, WallRed, Roof, 0);
+        // two-storey factories whose roofs are reached the hard way (strong points over the yards)
+        Factory(new Vector3(-48, 0, 30), 0f, 20f, 26f, 7f, WallWhite, WallRed);
         Warehouse(new Vector3(18, 0, 42), 14, 40, 8, WallRed, WallWhite, RoofRust, 90);
-        Warehouse(new Vector3(54, 0, -34), 14, 18, 7, WallTeal, WallWhite, Roof, 0);
-        // fire escapes up to the eaves of the big white warehouse and the teal one
-        Buildings.FireEscape(root, new Vector3(-35f, 0, 33f), Vector3.forward, Vector3.right, 9.1f, true, Walkway, RustPlates);
-        Buildings.FireEscape(root, new Vector3(61f, 0, -39f), Vector3.forward, Vector3.right, 7f, true, Walkway, RustPlates);
+        Factory(new Vector3(52, 0, -36), 0f, 15f, 18f, 6.6f, WallTeal, WallWhite);
         Warehouse(new Vector3(-58, 0, -38), 9, 12, 5, WallRust, null, RoofRust, 90);
         Warehouse(new Vector3(6, 0, -42), 10, 14, 5.5f, WallTeal, WallRed, RoofRust, 90);
         // three-floor office players can enter, with stairs inside up to the roof
@@ -677,6 +875,19 @@ public static class PortBuilder
         ConcreteWall(new Vector3(18, 0, -6), new Vector3(30, 0, -6), 1.3f, fences);
 
         Greenery();
+
+        // the yard split into compounds: walls with gates, a row of store rooms, raised yards
+        YardWall(new Vector3(-66f, 0, -64f), new Vector3(-66f, 0, 2f), 3f, (50f, 56f));
+        YardWall(new Vector3(-92f, 0, 12f), new Vector3(-66f, 0, 12f), 3f, (12f, 18f));
+        YardWall(new Vector3(42f, 0, -18f), new Vector3(70f, 0, -18f), 3f, (8f, 13f));
+        YardWall(new Vector3(40f, 0, 36f), new Vector3(92f, 0, 36f), 3f, (26f, 32f));
+        RoomRow(new Vector3(-29f, 0, 26f), new Vector3(10f, 0, 26f), 3.4f);
+        // a long loading terrace and a higher one beside it in the south (stairs between them)
+        Terrace(Rect.MinMaxRect(-60f, -63f, -30f, -50f), 2.4f, new[] { ('N', 26f) }, new (char, float)[0], ('E', 6f));
+        Terrace(Rect.MinMaxRect(-30f, -63f, -8f, -52f), 4.2f, new[] { ('N', 15f) }, new[] { ('N', 6f) }, ('W', 6f));
+        Buildings.Stairs(root, new Vector3(-30f - 9 * 0.36f, 2.4f, -57f), Vector3.right, 1.8f, 2.4f, Concrete);
+        Container(new Vector3(-19f, 4.2f, -58.5f), 90f, 2, root);
+        Obstacles.SandbagWall(root, new Vector3(-12f, 4.2f, -53f), 0f, 4f);
 
         // ammunition crates, one in each part of the yard
         var supply = new GameObject("AmmoCrates").transform;
