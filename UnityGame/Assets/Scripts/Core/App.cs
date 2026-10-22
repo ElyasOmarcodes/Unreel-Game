@@ -239,12 +239,7 @@ namespace UA
             var glow = UIKit.Img(s, new Color(1f, 0.55f, 0.1f, 0.12f), UIKit.Soft);
             glow.rectTransform.At(0.5f, 0.5f, 0, 60, 1500, 700);
             var logo = Logo();
-            if (logo != null)
-            {
-                var badge = UIKit.Img(s, Color.white, logo);
-                badge.preserveAspect = true;
-                badge.rectTransform.At(0.5f, 0.5f, 0, 150, 560, 560);
-            }
+            if (logo != null) Badge(s).At(0.5f, 0.5f, 0, 150, 560, 560);
             else
             {
                 var title = UIKit.Txt(s, GameName, 150, TextAnchor.MiddleCenter, UIKit.Accent).Shadowed();
@@ -273,6 +268,16 @@ namespace UA
             return logoSprite = tex != null ? Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f)) : null;
         }
 
+        /// <summary>The badge cut round (the picture has dark corners).</summary>
+        private static RectTransform Badge(Transform parent)
+        {
+            var round = UIKit.Img(parent, Color.white, UIKit.Circle);
+            round.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+            var badge = UIKit.Img(round.transform, Color.white, Logo());
+            badge.rectTransform.Fill();
+            return round.rectTransform;
+        }
+
         private void BuildMenu()
         {
             var s = MakeScreen("menu", false);
@@ -282,15 +287,10 @@ namespace UA
             side.rectTransform.pivot = new Vector2(0, 0.5f);
             side.rectTransform.sizeDelta = new Vector2(760, 0);
             side.rectTransform.anchoredPosition = Vector2.zero;
-            var title = UIKit.Txt(side.transform, "AGENT\n<color=#ff3b30>WARFARE</color>", 96, TextAnchor.UpperLeft).Shadowed();
+            var title = UIKit.Txt(side.transform, "AGENT\n<color=#ff3b30>WARFARE</color>", 84, TextAnchor.UpperLeft).Shadowed();
             title.lineSpacing = 0.85f;
             title.rectTransform.At(0f, 1f, 90, -90, 700, 240, 0f, 1f);
-            if (Logo() != null)
-            {
-                var badge = UIKit.Img(side.transform, Color.white, Logo());
-                badge.preserveAspect = true;
-                badge.rectTransform.At(0f, 1f, 548, -80, 180, 180, 0f, 1f);
-            }
+            if (Logo() != null) Badge(side.transform).At(0f, 1f, 560, -90, 170, 170, 0f, 1f);
             var tag = UIKit.Txt(side.transform, "Squad up on the same Wi-Fi or hotspot. No internet needed.", 28, TextAnchor.UpperLeft, UIKit.Muted);
             tag.rectTransform.At(0f, 1f, 92, -350, 620, 80, 0f, 1f);
             string[] labels = { "PLAY ON WI-FI", "PRACTICE VS BOTS", "PROFILE", "SETTINGS", "QUIT" };
