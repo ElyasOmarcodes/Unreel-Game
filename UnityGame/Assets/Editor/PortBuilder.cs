@@ -753,7 +753,7 @@ public static class PortBuilder
         var layout = new MapLayout { Name = "PORT", Root = root.gameObject, Center = Vector3.zero, Radius = 90f };
         BuildNavigation(layout);
         Buildings.Night = null;
-        layout.NightLights = MapOptimizer.Merge(root, "Port", null, night).ToArray();
+        root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "Port", null, night).ToArray();
         Debug.Log($"[Port] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {props.Count} props, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
         return layout;
     }

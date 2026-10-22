@@ -53,6 +53,8 @@ namespace UA
                 source.dopplerLevel = 0f;
                 source.spatialBlend = 1f;
                 source.priority = 200;
+                // a little softer: the gritty top of the recordings is taken off
+                go.AddComponent<AudioLowPassFilter>().cutoffFrequency = 5200f;
                 steps.Add(source);
             }
             source.transform.position = position;

@@ -29,6 +29,7 @@ namespace UA
 
         // create / join / lobby / results widgets
         private Text createTitle;
+        private GameObject[] botRows = new GameObject[0];
         private Button createButton;
         private InputField groupNameField, ipField, nameField;
         private RectTransform joinList;
@@ -47,6 +48,9 @@ namespace UA
             Settings.Apply();
             gameObject.AddComponent<Session>();
             gameObject.AddComponent<Controls>();
+            gameObject.AddComponent<PerfGuard>();
+            // the phone is short of memory: let go of everything not in use right now
+            Application.lowMemory += () => Resources.UnloadUnusedAssets();
             UIKit.Init();
             hud = new GameObject("HUD").AddComponent<Hud>();
             hud.Build();
@@ -224,7 +228,7 @@ namespace UA
             splashBar.rectTransform.anchorMax = new Vector2(0, 1);
             var credits = UIKit.Txt(s, "Made with Unity  -  3D characters, animations and city by Quaternius (CC0)\n"
                 + "Military gear based on \"Military Character Kit 1.1\" by britdawgmasterfunk (sketchfab.com), CC-BY-4.0\n"
-                + "Pain and death voices: \"11 male human pain/death sounds\" by Michel Baradari (opengameart.org), CC-BY 3.0; footsteps by Fantozzi, CC0", 24, TextAnchor.MiddleCenter, new Color(1, 1, 1, 0.4f));
+                + "Pain and death voices: \"11 male human pain/death sounds\" by Michel Baradari (opengameart.org), CC-BY 3.0; footsteps by Fantozzi, CC0; PKM model by ElyasOmarcodes", 24, TextAnchor.MiddleCenter, new Color(1, 1, 1, 0.4f));
             credits.rectTransform.At(0.5f, 0f, 0, 40, 1800, 105);
         }
 
@@ -269,7 +273,7 @@ namespace UA
             UIKit.Title(s, "PLAY ON WI-FI / HOTSPOT", -70, 70);
             var help = UIKit.Txt(s, "All phones must be on the same Wi-Fi - or one phone turns on its hotspot and the others connect to it.", 30, TextAnchor.MiddleCenter, UIKit.Muted);
             help.rectTransform.At(0.5f, 1f, 0, -180, 1500, 80, 0.5f, 1f);
-            Card(s, -390, "CREATE GROUP", "Host a match on this phone.\nChoose the mode, map, time and bots,\nthen start when everyone has joined.", () => OpenCreate(false), "group_add");
+            Card(s, -390, "CREATE GROUP", "Host a match on this phone.\nChoose the mode, map and time,\nthen start when everyone has joined.", () => OpenCreate(false), "group_add");
             Card(s, 390, "JOIN GROUP", "Find the groups hosted nearby\nand join with one tap - or type the\nhost's IP address.", () => ShowScreen("join"), "login");
             var back = UIKit.Btn(s, "BACK", () => ShowScreen("menu"), 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 70, 360, 90, 0.5f, 0f);
@@ -299,6 +303,9 @@ namespace UA
             groupNameField.text = Draft.GroupName;
             groupNameField.transform.parent.gameObject.SetActive(!practice);
             if (practice && Draft.Bots == 0) Draft.Bots = 5;
+            // a group on Wi-Fi is for people: bots only in practice
+            if (!practice) Draft.Bots = 0;
+            foreach (var row in botRows) row.SetActive(practice);
             ShowScreen("create");
         }
 
@@ -314,7 +321,7 @@ namespace UA
             groupNameField = UIKit.Input(nameRow, Draft.GroupName, "Group name", 34, 20);
             groupNameField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 560, 74, 1f, 0.5f);
             groupNameField.onEndEdit.AddListener(v => Draft.GroupName = Settings.Clean(v, 24));
-            byte[] minutes = { 3, 5, 8, 10, 15 };
+            byte[] minutes = { 3, 5, 8, 10, 15, 20, 30, 45, 60 };
             UIKit.Stepper(panel, "GAME MODE", -130, () => MatchConfig.ModeNames[(int)Draft.Mode], d => Draft.Mode = (Mode)(((int)Draft.Mode + 2 + d) % 2), 1080);
             UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapNames[Draft.Map], d => Draft.Map = (byte)((Draft.Map + MatchConfig.MapNames.Length + d) % MatchConfig.MapNames.Length), 1080);
             UIKit.Stepper(panel, "MATCH TIME", -320, () => Draft.Minutes + " MIN", d =>
@@ -323,8 +330,11 @@ namespace UA
                 Draft.Minutes = minutes[Mathf.Clamp((i < 0 ? 1 : i) + d, 0, minutes.Length - 1)];
             }, 1080);
             UIKit.Stepper(panel, "MAX PLAYERS", -415, () => Draft.MaxPlayers.ToString(), d => Draft.MaxPlayers = (byte)Mathf.Clamp(Draft.MaxPlayers + d, 2, 10), 1080);
-            UIKit.Stepper(panel, "BOTS", -510, () => Draft.Bots == 0 ? "NONE" : Draft.Bots.ToString(), d => Draft.Bots = (byte)Mathf.Clamp(Draft.Bots + d, 0, 9), 1080);
-            UIKit.Stepper(panel, "BOT SKILL", -605, () => MatchConfig.SkillNames[Draft.BotSkill], d => Draft.BotSkill = (byte)Mathf.Clamp(Draft.BotSkill + d, 0, 2), 1080);
+            botRows = new[]
+            {
+                UIKit.Stepper(panel, "BOTS", -510, () => Draft.Bots == 0 ? "NONE" : Draft.Bots.ToString(), d => Draft.Bots = (byte)Mathf.Clamp(Draft.Bots + d, 0, 9), 1080).transform.parent.gameObject,
+                UIKit.Stepper(panel, "BOT SKILL", -605, () => MatchConfig.SkillNames[Draft.BotSkill], d => Draft.BotSkill = (byte)Mathf.Clamp(Draft.BotSkill + d, 0, 2), 1080).transform.parent.gameObject,
+            };
             var back = UIKit.Btn(s, "BACK", Back, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, -300, 50, 380, 96, 0.5f, 0f);
             createButton = UIKit.Btn(s, "CREATE GROUP", CreateFromDraft, 38, UIKit.AccentDark, "play_arrow");
@@ -556,6 +566,7 @@ namespace UA
             }, W));
             Row(L, UIKit.Stepper(panel, "SOUND VOLUME", -395, () => Mathf.RoundToInt(Settings.Volume * 100) + "%", d => Settings.Volume = Mathf.Round(Settings.Volume * 10 + d) / 10f, W));
             Row(L, UIKit.Stepper(panel, "SHOW FPS", -485, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, W));
+            Row(L, UIKit.Stepper(panel, "AUTO GRAPHICS", -575, () => Settings.AutoGraphics ? "ON" : "OFF", d => Settings.AutoGraphics = !Settings.AutoGraphics, W));
             Row(R, UIKit.Stepper(panel, "TURN SPEED", -30, () => Speed(Settings.Sensitivity), d => Settings.Sensitivity = Step(Settings.Sensitivity, d), W));
             Row(R, UIKit.Stepper(panel, "AIM SPEED", -130, () => Speed(Settings.AimSensitivity), d => Settings.AimSensitivity = Step(Settings.AimSensitivity, d), W));
             Row(R, UIKit.Stepper(panel, "SCOPE SPEED", -225, () => Speed(Settings.ScopeSensitivity), d => Settings.ScopeSensitivity = Step(Settings.ScopeSensitivity, d), W));
@@ -565,7 +576,7 @@ namespace UA
             var hint = UIKit.Txt(panel, "Running speed is the same for everyone and cannot be changed.", 24, TextAnchor.MiddleCenter, UIKit.Muted);
             hint.rectTransform.At(0.5f, 1f, R, -600, W, 40, 0.5f, 1f);
             var layout = UIKit.Btn(panel, "CONTROLS LAYOUT", OpenLayoutEditor, 30, UIKit.AccentDark, "open_with");
-            layout.GetComponent<RectTransform>().At(0.5f, 1f, L, -600, 480, 76, 0.5f, 1f);
+            layout.GetComponent<RectTransform>().At(0.5f, 1f, L, -680, 480, 76, 0.5f, 1f);
             var back = UIKit.Btn(s, "BACK", () => { Settings.PlayerName = nameField.text; Back(); }, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 50, 380, 96, 0.5f, 0f);
         }

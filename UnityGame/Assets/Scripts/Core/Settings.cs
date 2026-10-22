@@ -24,17 +24,25 @@ namespace UA
         public static int FrameRate { get => PlayerPrefs.GetInt("frameRate", 60); set { PlayerPrefs.SetInt("frameRate", value); Apply(); } }
         public static readonly int[] FrameRates = { 30, 60, 90 };
 
-        /// <summary>0 weak phone, 1 ordinary, 2 strong: from memory and processor cores.</summary>
+        /// <summary>
+        /// 0 weak phone, 1 ordinary, 2 strong. Memory, processor cores and speed, and the graphics chip
+        /// all count; HIGH only for flagship chips with plenty of memory, LOW as soon as one part is weak.
+        /// </summary>
         public static int DeviceClass
         {
             get
             {
                 if (!Application.isMobilePlatform) return 1;
-                int memory = SystemInfo.systemMemorySize, cores = SystemInfo.processorCount;
-                if (memory > 0 && memory < 3500 || cores <= 4) return 0;
-                return memory >= 7500 && cores >= 8 ? 2 : 1;
+                int memory = SystemInfo.systemMemorySize, cores = SystemInfo.processorCount, mhz = SystemInfo.processorFrequency;
+                string gpu = (SystemInfo.graphicsDeviceName ?? "").ToLowerInvariant();
+                bool weakGpu = System.Text.RegularExpressions.Regex.IsMatch(gpu, @"mali-4|mali-t|mali-g(31|51|52|57)\b|adreno \(tm\) ([3-4]\d\d|50\d|51\d|60\d|61[0-3])|adreno ([3-4]\d\d|50\d|51\d|60\d|61[0-3])\b|powervr|sgx|ge8");
+                bool strongGpu = System.Text.RegularExpressions.Regex.IsMatch(gpu, @"adreno.*(6[4-9]\d|7\d\d|8\d\d)|mali-g(7[6-9]|7\d\d|9\d\d)|immortalis|xclipse|apple");
+                if ((memory > 0 && memory < 4000) || cores <= 4 || (mhz > 0 && mhz < 1800) || weakGpu) return 0;
+                return memory >= 7500 && cores >= 8 && strongGpu ? 2 : 1;
             }
         }
+        /// <summary>Lower the graphics by itself when the game runs slowly (on by default).</summary>
+        public static bool AutoGraphics { get => PlayerPrefs.GetInt("autoGfx", 1) == 1; set => PlayerPrefs.SetInt("autoGfx", value ? 1 : 0); }
         public static float Sensitivity { get => PlayerPrefs.GetFloat("sens", 1f); set => PlayerPrefs.SetFloat("sens", Mathf.Clamp(value, 0.3f, 3f)); }
         public static float Volume { get => PlayerPrefs.GetFloat("volume", 0.8f); set { PlayerPrefs.SetFloat("volume", Mathf.Clamp01(value)); AudioListener.volume = value; } }
         public static bool InvertY { get => PlayerPrefs.GetInt("invert", 0) == 1; set => PlayerPrefs.SetInt("invert", value ? 1 : 0); }

@@ -101,6 +101,9 @@ namespace UA
         private float hitMarkerUntil, damageAlpha, lastHealth = 100, fpsTimer, fpsValue;
         private ushort lastHits;
         private readonly List<(string text, float until)> feed = new List<(string, float)>();
+        private Image killToast;
+        private Text killToastText;
+        private float killToastUntil;
 
         public void Build()
         {
@@ -174,6 +177,12 @@ namespace UA
             var swapHint = UIKit.Txt(weaponPanel.transform, "TAP TO SWAP", 18, TextAnchor.LowerRight, UIKit.Muted);
             swapHint.rectTransform.At(1f, 0f, -18, 14, 200, 26, 1f, 0f);
 
+            // a short see-through toast for every kill, for everyone: killer in blue-green, victim in red
+            killToast = UIKit.Img(root, new Color(0, 0, 0, 0.35f), UIKit.Rounded);
+            killToast.rectTransform.At(0.5f, 1f, 0, -128, 760, 60, 0.5f, 1f);
+            killToastText = UIKit.Txt(killToast.transform, "", 32, TextAnchor.MiddleCenter).Shadowed();
+            killToastText.rectTransform.Fill();
+            killToast.gameObject.SetActive(false);
             killFeed = UIKit.Txt(root, "", 28, TextAnchor.UpperRight).Shadowed();
             killFeed.rectTransform.At(1f, 1f, -40, -260, 820, 300, 1f, 1f);
             center = UIKit.Txt(root, "", 96, TextAnchor.MiddleCenter, UIKit.TextColor).Shadowed();
@@ -264,6 +273,12 @@ namespace UA
                 : $"<color={kc}>{killer}</color>  <color=#ffb040>[{weapon}]</color>{(k.Headshot ? " <color=#ff5040>HEADSHOT</color>" : "")}  <color={vc}>{victim}</color>";
             feed.Add((line, Time.unscaledTime + 6f));
             if (feed.Count > 5) feed.RemoveAt(0);
+            if (k.Killer != k.Victim)
+            {
+                killToastText.text = $"<color=#2fe0c4>{killer}</color>  <color=#e8e8e8>killed</color>  <color=#ff4a4a>{victim}</color>";
+                killToastUntil = Time.unscaledTime + 2.4f;
+                killToast.gameObject.SetActive(true);
+            }
             if (k.Killer == s.LocalId && k.Victim != s.LocalId)
             {
                 ShowCenter(k.Headshot ? "HEADSHOT!" : "ELIMINATED", victim, 1.5f);
@@ -383,6 +398,18 @@ namespace UA
                 centerSmall.text = "";
             }
 
+            // kill toast: fades out over its last half second
+            if (killToast.gameObject.activeSelf)
+            {
+                float left = killToastUntil - now;
+                if (left <= 0f) killToast.gameObject.SetActive(false);
+                else
+                {
+                    float a = Mathf.Clamp01(left / 0.5f);
+                    killToast.color = new Color(0, 0, 0, 0.35f * a);
+                    killToastText.color = new Color(1, 1, 1, a);
+                }
+            }
             // kill feed
             feed.RemoveAll(f => now > f.until);
             killFeed.text = string.Join("\n", feed.Select(f => f.text));

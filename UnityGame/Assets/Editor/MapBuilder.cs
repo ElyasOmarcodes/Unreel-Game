@@ -101,13 +101,12 @@ public static class MapBuilder
             if (t.gameObject.layer != 0 && t.gameObject.layer != World.FenceLayer) t.gameObject.layer = 0;
         }
         global::Buildings.Night = null;
-        var downtownNight = MapOptimizer.Merge(map, "Downtown", null, lamps);
+        map.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(map, "Downtown", null, lamps).ToArray();
 
         var downtown = new MapLayout
         {
             Name = "DOWNTOWN", Root = map.gameObject, Center = Vector3.zero, Radius = Half,
             Waypoints = waypoints.ToArray(), Links = links.ToArray(), Spawns = Spawns().ToArray(),
-            NightLights = downtownNight.ToArray(),
         };
         // the port is built while the downtown map is switched off so their colliders do not mix
         map.gameObject.SetActive(false);
@@ -115,19 +114,41 @@ public static class MapBuilder
         port.Root.SetActive(false);
         var village = VillageBuilder.Build();
         village.Root.SetActive(false);
+        var town = TownBuilder.Build();
+        town.Root.SetActive(false);
         map.gameObject.SetActive(true);
 
         var worldGo = new GameObject("World");
         var world = worldGo.AddComponent<World>();
         world.Sun = sun;
         world.Skybox = skybox;
-        world.Layouts = new[] { downtown, port, village };
+        world.Layouts = new[] { downtown, port, village, town };
 
         new GameObject("App").AddComponent<App>();
-
-        EditorSceneManager.SaveScene(scene, ScenePath);
-        EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
         Debug.Log($"[Map] built: {map.GetComponentsInChildren<Renderer>().Length} renderers, {waypoints.Count} waypoints, {downtown.Spawns.Length} spawns");
+
+        // every map into a scene of its own: the game loads only the one being played (memory)
+        EditorSceneManager.SaveScene(scene, ScenePath);
+        var buildScenes = new List<EditorBuildSettingsScene> { new EditorBuildSettingsScene(ScenePath, true) };
+        var names = new[] { "Map_Downtown", "Map_Port", "Map_Village", "Map_OldTown" };
+        for (int i = 0; i < world.Layouts.Length; i++)
+        {
+            var layout = world.Layouts[i];
+            var go = layout.Root;
+            go.SetActive(true);
+            go.GetComponent<MapScene>().Layout = i;
+            var mapScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, mapScene);
+            string path = $"Assets/Scenes/{names[i]}.unity";
+            EditorSceneManager.SaveScene(mapScene, path);
+            EditorSceneManager.CloseScene(mapScene, true);
+            layout.Root = null;
+            layout.Scene = names[i];
+            buildScenes.Add(new EditorBuildSettingsScene(path, true));
+        }
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, ScenePath);
+        EditorBuildSettings.scenes = buildScenes.ToArray();
     }
 
     // ------------------------------------------------------------------ helpers

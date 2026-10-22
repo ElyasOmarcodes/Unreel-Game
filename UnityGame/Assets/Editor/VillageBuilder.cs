@@ -14,9 +14,9 @@ using UnityEngine;
 /// </summary>
 public static class VillageBuilder
 {
-    public const float Half = 86f;              // the village and its fields (bots, spawns)
+    public const float Half = 120f;             // the village and its fields (bots, spawns)
     private const float Edge = Half + 44f;      // players can climb the hills around it up to here
-    private const float Size = 340f;
+    private const float Size = 420f;
 
     private static Transform root;
     private static System.Random rng;
@@ -24,12 +24,14 @@ public static class VillageBuilder
     private static readonly List<Renderer> night = new List<Renderer>();
 
     /// <summary>An oil lantern (glows at night) hanging at a point, with its small iron cap.</summary>
-    private static void Lantern(Transform t, Vector3 world)
+    private static void Lantern(Transform t, Vector3 world, Vector3? wall = null)
     {
         var iron = AssetSetup.Solid("T_Iron", new Color(0.07f, 0.07f, 0.08f), 0.45f, 0.6f);
         MeshGen.TexBox("LanternCap", world + Vector3.up * 0.18f, new Vector3(0.24f, 0.05f, 0.24f), iron, 1f, t, 0f, false);
         MeshGen.TexBox("LanternHook", world + Vector3.up * 0.3f, new Vector3(0.03f, 0.2f, 0.03f), iron, 1f, t, 0f, false);
         NightLights.Lamp(t, world, new Vector3(0.16f, 0.26f, 0.16f), night, 2.6f);
+        // its glow on the mud wall behind it
+        if (wall.HasValue) NightLights.Pool(t, world - wall.Value * 0.38f + Vector3.down * 0.2f, wall.Value, 1.7f, night);
     }
 
     private static float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
@@ -115,7 +117,7 @@ public static class VillageBuilder
     /// </summary>
     private static void BuildGround()
     {
-        const int cells = 170;
+        const int cells = 210;
         float cell = Size / cells;
         int n = cells + 1;
         var vertices = new Vector3[n * n];
@@ -197,6 +199,13 @@ public static class VillageBuilder
         new[] { new Vector2(0, 0), new Vector2(-22, 22), new Vector2(-40, 44), new Vector2(-50, 62) },
         new[] { new Vector2(0, 0), new Vector2(40, -2), new Vector2(80, 4) },
         new[] { new Vector2(0, 0), new Vector2(-40, 2), new Vector2(-80, -4) },
+        // out to the farms around the old village
+        new[] { new Vector2(-80, -4), new Vector2(-92, -40), new Vector2(-98, -66) },
+        new[] { new Vector2(80, 4), new Vector2(96, 36), new Vector2(100, 56) },
+        new[] { new Vector2(-80, -4), new Vector2(-94, 28), new Vector2(-100, 46) },
+        new[] { new Vector2(14, -80), new Vector2(30, -96), new Vector2(40, -98) },
+        new[] { new Vector2(-50, 62), new Vector2(-38, 84), new Vector2(-30, 94) },
+        new[] { new Vector2(80, 4), new Vector2(92, -36), new Vector2(98, -62) },
     };
 
     private static float PathWeight(float x, float z)
@@ -429,7 +438,7 @@ public static class VillageBuilder
         // front wall with the gate, back wall with a breach, solid sides with a low gap
         Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)), null, false, ruin);
         Block("GateBeam", t, new Vector3(gate, 2.62f, -l / 2f), new Vector3(3.2f, 0.2f, 0.75f), OldWood, 0.04f, false);
-        Lantern(t, t.TransformPoint(new Vector3(gate + 1.3f, 2.2f, -l / 2f - 0.42f)));
+        Lantern(t, t.TransformPoint(new Vector3(gate + 1.3f, 2.2f, -l / 2f - 0.42f)), t.TransformDirection(Vector3.back));
         foreach (float s in new[] { -1f, 1f })
         {
             // half-open wooden gate leaves
@@ -640,6 +649,13 @@ public static class VillageBuilder
             (new Vector3(20f, 0, -68f), 16f, 14f, 180f, false, false),
             (new Vector3(-18f, 0, -36f), 14f, 14f, 0f, false, false),
             (new Vector3(66f, 0, 26f), 16f, 14f, -90f, false, false),
+            // farms further out
+            (new Vector3(-98f, 0, -76f), 18f, 16f, 45f, false, true),
+            (new Vector3(100f, 0, 66f), 20f, 16f, -135f, true, false),
+            (new Vector3(-102f, 0, 54f), 18f, 16f, 90f, true, false),
+            (new Vector3(98f, 0, -72f), 16f, 14f, -60f, false, false),
+            (new Vector3(-30f, 0, 102f), 18f, 16f, 180f, false, true),
+            (new Vector3(42f, 0, -104f), 18f, 14f, 0f, true, false),
         };
         foreach (var k in compounds)
         {
@@ -650,7 +666,7 @@ public static class VillageBuilder
         flats.Add(new Rect(-16f, -21f, 32f, 42f));   // the bazaar square
         BuildGround();
         int seed = 5;
-        var ruins = new[] { 5, 8, 9 };
+        var ruins = new[] { 5, 8, 9, 13 };
         for (int i = 0; i < compounds.Length; i++)
         {
             var k = compounds[i];
@@ -685,6 +701,8 @@ public static class VillageBuilder
         hill.y = Y(hill.x, hill.z);
         Watchtower(hill);
         Bridge(12f);
+        Bridge(-92f);
+        Bridge(94f);
         for (int i = 0; i < 7; i++)
         {
             float x = -48f + (i % 2 == 0 ? 0.6f : -0.6f), z = RiverZ(-48f) - 6f + i * 2f;
@@ -712,7 +730,7 @@ public static class VillageBuilder
                 if (FlatWeight(x, z) > 0.2f) continue;
                 Nature.Tree(Nature.Trees, rng, new Vector3(x, Y(x, z), z), 4.5f, 6f, nature);
             }
-        for (int i = 0; i < 26; i++)
+        for (int i = 0; i < 46; i++)
         {
             float x = R(-Half + 6f, Half - 6f), z = R(-Half + 6f, Half - 6f);
             if (FlatWeight(x, z) > 0.1f || PathWeight(x, z) > 0.1f || Mathf.Abs(z - RiverZ(x)) < 10f || new Vector2(x, z).magnitude < 24f) continue;
@@ -721,7 +739,7 @@ public static class VillageBuilder
             Nature.Place(Nature.Bushes[rng.Next(Nature.Bushes.Length)], new Vector3(x + R(-2f, 2f), Y(x, z), z + R(-2f, 2f)), R(0, 360), R(0.9f, 1.5f), nature);
         }
         // grass and flowers on the fields (few: they are drawn one by one)
-        for (int i = 0; i < 130; i++)
+        for (int i = 0; i < 200; i++)
         {
             float x = R(-Half, Half), z = R(-Half, Half);
             if (FlatWeight(x, z) > 0.05f || PathWeight(x, z) > 0.1f || Mathf.Abs(z - RiverZ(x)) < 7f) continue;
@@ -739,7 +757,7 @@ public static class VillageBuilder
         var cover = new GameObject("Cover").transform;
         cover.SetParent(root, false);
         int placed = 0;
-        for (int i = 0; i < 90 && placed < 14; i++)
+        for (int i = 0; i < 160 && placed < 24; i++)
         {
             float x = R(-Half + 8f, Half - 8f), z = R(-Half + 8f, Half - 8f);
             if (FlatWeight(x, z) > 0.05f || Mathf.Abs(z - RiverZ(x)) < 8f) continue;
@@ -761,7 +779,7 @@ public static class VillageBuilder
         // ammunition crates: in the bazaar, by the bridge, at the tower hill and in three compounds
         var supply = new GameObject("AmmoCrates").transform;
         supply.SetParent(root, false);
-        foreach (var (x, z) in new[] { (6f, 7f), (16f, RiverZ(16f) + 13f), (50f, 46f), (-34f, 6f), (32f, 10f), (-30f, -26f), (-50f, 40f) })
+        foreach (var (x, z) in new[] { (6f, 7f), (16f, RiverZ(16f) + 13f), (50f, 46f), (-34f, 6f), (32f, 10f), (-30f, -26f), (-50f, 40f), (-98f, -62f), (100f, 52f), (-28f, 90f), (44f, -92f) })
             Obstacles.AmmoCrate(supply, new Vector3(x, Y(x, z), z), R(0, 360));
         // invisible walls just outside the playable area
         foreach (var (c, s) in new[]
@@ -783,7 +801,7 @@ public static class VillageBuilder
 
         var layout = new MapLayout { Name = "VILLAGE", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
         BuildNavigation(layout);
-        layout.NightLights = MapOptimizer.Merge(root, "Village", null, night).ToArray();
+        root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "Village", null, night).ToArray();
         Debug.Log($"[Village] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
         return layout;
     }

@@ -24,8 +24,8 @@ namespace UA
         public Vector2Int[] Links = new Vector2Int[0];
         public Vector3 Center;
         public float Radius = 80f;
-        /// <summary>Lit windows, lamp glass and halos: shown at night only.</summary>
-        public Renderer[] NightLights = new Renderer[0];
+        /// <summary>The scene the map lives in (loaded while it is played; empty: Root is in this scene).</summary>
+        public string Scene = "";
     }
 
     /// <summary>
@@ -59,7 +59,7 @@ namespace UA
         public Vector3 Center => layout.Center;
         public float Radius => layout.Radius;
 
-        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for downtown, port and village.</summary>
+        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for downtown, port, village and the old town.</summary>
         public static int LayoutOf(int map) => map / 3;
 
         private void Awake()
@@ -69,11 +69,58 @@ namespace UA
             ApplyLighting(0);
         }
 
+        private MapScene loadedMap;
+        private int wantedLayout = -1;
+        private bool night;
+
+        /// <summary>The map being played is in memory and ready (ground, walls, spawns).</summary>
+        public bool MapReady => wantedLayout >= 0 && (string.IsNullOrEmpty(Layouts[wantedLayout].Scene) || (loadedMap != null && loadedMap.Layout == wantedLayout));
+
+        /// <summary>
+        /// One map in memory at a time: the other map scenes are unloaded (with what only they used)
+        /// and the wanted one is loaded in the background.
+        /// </summary>
+        private void LoadMap(int index)
+        {
+            for (int i = 0; i < Layouts.Length; i++)
+            {
+                if (i == index || string.IsNullOrEmpty(Layouts[i].Scene)) continue;
+                var other = UnityEngine.SceneManagement.SceneManager.GetSceneByName(Layouts[i].Scene);
+                if (!other.isLoaded) continue;
+                if (loadedMap != null && loadedMap.Layout == i) loadedMap = null;
+                var op = UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(other);
+                if (op != null) op.completed += _ => Resources.UnloadUnusedAssets();
+            }
+            string wanted = Layouts[index].Scene;
+            if (string.IsNullOrEmpty(wanted)) return;
+            var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(wanted);
+            if (!scene.IsValid())   // neither loaded nor on its way
+                UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(wanted, UnityEngine.SceneManagement.LoadSceneMode.Additive);
+        }
+
+        public void OnMapLoaded(MapScene map)
+        {
+            if (map.Layout != wantedLayout)
+            {
+                // arrived after the players chose another map: out again
+                UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(map.gameObject.scene);
+                return;
+            }
+            loadedMap = map;
+            foreach (var light in map.NightLights)
+                if (light != null) light.enabled = night;
+        }
+
         private void UseLayout(int index)
         {
             index = Mathf.Clamp(index, 0, Layouts.Length - 1);
             for (int i = 0; i < Layouts.Length; i++)
                 if (Layouts[i].Root != null) Layouts[i].Root.SetActive(i == index);
+            if (index != wantedLayout)
+            {
+                wantedLayout = index;
+                LoadMap(index);
+            }
             layout = Layouts[index];
             Neighbours = new List<int>[layout.Waypoints.Length];
             for (int i = 0; i < Neighbours.Length; i++) Neighbours[i] = new List<int>();
@@ -94,6 +141,7 @@ namespace UA
                 if (Agents.Count > 0) Clear();
                 return;
             }
+            if (!MapReady) return;   // the map is still loading: nobody stands on air
             foreach (var p in s.Players.Values)
                 if (!Agents.ContainsKey(p.Id))
                     Create(p, s);
@@ -235,14 +283,14 @@ namespace UA
                     break;
                 case 2:
                     // moonlit night: violet blue light from the sky, lavender walls, warm lamps and windows
-                    Sun.transform.rotation = Quaternion.Euler(38f, 140f, 0f);
-                    Sun.color = new Color(0.62f, 0.6f, 1f);
-                    Sun.intensity = 0.5f;
-                    RenderSettings.ambientSkyColor = new Color(0.36f, 0.33f, 0.62f);
-                    RenderSettings.ambientEquatorColor = new Color(0.3f, 0.26f, 0.5f);
-                    RenderSettings.ambientGroundColor = new Color(0.14f, 0.12f, 0.2f);
-                    RenderSettings.fogColor = new Color(0.1f, 0.08f, 0.2f);
-                    RenderSettings.fogDensity = 0.011f;
+                    Sun.transform.rotation = Quaternion.Euler(40f, 140f, 0f);
+                    Sun.color = new Color(0.7f, 0.64f, 1f);
+                    Sun.intensity = 0.6f;
+                    RenderSettings.ambientSkyColor = new Color(0.44f, 0.4f, 0.76f);
+                    RenderSettings.ambientEquatorColor = new Color(0.36f, 0.3f, 0.6f);
+                    RenderSettings.ambientGroundColor = new Color(0.16f, 0.13f, 0.24f);
+                    RenderSettings.fogColor = new Color(0.08f, 0.06f, 0.18f);
+                    RenderSettings.fogDensity = 0.009f;
                     break;
                 default:
                     Sun.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
@@ -262,13 +310,14 @@ namespace UA
             if (Skybox != null)
             {
                 RenderSettings.skybox = Skybox;
-                Skybox.SetFloat("_Exposure", night ? 0.3f : preset == 1 ? 1.0f : 1.25f);
+                Skybox.SetFloat("_Exposure", night ? 0.22f : preset == 1 ? 1.0f : 1.25f);
                 Skybox.SetFloat("_AtmosphereThickness", preset == 1 ? 1.6f : 1f);
                 Skybox.SetColor("_SkyTint", night ? new Color(0.42f, 0.3f, 0.75f) : new Color(0.5f, 0.55f, 0.62f));
             }
-            for (int i = 0; i < Layouts.Length; i++)
-                foreach (var light in Layouts[i].NightLights)
-                    if (light != null) light.enabled = night && Layouts[i] == layout;
+            this.night = night;
+            if (loadedMap != null)
+                foreach (var light in loadedMap.NightLights)
+                    if (light != null) light.enabled = night;
             if (Camera.main != null) Camera.main.backgroundColor = RenderSettings.fogColor;
         }
     }

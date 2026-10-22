@@ -69,6 +69,43 @@ public static class NightLights
         r.enabled = false;
         night.Add(r);
         if (halo > 0f) Halo(parent, center, halo, new Color(0.55f, 0.36f, 0.16f), night);
+        // the warm pool of light on the ground under it
+        if (halo > 0f)
+        {
+            Physics.SyncTransforms();
+            if (Physics.Raycast(center + Vector3.down * 0.3f, Vector3.down, out var hit, 14f, UA.World.EnvMask, QueryTriggerInteraction.Ignore))
+                Pool(parent, hit.point + hit.normal * 0.03f, hit.normal, Mathf.Clamp((center.y - hit.point.y) * 1.3f, 2.2f, 7f), night);
+        }
+    }
+
+    private static Material poolMaterial;
+
+    /// <summary>Warm lamp light lying on a surface (ground or wall, given its normal), radius in metres; night only.</summary>
+    public static void Pool(Transform parent, Vector3 center, Vector3 normal, float radius, List<Renderer> night, float strength = 1f)
+    {
+        if (poolMaterial == null)
+        {
+            string path = $"{AssetSetup.Generated}/Materials/Night_Pool.mat";
+            poolMaterial = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (poolMaterial == null)
+            {
+                poolMaterial = new Material(Shader.Find("UA/GlowPool") ?? Shader.Find("Sprites/Default"));
+                AssetDatabase.CreateAsset(poolMaterial, path);
+            }
+            poolMaterial.SetColor("_Color", new Color(0.62f, 0.33f, 0.12f));
+        }
+        var go = new GameObject("LightPool");
+        go.transform.SetParent(parent, false);
+        go.transform.position = center;
+        go.transform.rotation = Quaternion.LookRotation(-normal);
+        go.transform.localScale = new Vector3(radius * 2f, radius * 2f, 1f) * strength;
+        go.AddComponent<MeshFilter>().sharedMesh = Quad();
+        var r = go.AddComponent<MeshRenderer>();
+        r.sharedMaterial = poolMaterial;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        r.receiveShadows = false;
+        r.enabled = false;
+        night.Add(r);
     }
 
     private static Mesh pane;

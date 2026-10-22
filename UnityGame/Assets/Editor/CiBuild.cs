@@ -96,7 +96,7 @@ public static class CiBuild
         Directory.CreateDirectory(Path.GetDirectoryName(output));
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
-            scenes = new[] { MapBuilder.ScenePath },
+            scenes = EditorBuildSettings.scenes.Where(e => e.enabled).Select(e => e.path).ToArray(),
             locationPathName = output,
             target = target,
             options = BuildOptions.None,

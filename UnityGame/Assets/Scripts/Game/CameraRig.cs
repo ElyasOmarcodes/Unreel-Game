@@ -32,7 +32,7 @@ namespace UA
         // smoothed parts of the follow camera: body height (crouch / prone), shoulder offset (aim) and the
         // distance the walls allow (moves in at once, back out gently): no jumps
         private float height = 1.62f, distance = -1f;
-        private Vector3 smoothOffset = new Vector3(0.62f, 0.18f, -2.7f);
+        private Vector3 smoothOffset = new Vector3(0.12f, 0.5f, -3.1f);
 
         /// <summary>Short random camera shake (explosions), in degrees.</summary>
         public void Shake(float degrees) => shake = Mathf.Max(shake, degrees);
@@ -75,10 +75,12 @@ namespace UA
             Vector3 offset;
             if (Scope) offset = new Vector3(0f, 0f, 0.25f);
             else if (Aim) offset = new Vector3(0.55f * shoulder, 0.05f, -1.35f);
-            // shooting from the hip: the camera comes in over the shoulder (Battle of Agents style)
-            else if (Target.Firing && !dead) offset = new Vector3(0.58f * shoulder, 0.1f, -1.9f);
+            // as in Battle of Agents: while shooting the camera comes right up beside the head, over
+            // the right shoulder; otherwise it sits behind the back, centred and a little higher, with
+            // the crosshair just above the head
+            else if (Target.Firing && !dead) offset = new Vector3(0.48f * shoulder, 0.02f, -0.85f);
             else if (dead) offset = new Vector3(0f, 1.5f, -4.5f);
-            else offset = new Vector3(0.62f * shoulder, 0.18f, -2.7f);
+            else offset = new Vector3(0.12f * shoulder, 0.5f, -3.1f);
             smoothOffset = Scope ? offset : Vector3.Lerp(smoothOffset, offset, 1f - Mathf.Exp(-16f * dt));
             var desired = pivot + rotation * smoothOffset;
             var dir = desired - pivot;

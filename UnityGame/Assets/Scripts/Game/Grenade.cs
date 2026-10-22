@@ -13,7 +13,8 @@ namespace UA
         public const float Fuse = 3f;
         public const float LethalRadius = 3f;      // 100+ damage: always a kill
         public const float Radius = 8.5f;          // no damage beyond this
-        public const int PerLife = 2, Max = 3;
+        public const float ThroughWalls = 4.5f;    // closer than this, walls do not protect
+        public const int PerLife = 2, Max = 5;   // a resupply fills up to five
 
         public static readonly List<Grenade> Live = new List<Grenade>();
         private static Material material;

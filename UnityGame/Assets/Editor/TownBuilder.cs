@@ -151,6 +151,8 @@ public static class TownBuilder
         B(t, "LanternTop", c + Vector3.up * 0.2f, new Vector3(0.26f, 0.06f, 0.26f), Iron, 1f, false);
         B(t, "LanternBase", c - Vector3.up * 0.17f, new Vector3(0.2f, 0.04f, 0.2f), Iron, 1f, false);
         NightLights.Lamp(t, t.TransformPoint(c), new Vector3(0.16f, 0.3f, 0.16f), night, 2.6f);
+        // the warm glow it throws on the wall around it
+        NightLights.Pool(t, t.TransformPoint(at + normal * 0.03f), t.TransformDirection(normal), 1.8f, night);
     }
 
     // ------------------------------------------------------------------ houses
@@ -692,7 +694,7 @@ public static class TownBuilder
         Buildings.Night = null;
         var layout = new MapLayout { Name = "OLD TOWN", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
         BuildNavigation(layout);
-        layout.NightLights = MapOptimizer.Merge(root, "OldTown", null, night).ToArray();
+        root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "OldTown", null, night).ToArray();
         Debug.Log($"[Town] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {index} houses, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
         return layout;
     }

@@ -348,7 +348,7 @@ namespace UA
                 : recorded > 0 ? surface + (stepIndex++ % recorded)
                 : running ? "step_run_" + (stepIndex++ % 3)
                 : "step_" + (stepIndex++ % 4);
-            if (recorded > 0 && !s.Prone) volume *= running ? 1.2f : 0.85f;
+            if (recorded > 0 && !s.Prone) volume *= running ? 0.9f : 0.75f;
             Sfx.Step(clip, transform.position, s.Prone ? volume * 0.8f : volume);
         }
 

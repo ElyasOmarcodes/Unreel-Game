@@ -24,7 +24,7 @@ namespace UA
         public static readonly string[] MapNames =
         {
             "DOWNTOWN - DAY", "DOWNTOWN - SUNSET", "DOWNTOWN - NIGHT", "PORT - DAY", "PORT - SUNSET", "PORT - NIGHT",
-            "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT",
+            "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT", "OLD TOWN - DAY", "OLD TOWN - SUNSET", "OLD TOWN - NIGHT",
         };
         public static readonly string[] ModeNames = { "TEAM DEATHMATCH", "FREE FOR ALL" };
         public static readonly string[] SkillNames = { "EASY", "NORMAL", "HARD" };
@@ -87,7 +87,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 5;
+        public const byte Version = 6;
         public const byte NoPlayer = 255;
 
         public bool Active, IsHost, Practice;
@@ -880,7 +880,7 @@ namespace UA
 
         /// <summary>
         /// Host: the blast. Full damage up to 3 m, falling off to nothing at 8.5 m; walls and cover
-        /// between the grenade and the body (and the head) protect; lying down takes 30% less; the
+        /// between the grenade and the body (and the head) protect beyond 4.5 m; lying down takes 30% less; the
         /// thrower takes 60% of the damage from their own grenade; no team damage.
         /// </summary>
         public void HostExplode(Grenade g)
@@ -900,7 +900,8 @@ namespace UA
                 if (amount <= 0) continue;
                 bool exposed = !Physics.Linecast(blast, body, World.EnvMask, QueryTriggerInteraction.Ignore)
                                || !Physics.Linecast(blast, head, World.EnvMask, QueryTriggerInteraction.Ignore);
-                if (!exposed) continue;
+                // close to the blast nothing protects (fragments and the pressure go through thin walls)
+                if (!exposed && Vector3.Distance(blast, body) > Grenade.ThroughWalls) continue;
                 if (victim.Prone) amount *= 0.7f;
                 if (victim == thrower) amount *= 0.6f;
                 Damage(thrower, victim, Weapons.Grenade, false, amount);

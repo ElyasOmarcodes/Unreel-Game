@@ -180,9 +180,9 @@ namespace UA
             yield return Shot("04-wifi");
             app.Draft.Mode = Mode.TeamDeathmatch;
             app.Draft.Map = 3; // PORT
-            app.Draft.Bots = 4;
             app.Draft.Minutes = 3;
             app.OpenCreate(false);
+            app.Draft.Bots = 4;   // the test match still has bots to fight (the screen offers none)
             yield return Wait(1f);
             yield return Shot("05-create-group");
             app.CreateFromDraft();
@@ -192,7 +192,7 @@ namespace UA
             yield return Wait(2f);
             yield return Shot("07-lobby-host");
             Session.I.StartMatch();
-            yield return Until(() => Session.I.Phase == Phase.Playing, 10);
+            yield return Until(() => Session.I.Phase == Phase.Playing && World.I.MapReady, 30);
             yield return Wait(3f);
             yield return Shot("08-match-start");
             yield return Play(10f, "09-running-firing", "10-fight");
@@ -264,14 +264,24 @@ namespace UA
                 (6, "33-village-terraces", new Vector3(-28f, 10f, 30f), new Vector3(-52f, 5f, 60f)),
                 (7, "34-village-sunset", new Vector3(-62f, 26f, -72f), new Vector3(0f, 0f, 0f)),
                 (6, "35-village-ruins", new Vector3(-46f, 6f, -2f), new Vector3(-62f, 1f, -12f)),
-                (6, "36-village-hills", new Vector3(20f, 22f, 70f), new Vector3(4f, 18f, 112f)),
+                (6, "36-village-hills", new Vector3(20f, 34f, 110f), new Vector3(4f, 24f, 150f)),
+                (6, "36e-village-farm", new Vector3(-80f, 9f, -48f), new Vector3(-98f, 1f, -76f)),
                 (8, "36b-village-night", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
                 (2, "36c-downtown-night", new Vector3(29f, 2.2f, -36f), new Vector3(25f, 1f, -62f)),
                 (5, "36d-port-night", new Vector3(-4f, 6f, -24f), new Vector3(-30f, 2f, 10f)),
+                (9, "37-town-square", new Vector3(-16f, 6f, -20f), new Vector3(0f, 1.5f, 0f)),
+                (9, "38-town-street", new Vector3(-62f, 2f, 0f), new Vector3(-20f, 3f, 0f)),
+                (11, "39-town-night", new Vector3(-56f, 1.8f, -1.5f), new Vector3(-38f, 3f, 6f)),
+                (11, "39b-town-night-square", new Vector3(-16f, 6f, -20f), new Vector3(0f, 1.5f, 0f)),
+                (9, "40-town-church", new Vector3(-20f, 4f, 22f), new Vector3(0f, 12f, 44f)),
+                (9, "41-town-tower-view", new Vector3(0f, 18.6f, 38.4f), new Vector3(0f, 2f, 0f)),
+                (9, "42-town-canal", new Vector3(50f, 3f, -20f), new Vector3(58f, 0f, 10f)),
+                (10, "43-town-sunset", new Vector3(-70f, 25f, -70f), new Vector3(0f, 0f, 0f)),
             };
             foreach (var v in views)
             {
                 World.I.ApplyLighting(v.map);
+                yield return Until(() => World.I.MapReady, 30);   // the map scene loads in the background
                 cam.transform.SetPositionAndRotation(v.from, Quaternion.LookRotation(v.to - v.from));
                 yield return Wait(0.8f);
                 yield return Shot(v.name);

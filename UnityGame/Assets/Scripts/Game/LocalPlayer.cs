@@ -28,7 +28,7 @@ namespace UA
         private Vector3 velocity;
 
         // speeds in m/s (the same for everyone)
-        public const float RunSpeed = 5.2f, SprintSpeed = 7.4f, CrouchSpeed = 2.8f, ProneSpeed = 1.5f;
+        public const float RunSpeed = 5.6f, SprintSpeed = 7.8f, CrouchSpeed = 3f, ProneSpeed = 1.6f;
         private const float StandHeight = 1.8f, ProneHeight = 0.7f;
         private System.Random rng;
 
@@ -272,7 +272,7 @@ namespace UA
             var aim = rig.AimRay().direction;
             var origin = agent.Eye + Quaternion.Euler(0, rig.Yaw, 0) * new Vector3(0.3f, 0.15f, 0.45f);
             if (Physics.Linecast(agent.Eye, origin, World.EnvMask, QueryTriggerInteraction.Ignore)) origin = agent.Eye;
-            var throwVelocity = (aim + Vector3.up * 0.22f).normalized * (prone ? 9f : 15f) + velocity * 0.5f;
+            var throwVelocity = (aim + Vector3.up * 0.22f).normalized * (prone ? 11f : 19f) + velocity * 0.5f;
             Session.I.ThrowLocal(origin, throwVelocity);
             Sfx.Play("grenade_pin", 0.7f);
             agent.PlayReload();

@@ -37,9 +37,25 @@ public static class MapOptimizer
         var groups = new Dictionary<(Material mat, int x, int z, ShadowCastingMode shadows, bool detail, bool night), List<CombineInstance>>();
         var merged = new List<MeshRenderer>();
         int before = 0;
+        // pieces of the model kits used again and again (walls, windows, props) are not merged: copies
+        // of them would fill the APK and the phone's memory; the GPU draws them together instead
+        // (instancing), so they stay cheap
+        var uses = new Dictionary<Mesh, int>();
+        foreach (var f in root.GetComponentsInChildren<MeshFilter>(true))
+            if (f.sharedMesh != null) uses[f.sharedMesh] = uses.TryGetValue(f.sharedMesh, out int u) ? u + 1 : 1;
+        int instanced = 0;
         foreach (var r in root.GetComponentsInChildren<MeshRenderer>(true))
         {
             before++;
+            var kitMesh = r.GetComponent<MeshFilter>()?.sharedMesh;
+            if (kitMesh != null && uses[kitMesh] >= 3 && AssetDatabase.GetAssetPath(kitMesh).ToLowerInvariant().EndsWith(".fbx"))
+            {
+                foreach (var m in r.sharedMaterials)
+                    if (m != null && !m.enableInstancing && AssetDatabase.Contains(m)) { m.enableInstancing = true; EditorUtility.SetDirty(m); }
+                GameObjectUtility.SetStaticEditorFlags(r.gameObject, StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
+                instanced++;
+                continue;
+            }
             bool isNight = nightSet.Contains(r);
             if ((!r.enabled && !isNight) || (keep != null && keep.Contains(r)) || !ActiveUnder(r.transform, root)) continue;
             if (r.GetComponentInParent<LODGroup>(true) != null) continue;
@@ -112,7 +128,7 @@ public static class MapOptimizer
             Object.DestroyImmediate(r);
             if (filter != null) Object.DestroyImmediate(filter);
         }
-        Debug.Log($"[Map] {name}: {merged.Count} of {before} renderers merged into {count} ({night.Count} for the night)");
+        Debug.Log($"[Map] {name}: {merged.Count} of {before} renderers merged into {count} ({night.Count} for the night), {instanced} kit pieces instanced");
         // night pieces that could not be merged still go on and off with the night
         night.AddRange(nightSet.Where(r => r != null));
         return night;
