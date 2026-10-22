@@ -224,7 +224,7 @@ namespace UA
                 (0, "20c-ammo-crate", new Vector3(-29.5f, 1.9f, -9.5f), new Vector3(-33.5f, 0.5f, -12f)),
                 (0, "20d-downtown-tower", new Vector3(38f, 3f, 18f), new Vector3(62f, 14f, 42f)),
                 (0, "20e-downtown-terrace", new Vector3(-12f, 2.6f, -12.5f), new Vector3(4f, 0.5f, 3f)),
-                (0, "20f-metro-entrance", new Vector3(-58f, 3f, -15f), new Vector3(-68f, -1.5f, -22f)),
+                (0, "20f-metro-entrance", new Vector3(-54f, 3.2f, -27f), new Vector3(-68f, -1.5f, -22f)),
                 (0, "20g-metro-hall", new Vector3(-17.5f, -3.3f, -21.3f), new Vector3(10f, -4.6f, -29f)),
                 (0, "20h-metro-tunnel", new Vector3(-24f, -3.4f, -22f), new Vector3(-60f, -3.8f, -24f)),
                 (3, "21-port-office", new Vector3(44f, 4f, 4f), new Vector3(58f, 5f, 24f)),

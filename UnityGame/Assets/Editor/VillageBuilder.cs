@@ -28,9 +28,9 @@ public static class VillageBuilder
 
     // kahgel: mud and straw plaster, light beige brown (the hand smoothed clay texture)
     // (shader UA/Mud: projected in world space, so separate pieces read as one plastered surface)
-    private static Material Mud => MudMat("V_Mud", new Color(0.9f, 0.8f, 0.66f));
-    private static Material MudPlaster => MudMat("V_MudPlaster", new Color(0.98f, 0.9f, 0.77f));
-    private static Material MudDark => MudMat("V_MudDark", new Color(0.7f, 0.6f, 0.48f));
+    private static Material Mud => MudMat("V_Mud", new Color(1.05f, 0.95f, 0.8f));
+    private static Material MudPlaster => MudMat("V_MudPlaster", new Color(1.12f, 1.02f, 0.86f));
+    private static Material MudDark => MudMat("V_MudDark", new Color(0.82f, 0.72f, 0.58f));
     private static readonly Dictionary<string, Material> mudMats = new Dictionary<string, Material>();
 
     private static Material MudMat(string name, Color tint)
@@ -41,10 +41,11 @@ public static class VillageBuilder
         var shader = Shader.Find("UA/Mud");
         if (shader == null) Debug.LogWarning("[Map] village: mud shader missing");
         var m = new Material(shader ?? Shader.Find("Standard")) { name = name };
-        m.SetTexture("_MainTex", T("Clay007_BaseColor.jpg"));
-        m.SetTexture("_Patches", T("Ground104_BaseColor.jpg"));
+        // grainy dry earth as the plaster, the smoothed clay as large patches of fresher mud
+        m.SetTexture("_MainTex", T("Ground104_BaseColor.jpg"));
+        m.SetTexture("_Patches", T("Clay007_BaseColor.jpg"));
         m.SetColor("_Color", tint);
-        m.SetFloat("_Tile", 2.2f);
+        m.SetFloat("_Tile", 3f);
         m.SetFloat("_PatchTile", 9f);
         m.SetFloat("_GroundY", 0f);
         AssetDatabase.CreateAsset(m, path);
@@ -234,14 +235,15 @@ public static class VillageBuilder
         {
             if (a1 - a0 < 0.02f) return;
             if (ruin == null) { Block("Wall", t, P((a0 + a1) / 2f, y + height / 2f), S(a1 - a0 + 0.02f, height), m); return; }
+            // the broken top wanders up and down along the wall; now and then a stretch has fallen
+            float top = height * (0.55f + 0.4f * (float)ruin.NextDouble());
             for (float u = a0; u < a1 - 0.01f;)
             {
-                float len = Mathf.Min(a1 - u, 0.8f + (float)ruin.NextDouble());
-                if (ruin.NextDouble() > 0.12)
-                {
-                    float hh = height * (0.3f + 0.7f * (float)ruin.NextDouble());
-                    Block("RuinedWall", t, P(u + len / 2f, y + hh / 2f), S(len + 0.02f, hh), m, 0.2f);
-                }
+                float len = Mathf.Min(a1 - u, 0.6f + 0.7f * (float)ruin.NextDouble());
+                top = Mathf.Clamp(top + ((float)ruin.NextDouble() - 0.5f) * height * 0.45f, height * 0.25f, height);
+                bool fallen = ruin.NextDouble() < 0.08;
+                float hh = fallen ? Mathf.Min(top, 0.45f) : top;
+                Block("RuinedWall", t, P(u + len / 2f, y + hh / 2f), S(len + 0.06f, hh), m, 0.07f);
                 u += len;
             }
         }

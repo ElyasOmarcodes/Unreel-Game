@@ -589,8 +589,13 @@ public static class PortBuilder
         LoadingPit();
         ServiceTunnel();
         Slopes();
-        var sea = MeshGen.Object("Sea", MeshGen.Box(new Vector3(1600, 0.1f, 1600), 40f), AssetSetup.Mat("Port_Sea", new Color(0.08f, 0.22f, 0.32f), 0.95f, 0.1f), root, new Vector3(0, -2.6f, 0));
-        sea.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        // the sea all around the yard (not under it: the pit and the tunnel are below sea level)
+        var seaMat = AssetSetup.Mat("Port_Sea", new Color(0.08f, 0.22f, 0.32f), 0.95f, 0.1f);
+        foreach (var r in Underground.Cover(Rect.MinMaxRect(-800f, -800f, 800f, 800f), new[] { Rect.MinMaxRect(-yx, -yz, yx, yz) }))
+        {
+            var sea = MeshGen.Object("Sea", MeshGen.Box(new Vector3(r.width, 0.1f, r.height), 40f), seaMat, root, new Vector3(r.center.x, -2.6f, r.center.y));
+            sea.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
 
         // perimeter wall with pillars
         var walls = new GameObject("PerimeterWall").transform;
