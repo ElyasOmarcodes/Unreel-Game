@@ -475,7 +475,9 @@ public static class AssetSetup
         {
             var src = filter.sharedMesh;
             if (src == null) continue;
-            string path = $"{Generated}/GunMeshes/{key}_{filter.name}_{src.name}.asset".Replace(" ", "_");
+            // only safe characters in the file name (some models name their parts like "762*54r.001")
+            string file = System.Text.RegularExpressions.Regex.Replace($"{key}_{filter.name}_{src.name}", @"[^A-Za-z0-9_.-]", "_");
+            string path = $"{Generated}/GunMeshes/{file}.asset";
             var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
             if (mesh == null)
             {
