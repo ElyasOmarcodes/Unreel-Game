@@ -115,15 +115,13 @@ public static class MapBuilder
         port.Root.SetActive(false);
         var village = VillageBuilder.Build();
         village.Root.SetActive(false);
-        var town = TownBuilder.Build();
-        town.Root.SetActive(false);
         map.gameObject.SetActive(true);
 
         var worldGo = new GameObject("World");
         var world = worldGo.AddComponent<World>();
         world.Sun = sun;
         world.Skybox = skybox;
-        world.Layouts = new[] { downtown, port, village, town };
+        world.Layouts = new[] { downtown, port, village };
 
         new GameObject("App").AddComponent<App>();
 

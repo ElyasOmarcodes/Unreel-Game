@@ -268,14 +268,6 @@ namespace UA
                 (8, "36b-village-night", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
                 (2, "36c-downtown-night", new Vector3(29f, 2.2f, -36f), new Vector3(25f, 1f, -62f)),
                 (5, "36d-port-night", new Vector3(-4f, 6f, -24f), new Vector3(-30f, 2f, 10f)),
-                (9, "37-town-square", new Vector3(-16f, 6f, -20f), new Vector3(0f, 1.5f, 0f)),
-                (9, "38-town-street", new Vector3(-62f, 2f, 0f), new Vector3(-20f, 3f, 0f)),
-                (11, "39-town-night", new Vector3(-56f, 1.8f, -1.5f), new Vector3(-38f, 3f, 6f)),
-                (11, "39b-town-night-square", new Vector3(-16f, 6f, -20f), new Vector3(0f, 1.5f, 0f)),
-                (9, "40-town-church", new Vector3(-20f, 4f, 22f), new Vector3(0f, 12f, 44f)),
-                (9, "41-town-tower-view", new Vector3(0f, 18.6f, 38.4f), new Vector3(0f, 2f, 0f)),
-                (9, "42-town-canal", new Vector3(50f, 3f, -20f), new Vector3(58f, 0f, 10f)),
-                (10, "43-town-sunset", new Vector3(-70f, 25f, -70f), new Vector3(0f, 0f, 0f)),
             };
             foreach (var v in views)
             {

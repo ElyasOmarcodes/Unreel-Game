@@ -59,7 +59,7 @@ namespace UA
         public Vector3 Center => layout.Center;
         public float Radius => layout.Radius;
 
-        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for downtown, port, village, old town.</summary>
+        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for downtown, port and village.</summary>
         public static int LayoutOf(int map) => map / 3;
 
         private void Awake()

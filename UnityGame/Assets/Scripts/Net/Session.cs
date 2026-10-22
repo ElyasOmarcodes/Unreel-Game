@@ -24,7 +24,7 @@ namespace UA
         public static readonly string[] MapNames =
         {
             "DOWNTOWN - DAY", "DOWNTOWN - SUNSET", "DOWNTOWN - NIGHT", "PORT - DAY", "PORT - SUNSET", "PORT - NIGHT",
-            "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT", "OLD TOWN - DAY", "OLD TOWN - SUNSET", "OLD TOWN - NIGHT",
+            "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT",
         };
         public static readonly string[] ModeNames = { "TEAM DEATHMATCH", "FREE FOR ALL" };
         public static readonly string[] SkillNames = { "EASY", "NORMAL", "HARD" };
