@@ -4,10 +4,10 @@
 set -u
 BUILD="$(realpath "$1")"; OUT="$(realpath -m "$2")"
 mkdir -p "$OUT"
-if [ ! -x "$BUILD/UrbanAgents.x86_64" ]; then echo "::warning::no desktop build, skipping the LAN test"; exit 0; fi
+if [ ! -x "$BUILD/AgentWarfare.x86_64" ]; then echo "::warning::no desktop build, skipping the LAN test"; exit 0; fi
 sudo apt-get install -y -q xvfb libgl1-mesa-dri libglu1-mesa mesa-utils >/dev/null 2>&1 || true
 run() { # role log
-  xvfb-run -a -s "-screen 0 1280x720x24" "$BUILD/UrbanAgents.x86_64" -force-glcore -screen-fullscreen 0 \
+  xvfb-run -a -s "-screen 0 1280x720x24" "$BUILD/AgentWarfare.x86_64" -force-glcore -screen-fullscreen 0 \
     -screen-width 1280 -screen-height 720 -autotest "$1" -shots "$OUT" -logFile "$OUT/$1.log" &
 }
 run host

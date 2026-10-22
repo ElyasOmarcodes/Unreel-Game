@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Downloads the CC0 Quaternius assets used by Urban Agents into the Unity project (git sparse checkout of
+# Downloads the CC0 Quaternius assets used by Agent Warfare into the Unity project (git sparse checkout of
 # one pinned commit of a public mirror) and prepares the textures for Unity's Standard shader.
 set -euo pipefail
 DEST="$(realpath -m "$1")"
@@ -13,6 +13,7 @@ git sparse-checkout set --no-cone \
   "quaternius/universal-animation-library/Unity/UAL1.fbx" \
   "quaternius/universal-animation-library/License.txt" \
   "quaternius/universal-animation-library-2/Female Mannequin/Unity/Mannequin_F.fbx" \
+  "quaternius/universal-animation-library-2/Unity/UAL2.fbx" \
   "quaternius/downtown-city-megakit/Exports/FBX (Unity)/*" \
   "quaternius/downtown-city-megakit/Textures/*.png" \
   "quaternius/downtown-city-megakit/License_Standard.txt" \
@@ -40,6 +41,8 @@ mkdir -p "$DEST/UAL" "$DEST/City/Models" "$DEST/City/Textures"
 cp "$Q/universal-animation-library/Unity/UAL1.fbx" "$DEST/UAL/"
 cp "$Q/universal-animation-library/License.txt" "$DEST/UAL/License.txt"
 cp "$Q/universal-animation-library-2/Female Mannequin/Unity/Mannequin_F.fbx" "$DEST/UAL/" || true
+# eight-direction walks (same skeleton)
+cp "$Q/universal-animation-library-2/Unity/UAL2.fbx" "$DEST/UAL/" || true
 cp "$Q/downtown-city-megakit/Exports/FBX (Unity)/"*.fbx "$DEST/City/Models/"
 cp "$Q/downtown-city-megakit/License_Standard.txt" "$DEST/City/License.txt"
 mkdir -p "$DEST/Nature"
@@ -242,6 +245,11 @@ oga() {  # every archive or sound file linked from an OpenGameArt page
 }
 oga fantozzis-footsteps-grasssand-stone || true
 oga 11-male-human-paindeath-sounds || true
+# weapon handling (all CC0): rifle and pistol reloads, a shotgun pump (SpringySpringo), a handgun
+# reload (zer0_sol), clicks recorded from a real bolt-action rifle (LFA)
+oga gun-reload-sounds || true
+oga handgun-reload-sound-effect || true
+oga equipment-clicks-iii || true
 for a in *.7z *.zip; do [ -f "$a" ] && 7z x -y -o"x_${a%.*}" "$a" >/dev/null || true; done
 find . -type f \( -iname "*.ogg" -o -iname "*.wav" -o -iname "*.flac" \) | sort
 mkdir -p "$DEST/Sounds/Resources/Audio"
@@ -284,6 +292,37 @@ if not dying and voices:
     dying = sorted(voices, key=duration)[-max(1, len(voices) // 3):]
 for i, f in enumerate(dying): convert(f, f"death_{i}", 0.85, 2.0)
 for i, f in enumerate(f for f in voices if f not in dying): convert(f, f"pain_{i}", 0.8, 1.0)
+def find(*keys):
+    for f in files:
+        n = os.path.basename(f).lower()
+        if all(k in n for k in keys): return f
+    return None
+for name, keys, keep in (("reload_rifle", ("assaultriflereload",), 3.0), ("reload_pistol", ("reload.wav",), 2.5),
+                         ("reload_pistol2", ("gunreload",), 2.5), ("reload_shotgun", ("shotguncock",), 1.2)):
+    f = find(*keys)
+    if f: convert(f, name, 0.8, keep)
+# the bolt-action recording: the loudest moments, each cut out with a little time around it
+f = find("equipment_clicks3")
+if f:
+    tmp = "clicks.wav"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", f, "-ac", "1", "-ar", "44100", "-sample_fmt", "s16", tmp], check=True)
+    with wave.open(tmp) as w:
+        data = array.array("h", w.readframes(w.getnframes()))
+    win = 2205
+    loud = sorted(((max(abs(x) for x in data[i:i + win]), i) for i in range(0, len(data) - win, win)), reverse=True)
+    picked = []
+    for level, i in loud:
+        if all(abs(i - j) > 44100 for j in picked): picked.append(i)
+        if len(picked) == 4: break
+    for k, i in enumerate(sorted(picked)):
+        for name, before, length in ((f"bolt_{k}", 0.15, 0.7), (f"dry_{k}", 0.02, 0.14)):
+            if name.startswith("dry") and k > 1: continue
+            a = max(0, i - int(before * 44100)); seg = data[a:a + int(length * 44100)]
+            top = max(1, max(abs(x) for x in seg))
+            seg = array.array("h", (int(x * 0.8 * 32767 / top) for x in seg))
+            with wave.open(os.path.join(out, name + ".wav"), "wb") as w:
+                w.setnchannels(1); w.setsampwidth(2); w.setframerate(44100); w.writeframes(seg.tobytes())
+            print("sound", name, "<-", f, f"at {i / 44100:.2f}s")
 PY
 ls -la "$DEST/Sounds/Resources/Audio" || true
 

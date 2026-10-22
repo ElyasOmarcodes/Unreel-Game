@@ -363,6 +363,12 @@ public static class VillageBuilder
             Rubble(t, new Vector3(-w * 0.3f, 0, l * 0.2f), 1.2f, ruin);
             return h;
         }
+        // at night: a lantern by the main door and warm light in some windows (blue-violet moonlight around)
+        Lantern(t, t.TransformPoint(new Vector3(-w * 0.22f + 0.95f, 2.45f, -l / 2f - 0.4f)), t.TransformDirection(Vector3.back));
+        var lit = new System.Random((int)(pos.x * 31f + pos.z * 17f));
+        foreach (float wx in new[] { -w * 0.4f, w * 0.02f, w * 0.42f })
+            if (lit.NextDouble() < 0.6)
+                NightLights.Window(t, t.TransformPoint(new Vector3(wx, 1.5f, -l / 2f - 0.02f)), t.TransformDirection(Vector3.back), 0.66f, 0.76f, night);
         // the guest room has a raised sitting platform (toshak place) along the back wall: low cover
         Block("Platform", t, new Vector3(-w / 4f, 0.25f, l / 2f - 1f), new Vector3(w / 2f - 1f, 0.4f, 1.1f), MudDark, 0.12f);
         Roof(t, w, l, h, true, 1.6f, stairSide);
@@ -384,6 +390,7 @@ public static class VillageBuilder
             Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, -stairSide * (uw / 2f - 0.2f), 0, 3f, 0.4f, Openings(Window(0.6f)), null, true);
             Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, stairSide * (uw / 2f - 0.2f), 0, 3f, 0.4f, Openings(Door(-0.4f)), null, true);
             Roof(u, uw, ul, 2.8f, false);
+            NightLights.Window(u, u.TransformPoint(new Vector3(uw * 0.25f, 1.5f, -ul / 2f - 0.02f)), u.TransformDirection(Vector3.back), 0.66f, 0.76f, night);
             // wooden balcony on carved posts
             Block("Balcony", u, new Vector3(0, 0.0f, -ul / 2f - 0.75f), new Vector3(uw * 0.7f, 0.12f, 1.1f), OldWood, 0.03f);
             Block("BalconyRail", u, new Vector3(0, 0.55f, -ul / 2f - 1.27f), new Vector3(uw * 0.7f, 0.9f, 0.08f), OldWood, 0.03f);
@@ -395,7 +402,7 @@ public static class VillageBuilder
     /// A small one-room mud house (kota): door at the front, a small window at the back, a flat roof on
     /// beams. On sloping ground it stands on a mud plinth. A ruined one has broken walls and no roof.
     /// </summary>
-    private static void Hut(Transform parent, Vector3 pos, float yaw, float w, float l, System.Random ruin, bool plinth = true)
+    private static void Hut(Transform parent, Vector3 pos, float yaw, float w, float l, System.Random ruin, bool plinth = true, int climbSide = 0)
     {
         var t = new GameObject(ruin != null ? "RuinedHut" : "Hut").transform;
         t.SetParent(parent, false);
@@ -421,8 +428,20 @@ public static class VillageBuilder
         Wall(t, -w / 2f, w / 2f, l / 2f - thick / 2f, 0, h + 0.2f, thick, Openings(Window(0)), null, false, ruin);
         foreach (float s in new[] { -1f, 1f })
             Wall(t, -l / 2f + thick, l / 2f - thick, s * (w / 2f - thick / 2f), 0, h + 0.2f, thick, Openings(), null, true, ruin);
-        if (ruin == null) Roof(t, w, l, h, true);
+        if (ruin == null) Roof(t, w, l, h, true, climbSide != 0 ? 1.6f : 0f, climbSide);
         else Rubble(t, new Vector3(0.3f, 0, 0.2f), 1f, ruin);
+        if (climbSide == 0 || ruin != null) return;
+        // the hidden way up to the corner tower: stacked crates to the gap in the roof parapet (0.75 m
+        // steps), then two chests on the roof up to the tower top behind the hut (Agent jumps ~1 m)
+        float roofTop = h + 0.3f, side = climbSide;
+        for (int i = 0; i < 3; i++)
+        {
+            float top = 0.75f * (3 - i);
+            for (float y = 0; y < top - 0.01f; y += 0.75f)
+                Block("Crate", t, new Vector3(side * (w / 2f + 0.6f + i * 0.9f), y + 0.375f, l / 2f - 0.85f), new Vector3(0.88f, 0.74f, 1.1f), OldWood, 0.04f);
+        }
+        Block("Chest", t, new Vector3(-side * 0.0f, roofTop + 0.3f, l / 2f - 0.35f), new Vector3(0.9f, 0.6f, 0.9f), OldWood, 0.04f);
+        Block("Chest", t, new Vector3(-side * 0.93f, roofTop + 0.6f, l / 2f - 0.35f), new Vector3(0.94f, 1.2f, 0.9f), OldWood, 0.04f);
     }
 
     /// <summary>A compound: mud walls with a gate (and a breach), corner towers, a house against the back wall and a yard.</summary>
@@ -462,7 +481,20 @@ public static class VillageBuilder
                     var p = t.TransformPoint(new Vector3(x * w / 2f, 0, z * l / 2f));
                     float th = ruined ? 1.8f + (float)r.NextDouble() * 2f : 4.2f;
                     MeshGen.TexCylinder("Tower", p, 1.5f, th, Mud, 2.5f, t);
-                    if (!ruined) MeshGen.TexCylinder("TowerTop", p + Vector3.up * th, 1.62f, 0.3f, MudPlaster, 2.5f, t, false);
+                    if (!ruined)
+                    {
+                        MeshGen.TexCylinder("TowerTop", p + Vector3.up * th, 1.62f, 0.3f, MudPlaster, 2.5f, t, false);
+                        // a flat top to stand on (the round collider is domed) and low merlons: a lookout over the lanes
+                        var deck = new GameObject("TowerDeck");
+                        deck.transform.SetParent(t, false);
+                        deck.transform.SetPositionAndRotation(p + Vector3.up * (th + 0.15f), t.rotation);
+                        deck.AddComponent<BoxCollider>().size = new Vector3(2.5f, 0.3f, 2.5f);
+                        for (int m = 0; m < 4; m++)
+                        {
+                            var dir = Quaternion.Euler(0, m * 90f, 0) * t.forward;
+                            MeshGen.RoundBox("Merlon", p + dir * 1.25f + Vector3.up * (th + 0.6f), new Vector3(0.7f, 0.6f, 0.4f), 0.1f, MudPlaster, 2.5f, t, Quaternion.LookRotation(dir).eulerAngles.y);
+                        }
+                    }
                 }
         // the house along the back wall, its stair on the side with room for it
         float hw = Mathf.Min(w - 5.2f, 13f), hl = 6f;
@@ -471,7 +503,7 @@ public static class VillageBuilder
         House(t, t.TransformPoint(new Vector3(hx, 0, l / 2f - thick / 2f - 0.2f - hl / 2f)), yaw, hw, hl, upper && !ruined, stairSide, ruin);
         // a small store room in the front corner away from the gate, its door to the yard
         float g = gate >= 0f ? 1f : -1f;
-        Hut(t, t.TransformPoint(new Vector3(-g * (w / 2f - thick / 2f - 2.2f), 0, -l / 2f + thick / 2f + 2.1f)), yaw + 180f, 4f, 3.6f, ruin, false);
+        Hut(t, t.TransformPoint(new Vector3(-g * (w / 2f - thick / 2f - 2.2f), 0, -l / 2f + thick / 2f + 2.1f)), yaw + 180f, 4f, 3.6f, ruin, false, towers ? (int)-g : 0);
         // the yard: tandoor oven, hay stack, firewood, a tree, sacks and a water jar
         Yard(t, w, l, gate, r);
         if (ruined) Rubble(t, new Vector3(breach, 0, l / 2f - 1.5f), 1.8f, r);

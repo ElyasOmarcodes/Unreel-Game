@@ -54,7 +54,12 @@ namespace UA
             bool playing = s.Phase == Phase.Playing;
             var def = Weapons.Get(st.Primary);
             st.Weapon = def.Id;
-            if (mag <= 0 && reloadEnd <= 0) { reloadEnd = Time.time + def.ReloadTime; agent.PlayReload(); }
+            if (mag <= 0 && reloadEnd <= 0)
+            {
+                reloadEnd = Time.time + def.ReloadTime;
+                agent.PlayReload();
+                Sfx.Step(Weapons.ReloadSound(def), transform.position + Vector3.up, 0.8f);
+            }
             if (reloadEnd > 0 && Time.time >= reloadEnd) { reloadEnd = 0; mag = def.MagSize; }
 
             if (Time.time >= nextThink)
@@ -165,8 +170,7 @@ namespace UA
             delta.y = point.y - origin.y;
             float time = Mathf.Clamp(delta.magnitude / 13f, 0.6f, 1.6f);
             var velocity = (delta - 0.5f * Physics.gravity * time * time) / time;
-            s.BotThrow(agent.Id, origin, velocity);
-            agent.PlayReload();
+            s.BotThrow(agent.Id, origin, velocity);   // the arm swing is played by Grenade.Spawn
         }
 
         private void NextWaypoint(World world)

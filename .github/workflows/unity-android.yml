@@ -1,6 +1,6 @@
-name: Urban Agents (Unity Android)
+name: Agent Warfare (Unity Android)
 
-# Builds "Urban Agents" (UnityGame/) into an Android APK with a Unity Personal license, then plays
+# Builds "Agent Warfare" (UnityGame/) into an Android APK with a Unity Personal license, then plays
 # a two-player LAN match with the desktop build on the runner and publishes the APK with screenshots.
 # The license is activated online from the UNITY_EMAIL / UNITY_PASSWORD secrets and returned
 # automatically at the end of the job (post step of activate-unity-license).
@@ -104,7 +104,7 @@ jobs:
           echo "Unity exit code: ${PIPESTATUS[0]}"
           tail -40 UnityGame/Builds/Logs/Build.log
           ls -la UnityGame/Builds/Android UnityGame/Builds/Linux 2>/dev/null
-          test -f UnityGame/Builds/Android/UrbanAgents.apk
+          test -f UnityGame/Builds/Android/AgentWarfare.apk
 
       - name: Play a LAN match on the runner (host + client) and take screenshots
         run: bash .github/scripts/lan-test.sh UnityGame/Builds/Linux shots
@@ -112,7 +112,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: UnityGame/Builds/Android/UrbanAgents.apk
+          path: UnityGame/Builds/Android/AgentWarfare.apk
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -144,14 +144,14 @@ jobs:
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: urban-agents-${{ github.run_number }}
-          name: Urban Agents - build ${{ github.run_number }}
+          tag_name: agent-warfare-${{ github.run_number }}
+          name: Agent Warfare - build ${{ github.run_number }}
           prerelease: true
           body: |
-            URBAN AGENTS - third person LAN multiplayer shooter (Unity 6, Personal license).
+            AGENT WARFARE - third person LAN multiplayer shooter (Unity 6, Personal license).
             Play on the same Wi-Fi, or turn on the hotspot on one phone: CREATE GROUP on one phone, JOIN GROUP on the others.
             Modes: Team Deathmatch, Free For All, Practice vs bots. Weapons: AK-47, M4A1, SPAS-12, L96 sniper, Glock 17, Desert Eagle.
             3D characters, animations and city: Quaternius (CC0).
           files: |
-            apk/UrbanAgents.apk
+            apk/AgentWarfare.apk
             shots/*.png

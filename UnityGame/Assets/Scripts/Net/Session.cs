@@ -20,6 +20,7 @@ namespace UA
         public byte MaxPlayers = 8;
         public byte Bots = 2;
         public byte BotSkill = 1;
+        public string Password = "";   // host only, never sent: joiners must type it (empty = open group)
 
         public static readonly string[] MapNames =
         {
@@ -60,6 +61,8 @@ namespace UA
         public short Kills, Deaths;
         public byte SpawnSeq;
         public ushort Hits;
+        public ushort Shots, ShotHits, Heads, DamageDone;   // this match, for the results table
+        public bool Spawned;   // placed in this match: only then is the body shown (never dead in the air at 0,0,0)
 
         // host side only
         public IPEndPoint EndPoint;
@@ -87,8 +90,10 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 6;
+        public const byte Version = 7;
         public const byte NoPlayer = 255;
+        public const string PasswordNeeded = "This group is locked: type its password";
+        public const string WrongPassword = "Wrong password for this group";
 
         public bool Active, IsHost, Practice;
         public MatchConfig Config = new MatchConfig();
@@ -115,6 +120,7 @@ namespace UA
         private float lastHostPacket, joinTimer, joinDeadline, lobbyTimer, snapshotTimer, announceTimer, inputTimer, queryTimer;
         private float phaseEnd;
         private int token;
+        private string joinPassword = "";
         private bool joined;
         private ushort killSeq, fxSeq, lastKillSeen, lastFxSeen;
         private bool killInit, fxInit;
@@ -165,9 +171,10 @@ namespace UA
             return true;
         }
 
-        public void Join(IPEndPoint host)
+        public void Join(IPEndPoint host, string password = "")
         {
             Stop();
+            joinPassword = password ?? "";
             IsHost = false;
             Practice = false;
             hostEndPoint = host;
@@ -278,6 +285,7 @@ namespace UA
             {
                 Name = Config.GroupName, HostName = Settings.PlayerName, Port = HostPort, Mode = Config.Mode, Map = Config.Map,
                 Players = (byte)Players.Values.Count(p => !p.IsBot), MaxPlayers = Config.MaxPlayers, Phase = Phase,
+                Locked = !string.IsNullOrEmpty(Config.Password),
             };
             var w = pw.Begin(Msg.Announce);
             info.Write(w);
@@ -450,6 +458,7 @@ namespace UA
             foreach (var p in Players.Values)
             {
                 p.Kills = p.Deaths = 0;
+                p.Shots = p.ShotHits = p.Heads = p.DamageDone = 0;
                 if (Config.Mode == Mode.FreeForAll) p.Team = (byte)(p.Id % 2);
                 Respawn(p);
             }
@@ -476,6 +485,7 @@ namespace UA
             if (Phase == phase && phase != Phase.Lobby) return;
             Phase = phase;
             if (phase != Phase.Playing) Grenade.ClearAll();
+            if (phase == Phase.Lobby) foreach (var p in Players.Values) p.Spawned = false;
             App.Log("phase=" + phase);
             PhaseChanged?.Invoke(phase);
         }
@@ -488,6 +498,7 @@ namespace UA
             p.Pitch = 0;
             p.Health = 100;
             p.Alive = true;
+            p.Spawned = true;
             p.SpawnSeq++;
             p.Weapon = p.Primary;
         }
@@ -499,10 +510,16 @@ namespace UA
             string name = Settings.Clean(r.ReadString());
             byte primary = r.ReadByte(), secondary = r.ReadByte();
             int look = r.ReadInt32();
+            string password = r.BaseStream.Position < r.BaseStream.Length ? r.ReadString() : "";
             var player = Players.Values.FirstOrDefault(p => !p.IsBot && p.Id != 0 && p.Token == tok);
             if (player == null)
             {
                 if (version != Version) { SendKicked(from, "The host has a different game version"); return; }
+                if (!string.IsNullOrEmpty(Config.Password) && password != Config.Password)
+                {
+                    SendKicked(from, password.Length == 0 ? PasswordNeeded : WrongPassword);
+                    return;
+                }
                 if (Players.Values.Count(p => !p.IsBot) >= Config.MaxPlayers) { SendKicked(from, "The group is full"); return; }
                 byte id = 1;
                 while (Players.ContainsKey(id)) id++;
@@ -579,6 +596,8 @@ namespace UA
             if (Phase != Phase.Playing || !Players.TryGetValue(shot.Shooter, out var shooter) || !shooter.Alive || World.I == null) return;
             var def = Weapons.Get(shot.Weapon);
             var dirs = Ballistics.Pellets(shot.Dir.normalized, shot.Seed, def);
+            shooter.Shots++;
+            bool hitAny = false, headAny = false;
             var fx = new ShotFx { Shooter = shot.Shooter, Weapon = shot.Weapon, Origin = shot.Origin, HitKind = 2, End = shot.Origin + shot.Dir * def.Range };
             for (int i = 0; i < dirs.Length; i++)
             {
@@ -587,23 +606,31 @@ namespace UA
                 if (hit.Victim != NoPlayer && Players.TryGetValue(hit.Victim, out var victim))
                 {
                     float falloff = def.Pellets > 1 || !def.Primary ? Mathf.Lerp(1f, 0.55f, hit.Distance / def.Range) : 1f;
-                    Damage(shooter, victim, def, hit.Head, def.Damage * falloff);
+                    if (Damage(shooter, victim, def, hit.Head, def.Damage * falloff) > 0f) { hitAny = true; headAny |= hit.Head; }
                 }
             }
+            if (hitAny) shooter.ShotHits++;
+            if (headAny) shooter.Heads++;
             fx.Seq = ++fxSeq;
             fxRing.Add(fx);
             if (fxRing.Count > 16) fxRing.RemoveAt(0);
             if (fx.Shooter != LocalId) ShotSeen?.Invoke(fx);
         }
 
-        private void Damage(PlayerState shooter, PlayerState victim, WeaponDef def, bool head, float amount)
+        /// <summary>Applies the damage; returns how much health it really took (0 when refused).</summary>
+        private float Damage(PlayerState shooter, PlayerState victim, WeaponDef def, bool head, float amount)
         {
-            if (!victim.Alive) return;
-            if (Config.Mode == Mode.TeamDeathmatch && victim.Team == shooter.Team && victim != shooter) return;
+            if (!victim.Alive) return 0f;
+            if (Config.Mode == Mode.TeamDeathmatch && victim.Team == shooter.Team && victim != shooter) return 0f;
+            float dealt = Mathf.Min(victim.Health, amount * (head ? def.HeadMultiplier : 1f));
             victim.Health -= amount * (head ? def.HeadMultiplier : 1f);
             victim.LastDamageTime = Time.unscaledTime;
-            if (victim != shooter) shooter.Hits++;
-            if (victim.Health > 0) return;
+            if (victim != shooter)
+            {
+                shooter.Hits++;
+                shooter.DamageDone = (ushort)Mathf.Min(65000, shooter.DamageDone + Mathf.RoundToInt(dealt));
+            }
+            if (victim.Health > 0) return dealt;
             victim.Health = 0;
             victim.Alive = false;
             victim.Deaths++;
@@ -618,6 +645,7 @@ namespace UA
             if (KillFeed.Count > 8) KillFeed.RemoveAt(0);
             App.Log($"kill {shooter.Name} -> {victim.Name} with {def.Name}{(head ? " (headshot)" : "")}");
             KillHappened?.Invoke(kill);
+            return dealt;
         }
 
         private void SendLobby()
@@ -650,6 +678,7 @@ namespace UA
                 w.Write((sbyte)Mathf.Clamp(Mathf.RoundToInt(p.MoveX * 50), -127, 127));
                 w.Write((sbyte)Mathf.Clamp(Mathf.RoundToInt(p.MoveY * 50), -127, 127));
                 w.Write(p.Kills); w.Write(p.Deaths); w.Write(p.SpawnSeq); w.Write(p.Hits);
+                w.Write(p.Shots); w.Write(p.ShotHits); w.Write(p.Heads); w.Write(p.DamageDone);
             }
             int kills = Mathf.Min(KillFeed.Count, 6);
             w.Write((byte)kills);
@@ -696,6 +725,7 @@ namespace UA
                     joinTimer = 0.5f;
                     var w = pw.Begin(Msg.Join);
                     w.Write(Version); w.Write(token); w.Write(Settings.PlayerName); w.Write(Settings.Primary); w.Write(Settings.Secondary); w.Write(Settings.Look);
+                    w.Write(joinPassword);
                     socket.Send(pw.Buffer, pw.Length, hostEndPoint);
                 }
                 if (now > joinDeadline) Disconnect("Could not reach the group. Check that you are on the same Wi-Fi or hotspot.");
@@ -786,9 +816,11 @@ namespace UA
                 p.Kills = r.ReadInt16(); p.Deaths = r.ReadInt16();
                 byte spawnSeq = r.ReadByte();
                 p.Hits = r.ReadUInt16();
+                p.Shots = r.ReadUInt16(); p.ShotHits = r.ReadUInt16(); p.Heads = r.ReadUInt16(); p.DamageDone = r.ReadUInt16();
                 p.Alive = (flags & 1) != 0;
                 bool respawned = spawnSeq != p.SpawnSeq;
                 p.SpawnSeq = spawnSeq;
+                if (respawned) p.Spawned = true;
                 if (id != LocalId || respawned)
                 {
                     p.Pos = pos; p.Yaw = yaw; p.Pitch = pitch;

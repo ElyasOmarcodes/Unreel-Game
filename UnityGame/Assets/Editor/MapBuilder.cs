@@ -55,14 +55,14 @@ public static class MapBuilder
         sun.type = LightType.Directional;
         sun.shadows = LightShadows.Soft;
         sun.shadowStrength = 0.85f;
-        sun.shadowBias = 0.04f;
-        sun.shadowNormalBias = 0.3f;
+        sun.shadowBias = 0.06f;
+        sun.shadowNormalBias = 0.4f;
         sunGo.transform.rotation = Quaternion.Euler(48, -35, 0);
 
         var camGo = new GameObject("Main Camera");
         camGo.tag = "MainCamera";
         var cam = camGo.AddComponent<Camera>();
-        cam.nearClipPlane = 0.08f;
+        cam.nearClipPlane = 0.15f;   // more depth precision far away: no flicker where road slabs and kerbs meet
         cam.farClipPlane = 260f;
         cam.fieldOfView = 60f;
         camGo.AddComponent<AudioListener>();

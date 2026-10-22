@@ -310,8 +310,8 @@ namespace UA
             Anim.SetFloat(MoveYId, animMoveY);
             // shorter, quicker steps when running (same speed over the ground)
             float move = new Vector2(animMoveX, Mathf.Min(1f, animMoveY)).magnitude;
-            // walking takes small quick steps, running a little longer ones (same speed over the ground)
-            Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 1.12f : move < 0.7f ? 1.55f : 1.3f);
+            // a real walk at half the stick (eight directions), the jog when running: firm full strides
+            Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 1.05f : move < 0.7f ? 1.05f : 1.1f);
             Steps(s, move);
             Anim.SetBool(CrouchId, s.Crouch);
             Anim.SetBool(ProneId, s.Prone);
@@ -337,7 +337,7 @@ namespace UA
             stepTimer -= Time.deltaTime;
             if (stepTimer > 0f) return;
             bool sprint = animMoveY > 1.2f;
-            stepTimer = s.Prone ? 0.8f : s.Crouch ? 0.42f : sprint ? 0.25f : move < 0.6f ? 0.33f : 0.27f;
+            stepTimer = s.Prone ? 0.8f : s.Crouch ? 0.45f : sprint ? 0.26f : move < 0.6f ? 0.42f : 0.3f;
             bool running = !s.Crouch && (sprint || move > 0.8f);
             float volume = (IsLocal ? 0.3f : 0.6f) * (s.Crouch ? 0.45f : 1f) * (sprint ? 1.15f : 1f);
             // recorded steps (Fantozzi, CC0): soft ground in the village, stone and concrete elsewhere;

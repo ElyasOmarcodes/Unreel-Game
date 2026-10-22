@@ -142,8 +142,9 @@ namespace UA
                 return;
             }
             if (!MapReady) return;   // the map is still loading: nobody stands on air
+            // a body appears only once the host has placed it in this match: never dead at 0,0,0 first
             foreach (var p in s.Players.Values)
-                if (!Agents.ContainsKey(p.Id))
+                if (!Agents.ContainsKey(p.Id) && p.Spawned)
                     Create(p, s);
             foreach (var id in Agents.Keys.Where(id => !s.Players.ContainsKey(id)).ToList())
             {
@@ -151,7 +152,7 @@ namespace UA
                 Agents.Remove(id);
             }
             foreach (var p in s.Players.Values)
-                Agents[p.Id].Sync(p, s);
+                if (Agents.TryGetValue(p.Id, out var agent)) agent.Sync(p, s);
         }
 
         private void Create(PlayerState p, Session s)
@@ -291,6 +292,17 @@ namespace UA
                     RenderSettings.ambientGroundColor = new Color(0.16f, 0.13f, 0.24f);
                     RenderSettings.fogColor = new Color(0.08f, 0.06f, 0.18f);
                     RenderSettings.fogDensity = 0.009f;
+                    if (LayoutOf(map) == 2)
+                    {
+                        // the village at night: a softer, brighter blue-violet moonlight over the mud walls
+                        Sun.color = new Color(0.62f, 0.6f, 1f);
+                        Sun.intensity = 0.72f;
+                        RenderSettings.ambientSkyColor = new Color(0.5f, 0.46f, 0.88f);
+                        RenderSettings.ambientEquatorColor = new Color(0.44f, 0.38f, 0.76f);
+                        RenderSettings.ambientGroundColor = new Color(0.2f, 0.17f, 0.32f);
+                        RenderSettings.fogColor = new Color(0.11f, 0.09f, 0.24f);
+                        RenderSettings.fogDensity = 0.0075f;
+                    }
                     break;
                 default:
                     Sun.transform.rotation = Quaternion.Euler(48f, -35f, 0f);

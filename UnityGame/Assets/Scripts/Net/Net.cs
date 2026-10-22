@@ -107,20 +107,26 @@ namespace UA
         public byte Players;
         public byte MaxPlayers;
         public Phase Phase;
+        public bool Locked;   // a password is needed to join
         public IPEndPoint Address;
         public float LastSeen;
 
         public void Write(BinaryWriter w)
         {
             w.Write(Name); w.Write(HostName); w.Write(Port); w.Write((byte)Mode); w.Write(Map);
-            w.Write(Players); w.Write(MaxPlayers); w.Write((byte)Phase);
+            w.Write(Players); w.Write(MaxPlayers); w.Write((byte)Phase); w.Write(Locked);
         }
 
-        public static GroupInfo Read(BinaryReader r) => new GroupInfo
+        public static GroupInfo Read(BinaryReader r)
         {
-            Name = r.ReadString(), HostName = r.ReadString(), Port = r.ReadInt32(), Mode = (Mode)r.ReadByte(), Map = r.ReadByte(),
-            Players = r.ReadByte(), MaxPlayers = r.ReadByte(), Phase = (Phase)r.ReadByte(),
-        };
+            var g = new GroupInfo
+            {
+                Name = r.ReadString(), HostName = r.ReadString(), Port = r.ReadInt32(), Mode = (Mode)r.ReadByte(), Map = r.ReadByte(),
+                Players = r.ReadByte(), MaxPlayers = r.ReadByte(), Phase = (Phase)r.ReadByte(),
+            };
+            g.Locked = r.BaseStream.Position < r.BaseStream.Length && r.ReadBoolean();
+            return g;
+        }
     }
 
     public static class LanUtil

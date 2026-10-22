@@ -23,6 +23,7 @@ namespace UA
         private float verticalSpeed;
         private float nextFire;
         private float reloadEnd;
+        private float boltAt;   // when the bolt is worked after a bolt-action shot
         private float bloom;
         private bool crouch, prone;
         private Vector3 velocity;
@@ -114,6 +115,11 @@ namespace UA
             if (!alive) { Aiming = false; reloadEnd = 0; }
             var def = Current;
             if (Reloading && Time.time >= reloadEnd) FinishReload();
+            if (boltAt > 0 && Time.time >= boltAt)
+            {
+                boltAt = 0;
+                if (alive && !Reloading && Sfx.Has("bolt_0")) Sfx.Play("bolt_" + rng.Next(Sfx.Count("bolt_")), 0.85f);
+            }
             bool trigger = def.Auto ? Controls.FireHeld : Controls.FirePressed;
             if (canShoot && trigger && !Reloading && Time.time >= nextFire)
             {
@@ -121,7 +127,7 @@ namespace UA
                 else
                 {
                     nextFire = Time.time + 0.3f;
-                    Sfx.Play("empty", 0.6f);
+                    Sfx.Play(Sfx.Has("dry_0") ? "dry_" + rng.Next(Sfx.Count("dry_")) : "empty", 0.7f);
                     StartReload();
                 }
             }
@@ -236,7 +242,11 @@ namespace UA
             agent.PlayFire();
             bloom = Mathf.Min(bloom + def.Recoil * 0.5f, 6f);
             rig.Kick(def.Recoil * (Aiming ? 0.6f : 1f));
-            if (def.BoltAction) Aiming = false;   // bolt action: re-aim after every shot
+            if (def.BoltAction)
+            {
+                Aiming = false;   // bolt action: re-aim after every shot
+                boltAt = Time.time + 0.42f;
+            }
             if (Mag[Slot] == 0) StartReload();
         }
 
@@ -274,8 +284,7 @@ namespace UA
             if (Physics.Linecast(agent.Eye, origin, World.EnvMask, QueryTriggerInteraction.Ignore)) origin = agent.Eye;
             var throwVelocity = (aim + Vector3.up * 0.22f).normalized * (prone ? 11f : 19f) + velocity * 0.5f;
             Session.I.ThrowLocal(origin, throwVelocity);
-            Sfx.Play("grenade_pin", 0.7f);
-            agent.PlayReload();
+            // the fuse on the grenade itself is the throw sound now, and the arm swing is played there (Grenade.Spawn)
         }
 
         // ---------------------------------------------------------------- aim assist
@@ -386,7 +395,7 @@ namespace UA
             reloadEnd = 0;
             Aiming = false;
             nextFire = Time.time + 0.45f;
-            Sfx.Play("reload", 0.4f, 1.4f);
+            Sfx.Play(Sfx.Has("dry_1") ? "dry_1" : "reload", 0.5f, Sfx.Has("dry_1") ? 0.9f : 1.4f);
         }
 
         public void StartReload()
@@ -396,7 +405,7 @@ namespace UA
             reloadEnd = Time.time + def.ReloadTime;
             Aiming = false;
             agent.PlayReload();
-            Sfx.Play("reload", 0.8f);
+            Sfx.Play(Weapons.ReloadSound(def), 0.85f);
         }
 
         private void FinishReload()
@@ -428,7 +437,7 @@ namespace UA
             reloadEnd = 0;
             Refill();
             Grenades = Grenade.Max;
-            Sfx.Play("reload", 0.9f, 1.15f);
+            Sfx.Play(Weapons.ReloadSound(Current), 0.9f, 1.1f);
             App.I?.Toast("AMMO AND GRENADES REFILLED");
         }
 

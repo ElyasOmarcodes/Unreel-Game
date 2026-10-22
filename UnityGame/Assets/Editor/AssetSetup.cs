@@ -13,6 +13,8 @@ using UnityEngine;
 public static class AssetSetup
 {
     public const string UalPath = "Assets/ThirdParty/UAL/UAL1.fbx";
+    // the second library, same skeleton: walks in eight directions
+    public const string Ual2Path = "Assets/ThirdParty/UAL/UAL2.fbx";
     public const string FemalePath = "Assets/ThirdParty/UAL/Mannequin_F.fbx";
     // Quaternius Universal Base Characters (realistic skin, face, eyes, hair), same skeleton as the UAL
     public const string UbcMale = "Assets/ThirdParty/UBC/Superhero_Male_FullBody.fbx";
@@ -172,16 +174,29 @@ public static class AssetSetup
         "Crouch_Left_Loop", "Crouch_Right_Loop", "Jump_Loop", "Death01", "Pistol_Idle_Loop", "Pistol_Aim_Down",
         "Pistol_Aim_Neutral", "Pistol_Aim_Up", "Pistol_Shoot", "Pistol_Reload", "Hit_Chest",
         "Crawl_Idle_Loop", "Crawl_Fwd_Loop", "Crawl_Bwd_Loop", "Crawl_Left_Loop", "Crawl_Right_Loop",
+        "Walk_Loop",
+    };
+
+    private static readonly string[] WantedClips2 =
+    {
+        "Walk_Fwd_Loop", "Walk_Bwd_Loop", "Walk_L_Loop", "Walk_R_Loop", "Walk_Fwd_L_Loop", "Walk_Fwd_R_Loop", "Walk_Bwd_L_Loop", "Walk_Bwd_R_Loop",
     };
 
     private static void SetupAnimationClips()
     {
         var importer = (ModelImporter)AssetImporter.GetAtPath(UalPath);
         if (importer == null) throw new System.Exception("UAL1.fbx is missing - the asset download step failed");
+        SetupClips(importer, WantedClips);
+        var second = (ModelImporter)AssetImporter.GetAtPath(Ual2Path);
+        if (second != null) SetupClips(second, WantedClips2);
+        else Debug.LogWarning("[Setup] UAL2.fbx is missing: no directional walks");
+    }
+
+    private static void SetupClips(ModelImporter importer, string[] wanted)
+    {
         var defaults = importer.defaultClipAnimations;
-        Debug.Log($"[Setup] UAL clips in file: {defaults.Length}");
         var clips = new List<ModelImporterClipAnimation>();
-        foreach (var name in WantedClips)
+        foreach (var name in wanted)
         {
             var clip = defaults.FirstOrDefault(c => c.name == name || c.takeName == name || c.name.EndsWith("|" + name));
             if (clip == null) { Debug.LogWarning("[Setup] clip not found: " + name); continue; }
@@ -198,7 +213,8 @@ public static class AssetSetup
 
     private static AnimationClip Clip(string name)
     {
-        var clip = AssetDatabase.LoadAllAssetsAtPath(UalPath).OfType<AnimationClip>().FirstOrDefault(c => c.name == name);
+        var clip = AssetDatabase.LoadAllAssetsAtPath(UalPath).OfType<AnimationClip>().FirstOrDefault(c => c.name == name)
+            ?? AssetDatabase.LoadAllAssetsAtPath(Ual2Path).OfType<AnimationClip>().FirstOrDefault(c => c.name == name);
         if (clip == null) Debug.LogWarning("[Setup] missing clip " + name);
         return clip;
     }
@@ -233,6 +249,19 @@ public static class AssetSetup
         tree.blendParameterY = "MoveY";
         void Add(BlendTree t, string clip, float x, float y) { var a = Clip(clip); if (a != null) t.AddChild(a, new Vector2(x, y)); }
         Add(tree, "Idle_Loop", 0, 0);
+        // a real walk for slow steps (half the stick) in every direction, the jog for running
+        if (Clip("Walk_Fwd_Loop") != null)
+        {
+            Add(tree, "Walk_Fwd_Loop", 0, 0.5f);
+            Add(tree, "Walk_Bwd_Loop", 0, -0.5f);
+            Add(tree, "Walk_L_Loop", -0.5f, 0);
+            Add(tree, "Walk_R_Loop", 0.5f, 0);
+            Add(tree, "Walk_Fwd_L_Loop", -0.35f, 0.35f);
+            Add(tree, "Walk_Fwd_R_Loop", 0.35f, 0.35f);
+            Add(tree, "Walk_Bwd_L_Loop", -0.35f, -0.35f);
+            Add(tree, "Walk_Bwd_R_Loop", 0.35f, -0.35f);
+        }
+        else Add(tree, "Walk_Loop", 0, 0.5f);
         Add(tree, "Jog_Fwd_Loop", 0, 1);
         Add(tree, "Jog_Bwd_Loop", 0, -1);
         Add(tree, "Jog_Left_Loop", -1, 0);

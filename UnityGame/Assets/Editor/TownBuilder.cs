@@ -550,6 +550,87 @@ public static class TownBuilder
         Barrel(t, new Vector3(wallX + 3.8f, 0, zc - 3f));
     }
 
+    /// <summary>
+    /// A flat-roofed stone store house (a strategic roof between the gabled houses), front to -Z. Tall
+    /// ones have a timber escape stair up the front onto the roof (seen from the street); the low one is
+    /// climbed the hidden way at the back: crates, a lean-to shed, two crates, through a gap in the parapet.
+    /// </summary>
+    private static void Loft(Vector3 c, bool tall, int k)
+    {
+        float w = 10f, d = 7f, h = tall ? 6.2f : 4.4f;
+        var t = Node(tall ? "Loft" : "Granary", root, c, 0);
+        B(t, "LoftWalls", new Vector3(0, h / 2f, 0), new Vector3(w, h, d), Plaster(k), 2.5f);
+        B(t, "LoftBase", new Vector3(0, 0.45f, 0), new Vector3(w + 0.12f, 0.9f, d + 0.12f), Stone, 2f, false);
+        B(t, "LoftCornice", new Vector3(0, h - 0.1f, 0), new Vector3(w + 0.3f, 0.2f, d + 0.3f), Timber, 1.5f, false);
+        // closed shutters on the walls, some lit at night
+        for (float y = 1.6f; y < h - 1f; y += 3.1f)
+            foreach (float x in new[] { -2.8f, 0.4f, 3f })
+                foreach (float sz in new[] { -1f, 1f })
+                {
+                    var face = new Vector3(x, y + 0.5f, sz * (d / 2f + 0.04f));
+                    B(t, "Shutter", face, new Vector3(1f, 1.3f, 0.08f), DoorWood, 1f, false);
+                    if (rng.NextDouble() < 0.45)
+                        NightLights.Window(t, t.TransformPoint(face + new Vector3(0, 0, sz * 0.06f)), new Vector3(0, 0, sz), 0.8f, 1.1f, night);
+                }
+        B(t, "LoftDoor", new Vector3(w / 2f + 0.05f, 1.15f, 0.4f), new Vector3(0.1f, 2.3f, 1.4f), DoorWood, 1f, false);
+        WallLantern(t, new Vector3(w / 2f, 2.6f, -1f), Vector3.right);
+        // roof: a waist-high parapet all round (cover), open where the way up arrives
+        const float ph = 0.95f, pt = 0.3f;
+        float gx0 = tall ? -w / 2f + 0.1f : -1.1f, gx1 = tall ? -w / 2f + 1.5f : 0.1f;
+        float gz = tall ? -d / 2f + pt / 2f : d / 2f - pt / 2f;
+        foreach (float sz in new[] { -1f, 1f })
+        {
+            float z = sz * (d / 2f - pt / 2f);
+            if (Mathf.Approximately(z, gz))
+            {
+                B(t, "Parapet", new Vector3((-w / 2f + gx0) / 2f, h + ph / 2f, z), new Vector3(gx0 + w / 2f + 0.01f, ph, pt), Stone, 1.5f);
+                B(t, "Parapet", new Vector3((gx1 + w / 2f) / 2f, h + ph / 2f, z), new Vector3(w / 2f - gx1, ph, pt), Stone, 1.5f);
+            }
+            else B(t, "Parapet", new Vector3(0, h + ph / 2f, z), new Vector3(w, ph, pt), Stone, 1.5f);
+        }
+        foreach (float sx in new[] { -1f, 1f })
+            B(t, "Parapet", new Vector3(sx * (w / 2f - pt / 2f), h + ph / 2f, 0), new Vector3(pt, ph, d - 2f * pt), Stone, 1.5f);
+        B(t, "Chimney", new Vector3(2.8f, h + 0.9f, 1.2f), new Vector3(0.9f, 1.8f, 0.9f), Stone, 1f);
+        if (tall)
+        {
+            // timber stair in two flights up the front, a plank over the gap onto the roof
+            Buildings.FireEscape(t, t.TransformPoint(new Vector3(-w / 2f + 0.05f, 0, -d / 2f)), Vector3.right, Vector3.back, h, true, Boards, Timber);
+            return;
+        }
+        // the hidden way: three crates like steps to a lean-to shed (2.7 m), two crates from it to the roof gap
+        const float roof = 2.7f, crate = 0.7f;
+        B(t, "Shed", new Vector3(-0.5f, roof / 2f - 0.05f, d / 2f + 1.3f), new Vector3(5f, roof - 0.1f, 2.6f), Barn, 2f);
+        B(t, "ShedRoof", new Vector3(-0.5f, roof - 0.05f, d / 2f + 1.35f), new Vector3(5.4f, 0.1f, 2.8f), DoorWood, 1.5f);
+        for (int i = 0; i < 3; i++)
+            B(t, "Crate", new Vector3(-5.5f + i * 1f, crate * (i + 1) / 2f, d / 2f + 1.3f), new Vector3(1f, crate * (i + 1), 1f), DoorWood, 1f);
+        B(t, "Crate", new Vector3(-0.5f, roof + crate / 2f, d / 2f + 1.5f), new Vector3(1f, crate, 1f), DoorWood, 1f);
+        B(t, "Crate", new Vector3(-0.5f, roof + crate, d / 2f + 0.5f), new Vector3(1f, crate * 2f, 1f), DoorWood, 1f);
+        Barrel(t, new Vector3(3f, 0, d / 2f + 1f));
+    }
+
+    /// <summary>Puts the store houses on free ground between the houses (not on streets, gardens or the canal).</summary>
+    private static void Lofts()
+    {
+        var placed = new List<Vector3>();
+        int k = 0;
+        for (int ring = 0; ring < 70 && placed.Count < 3; ring += 2)
+            for (float x = -ring; x <= ring && placed.Count < 3; x += 2f)
+                foreach (float z in new[] { -(float)ring, (float)ring })
+                {
+                    var c = new Vector3(x, 0, z);
+                    if (Mathf.Abs(c.x) > Half - 12f || Mathf.Abs(c.z) > Half - 14f || (c.x > CanalX0 - 12f && c.x < CanalX1 + 12f)) continue;
+                    if (placed.Any(p => (p - c).magnitude < 28f)) continue;
+                    // the building, the stair in front (3 m) or the shed and crates behind (5 m), and a lane round it
+                    var area = Rect.MinMaxRect(c.x - 7.5f, c.z - 3.5f - 4.5f, c.x + 6.5f, c.z + 3.5f + 6f);
+                    if (taken.Any(r => r.Overlaps(area))) continue;
+                    taken.Add(area);
+                    Loft(c, placed.Count != 1, k++);
+                    placed.Add(c);
+                    Debug.Log($"[Town] store house with a roof way at {c}");
+                    break;
+                }
+    }
+
     /// <summary>A raised garden by the canal: stone retaining walls, a stair, a little pavilion, benches and trees.</summary>
     private static void GardenTerrace(Rect r, float top)
     {
@@ -625,8 +706,9 @@ public static class TownBuilder
             Rect.MinMaxRect(-60f, -43f, 60f, -37f), Rect.MinMaxRect(-60f, 37f, 60f, 43f),
             Rect.MinMaxRect(-6f, 30f, 6f, 36f),                        // the churchyard
         };
-        foreach (var s in streets)
-            foreach (var r in Underground.Cover(s, new[] { canal }))
+        // each street only where no earlier one lies (overlapping slabs at one height flicker)
+        for (int si = 0; si < streets.Length; si++)
+            foreach (var r in Underground.Cover(streets[si], streets.Take(si).Append(canal).ToArray()))
                 MeshGen.TexBox("Street", new Vector3(r.center.x, 0.02f, r.center.y), new Vector3(r.width, 0.04f, r.height), Cobbles, 2.5f, root);
         foreach (var s in streets) taken.Add(s);
         taken.Add(canal);
@@ -724,6 +806,7 @@ public static class TownBuilder
             Barrel(cover, new Vector3(x + 0.7f, 0, z + 0.3f));
             Obstacles.CrateStack(cover, new Vector3(x + 1.6f, 0, z - 0.6f), R(0, 90), rng);
         }
+        Lofts();
         Obstacles.AmmoCrate(cover, new Vector3(-3f, 0, 18f), 0f);
         Obstacles.AmmoCrate(cover, new Vector3(30f, 0, -3.2f), 90f);
         Obstacles.AmmoCrate(cover, new Vector3(-50f, 0, 3.4f), 90f);

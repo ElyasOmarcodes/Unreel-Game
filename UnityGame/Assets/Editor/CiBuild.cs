@@ -30,15 +30,71 @@ public static class CiBuild
         EditorApplication.Exit(code);
     }
 
+    /// <summary>The Agent Warfare badge as the app icon: legacy, round and adaptive (badge over a dark layer).</summary>
+    private static void SetIcons()
+    {
+        Texture2D Load(string name)
+        {
+            string path = (name == "icon" ? "Assets/Resources/Branding/" : "Assets/Branding/") + name + ".png";
+            if (AssetImporter.GetAtPath(path) is TextureImporter importer && (importer.textureType != TextureImporterType.Default || importer.npotScale != TextureImporterNPOTScale.None))
+            {
+                importer.textureType = TextureImporterType.Default;
+                importer.npotScale = TextureImporterNPOTScale.None;
+                importer.mipmapEnabled = false;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+        var icon = Load("icon");
+        var fg = Load("icon_fg");
+        var bg = Load("icon_bg");
+        if (icon == null) { Debug.LogWarning("[CiBuild] no app icon in Assets/Resources/Branding"); return; }
+        // through reflection: the icon API moved between Unity versions (BuildTargetGroup / NamedBuildTarget)
+        var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
+        object Call(string name, params object[] args)
+        {
+            foreach (var m in typeof(PlayerSettings).GetMethods(flags))
+            {
+                var ps = m.GetParameters();
+                if (m.Name != name || ps.Length != args.Length) continue;
+                var target = ps[0].ParameterType == typeof(NamedBuildTarget) ? (object)NamedBuildTarget.Android
+                    : ps[0].ParameterType == typeof(BuildTargetGroup) ? BuildTargetGroup.Android : null;
+                if (target == null) continue;
+                var full = (object[])args.Clone();
+                full[0] = target;
+                try { return m.Invoke(null, full); }
+                catch (Exception e) { Debug.LogWarning($"[CiBuild] {name}: {e.InnerException?.Message ?? e.Message}"); }
+            }
+            return null;
+        }
+        Call("SetIconsForTargetGroup", null, new[] { icon });
+        var kindType = AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetType("UnityEditor.Android.AndroidPlatformIconKind")).FirstOrDefault(t => t != null);
+        if (kindType == null) { Debug.LogWarning("[CiBuild] no Android icon kinds"); return; }
+        foreach (var kindName in new[] { "Legacy", "Round", "Adaptive" })
+        {
+            var kind = kindType.GetProperty(kindName, flags)?.GetValue(null) as PlatformIconKind;
+            if (kind == null) continue;
+            if (!(Call("GetPlatformIcons", null, kind) is PlatformIcon[] icons)) continue;
+            foreach (var slot in icons)
+            {
+                if (kindName == "Adaptive") slot.SetTextures(bg, fg);
+                else slot.SetTexture(icon);
+            }
+            Call("SetPlatformIcons", null, kind, icons);
+        }
+        Debug.Log("[CiBuild] app icons set");
+    }
+
     private static void ConfigurePlayer()
     {
         PlayerSettings.companyName = "ElyasOmar";
-        PlayerSettings.productName = "Urban Agents";
+        PlayerSettings.productName = "Agent Warfare";
         PlayerSettings.bundleVersion = "1.0";
         if (int.TryParse(Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER"), out int run)) PlayerSettings.Android.bundleVersionCode = run;
-        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.elyasomar.urbanagents");
-        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, "com.elyasomar.urbanagents");
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.elyasomar.agentwarfare");
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, "com.elyasomar.agentwarfare");
         PlayerSettings.colorSpace = ColorSpace.Linear;
+        SetIcons();
 
         // Android
         PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
@@ -117,7 +173,7 @@ public static class CiBuild
         // the gun lineup is only for the screenshots of the desktop test build: keep it out of the APK
         AssetDatabase.DeleteAsset("Assets/Resources/Debug");
         AssetDatabase.SaveAssets();
-        return Build(BuildTarget.Android, "Builds/Android/UrbanAgents.apk");
+        return Build(BuildTarget.Android, "Builds/Android/AgentWarfare.apk");
     }
 
     private static bool BuildLinux()
@@ -127,6 +183,6 @@ public static class CiBuild
             Debug.LogWarning("[CiBuild] Linux build support is not installed, skipping the desktop test build");
             return true;
         }
-        return Build(BuildTarget.StandaloneLinux64, "Builds/Linux/UrbanAgents.x86_64");
+        return Build(BuildTarget.StandaloneLinux64, "Builds/Linux/AgentWarfare.x86_64");
     }
 }

@@ -11,7 +11,7 @@ namespace UA
     public partial class App : MonoBehaviour
     {
         public static App I;
-        public const string GameName = "URBAN AGENTS";
+        public const string GameName = "AGENT WARFARE";
         public static void Log(string message) => Debug.Log("[UA] " + message);
 
         public string Current { get; private set; }
@@ -31,14 +31,17 @@ namespace UA
         private Text createTitle;
         private GameObject[] botRows = new GameObject[0];
         private Button createButton;
-        private InputField groupNameField, ipField;
+        private InputField groupNameField, ipField, passwordField, joinPasswordField;
+        private GameObject passwordRow;
+        private Text joinPasswordTitle;
+        private IPEndPoint lastJoinHost;
         private RectTransform joinList;
         private Text joinStatus;
         private float joinRefresh;
         private Text lobbyTitle, lobbyInfo, lobbyIp, lobbyLeft, lobbyRight, lobbyLeftTitle, lobbyRightTitle, lobbyWait, primaryText, secondaryText;
         private Button lobbyStart, lobbyTeam;
         private RectTransform pausePanel;
-        private Text resultsTitle, resultsTable, resultsInfo;
+        private Text resultsTitle, resultsInfo;
         private Button resultsLobby;
 
         private void Awake()
@@ -64,6 +67,7 @@ namespace UA
             BuildWifi();
             BuildCreate();
             BuildJoin();
+            BuildJoinPassword();
             BuildLobby();
             BuildSettings();
             BuildLayoutEditor();
@@ -74,7 +78,14 @@ namespace UA
             toast.rectTransform.At(0.5f, 0f, 0, 70, 1600, 60);
 
             Session.I.PhaseChanged += OnPhase;
-            Session.I.Disconnected += reason => { Paused = false; ShowScreen("menu"); Toast(reason); };
+            Session.I.Disconnected += reason =>
+            {
+                Paused = false;
+                // a locked group: ask for its password and try again
+                if ((reason == Session.PasswordNeeded || reason == Session.WrongPassword) && lastJoinHost != null) OpenJoinPassword(lastJoinHost, null);
+                else if (Current != "results") ShowScreen("menu");   // the results table stays until closed
+                Toast(reason);
+            };
             Session.I.ShotSeen += OnRemoteShot;
             ShowScreen("splash");
             Log("ui-start");
@@ -125,7 +136,8 @@ namespace UA
             if (!s.Active) return;
             switch (phase)
             {
-                case Phase.Lobby: ShowScreen("lobby"); break;
+                // the results table stays open until the player closes it
+                case Phase.Lobby: if (Current != "results") ShowScreen("lobby"); break;
                 case Phase.Countdown:
                 case Phase.Playing:
                     if (Current != "game") ShowScreen("game");
@@ -148,7 +160,13 @@ namespace UA
             }
             if (Current == "join" && (joinRefresh -= Time.unscaledDeltaTime) <= 0) { joinRefresh = 0.5f; RefreshJoin(); }
             if (Current == "lobby") RefreshLobby();
-            if (Current == "results") resultsInfo.text = s.IsHost ? $"Back to the lobby in {Mathf.CeilToInt(s.TimeLeft)}s" : $"Next round in {Mathf.CeilToInt(s.TimeLeft)}s";
+            if (Current == "results")
+            {
+                resultsInfo.text = s.Phase == Phase.Ended
+                    ? $"RATING = score next to the best player   -   the group goes back to the lobby in {Mathf.CeilToInt(s.TimeLeft)}s"
+                    : "RATING = score next to the best player   -   the group is in the lobby: close the table when you are ready";
+                resultsLobby.gameObject.SetActive(s.IsHost && s.Phase == Phase.Ended);
+            }
             toast.color = new Color(1, 1, 1, Mathf.Clamp01(toastUntil - Time.unscaledTime));
             if (!Application.isMobilePlatform && !AutoTest.Running)
             {
@@ -171,6 +189,8 @@ namespace UA
                     break;
                 case "create": ShowScreen(DraftPractice ? "menu" : "wifi"); break;
                 case "join": ShowScreen("wifi"); break;
+                case "password": ShowScreen("join"); break;
+                case "results": ShowScreen(Session.I.Active ? "lobby" : "menu"); break;
                 case "lobby": LeaveGroup(); break;
                 case "menu": break;
             }
@@ -218,12 +238,22 @@ namespace UA
             bg.rectTransform.Fill();
             var glow = UIKit.Img(s, new Color(1f, 0.55f, 0.1f, 0.12f), UIKit.Soft);
             glow.rectTransform.At(0.5f, 0.5f, 0, 60, 1500, 700);
-            var title = UIKit.Txt(s, GameName, 150, TextAnchor.MiddleCenter, UIKit.Accent).Shadowed();
-            title.rectTransform.At(0.5f, 0.5f, 0, 90, 1700, 190);
+            var logo = Logo();
+            if (logo != null)
+            {
+                var badge = UIKit.Img(s, Color.white, logo);
+                badge.preserveAspect = true;
+                badge.rectTransform.At(0.5f, 0.5f, 0, 150, 560, 560);
+            }
+            else
+            {
+                var title = UIKit.Txt(s, GameName, 150, TextAnchor.MiddleCenter, UIKit.Accent).Shadowed();
+                title.rectTransform.At(0.5f, 0.5f, 0, 90, 1700, 190);
+            }
             var sub = UIKit.Txt(s, "LAN MULTIPLAYER  -  WI-FI & HOTSPOT  -  THIRD PERSON SHOOTER", 34, TextAnchor.MiddleCenter, UIKit.Muted);
-            sub.rectTransform.At(0.5f, 0.5f, 0, -20, 1700, 50);
+            sub.rectTransform.At(0.5f, 0.5f, 0, -170, 1700, 50);
             var barBack = UIKit.Img(s, new Color(1, 1, 1, 0.1f), UIKit.Rounded);
-            barBack.rectTransform.At(0.5f, 0.5f, 0, -130, 700, 16);
+            barBack.rectTransform.At(0.5f, 0.5f, 0, -250, 700, 16);
             splashBar = UIKit.Img(barBack.transform, UIKit.Accent, UIKit.Rounded);
             splashBar.rectTransform.Fill();
             splashBar.rectTransform.anchorMax = new Vector2(0, 1);
@@ -231,6 +261,16 @@ namespace UA
                 + "Military gear based on \"Military Character Kit 1.1\" by britdawgmasterfunk (sketchfab.com), CC-BY-4.0\n"
                 + "Pain and death voices: \"11 male human pain/death sounds\" by Michel Baradari (opengameart.org), CC-BY 3.0; footsteps by Fantozzi, CC0; PKM model by ElyasOmarcodes", 24, TextAnchor.MiddleCenter, new Color(1, 1, 1, 0.4f));
             credits.rectTransform.At(0.5f, 0f, 0, 40, 1800, 105);
+        }
+
+        private static Sprite logoSprite;
+
+        /// <summary>The round Agent Warfare badge (also the app icon).</summary>
+        private static Sprite Logo()
+        {
+            if (logoSprite != null) return logoSprite;
+            var tex = Resources.Load<Texture2D>("Branding/icon");
+            return logoSprite = tex != null ? Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f)) : null;
         }
 
         private void BuildMenu()
@@ -242,9 +282,15 @@ namespace UA
             side.rectTransform.pivot = new Vector2(0, 0.5f);
             side.rectTransform.sizeDelta = new Vector2(760, 0);
             side.rectTransform.anchoredPosition = Vector2.zero;
-            var title = UIKit.Txt(side.transform, "URBAN\n<color=#ffa020>AGENTS</color>", 110, TextAnchor.UpperLeft).Shadowed();
+            var title = UIKit.Txt(side.transform, "AGENT\n<color=#ff3b30>WARFARE</color>", 96, TextAnchor.UpperLeft).Shadowed();
             title.lineSpacing = 0.85f;
-            title.rectTransform.At(0f, 1f, 90, -80, 700, 260, 0f, 1f);
+            title.rectTransform.At(0f, 1f, 90, -90, 700, 240, 0f, 1f);
+            if (Logo() != null)
+            {
+                var badge = UIKit.Img(side.transform, Color.white, Logo());
+                badge.preserveAspect = true;
+                badge.rectTransform.At(0f, 1f, 548, -80, 180, 180, 0f, 1f);
+            }
             var tag = UIKit.Txt(side.transform, "Squad up on the same Wi-Fi or hotspot. No internet needed.", 28, TextAnchor.UpperLeft, UIKit.Muted);
             tag.rectTransform.At(0f, 1f, 92, -350, 620, 80, 0f, 1f);
             string[] labels = { "PLAY ON WI-FI", "PRACTICE VS BOTS", "PROFILE", "SETTINGS", "QUIT" };
@@ -266,6 +312,37 @@ namespace UA
             menuPlayer.rectTransform.At(0f, 0f, 92, 50, 620, 50, 0f, 0f);
             var info = UIKit.Txt(s, "v1.0  -  LAN multiplayer  -  up to 10 players", 24, TextAnchor.LowerRight, new Color(1, 1, 1, 0.5f));
             info.rectTransform.At(1f, 0f, -40, 30, 900, 40, 1f, 0f);
+            BuildSocial(s);
+        }
+
+        /// <summary>Where to follow the game. Only the GitHub page is live for now; the rest are filled in later.</summary>
+        public static readonly (string name, string icon, string url)[] SocialLinks =
+        {
+            ("GITHUB", "code", "https://github.com/ElyasOmarcodes"),
+            ("YOUTUBE", "play_circle_filled", ""),
+            ("FACEBOOK", "public", ""),
+            ("TELEGRAM", "send", ""),
+            ("EMAIL", "email", ""),
+        };
+
+        private void BuildSocial(Transform s)
+        {
+            var label = UIKit.Txt(s, "FOLLOW AGENT WARFARE", 24, TextAnchor.LowerRight, new Color(1, 1, 1, 0.6f));
+            label.rectTransform.At(1f, 0f, -40, 190, 700, 34, 1f, 0f);
+            for (int i = 0; i < SocialLinks.Length; i++)
+            {
+                var link = SocialLinks[i];
+                var b = UIKit.Btn(s, "", () =>
+                {
+                    if (string.IsNullOrEmpty(link.url)) Toast(link.name + ": the link is coming soon");
+                    else Application.OpenURL(link.url);
+                }, 10, new Color(0.08f, 0.1f, 0.14f, 0.85f));
+                b.GetComponent<RectTransform>().At(1f, 0f, -40 - (SocialLinks.Length - 1 - i) * 112, 80, 96, 96, 1f, 0f);
+                var ic = UIKit.IconImage(b.transform, link.icon, 52, string.IsNullOrEmpty(link.url) ? UIKit.Muted : UIKit.Accent);
+                ic.rectTransform.At(0.5f, 0.5f, 0, 8, 52, 52);
+                var name = UIKit.Txt(b.transform, link.name, 14, TextAnchor.LowerCenter, UIKit.Muted);
+                name.rectTransform.At(0.5f, 0f, 0, 4, 96, 20, 0.5f, 0f);
+            }
         }
 
         private void BuildWifi()
@@ -303,6 +380,7 @@ namespace UA
             createButton.SetLabel(practice ? "START PRACTICE" : "CREATE GROUP");
             groupNameField.text = Draft.GroupName;
             groupNameField.transform.parent.gameObject.SetActive(!practice);
+            passwordRow.SetActive(!practice);
             if (practice && Draft.Bots == 0) Draft.Bots = 5;
             // a group on Wi-Fi is for people: bots only in practice
             if (!practice) Draft.Bots = 0;
@@ -323,6 +401,18 @@ namespace UA
             groupNameField = UIKit.Input(nameRow, Draft.GroupName, "Group name", 34, 20);
             groupNameField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 560, 74, 1f, 0.5f);
             groupNameField.onEndEdit.AddListener(v => Draft.GroupName = Settings.Clean(v, 24));
+            // optional password: only friends who know it can join
+            var passRow = UIKit.Node(panel, "PasswordRow").At(0.5f, 1f, 0, -510, 1080, 84, 0.5f, 1f);
+            passwordRow = passRow.gameObject;
+            var passBg = UIKit.Img(passRow, new Color(1, 1, 1, 0.04f), UIKit.Rounded);
+            passBg.rectTransform.Fill();
+            var passIcon = UIKit.IconImage(passRow, "lock", 44, UIKit.Muted);
+            passIcon.rectTransform.At(0f, 0.5f, 52, 0, 44, 44);
+            var passLabel = UIKit.Txt(passRow, "PASSWORD", 34, TextAnchor.MiddleLeft, UIKit.Muted);
+            passLabel.rectTransform.Fill();
+            passLabel.rectTransform.offsetMin = new Vector2(90, 0);
+            passwordField = UIKit.Input(passRow, "", "Optional - empty = open", 30, 12);
+            passwordField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 560, 74, 1f, 0.5f);
             byte[] minutes = { 3, 5, 8, 10, 15, 20, 30, 45, 60 };
             UIKit.Stepper(panel, "GAME MODE", -130, () => MatchConfig.ModeNames[(int)Draft.Mode], d => Draft.Mode = (Mode)(((int)Draft.Mode + 2 + d) % 2), 1080);
             UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapNames[Draft.Map], d =>
@@ -354,6 +444,7 @@ namespace UA
             {
                 GroupName = Draft.GroupName, Mode = Draft.Mode, Map = Draft.Map, Minutes = Draft.Minutes,
                 MaxPlayers = Draft.MaxPlayers, Bots = Draft.Bots, BotSkill = Draft.BotSkill,
+                Password = DraftPractice ? "" : passwordField.text.Trim(),
             };
             if (!Session.I.Host(config, DraftPractice))
             {
@@ -397,10 +488,40 @@ namespace UA
             JoinGroup(new IPEndPoint(address, port == 0 ? Session.GamePort : port));
         }
 
-        public void JoinGroup(IPEndPoint host)
+        public void JoinGroup(IPEndPoint host, string password = "")
         {
-            Session.I.Join(host);
+            lastJoinHost = host;
+            Session.I.Join(host, password);
             ShowScreen("lobby");
+        }
+
+        /// <summary>The small page that asks for a locked group's password.</summary>
+        private void BuildJoinPassword()
+        {
+            var s = MakeScreen("password");
+            joinPasswordTitle = UIKit.Title(s, "GROUP PASSWORD", -120, 62);
+            var panel = UIKit.Panel(s, 1000, 330, 40);
+            var icon = UIKit.IconImage(panel, "lock", 80, UIKit.Accent);
+            icon.rectTransform.At(0.5f, 1f, 0, -80, 80, 80);
+            joinPasswordField = UIKit.Input(panel, "", "Type the password", 40, 12);
+            joinPasswordField.GetComponent<RectTransform>().At(0.5f, 0f, 0, 70, 760, 96, 0.5f, 0f);
+            var back = UIKit.Btn(s, "BACK", Back, 36, null, "arrow_back");
+            back.GetComponent<RectTransform>().At(0.5f, 0f, -300, 70, 380, 96, 0.5f, 0f);
+            var join = UIKit.Btn(s, "JOIN", () =>
+            {
+                if (lastJoinHost == null) return;
+                PlayerPrefs.SetString("lastpass", joinPasswordField.text.Trim());
+                JoinGroup(lastJoinHost, joinPasswordField.text.Trim());
+            }, 38, UIKit.AccentDark, "login");
+            join.GetComponent<RectTransform>().At(0.5f, 0f, 200, 70, 440, 96, 0.5f, 0f);
+        }
+
+        private void OpenJoinPassword(IPEndPoint host, string groupName)
+        {
+            lastJoinHost = host;
+            if (groupName != null) joinPasswordTitle.text = Rtl.Shape(groupName.ToUpperInvariant());
+            joinPasswordField.text = PlayerPrefs.GetString("lastpass", "");
+            ShowScreen("password");
         }
 
         private readonly List<string> shownGroups = new List<string>();
@@ -411,7 +532,7 @@ namespace UA
             var all = Session.I.Groups.Values.ToList();
             var groups = all.Where(g => !IPAddress.IsLoopback(g.Address.Address) || !all.Any(o => o != g && o.Name == g.Name && o.Port == g.Port))
                 .OrderBy(g => g.Name).ToList();
-            var keys = groups.Select(g => g.Address + "|" + g.Players + "|" + g.Phase).ToList();
+            var keys = groups.Select(g => g.Address + "|" + g.Players + "|" + g.Phase + "|" + g.Locked).ToList();
             joinStatus.text = groups.Count == 0 ? "Searching for groups on this Wi-Fi / hotspot ...\n\nAsk a friend to tap CREATE GROUP." : "";
             if (keys.SequenceEqual(shownGroups)) return;
             shownGroups.Clear();
@@ -428,7 +549,15 @@ namespace UA
                 var count = UIKit.Txt(row.transform, $"{g.Players}/{g.MaxPlayers}" + (g.Phase != Phase.Lobby ? "\n<size=22>IN MATCH</size>" : ""), 32, TextAnchor.MiddleCenter, UIKit.Accent);
                 count.rectTransform.At(1f, 0.5f, -330, 0, 160, 90);
                 var target = g.Address;
-                var join = UIKit.Btn(row.transform, "JOIN", () => JoinGroup(target), 34, UIKit.AccentDark);
+                string groupName = g.Name;
+                if (g.Locked)
+                {
+                    var lockIcon = UIKit.IconImage(row.transform, "lock", 46, UIKit.Accent);
+                    lockIcon.rectTransform.At(1f, 0.5f, -450, 0, 46, 46);
+                }
+                var join = g.Locked
+                    ? UIKit.Btn(row.transform, "JOIN", () => OpenJoinPassword(target, groupName), 34, UIKit.AccentDark)
+                    : UIKit.Btn(row.transform, "JOIN", () => JoinGroup(target), 34, UIKit.AccentDark);
                 join.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 200, 76, 1f, 0.5f);
             }
         }
@@ -516,7 +645,8 @@ namespace UA
             lobbyTitle.text = s.Practice ? "PRACTICE" : Rtl.Shape(s.Config.GroupName.ToUpperInvariant());
             lobbyInfo.text = $"{MatchConfig.ModeNames[(int)s.Config.Mode]}   -   {MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length]}   -   {s.Config.Minutes} MIN   -   BOTS: {s.Config.Bots} ({MatchConfig.SkillNames[s.Config.BotSkill % 3]})";
             lobbyIp.text = s.Practice ? "Only you and the bots - no network used" :
-                s.IsHost ? "Friends: JOIN GROUP, or type this IP:  " + (s.HostAddresses.Length > 0 ? s.HostAddresses : "(no Wi-Fi found)") : "Connected - " + s.Players.Count(p => !p.Value.IsBot) + " players in the group";
+                s.IsHost ? "Friends: JOIN GROUP, or type this IP:  " + (s.HostAddresses.Length > 0 ? s.HostAddresses : "(no Wi-Fi found)")
+                    + (string.IsNullOrEmpty(s.Config.Password) ? "" : "   -   PASSWORD: " + s.Config.Password) : "Connected - " + s.Players.Count(p => !p.Value.IsBot) + " players in the group";
             lobbyLeftTitle.text = tdm ? "TEAM BLUE" : "PLAYERS";
             lobbyRightTitle.text = tdm ? "TEAM RED" : "";
             var ordered = s.Players.Values.OrderBy(p => p.IsBot).ThenBy(p => p.Id).ToList();
@@ -608,19 +738,72 @@ namespace UA
             pausePanel.gameObject.SetActive(false);
         }
 
+        private RectTransform resultsRows;
+
+        // results table columns: header, x of the left edge, width
+        private static readonly (string head, float x, float w)[] ResultColumns =
+        {
+            ("#", 20, 60), ("PLAYER", 90, 400), ("KILLS", 490, 120), ("DEATHS", 610, 130), ("K/D", 740, 110),
+            ("DAMAGE", 850, 150), ("HEAD", 1000, 110), ("ACCURACY", 1110, 170), ("SCORE", 1280, 140), ("RATING", 1420, 160),
+        };
+
         private void BuildResults()
         {
             var s = MakeScreen("results");
-            resultsTitle = UIKit.Title(s, "MATCH OVER", -40, 80);
-            var panel = UIKit.Panel(s, 1300, 640, 0);
-            resultsTable = UIKit.Txt(panel, "", 32, TextAnchor.UpperLeft);
-            resultsTable.rectTransform.Fill(50);
-            resultsInfo = UIKit.Txt(s, "", 30, TextAnchor.MiddleCenter, UIKit.Muted);
-            resultsInfo.rectTransform.At(0.5f, 0f, 0, 170, 1200, 50);
+            resultsTitle = UIKit.Title(s, "MATCH OVER", -30, 70);
+            var panel = UIKit.Panel(s, 1640, 700, 10);
+            var head = UIKit.Img(panel, new Color(1, 1, 1, 0.06f), UIKit.Rounded);
+            head.rectTransform.At(0.5f, 1f, 0, -24, 1600, 64, 0.5f, 1f);
+            foreach (var c in ResultColumns)
+                Cell(head.transform, c.head, c.x, c.w, 24, UIKit.Muted);
+            // the rows scroll when there are many players; the table stays until the player closes it
+            var view = UIKit.Img(panel, new Color(0, 0, 0, 0.01f), null, true);
+            view.rectTransform.At(0.5f, 1f, 0, -96, 1600, 580, 0.5f, 1f);
+            view.gameObject.AddComponent<RectMask2D>();
+            resultsRows = UIKit.Node(view.transform, "Rows");
+            resultsRows.anchorMin = new Vector2(0, 1);
+            resultsRows.anchorMax = new Vector2(1, 1);
+            resultsRows.pivot = new Vector2(0.5f, 1);
+            resultsRows.anchoredPosition = Vector2.zero;
+            var scroll = view.gameObject.AddComponent<ScrollRect>();
+            scroll.content = resultsRows;
+            scroll.viewport = view.rectTransform;
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40;
+            resultsInfo = UIKit.Txt(s, "", 26, TextAnchor.MiddleCenter, UIKit.Muted);
+            resultsInfo.rectTransform.At(0.5f, 0f, 0, 158, 1600, 40);
             var leave = UIKit.Btn(s, "LEAVE GROUP", LeaveGroup, 34, null, "exit_to_app");
-            leave.GetComponent<RectTransform>().At(0.5f, 0f, -300, 50, 440, 96, 0.5f, 0f);
-            resultsLobby = UIKit.Btn(s, "BACK TO LOBBY", () => Session.I.BackToLobby(), 36, UIKit.AccentDark, "groups");
-            resultsLobby.GetComponent<RectTransform>().At(0.5f, 0f, 260, 50, 500, 96, 0.5f, 0f);
+            leave.GetComponent<RectTransform>().At(0.5f, 0f, -520, 40, 440, 96, 0.5f, 0f);
+            var close = UIKit.Btn(s, "CLOSE", () => ShowScreen(Session.I.Active ? "lobby" : "menu"), 36, null, "arrow_back");
+            close.GetComponent<RectTransform>().At(0.5f, 0f, 0, 40, 400, 96, 0.5f, 0f);
+            resultsLobby = UIKit.Btn(s, "BACK TO LOBBY", () => { Session.I.BackToLobby(); ShowScreen("lobby"); }, 36, UIKit.AccentDark, "groups");
+            resultsLobby.GetComponent<RectTransform>().At(0.5f, 0f, 520, 40, 500, 96, 0.5f, 0f);
+        }
+
+        private static Text Cell(Transform row, string text, float x, float w, int size, Color? color = null)
+        {
+            var t = UIKit.Txt(row, text, size, x < 100 || x > 400 ? TextAnchor.MiddleCenter : TextAnchor.MiddleLeft, color);
+            t.rectTransform.anchorMin = new Vector2(0, 0);
+            t.rectTransform.anchorMax = new Vector2(0, 1);
+            t.rectTransform.pivot = new Vector2(0, 0.5f);
+            t.rectTransform.anchoredPosition = new Vector2(x, 0);
+            t.rectTransform.sizeDelta = new Vector2(w, 0);
+            t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            return t;
+        }
+
+        /// <summary>
+        /// A fair match score, not kills alone: kills, the damage done (help on kills others finished),
+        /// headshots and accuracy count for, deaths count against; the winning team gets a bonus.
+        /// </summary>
+        public static float MatchScore(PlayerState p, Session s)
+        {
+            float accuracy = p.Shots > 0 ? (float)p.ShotHits / p.Shots : 0f;
+            float score = p.Kills * 100f + p.DamageDone * 0.5f + p.Heads * 15f - p.Deaths * 40f;
+            if (p.Shots >= 15) score += accuracy * 150f;
+            if (s.Config.Mode == Mode.TeamDeathmatch && s.TeamScore[p.Team & 1] > s.TeamScore[1 - (p.Team & 1)]) score += 60f;
+            return Mathf.Max(0f, score);
         }
 
         private void FillResults()
@@ -630,9 +813,10 @@ namespace UA
             if (s.Config.Mode == Mode.TeamDeathmatch)
             {
                 title = s.TeamScore[0] == s.TeamScore[1] ? "DRAW" : s.TeamScore[0] > s.TeamScore[1] ? "<color=#4d84ff>TEAM BLUE WINS</color>" : "<color=#f24d40>TEAM RED WINS</color>";
+                title += $"  <size=40>{s.TeamScore[0]} : {s.TeamScore[1]}</size>";
                 var me = s.Local;
                 if (me != null && s.TeamScore[0] != s.TeamScore[1])
-                    title += (s.TeamScore[me.Team] > s.TeamScore[1 - me.Team]) ? "\n<size=40>VICTORY</size>" : "\n<size=40>DEFEAT</size>";
+                    title += (s.TeamScore[me.Team] > s.TeamScore[1 - me.Team]) ? "  <size=40>VICTORY</size>" : "  <size=40>DEFEAT</size>";
             }
             else
             {
@@ -640,7 +824,42 @@ namespace UA
                 title = best == null ? "MATCH OVER" : (best.Id == s.LocalId ? "<color=#ffa020>YOU WIN!</color>" : Rtl.Shape(best.Name.ToUpperInvariant()) + " WINS");
             }
             resultsTitle.text = title;
-            resultsTable.text = Hud.ScoreboardText(s);
+
+            // a snapshot of this match: the numbers stay while the next one starts behind it
+            foreach (Transform child in resultsRows) Destroy(child.gameObject);
+            var players = s.Players.Values.Select(p => (p, score: MatchScore(p, s))).OrderByDescending(x => x.score).ThenByDescending(x => x.p.Kills).ToList();
+            float top = players.Count > 0 ? Mathf.Max(1f, players[0].score) : 1f;
+            const float RowHeight = 66;
+            for (int i = 0; i < players.Count; i++)
+            {
+                var (p, score) = players[i];
+                bool mine = p.Id == s.LocalId;
+                var row = UIKit.Img(resultsRows, mine ? new Color(1f, 0.6f, 0.1f, 0.16f) : new Color(1, 1, 1, i % 2 == 0 ? 0.035f : 0.015f), UIKit.Rounded);
+                row.rectTransform.At(0.5f, 1f, 0, -i * RowHeight, 1600, RowHeight - 6, 0.5f, 1f);
+                if (s.Config.Mode == Mode.TeamDeathmatch)
+                {
+                    var team = UIKit.Img(row.transform, p.Team == 0 ? UIKit.Blue : UIKit.Red, UIKit.Rounded);
+                    team.rectTransform.At(0f, 0.5f, 4, 0, 8, RowHeight - 18, 0f, 0.5f);
+                }
+                float kd = p.Deaths > 0 ? (float)p.Kills / p.Deaths : p.Kills;
+                int accuracy = p.Shots > 0 ? Mathf.RoundToInt(100f * p.ShotHits / p.Shots) : 0;
+                int rating = Mathf.RoundToInt(100f * score / top);
+                string name = Rtl.Shape(p.Name.Length > 16 ? p.Name.Substring(0, 16) : p.Name) + (p.IsBot ? "  <size=20><color=#8a94a0>BOT</color></size>" : "");
+                Color text = mine ? UIKit.Accent : UIKit.TextColor;
+                string[] values =
+                {
+                    i == 0 ? "MVP" : (i + 1).ToString(), name, p.Kills.ToString(), p.Deaths.ToString(), kd.ToString("0.0"),
+                    p.DamageDone.ToString(), p.Heads.ToString(), p.Shots > 0 ? accuracy + "%" : "-", Mathf.RoundToInt(score).ToString(), rating + "%",
+                };
+                for (int c = 0; c < values.Length; c++)
+                {
+                    var col = ResultColumns[c];
+                    var cell = Cell(row.transform, values[c], col.x, col.w, c == 1 ? 30 : 28, c == 0 && i == 0 ? UIKit.Accent : text);
+                    if (c == values.Length - 1) cell.color = Color.Lerp(UIKit.Red, UIKit.Green, rating / 100f);
+                }
+            }
+            resultsRows.sizeDelta = new Vector2(0, players.Count * RowHeight);
+            resultsRows.anchoredPosition = Vector2.zero;
             resultsLobby.gameObject.SetActive(s.IsHost);
         }
 
