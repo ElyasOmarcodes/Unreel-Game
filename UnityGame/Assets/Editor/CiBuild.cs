@@ -57,6 +57,9 @@ public static class CiBuild
         PlayerSettings.allowedAutorotateToPortrait = false;
         PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
         PlayerSettings.Android.renderOutsideSafeArea = true;
+        // Android frame pacing (Swappy): frames shown at even intervals, no stutter at 30 or 60 fps
+        PlayerSettings.Android.optimizedFramePacing = true;
+        PlayerSettings.SetMobileMTRendering(NamedBuildTarget.Android, true);
         EditorUserBuildSettings.buildAppBundle = false;
         EditorUserBuildSettings.androidBuildSubtarget = MobileTextureSubtarget.ASTC;
 

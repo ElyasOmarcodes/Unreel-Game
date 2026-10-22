@@ -751,16 +751,19 @@ public static class VillageBuilder
         })
         {
             var wall = new GameObject("Edge");
+            wall.layer = World.FenceLayer;   // stops players, not the camera
             wall.transform.SetParent(root, false);
             wall.transform.position = c;
             wall.AddComponent<BoxCollider>().size = s;
         }
 
         foreach (var tr in root.GetComponentsInChildren<Transform>(true))
-            GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
+            if (tr.gameObject.layer != World.FenceLayer)
+                GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
 
         var layout = new MapLayout { Name = "VILLAGE", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
         BuildNavigation(layout);
+        MapOptimizer.Merge(root, "Village");
         Debug.Log($"[Village] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
         return layout;
     }

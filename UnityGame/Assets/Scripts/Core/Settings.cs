@@ -16,8 +16,25 @@ namespace UA
             set => PlayerPrefs.SetString("name", Clean(value));
         }
 
-        /// <summary>0 low, 1 medium, 2 high.</summary>
-        public static int Quality { get => PlayerPrefs.GetInt("quality", 1); set { PlayerPrefs.SetInt("quality", Mathf.Clamp(value, 0, 2)); Apply(); } }
+        /// <summary>0 low, 1 medium, 2 high. The first start picks what the phone can carry.</summary>
+        public static int Quality { get => PlayerPrefs.GetInt("quality", DeviceClass); set { PlayerPrefs.SetInt("quality", Mathf.Clamp(value, 0, 2)); Apply(); } }
+        /// <summary>Share of the screen's own resolution the game draws at, in percent (the screen still fills).</summary>
+        public static int RenderScale { get => PlayerPrefs.GetInt("renderScale", DeviceClass == 0 ? 60 : DeviceClass == 1 ? 75 : 85); set { PlayerPrefs.SetInt("renderScale", Mathf.Clamp(value, 50, 100)); Apply(); } }
+        /// <summary>Frames per second the game aims for (a steady 30 is smoother than a jumpy 60 on a weak phone).</summary>
+        public static int FrameRate { get => PlayerPrefs.GetInt("frameRate", 60); set { PlayerPrefs.SetInt("frameRate", value); Apply(); } }
+        public static readonly int[] FrameRates = { 30, 60, 90 };
+
+        /// <summary>0 weak phone, 1 ordinary, 2 strong: from memory and processor cores.</summary>
+        public static int DeviceClass
+        {
+            get
+            {
+                if (!Application.isMobilePlatform) return 1;
+                int memory = SystemInfo.systemMemorySize, cores = SystemInfo.processorCount;
+                if (memory > 0 && memory < 3500 || cores <= 4) return 0;
+                return memory >= 7500 && cores >= 8 ? 2 : 1;
+            }
+        }
         public static float Sensitivity { get => PlayerPrefs.GetFloat("sens", 1f); set => PlayerPrefs.SetFloat("sens", Mathf.Clamp(value, 0.3f, 3f)); }
         public static float Volume { get => PlayerPrefs.GetFloat("volume", 0.8f); set { PlayerPrefs.SetFloat("volume", Mathf.Clamp01(value)); AudioListener.volume = value; } }
         public static bool InvertY { get => PlayerPrefs.GetInt("invert", 0) == 1; set => PlayerPrefs.SetInt("invert", value ? 1 : 0); }
@@ -33,17 +50,17 @@ namespace UA
         {
             get
             {
-                string key = "look_p" + Preset;
+                string key = "look2_p" + Preset;
                 if (!PlayerPrefs.HasKey(key)) PlayerPrefs.SetInt(key, Wardrobe.PresetLook(Preset));
                 return PlayerPrefs.GetInt(key);
             }
-            set => PlayerPrefs.SetInt("look_p" + Preset, value);
+            set => PlayerPrefs.SetInt("look2_p" + Preset, value);
         }
         /// <summary>Which ready-made character is played (each keeps its own changes).</summary>
         public static int Preset
         {
-            get => Mathf.Clamp(PlayerPrefs.GetInt("preset", 0), 0, Wardrobe.Presets.Length - 1);
-            set => PlayerPrefs.SetInt("preset", ((value % Wardrobe.Presets.Length) + Wardrobe.Presets.Length) % Wardrobe.Presets.Length);
+            get => Mathf.Clamp(PlayerPrefs.GetInt("preset2", 0), 0, Wardrobe.Presets.Length - 1);
+            set => PlayerPrefs.SetInt("preset2", ((value % Wardrobe.Presets.Length) + Wardrobe.Presets.Length) % Wardrobe.Presets.Length);
         }
         /// <summary>Back to how the ready-made character came.</summary>
         public static void ResetLook() => Look = Wardrobe.PresetLook(Preset);
@@ -63,7 +80,7 @@ namespace UA
 
         public static void Apply()
         {
-            Application.targetFrameRate = 60;
+            Application.targetFrameRate = FrameRate;
             QualitySettings.vSyncCount = 0;
             AudioListener.volume = Volume;
             switch (Quality)
@@ -73,14 +90,22 @@ namespace UA
                     QualitySettings.shadowDistance = 0;
                     QualitySettings.antiAliasing = 0;
                     QualitySettings.lodBias = 0.6f;
+                    QualitySettings.pixelLightCount = 0;   // muzzle flashes and blasts light per vertex
+                    QualitySettings.globalTextureMipmapLimit = 1;   // half-size textures: less memory, faster
+                    QualitySettings.anisotropicFiltering = AnisotropicFiltering.Disable;
+                    QualitySettings.skinWeights = SkinWeights.TwoBones;
                     break;
                 case 1:
                     QualitySettings.shadows = ShadowQuality.HardOnly;
                     QualitySettings.shadowResolution = ShadowResolution.Medium;
                     QualitySettings.shadowCascades = 1;
-                    QualitySettings.shadowDistance = 35;
+                    QualitySettings.shadowDistance = 30;
                     QualitySettings.antiAliasing = 0;
                     QualitySettings.lodBias = 1f;
+                    QualitySettings.pixelLightCount = 1;
+                    QualitySettings.globalTextureMipmapLimit = 0;
+                    QualitySettings.anisotropicFiltering = AnisotropicFiltering.Disable;
+                    QualitySettings.skinWeights = SkinWeights.FourBones;
                     break;
                 default:
                     QualitySettings.shadows = ShadowQuality.All;
@@ -89,8 +114,47 @@ namespace UA
                     QualitySettings.shadowDistance = 55;
                     QualitySettings.antiAliasing = 2;
                     QualitySettings.lodBias = 1.5f;
+                    QualitySettings.pixelLightCount = 2;
+                    QualitySettings.globalTextureMipmapLimit = 0;
+                    QualitySettings.anisotropicFiltering = AnisotropicFiltering.Enable;
+                    QualitySettings.skinWeights = SkinWeights.FourBones;
                     break;
             }
+            ApplyResolution();
+            if (Camera.main != null) ApplyCamera(Camera.main);
+        }
+
+        /// <summary>Camera costs: no HDR target (nothing uses it), small props stop being drawn far away.</summary>
+        public static void ApplyCamera(Camera cam)
+        {
+            cam.allowHDR = false;
+            cam.allowMSAA = Quality == 2;
+            var distances = new float[32];
+            distances[DetailLayer] = Quality == 0 ? 55f : Quality == 1 ? 80f : 120f;
+            cam.layerCullDistances = distances;
+            cam.layerCullSpherical = true;
+        }
+
+        /// <summary>Layer of small merged props (see MapOptimizer): render only, no colliders.</summary>
+        public const int DetailLayer = 12;
+
+        private static int nativeWidth, nativeHeight, appliedScale;
+
+        /// <summary>Draws the game at a share of the screen's resolution: the biggest saving on phones with sharp screens.</summary>
+        private static void ApplyResolution()
+        {
+            if (!Application.isMobilePlatform) return;
+            if (nativeWidth == 0)
+            {
+                // the game is landscape only
+                nativeWidth = Mathf.Max(Display.main.systemWidth, Display.main.systemHeight);
+                nativeHeight = Mathf.Min(Display.main.systemWidth, Display.main.systemHeight);
+            }
+            if (nativeHeight <= 0 || appliedScale == RenderScale) return;
+            appliedScale = RenderScale;
+            // never below 540 lines (text and the crosshair stay clear)
+            float k = Mathf.Max(RenderScale / 100f, Mathf.Min(1f, 540f / nativeHeight));
+            Screen.SetResolution(Mathf.RoundToInt(nativeWidth * k), Mathf.RoundToInt(nativeHeight * k), true);
         }
     }
 }

@@ -159,28 +159,31 @@ namespace UA
             return best;
         }
 
-        /// <summary>A ready-made character: a name, a body and a style with its colours.</summary>
+        /// <summary>A ready-made character: a name, a body and a style with its colours, and pieces changed from the style.</summary>
         public struct Preset
         {
             public string Name;
             public int Body, Style, TopColor, BottomColor, HeadColor, Beard;
-            public Preset(string name, int body, int style, int top, int bottom, int head, int beard)
-            { Name = name; Body = body; Style = style; TopColor = top; BottomColor = bottom; HeadColor = head; Beard = beard; }
+            public (Slot slot, int value)[] Changes;
+            public Preset(string name, int body, int style, int top, int bottom, int head, int beard, params (Slot, int)[] changes)
+            { Name = name; Body = body; Style = style; TopColor = top; BottomColor = bottom; HeadColor = head; Beard = beard; Changes = changes; }
         }
 
         /// <summary>The characters the profile page offers (each one can be changed piece by piece).</summary>
         public static readonly Preset[] Presets =
         {
-            new Preset("ELYAS", 0, 2, 0, 0, 0, 1),       // Afghan: white perahan, pakol, waistcoat
+            // white ghutra with a black agal, white perahan and tunban, dark waistcoat, sandals, camo pack, no beard
+            new Preset("ELYAS", 0, 2, 0, 0, 2, 0, (Slot.Head, 6), (Slot.Bag, 1)),
             new Preset("ABID", 1, 3, 1, 1, 2, 1),        // Afghan elder: blue chapan, white turban
             new Preset("MONIB", 0, 0, 2, 2, 3, 0),       // soldier in woodland camo
             new Preset("HAMMAD", 0, 4, 0, 0, 2, 1),      // Arab thobe and ghutra
             new Preset("JACK", 0, 1, 3, 3, 1, 1),        // special forces, black
-            new Preset("ZALMAI", 1, 6, 1, 0, 2, 1),      // everyday: long shirt, jeans
+            new Preset("JAMAL", 1, 6, 1, 0, 2, 1),       // everyday: long shirt, jeans
+            new Preset("NIZAMI", 1, 7, 4, 2, 3, 1),      // Afghan guard: grey perahan, turban, chest rig
+            new Preset("MUTTAQI", 0, 2, 7, 7, 1, 1, (Slot.Head, 5)),   // cream perahan, black turban, waistcoat
             new Preset("KARIM", 0, 5, 1, 1, 1, 0),       // statesman: navy suit
-            new Preset("NASIR", 1, 7, 4, 2, 3, 1),       // village guard
             new Preset("MARYAM", 2, 8, 0, 0, 1, 0),      // abaya and hijab
-            new Preset("ZARGHUNA", 3, 9, 4, 4, 3, 0),    // woman soldier
+            new Preset("AMINA", 3, 9, 4, 4, 3, 0),       // woman soldier
         };
 
         public static int PresetLook(int index)
@@ -190,7 +193,10 @@ namespace UA
             look = Set(look, Slot.TopColor, p.TopColor);
             look = Set(look, Slot.BottomColor, p.BottomColor);
             look = Set(look, Slot.HeadColor, p.HeadColor);
-            return Set(look, Slot.Beard, p.Beard);
+            look = Set(look, Slot.Beard, p.Beard);
+            if (p.Changes != null)
+                foreach (var (slot, value) in p.Changes) look = Set(look, slot, value);
+            return look;
         }
 
         /// <summary>A believable random outfit (bots, first start).</summary>

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 /// <summary>
@@ -53,7 +54,34 @@ public static class Underground
     private static GameObject Box(Transform t, string name, Vector3 centre, Vector3 size, Material m, bool collider = true, float round = 0f)
     {
         if (size.x < 0.01f || size.y < 0.01f || size.z < 0.01f) return null;
-        return round > 0f ? MeshGen.RoundBox(name, centre, size, round, m, 2f, t, 0f, collider) : MeshGen.TexBox(name, centre, size, m, 2f, t, 0f, collider);
+        var go = round > 0f ? MeshGen.RoundBox(name, centre, size, round, m, 2f, t, 0f, collider) : MeshGen.TexBox(name, centre, size, m, 2f, t, 0f, collider);
+        // under the ground slab: no sun reaches here, so nothing needs to cast a shadow
+        go.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        return go;
+    }
+
+    /// <summary>
+    /// The same material glowing faintly by itself: rooms underground look lit by their lamps
+    /// without real lights (each real light draws everything it touches again, slow on phones).
+    /// </summary>
+    public static Material Lit(Material m, float glow = 0.32f)
+    {
+        if (m == null || m.name.EndsWith("_Lit")) return m;
+        string path = $"{AssetSetup.Generated}/Materials/{m.name}_Lit.mat";
+        var lit = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (lit == null)
+        {
+            lit = new Material(m) { name = m.name + "_Lit" };
+            AssetDatabase.CreateAsset(lit, path);
+        }
+        else lit.CopyPropertiesFromMaterial(m);
+        lit.name = m.name + "_Lit";
+        if (m.mainTexture != null) lit.SetTexture("_EmissionMap", m.mainTexture);
+        lit.SetTextureScale("_EmissionMap", m.mainTextureScale);
+        lit.SetColor("_EmissionColor", m.color * glow);
+        lit.EnableKeyword("_EMISSION");
+        lit.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+        return lit;
     }
 
     /// <summary>
@@ -63,6 +91,7 @@ public static class Underground
     /// </summary>
     public static void Room(Transform t, Rect r, float floor, float ceiling, Style s, IList<Rect> holes, IList<Rect> floorHoles, params (char side, float from, float to)[] openings)
     {
+        s = new Style { Floor = Lit(s.Floor), Wall = Lit(s.Wall), Ceiling = Lit(s.Ceiling, 0.22f), Trim = Lit(s.Trim), Lamp = s.Lamp };
         foreach (var c in Cover(r, floorHoles))
             Box(t, "Floor", new Vector3(c.center.x, floor - 0.15f, c.center.y), new Vector3(c.width, 0.3f, c.height), s.Floor);
         foreach (var c in Cover(r, holes))
@@ -104,7 +133,10 @@ public static class Underground
         }
     }
 
-    /// <summary>A point light without shadows (underground only: a few per map).</summary>
+    /// <summary>
+    /// A point light without shadows, lit per vertex: it brightens the people and props passing by
+    /// inside the base pass (no extra drawing of the room, which per-pixel lights cost).
+    /// </summary>
     public static void Lamp(Transform t, Vector3 p, float range = 14f, float intensity = 1.3f)
     {
         var go = new GameObject("UndergroundLight");
@@ -116,7 +148,7 @@ public static class Underground
         light.intensity = intensity;
         light.color = new Color(1f, 0.93f, 0.8f);
         light.shadows = LightShadows.None;
-        light.renderMode = LightRenderMode.ForcePixel;
+        light.renderMode = LightRenderMode.ForceVertex;
     }
 
     /// <summary>Low concrete walls around a stairwell, open on the side where the stair arrives.</summary>

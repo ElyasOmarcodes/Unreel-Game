@@ -820,8 +820,10 @@ public static class AssetSetup
             }
             : new Material[0];
         var eyes = Mat("Eyes", Color.white, 0.9f, 0f, U("T_Eye_BaseColor"), U("T_Eye_Normal"));
-        var hair1 = Mat("Hair_1", Color.white, 0.3f, 0f, U("T_Hair_1_BaseColor"), U("T_Hair_1_Normal"));
-        var hair2 = Mat("Hair_2", Color.white, 0.3f, 0f, U("T_Hair_2_BaseColor"), U("T_Hair_2_Normal"));
+        // the hair textures are light grey (meant to be tinted): black hair and beard
+        var black = new Color(0.075f, 0.065f, 0.06f);
+        var hair1 = Mat("Hair_1", black, 0.35f, 0f, U("T_Hair_1_BaseColor"), U("T_Hair_1_Normal"));
+        var hair2 = Mat("Hair_2", black, 0.35f, 0f, U("T_Hair_2_BaseColor"), U("T_Hair_2_Normal"));
         Material ForSlot(Material m)
         {
             string n = m != null ? m.name : "";

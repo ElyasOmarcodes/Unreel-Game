@@ -97,8 +97,9 @@ public static class MapBuilder
         foreach (var t in map.GetComponentsInChildren<Transform>(true))
         {
             GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
-            if (t.gameObject.layer != 0) t.gameObject.layer = 0;
+            if (t.gameObject.layer != 0 && t.gameObject.layer != World.FenceLayer) t.gameObject.layer = 0;
         }
+        MapOptimizer.Merge(map, "Downtown", lamps);
 
         var downtown = new MapLayout
         {
@@ -781,6 +782,7 @@ public static class MapBuilder
                                        (new Vector3(edge, 10, 0), new Vector3(1, 20, edge * 2 + 4)), (new Vector3(-edge, 10, 0), new Vector3(1, 20, edge * 2 + 4)) })
         {
             var wall = new GameObject("InvisibleWall");
+            wall.layer = World.FenceLayer;   // stops players, not the camera (no camera pulled into the head at the edge)
             wall.transform.SetParent(back, false);
             wall.transform.position = c;
             wall.AddComponent<BoxCollider>().size = s;

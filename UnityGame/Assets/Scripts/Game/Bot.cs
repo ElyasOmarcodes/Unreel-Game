@@ -3,13 +3,18 @@ using UnityEngine;
 
 namespace UA
 {
-    /// <summary>Host-side AI: patrols the street waypoints, hunts visible enemies and shoots in bursts.</summary>
+    /// <summary>
+    /// Host-side AI, played like a person: walks the waypoints and stops now and then to look around;
+    /// in a fight it mostly stands and shoots short bursts, and moves only now and then to another spot.
+    /// </summary>
     public class Bot : MonoBehaviour
     {
         private Agent agent;
         private CharacterController cc;
         private int waypoint = -1, previousWaypoint = -1;
         private float verticalSpeed, nextThink, nextFire, reloadEnd, strafeUntil, strafeDir = 1f, stuckTime, reactionAt;
+        private float pauseUntil, lookAround, burstLeft;
+        private bool repositioning;
         private int mag, grenades;
         private float nextGrenade;
         private Agent target;
@@ -57,7 +62,12 @@ namespace UA
                 nextThink = Time.time + 0.3f;
                 var previous = target;
                 target = FindTarget(s, world);
-                if (target != null && target != previous) reactionAt = Time.time + Mathf.Lerp(0.8f, 0.25f, Skill / 2f);
+                if (target != null && target != previous)
+                {
+                    reactionAt = Time.time + Mathf.Lerp(1.3f, 0.55f, Skill / 2f) + Random.Range(0f, 0.3f);
+                    repositioning = false;
+                    strafeUntil = Time.time + Random.Range(1.5f, 3f);
+                }
             }
 
             Vector3 move = Vector3.zero;
@@ -67,17 +77,23 @@ namespace UA
                 float distance = toTarget.magnitude;
                 float wantYaw = Mathf.Atan2(toTarget.x, toTarget.z) * Mathf.Rad2Deg;
                 float wantPitch = Mathf.Asin(Mathf.Clamp(toTarget.y / Mathf.Max(distance, 0.01f), -1f, 1f)) * Mathf.Rad2Deg;
-                float turn = Mathf.Lerp(150f, 420f, Skill / 2f) * dt;
+                float turn = Mathf.Lerp(90f, 220f, Skill / 2f) * dt;
                 yaw = Mathf.MoveTowardsAngle(yaw, wantYaw, turn);
                 pitch = Mathf.MoveTowards(pitch, wantPitch, turn);
-                // keep a fighting distance and strafe
-                if (Time.time > strafeUntil) { strafeUntil = Time.time + Random.Range(0.8f, 2f); strafeDir = Random.value < 0.5f ? -1f : 1f; }
+                // stand and shoot for a while, then a short walk to the side (or closer / back) and stop again
+                if (Time.time > strafeUntil)
+                {
+                    repositioning = !repositioning;
+                    strafeUntil = Time.time + (repositioning ? Random.Range(0.6f, 1.3f) : Random.Range(1.8f, 4f));
+                    strafeDir = Random.value < 0.5f ? -1f : 1f;
+                }
                 var forward = Quaternion.Euler(0, yaw, 0) * Vector3.forward;
                 var right = Quaternion.Euler(0, yaw, 0) * Vector3.right;
                 float ideal = def.Pellets > 1 ? 8f : def.Scope ? 35f : 16f;
-                move = right * strafeDir * 0.6f + forward * Mathf.Clamp((distance - ideal) / 6f, -0.6f, 1f);
-                bool aimed = Mathf.Abs(Mathf.DeltaAngle(yaw, wantYaw)) < 7f;
-                if (aimed && Time.time >= reactionAt && Time.time >= nextFire && reloadEnd <= 0 && mag > 0 && distance < def.Range * 0.8f)
+                if (repositioning)
+                    move = (right * strafeDir * 0.8f + forward * Mathf.Clamp((distance - ideal) / 6f, -0.6f, 1f)).normalized * 0.5f;
+                bool aimed = Mathf.Abs(Mathf.DeltaAngle(yaw, wantYaw)) < 5f;
+                if (aimed && !repositioning && Time.time >= reactionAt && Time.time >= nextFire && reloadEnd <= 0 && mag > 0 && distance < def.Range * 0.8f)
                     Shoot(s, def, toTarget, distance);
                 // now and then a grenade at a target in the middle distance
                 if (grenades > 0 && Time.time >= nextGrenade && distance > 9f && distance < 24f && Time.time >= reactionAt)
@@ -93,16 +109,33 @@ namespace UA
                 if (waypoint < 0) waypoint = world.NearestWaypoint(transform.position);
                 var to = world.Waypoints[waypoint] - transform.position;
                 to.y = 0;
-                if (to.magnitude < 1.6f) NextWaypoint(world);
-                float wantYaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
-                yaw = Mathf.MoveTowardsAngle(yaw, wantYaw, 240f * dt);
-                pitch = Mathf.MoveTowards(pitch, 0, 60f * dt);
-                move = Quaternion.Euler(0, yaw, 0) * Vector3.forward;
-                st.MoveX = 0;
-                st.MoveY = 1;
-                // stuck against something: pick another way
-                if ((transform.position - lastPos).sqrMagnitude < 0.0004f) stuckTime += dt; else stuckTime = 0;
-                if (stuckTime > 1.2f) { stuckTime = 0; NextWaypoint(world); }
+                if (to.magnitude < 1.6f)
+                {
+                    NextWaypoint(world);
+                    // now and then stop and look around
+                    if (Random.value < 0.35f) { pauseUntil = Time.time + Random.Range(1.5f, 4.5f); lookAround = yaw + Random.Range(-100f, 100f); }
+                }
+                if (Time.time < pauseUntil)
+                {
+                    yaw = Mathf.MoveTowardsAngle(yaw, lookAround, 60f * dt);
+                    if (Mathf.Abs(Mathf.DeltaAngle(yaw, lookAround)) < 2f) lookAround = yaw + Random.Range(-90f, 90f);
+                    pitch = Mathf.MoveTowards(pitch, 0, 60f * dt);
+                    st.MoveX = st.MoveY = 0;
+                    stuckTime = 0;
+                }
+                else
+                {
+                    float wantYaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
+                    yaw = Mathf.MoveTowardsAngle(yaw, wantYaw, 160f * dt);
+                    pitch = Mathf.MoveTowards(pitch, 0, 60f * dt);
+                    // walking pace, not a run
+                    move = Quaternion.Euler(0, yaw, 0) * Vector3.forward * 0.5f;
+                    st.MoveX = 0;
+                    st.MoveY = 0.5f;
+                    // stuck against something: pick another way
+                    if ((transform.position - lastPos).sqrMagnitude < 0.0001f) stuckTime += dt; else stuckTime = 0;
+                    if (stuckTime > 1.2f) { stuckTime = 0; NextWaypoint(world); }
+                }
             }
             else
             {
@@ -147,7 +180,7 @@ namespace UA
         private Agent FindTarget(Session s, World world)
         {
             Agent best = null;
-            float bestDistance = 70f;
+            float bestDistance = 60f;
             foreach (var other in world.Agents.Values)
             {
                 if (other == agent || other.State == null || !other.State.Alive || !world.IsEnemy(agent.State, other.State, s)) continue;
@@ -156,7 +189,7 @@ namespace UA
                 // bots notice what is in front of them, or anything shooting close by
                 var dir = (other.transform.position - transform.position).normalized;
                 float facing = Vector3.Dot(dir, transform.forward);
-                if (facing < -0.2f && d > 12f) continue;
+                if (facing < 0.2f && d > 10f) continue;
                 if (!world.LineOfSight(agent.Eye, other.Chest)) continue;
                 best = other;
                 bestDistance = d;
@@ -166,9 +199,13 @@ namespace UA
 
         private void Shoot(Session s, WeaponDef def, Vector3 toTarget, float distance)
         {
-            nextFire = Time.time + 1f / def.FireRate * (def.Auto ? Random.Range(1f, 1.6f) : Random.Range(1.2f, 2f));
+            // short bursts with a pause between them, single shots taken with care
+            if (burstLeft <= 0) burstLeft = def.Auto ? Random.Range(3, 6) : 1;
+            burstLeft--;
+            nextFire = Time.time + 1f / def.FireRate * (def.Auto ? 1.15f : Random.Range(1.6f, 2.6f));
+            if (burstLeft <= 0) nextFire += Random.Range(0.7f, 1.5f);
             mag--;
-            float error = Mathf.Lerp(4.5f, 1.4f, Skill / 2f) + distance * 0.02f;
+            float error = Mathf.Lerp(5.5f, 2f, Skill / 2f) + distance * 0.025f;
             var dir = Ballistics.Spray(toTarget.normalized, error, rng);
             var origin = agent.Eye;
             s.FireBot(new Shot { Shooter = agent.Id, Weapon = def.Id, Origin = origin, Dir = dir, Seed = rng.Next() });

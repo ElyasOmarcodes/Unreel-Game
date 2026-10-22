@@ -113,6 +113,19 @@ namespace UA
                 foreach (var go in row) Destroy(go);
                 row.Clear();
             }
+            // the ready-made characters, then their feet from the side (which way the boots point)
+            for (int i = 0; i < Wardrobe.Presets.Length; i++)
+                Dress(Wardrobe.PresetLook(i), new Vector3(i * 0.9f, 300, 0), 180);
+            cam.Cam.fieldOfView = 40;
+            cam.transform.SetPositionAndRotation(new Vector3(4.5f, 301.0f, -7.6f), Quaternion.Euler(3, 0, 0));
+            yield return Wait(1f);
+            yield return Shot("00-presets");
+            foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 90, 0);
+            cam.transform.SetPositionAndRotation(new Vector3(2.7f, 300.45f, -3.0f), Quaternion.Euler(6, 0, 0));
+            yield return Wait(0.3f);
+            yield return Shot("00-feet-side");
+            foreach (var go in row) Destroy(go);
+            row.Clear();
             // head wear close-ups: 12 options on alternating bodies
             for (int i = 0; i < 12; i++)
             {

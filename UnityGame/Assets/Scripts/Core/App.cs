@@ -546,9 +546,15 @@ namespace UA
             nameField = UIKit.Input(nameRow, Settings.PlayerName, "Your name", 34);
             nameField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 400, 74, 1f, 0.5f);
             nameField.onEndEdit.AddListener(v => Settings.PlayerName = v);
-            Row(L, UIKit.Stepper(panel, "GRAPHICS", -130, () => Settings.QualityNames[Settings.Quality], d => Settings.Quality = Mathf.Clamp(Settings.Quality + d, 0, 2), W));
-            Row(L, UIKit.Stepper(panel, "SOUND VOLUME", -225, () => Mathf.RoundToInt(Settings.Volume * 100) + "%", d => Settings.Volume = Mathf.Round(Settings.Volume * 10 + d) / 10f, W));
-            Row(L, UIKit.Stepper(panel, "SHOW FPS", -320, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, W));
+            Row(L, UIKit.Stepper(panel, "GRAPHICS", -125, () => Settings.QualityNames[Settings.Quality], d => Settings.Quality = Mathf.Clamp(Settings.Quality + d, 0, 2), W));
+            Row(L, UIKit.Stepper(panel, "RESOLUTION", -215, () => Settings.RenderScale + "%", d => Settings.RenderScale += d * 5, W));
+            Row(L, UIKit.Stepper(panel, "FRAME RATE", -305, () => Settings.FrameRate + " FPS", d =>
+            {
+                int i = System.Array.IndexOf(Settings.FrameRates, Settings.FrameRate);
+                Settings.FrameRate = Settings.FrameRates[Mathf.Clamp((i < 0 ? 1 : i) + d, 0, Settings.FrameRates.Length - 1)];
+            }, W));
+            Row(L, UIKit.Stepper(panel, "SOUND VOLUME", -395, () => Mathf.RoundToInt(Settings.Volume * 100) + "%", d => Settings.Volume = Mathf.Round(Settings.Volume * 10 + d) / 10f, W));
+            Row(L, UIKit.Stepper(panel, "SHOW FPS", -485, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, W));
             Row(R, UIKit.Stepper(panel, "TURN SPEED", -30, () => Speed(Settings.Sensitivity), d => Settings.Sensitivity = Step(Settings.Sensitivity, d), W));
             Row(R, UIKit.Stepper(panel, "AIM SPEED", -130, () => Speed(Settings.AimSensitivity), d => Settings.AimSensitivity = Step(Settings.AimSensitivity, d), W));
             Row(R, UIKit.Stepper(panel, "SCOPE SPEED", -225, () => Speed(Settings.ScopeSensitivity), d => Settings.ScopeSensitivity = Step(Settings.ScopeSensitivity, d), W));
@@ -557,7 +563,7 @@ namespace UA
             var hint = UIKit.Txt(panel, "Running speed is the same for everyone and cannot be changed.", 24, TextAnchor.MiddleCenter, UIKit.Muted);
             hint.rectTransform.At(0.5f, 1f, R, -515, W, 40, 0.5f, 1f);
             var layout = UIKit.Btn(panel, "CONTROLS LAYOUT", OpenLayoutEditor, 30, UIKit.AccentDark, "open_with");
-            layout.GetComponent<RectTransform>().At(0.5f, 1f, L, -440, 480, 76, 0.5f, 1f);
+            layout.GetComponent<RectTransform>().At(0.5f, 1f, L, -600, 480, 76, 0.5f, 1f);
             var back = UIKit.Btn(s, "BACK", () => { Settings.PlayerName = nameField.text; Back(); }, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 50, 380, 96, 0.5f, 0f);
         }

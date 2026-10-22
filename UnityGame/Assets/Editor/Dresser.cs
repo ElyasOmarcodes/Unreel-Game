@@ -609,9 +609,12 @@ public static class Dresser
                 foreach (var p in pts) fb.Encapsulate(p);
                 var kb = kit.Bounds;
                 float len = (fb.size.z * 1.12f + 0.04f) / kb.size.z, wid = (fb.size.x + 0.03f) / kb.size.x;
-                // the kit's boots point to -Z: turned around, the heel (max z) goes to the back of the foot
-                var placed = Outfit.Place(kit, new Vector3(kb.center.x, kb.min.y, kb.max.z), new Vector3(fb.center.x, ground - 0.004f, fb.min.z - 0.013f),
-                    new Vector3(wid, Mathf.Max(len, wid), len), 180f, side == "l");
+                // measured on the files: the toe points to +Z like the body (the shaft stands over the
+                // heel at min z); "Boot" is a right boot (big toe bulge at -X), "BootBrown" a left one.
+                // The heel goes to the back of the foot, and the boot is mirrored only for the other foot.
+                bool rightBoot = item == "Boot", rightFoot = sign > 0;
+                var placed = Outfit.Place(kit, new Vector3(kb.center.x, kb.min.y, kb.min.z), new Vector3(fb.center.x, ground - 0.004f, fb.min.z - 0.013f),
+                    new Vector3(wid, Mathf.Max(len, wid), len), 0f, rightBoot != rightFoot);
                 int footBone = body.Bone("foot_" + side), ballBone = body.Bone("ball_" + side), calfBone = body.Bone("calf_" + side);
                 for (int i = 0; i < placed.P.Count; i++)
                 {

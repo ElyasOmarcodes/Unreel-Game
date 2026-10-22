@@ -23,6 +23,7 @@ namespace UA
         {
             I = this;
             if (Cam == null) Cam = GetComponent<Camera>();
+            Settings.ApplyCamera(Cam);
         }
 
         public Ray AimRay() => new Ray(transform.position + transform.forward * 0.3f, transform.forward);
