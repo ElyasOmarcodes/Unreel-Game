@@ -116,13 +116,15 @@ public static class MapBuilder
         village.Root.SetActive(false);
         var town = TownBuilder.Build();
         town.Root.SetActive(false);
+        var zahra = ZahraBuilder.Build();
+        zahra.Root.SetActive(false);
         map.gameObject.SetActive(true);
 
         var worldGo = new GameObject("World");
         var world = worldGo.AddComponent<World>();
         world.Sun = sun;
         world.Skybox = skybox;
-        world.Layouts = new[] { downtown, port, village, town };
+        world.Layouts = new[] { downtown, port, village, town, zahra };
 
         new GameObject("App").AddComponent<App>();
         Debug.Log($"[Map] built: {map.GetComponentsInChildren<Renderer>().Length} renderers, {waypoints.Count} waypoints, {downtown.Spawns.Length} spawns");
@@ -130,7 +132,7 @@ public static class MapBuilder
         // every map into a scene of its own: the game loads only the one being played (memory)
         EditorSceneManager.SaveScene(scene, ScenePath);
         var buildScenes = new List<EditorBuildSettingsScene> { new EditorBuildSettingsScene(ScenePath, true) };
-        var names = new[] { "Map_Downtown", "Map_Port", "Map_Village", "Map_OldTown" };
+        var names = new[] { "Map_Downtown", "Map_Port", "Map_Village", "Map_OldTown", "Map_Zahra" };
         for (int i = 0; i < world.Layouts.Length; i++)
         {
             var layout = world.Layouts[i];
@@ -606,7 +608,7 @@ public static class MapBuilder
         foreach (float x in new[] { -1f, 1f })
             foreach (float z in new[] { -1f, 1f })
                 MeshGen.RoundBox("CourtLawn", center + new Vector3(x * 6.3f, y0 + 0.06f, z * 6.3f), new Vector3(4.6f, 0.06f, 4.6f), 0.03f, grass, 3f, park, 0, false);
-        var water = AssetSetup.Mat("Water", new Color(0.15f, 0.3f, 0.38f), 0.95f, 0.1f);
+        var water = AssetSetup.WaterMat("Water_Fountain", new Color(0.05f, 0.18f, 0.22f), new Color(0.15f, 0.38f, 0.42f), 3f, 0.18f);
         MeshGen.TexCylinder("Fountain", center + Vector3.up * y0, 2.8f, 0.7f, stone, 2f, park);
         MeshGen.TexCylinder("Water", center + Vector3.up * (y0 + 0.62f), 2.55f, 0.1f, water, 2f, park, false);
         MeshGen.TexCylinder("Pillar", center + Vector3.up * (y0 + 0.7f), 0.4f, 1.6f, stone, 1f, park);

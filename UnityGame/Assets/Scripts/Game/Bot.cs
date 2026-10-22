@@ -15,7 +15,8 @@ namespace UA
         private float verticalSpeed, nextThink, nextFire, reloadEnd, strafeUntil, strafeDir = 1f, stuckTime, reactionAt;
         private float pauseUntil, lookAround, burstLeft;
         private bool repositioning;
-        private int mag, grenades;
+        private int mag, grenades, syringes = 1;
+        private float nextHeal;
         private float nextGrenade;
         private Agent target;
         private Vector3 lastPos;
@@ -40,6 +41,7 @@ namespace UA
             mag = Weapons.Get(agent.State.Primary).MagSize;
             grenades = Grenade.PerLife;
             nextGrenade = Time.time + Random.Range(4f, 10f);
+            syringes = 1;
             yaw = agent.State.Yaw;
             pitch = 0;
         }
@@ -54,6 +56,14 @@ namespace UA
             bool playing = s.Phase == Phase.Playing;
             var def = Weapons.Get(st.Primary);
             st.Weapon = def.Id;
+            // badly hurt and nobody in the sights: a syringe
+            if (playing && syringes > 0 && st.Health < 45f && target == null && Time.time >= nextHeal)
+            {
+                syringes--;
+                nextHeal = Time.time + 8f;
+                agent.PlayReload();
+                s.BotHeal(agent.Id);
+            }
             if (mag <= 0 && reloadEnd <= 0)
             {
                 reloadEnd = Time.time + def.ReloadTime;

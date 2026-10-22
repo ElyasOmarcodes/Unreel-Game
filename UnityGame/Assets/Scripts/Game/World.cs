@@ -59,7 +59,7 @@ namespace UA
         public Vector3 Center => layout.Center;
         public float Radius => layout.Radius;
 
-        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for downtown, port, village and the old town.</summary>
+        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for downtown, port, village, the old town and Al-Zahra.</summary>
         public static int LayoutOf(int map) => map / 3;
 
         private void Awake()
@@ -82,20 +82,29 @@ namespace UA
         /// </summary>
         private void LoadMap(int index)
         {
+            // phones with little memory let the old map go at once; the others keep showing it (no empty
+            // background in Create Group) until the new one is there
+            if (Settings.DeviceClass == 0 || Session.I == null || Session.I.InMatch) UnloadOthers(index);
+            else if (loadedMap != null && loadedMap.Layout != index) loadedMap = null;
+            string wanted = Layouts[index].Scene;
+            if (string.IsNullOrEmpty(wanted)) return;
+            var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(wanted);
+            if (!scene.IsValid())   // neither loaded nor on its way
+                UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(wanted, UnityEngine.SceneManagement.LoadSceneMode.Additive);
+        }
+
+        private void UnloadOthers(int index)
+        {
             for (int i = 0; i < Layouts.Length; i++)
             {
                 if (i == index || string.IsNullOrEmpty(Layouts[i].Scene)) continue;
                 var other = UnityEngine.SceneManagement.SceneManager.GetSceneByName(Layouts[i].Scene);
                 if (!other.isLoaded) continue;
                 if (loadedMap != null && loadedMap.Layout == i) loadedMap = null;
+                foreach (var go in other.GetRootGameObjects()) go.SetActive(false);   // gone from view this frame
                 var op = UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(other);
                 if (op != null) op.completed += _ => Resources.UnloadUnusedAssets();
             }
-            string wanted = Layouts[index].Scene;
-            if (string.IsNullOrEmpty(wanted)) return;
-            var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(wanted);
-            if (!scene.IsValid())   // neither loaded nor on its way
-                UnityEngine.SceneManagement.SceneManager.LoadSceneAsync(wanted, UnityEngine.SceneManagement.LoadSceneMode.Additive);
         }
 
         public void OnMapLoaded(MapScene map)
@@ -106,6 +115,7 @@ namespace UA
                 UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(map.gameObject.scene);
                 return;
             }
+            UnloadOthers(map.Layout);   // the old map stayed on screen until now
             loadedMap = map;
             foreach (var light in map.NightLights)
                 if (light != null) light.enabled = night;
@@ -313,6 +323,18 @@ namespace UA
                     RenderSettings.ambientGroundColor = new Color(0.2f, 0.19f, 0.17f);
                     RenderSettings.fogColor = new Color(0.7f, 0.76f, 0.84f);
                     RenderSettings.fogDensity = 0.006f;
+                    if (LayoutOf(map) == 4)
+                    {
+                        // Al-Zahra in spring: warm, soft Andalusian light, a clear sky and a light haze over the valley
+                        Sun.transform.rotation = Quaternion.Euler(52f, -150f, 0f);
+                        Sun.color = new Color(1f, 0.93f, 0.8f);
+                        Sun.intensity = 1.25f;
+                        RenderSettings.ambientSkyColor = new Color(0.6f, 0.7f, 0.86f);
+                        RenderSettings.ambientEquatorColor = new Color(0.56f, 0.53f, 0.48f);
+                        RenderSettings.ambientGroundColor = new Color(0.3f, 0.26f, 0.2f);
+                        RenderSettings.fogColor = new Color(0.8f, 0.84f, 0.9f);
+                        RenderSettings.fogDensity = 0.0045f;
+                    }
                     break;
             }
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;

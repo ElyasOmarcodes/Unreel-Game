@@ -26,6 +26,7 @@ namespace UA
         {
             "DOWNTOWN - DAY", "DOWNTOWN - SUNSET", "DOWNTOWN - NIGHT", "PORT - DAY", "PORT - SUNSET", "PORT - NIGHT",
             "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT", "OLD TOWN - DAY", "OLD TOWN - SUNSET", "OLD TOWN - NIGHT",
+            "AL-ZAHRA - DAY", "AL-ZAHRA - SUNSET", "AL-ZAHRA - NIGHT",
         };
         public static readonly string[] ModeNames = { "TEAM DEATHMATCH", "FREE FOR ALL" };
         public static readonly string[] SkillNames = { "EASY", "NORMAL", "HARD" };
@@ -69,7 +70,7 @@ namespace UA
         public int Token;
         public float LastSeen;
         public float RespawnAt;
-        public int LastShotSeq, LastThrowSeq;
+        public int LastShotSeq, LastThrowSeq, LastHealSeq;
         public float LastDamageTime;
     }
 
@@ -78,6 +79,9 @@ namespace UA
     public struct Throw { public int Seq; public byte Thrower; public Vector3 Origin, Velocity; }
     /// <summary>Grenade event in the snapshot: Kind 0 thrown (A origin, B velocity), 1 exploded (A position).</summary>
     public struct NadeEvent { public ushort Seq; public byte Thrower, Kind; public int ThrowSeq; public Vector3 A, B; }
+    /// <summary>A syringe (Kind 0, also on oneself) or blood given to a team mate (Kind 1).</summary>
+    public struct HealEvent { public ushort Seq; public byte Giver, Target, Kind, Amount; }
+    public struct HealRequest { public int Seq; public byte Target, Kind; }
     public struct ShotFx { public ushort Seq; public byte Shooter, Weapon; public Vector3 Origin, End; public byte HitKind; } // 0 wall, 1 player, 2 nothing
 
     /// <summary>
@@ -90,7 +94,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 7;
+        public const byte Version = 8;
         public const byte NoPlayer = 255;
         public const string PasswordNeeded = "This group is locked: type its password";
         public const string WrongPassword = "Wrong password for this group";
@@ -132,6 +136,14 @@ namespace UA
         private int throwSeq;
         private ushort nadeSeq, lastNadeSeen;
         private bool nadeInit;
+        private readonly List<(HealRequest h, float time)> pendingHeals = new List<(HealRequest, float)>();
+        private readonly List<HealEvent> healRing = new List<HealEvent>();
+        private int healReqSeq;
+        private ushort healSeq, lastHealSeen;
+        private bool healInit;
+
+        public event Action<HealEvent> Healed;
+        public const float HealRange = 3f, SyringeHeal = 50f, BloodGift = 25f;
 
         private static readonly string[] BotNames = { "Viper", "Ghost", "Falcon", "Rook", "Blaze", "Shadow", "Hunter", "Nova", "Raven", "Titan" };
 
@@ -221,8 +233,10 @@ namespace UA
             pendingShots.Clear();
             pendingThrows.Clear();
             nadeRing.Clear();
+            pendingHeals.Clear();
+            healRing.Clear();
             Grenade.ClearAll();
-            killInit = fxInit = nadeInit = false;
+            killInit = fxInit = nadeInit = healInit = false;
             TeamScore[0] = TeamScore[1] = 0;
             Phase = Phase.Lobby;
             Time.timeScale = 1f;
@@ -588,6 +602,15 @@ namespace UA
                 p.LastThrowSeq = t.Seq;
                 HostThrow(t);
             }
+            int heals = r.ReadByte();
+            for (int i = 0; i < heals; i++)
+            {
+                int seq = r.ReadInt32();
+                byte target = r.ReadByte(), kind = r.ReadByte();
+                if (seq <= p.LastHealSeq) continue;
+                p.LastHealSeq = seq;
+                HostHeal(id, target, kind);
+            }
         }
 
         /// <summary>Host: hit test a shot against the world and the players and apply its damage.</summary>
@@ -697,6 +720,11 @@ namespace UA
             {
                 w.Write(n.Seq); w.Write(n.Thrower); w.Write(n.Kind); w.Write(n.ThrowSeq); w.Write(n.A); w.Write(n.B);
             }
+            w.Write((byte)healRing.Count);
+            foreach (var h in healRing)
+            {
+                w.Write(h.Seq); w.Write(h.Giver); w.Write(h.Target); w.Write(h.Kind); w.Write(h.Amount);
+            }
             SendToClients();
         }
 
@@ -767,6 +795,12 @@ namespace UA
                 foreach (var (t, _) in pendingThrows)
                 {
                     w.Write(t.Seq); w.Write(t.Origin); w.Write(t.Velocity);
+                }
+                pendingHeals.RemoveAll(h => now - h.time > 1f);
+                w.Write((byte)pendingHeals.Count);
+                foreach (var (h, _) in pendingHeals)
+                {
+                    w.Write(h.Seq); w.Write(h.Target); w.Write(h.Kind);
                 }
             }
             socket.Send(pw.Buffer, pw.Length, hostEndPoint);
@@ -872,10 +906,60 @@ namespace UA
                 }
             }
             nadeInit = true;
+            int healCount = r.ReadByte();
+            for (int i = 0; i < healCount; i++)
+            {
+                var h = new HealEvent { Seq = r.ReadUInt16(), Giver = r.ReadByte(), Target = r.ReadByte(), Kind = r.ReadByte(), Amount = r.ReadByte() };
+                if (!healInit) { lastHealSeen = h.Seq; continue; }
+                if ((short)(h.Seq - lastHealSeen) <= 0) continue;
+                lastHealSeen = h.Seq;
+                Healed?.Invoke(h);
+            }
+            healInit = true;
             if (phase != Phase) SetPhase(phase);
         }
 
         // ------------------------------------------------------------------ shooting
+
+        /// <summary>
+        /// The local player uses a syringe (kind 0: on a team mate, or on themselves) or gives a team mate
+        /// some of their own blood (kind 1). The host checks and applies it.
+        /// </summary>
+        public void HealLocal(byte target, byte kind)
+        {
+            if (IsHost) HostHeal(LocalId, target, kind);
+            else pendingHeals.Add((new HealRequest { Seq = ++healReqSeq, Target = target, Kind = kind }, Time.unscaledTime));
+        }
+
+        /// <summary>Host: a bot uses a syringe on itself.</summary>
+        public void BotHeal(byte bot) { if (IsHost) HostHeal(bot, bot, 0); }
+
+        private void HostHeal(byte giverId, byte targetId, byte kind)
+        {
+            if (Phase != Phase.Playing || !Players.TryGetValue(giverId, out var giver) || !Players.TryGetValue(targetId, out var target) || !giver.Alive || !target.Alive) return;
+            if (giver != target)
+            {
+                // only a team mate standing close by (a little slack for the network)
+                if (Config.Mode != Mode.TeamDeathmatch || giver.Team != target.Team) return;
+                if ((giver.Pos - target.Pos).sqrMagnitude > HealRange * HealRange * 2f) return;
+            }
+            float amount;
+            if (kind == 0) amount = Mathf.Min(SyringeHeal, 100f - target.Health);
+            else
+            {
+                if (giver == target) return;
+                // blood: the giver keeps at least 10
+                amount = Mathf.Min(BloodGift, giver.Health - 10f, 100f - target.Health);
+                if (amount > 0f) giver.Health -= amount;
+            }
+            if (amount <= 0f) return;
+            target.Health += amount;
+            var e = new HealEvent { Seq = ++healSeq, Giver = giverId, Target = targetId, Kind = kind, Amount = (byte)Mathf.RoundToInt(amount) };
+            healRing.Add(e);
+            if (healRing.Count > 8) healRing.RemoveAt(0);
+            App.Log($"heal {giver.Name} -> {target.Name} kind={kind} +{e.Amount}");
+            Healed?.Invoke(e);
+        }
 
         /// <summary>Called by the local player when a grenade leaves the hand.</summary>
         public void ThrowLocal(Vector3 origin, Vector3 velocity)

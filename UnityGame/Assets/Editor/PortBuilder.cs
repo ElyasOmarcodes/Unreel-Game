@@ -792,7 +792,7 @@ public static class PortBuilder
         ServiceTunnel();
         Slopes();
         // the sea all around the yard (not under it: the pit and the tunnel are below sea level)
-        var seaMat = AssetSetup.Mat("Port_Sea", new Color(0.08f, 0.22f, 0.32f), 0.95f, 0.1f);
+        var seaMat = AssetSetup.WaterMat("Water_Sea", new Color(0.02f, 0.11f, 0.17f), new Color(0.06f, 0.25f, 0.31f), 0.7f, 0.35f);
         foreach (var r in Underground.Cover(Rect.MinMaxRect(-800f, -800f, 800f, 800f), new[] { Rect.MinMaxRect(-yx, -yz, yx, yz) }))
         {
             var sea = MeshGen.Object("Sea", MeshGen.Box(new Vector3(r.width, 0.1f, r.height), 40f), seaMat, root, new Vector3(r.center.x, -2.6f, r.center.y));

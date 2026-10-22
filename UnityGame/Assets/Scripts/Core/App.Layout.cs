@@ -42,6 +42,7 @@ namespace UA
             { Controls.Button.Reload, ("autorenew", "RELOAD") }, { Controls.Button.Swap, ("swap_horiz", "SWAP") },
             { Controls.Button.Pause, ("pause", "PAUSE") }, { Controls.Button.Score, ("leaderboard", "SCORE") },
             { Controls.Button.Grenade, ("grenade", "GRENADE") }, { Controls.Button.Ammo, ("ammo", "AMMO") },
+            { Controls.Button.Heal, ("vaccines", "HEAL") },
         };
 
         private void BuildLayoutEditor()

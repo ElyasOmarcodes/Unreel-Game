@@ -10,14 +10,14 @@ namespace UA
     [DefaultExecutionOrder(-100)]
     public class Controls : MonoBehaviour
     {
-        public enum Button { Fire, FireLeft, Aim, Jump, Crouch, Reload, Swap, Pause, Score, Prone, Grenade, Ammo }
+        public enum Button { Fire, FireLeft, Aim, Jump, Crouch, Reload, Swap, Pause, Score, Prone, Grenade, Ammo, Heal }
 
         public static bool Enabled;
         /// <summary>The ammo button only exists while the player stands at an ammo box.</summary>
         public static bool AmmoAvailable;
         public static Vector2 Move;
         public static Vector2 Look;
-        public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, PronePressed, GrenadePressed, AmmoPressed;
+        public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, PronePressed, GrenadePressed, AmmoPressed, HealPressed;
 
         // automated test input
         public static Vector2 SimMove, SimLook;
@@ -43,6 +43,7 @@ namespace UA
                 case Button.Fire: return new Vector2(w - 222, 273);
                 case Button.FireLeft: return new Vector2(374, 811);
                 case Button.Grenade: return new Vector2(579, 838);
+                case Button.Heal: return new Vector2(712, 838);
                 case Button.Aim: return new Vector2(w - 135, 539);
                 case Button.Jump: return new Vector2(w - 497, 370);
                 case Button.Crouch: return new Vector2(w - 476, 144);
@@ -93,7 +94,7 @@ namespace UA
 
         private void Update()
         {
-            bool fireTap = false, aim = false, jump = false, crouch = false, reload = false, swap = false, pause = false, prone = false, grenade = false, ammo = false;
+            bool fireTap = false, aim = false, jump = false, crouch = false, reload = false, swap = false, pause = false, prone = false, grenade = false, ammo = false, heal = false;
             Move = Vector2.zero;
             Look = Vector2.zero;
             Held.Clear();
@@ -132,6 +133,7 @@ namespace UA
                             case Button.Prone: prone = true; break;
                             case Button.Grenade: grenade = true; break;
                             case Button.Ammo: ammo = true; break;
+                            case Button.Heal: heal = true; break;
                         }
                     }
                     fingers[t.fingerId] = f;
@@ -182,6 +184,7 @@ namespace UA
                 if (Input.GetKeyDown(KeyCode.Z)) prone = true;
                 if (Input.GetKeyDown(KeyCode.G)) grenade = true;
                 if (Input.GetKeyDown(KeyCode.F)) ammo = true;
+                if (Input.GetKeyDown(KeyCode.H)) heal = true;
                 if (Input.GetKeyDown(KeyCode.R)) reload = true;
                 if (Input.GetKeyDown(KeyCode.Q) || Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Alpha2)) swap = true;
                 if (Input.GetKey(KeyCode.Tab)) Held.Add(Button.Score);
@@ -208,6 +211,7 @@ namespace UA
             PronePressed = prone;
             GrenadePressed = grenade;
             AmmoPressed = ammo;
+            HealPressed = heal;
         }
     }
 }

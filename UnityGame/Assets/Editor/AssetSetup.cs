@@ -101,6 +101,27 @@ public static class AssetSetup
     }
 
     /// <summary>Simple colored material, cached by name (procedural props, weapons, gear).</summary>
+    /// <summary>Moving water (UA/Water): deep and shallow colours, wave size (1 = sea, more for small pools).</summary>
+    public static Material WaterMat(string name, Color deep, Color shallow, float scale = 1f, float strength = 0.3f)
+    {
+        if (materialCache.TryGetValue(name, out var cached) && cached != null) return cached;
+        string path = $"{Generated}/Materials/{name}.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        var shader = Shader.Find("UA/Water");
+        if (m == null)
+        {
+            m = new Material(shader ?? Shader.Find("Standard"));
+            AssetDatabase.CreateAsset(m, path);
+        }
+        else if (shader != null) m.shader = shader;
+        m.SetColor("_Deep", deep);
+        m.SetColor("_Shallow", shallow);
+        m.SetFloat("_Scale", scale);
+        m.SetFloat("_Strength", strength);
+        EditorUtility.SetDirty(m);
+        return materialCache[name] = m;
+    }
+
     public static Material Solid(string name, Color color, float smoothness = 0.3f, float metallic = 0f)
     {
         if (materialCache.TryGetValue(name, out var m) && m != null) return m;

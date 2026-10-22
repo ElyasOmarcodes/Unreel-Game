@@ -49,7 +49,7 @@ public static class TownBuilder
     private static Material Roof(int i) => PortBuilder.Pbr("T_Roof" + i, "RoofingTiles006", RoofTints[i % RoofTints.Length], 0.4f);
     private static Material Iron => AssetSetup.Solid("T_Iron", new Color(0.07f, 0.07f, 0.08f), 0.45f, 0.6f);
     private static Material Glass => AssetSetup.Mat("T_WindowGlass", new Color(0.16f, 0.26f, 0.32f), 0.93f, 0.3f);
-    private static Material Water => AssetSetup.Mat("T_Water", new Color(0.12f, 0.24f, 0.3f), 0.96f, 0.1f);
+    private static Material Water => AssetSetup.WaterMat("Water_Canal", new Color(0.04f, 0.13f, 0.14f), new Color(0.12f, 0.3f, 0.3f), 2f, 0.22f);
     private static Material Flower(int i) => AssetSetup.Solid("T_Flower" + i,
         new[] { new Color(0.45f, 0.35f, 0.95f), new Color(0.75f, 0.35f, 0.85f), new Color(0.95f, 0.45f, 0.6f), new Color(0.95f, 0.85f, 0.4f) }[i % 4], 0.2f);
     private static Material Cloth(int i) => AssetSetup.Solid("T_Cloth" + i,
@@ -247,10 +247,11 @@ public static class TownBuilder
             float gz = s < 0 ? -hd - lastLean + 0.02f : hd - 0.02f;
             var gable = MeshGen.Object("Gable", MeshGen.Gable(w, rise, 2f), wallMat, t, t.TransformPoint(new Vector3(0, top, gz)), t.eulerAngles.y);
             var n = new Vector3(0, 0, s);
-            // the gable's timbers: king post, two struts and a collar beam
+            // the gable's timbers: king post, two upright posts and a collar beam
             Beam(t, new Vector3(0, top, gz), new Vector3(0, top + rise - 0.15f, gz), n);
-            Beam(t, new Vector3(-w * 0.32f, top, gz), new Vector3(0, top + rise * 0.55f, gz), n, 0.16f);
-            Beam(t, new Vector3(w * 0.32f, top, gz), new Vector3(0, top + rise * 0.55f, gz), n, 0.16f);
+            // only upright and level timbers on the gable (no slanting braces)
+            foreach (float side in new[] { -1f, 1f })
+                Beam(t, new Vector3(side * w * 0.22f, top, gz), new Vector3(side * w * 0.22f, top + rise * 0.5f, gz), n, 0.16f);
             Beam(t, new Vector3(-w * 0.27f, top + rise * 0.45f, gz), new Vector3(w * 0.27f, top + rise * 0.45f, gz), n, 0.16f);
             // an attic window in the front gable
             if (s < 0) Window(t, new Vector3(0, top + rise * 0.28f, gz - 0.05f), n, Vector3.right, 0.7f, 0.8f, true, false, false);
@@ -321,19 +322,15 @@ public static class TownBuilder
         foreach (var o in openings) { posts.Add(o.c - o.w / 2f - 0.12f); posts.Add(o.c + o.w / 2f + 0.12f); }
         posts.Sort();
         foreach (float u in posts) Beam(t, o0 + along * u, o0 + along * u + Vector3.up * h, normal);
-        // braces in the panels with no window, a rail under the windows
+        // a rail under the windows and across the middle of the wide plain panels: only upright and
+        // level timbers, no slanting braces
         for (int i = 0; i + 1 < posts.Count; i++)
         {
             float a = posts[i], b = posts[i + 1];
             if (b - a < 0.6f) continue;
             bool window = openings.Any(o => o.c > a && o.c < b);
-            if (window)
-                Beam(t, o0 + along * a + Vector3.up * 0.9f, o0 + along * b + Vector3.up * 0.9f, normal, 0.16f);
-            else if (b - a > 0.9f)
-            {
-                bool flip = (i % 2) == 0;
-                Beam(t, o0 + along * (flip ? a : b) + Vector3.up * 0.2f, o0 + along * (flip ? b : a) + Vector3.up * (h - 0.25f), normal, 0.16f);
-            }
+            if (window || b - a > 0.9f)
+                Beam(t, o0 + along * a + Vector3.up * (window ? 0.9f : h * 0.5f), o0 + along * b + Vector3.up * (window ? 0.9f : h * 0.5f), normal, 0.16f);
         }
     }
 
@@ -369,11 +366,17 @@ public static class TownBuilder
     private static void Stall(Vector3 p, float yaw, int color)
     {
         var t = Node("Stall", root, p, yaw);
+        // the canopy slopes down to the front; every post reaches right up under it
+        const float tilt = 12f, mid = 2.5f, cloth = 0.08f;
+        float Under(float z) => mid + z * Mathf.Tan(tilt * Mathf.Deg2Rad) - cloth / 2f / Mathf.Cos(tilt * Mathf.Deg2Rad);
         foreach (var (x, z) in new[] { (-1.4f, -0.9f), (1.4f, -0.9f), (-1.4f, 0.9f), (1.4f, 0.9f) })
-            B(t, "Post", new Vector3(x, 1.2f, z), new Vector3(0.12f, 2.4f, 0.12f), Timber, 1f);
+            B(t, "Post", new Vector3(x, Under(z) / 2f, z), new Vector3(0.12f, Under(z), 0.12f), Timber, 1f);
+        // a beam along the top of each pair of posts, the cloth lies on them
+        foreach (float z in new[] { -0.9f, 0.9f })
+            B(t, "Rail", new Vector3(0, Under(z) - 0.05f, z), new Vector3(2.92f, 0.1f, 0.1f), Timber, 1f, false);
         B(t, "Counter", new Vector3(0, 0.5f, -0.6f), new Vector3(2.9f, 1f, 0.8f), DoorWood, 1f);
-        var canopy = B(t, "Canopy", new Vector3(0, 2.5f, 0), new Vector3(3.2f, 0.08f, 2.4f), Cloth(color), 1f, false);
-        canopy.transform.rotation = t.rotation * Quaternion.Euler(-12f, 0, 0);
+        var canopy = B(t, "Canopy", new Vector3(0, mid, 0), new Vector3(3.2f, cloth, 2.4f), Cloth(color), 1f, false);
+        canopy.transform.rotation = t.rotation * Quaternion.Euler(-tilt, 0, 0);
         for (int i = 0; i < 4; i++)
             B(t, "Goods", new Vector3(-1f + i * 0.65f, 1.1f, -0.65f), new Vector3(0.45f, 0.2f, 0.4f), Flower(i + color), 1f, false);
         Barrel(t, t.TransformPoint(new Vector3(1.9f, 0, 0.6f)));
@@ -591,6 +594,8 @@ public static class TownBuilder
         foreach (float sx in new[] { -1f, 1f })
             B(t, "Parapet", new Vector3(sx * (w / 2f - pt / 2f), h + ph / 2f, 0), new Vector3(pt, ph, d - 2f * pt), Stone, 1.5f);
         B(t, "Chimney", new Vector3(2.8f, h + 0.9f, 1.2f), new Vector3(0.9f, 1.8f, 0.9f), Stone, 1f);
+        // a reason to go up: ammunition on the roof, and a lantern by the way up
+        Obstacles.AmmoCrate(t, t.TransformPoint(new Vector3(-1.5f, h, 1.4f)), 0f);
         if (tall)
         {
             // timber stair in two flights up the front, a plank over the gap onto the roof
@@ -626,7 +631,7 @@ public static class TownBuilder
                     taken.Add(area);
                     Loft(c, placed.Count != 1, k++);
                     placed.Add(c);
-                    Debug.Log($"[Town] store house with a roof way at {c}");
+                    Debug.Log($"[Map] OldTown store house ({(placed.Count != 1 ? "stair" : "hidden way")}) at {c}");
                     break;
                 }
     }

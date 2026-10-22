@@ -13,6 +13,8 @@ namespace UA
         public float Yaw, Pitch;
         public bool Aim, Scope, Crouch, Prone;
         public float AimFov = 45f;
+        /// <summary>The camera is so close to the head that the player's own body must be hidden.</summary>
+        public bool Close { get; private set; }
 
         private float fov = 62f;
         private float orbit;
@@ -86,7 +88,7 @@ namespace UA
             var dir = desired - pivot;
             float length = dir.magnitude;
             float allowed = length;
-            if (length > 0.01f && Physics.SphereCast(pivot, 0.18f, dir / length, out var hit, length, World.EnvMask, QueryTriggerInteraction.Ignore))
+            if (length > 0.01f && Physics.SphereCast(pivot, 0.24f, dir / length, out var hit, length, World.EnvMask, QueryTriggerInteraction.Ignore))
                 allowed = Mathf.Max(0.25f, hit.distance - 0.05f);
             distance = distance < 0f || allowed < distance || Scope ? allowed : Mathf.Lerp(distance, allowed, 1f - Mathf.Exp(-7f * dt));
             if (length > 0.01f) desired = pivot + dir / length * Mathf.Min(distance, length);
@@ -96,6 +98,9 @@ namespace UA
                 shake = Mathf.MoveTowards(shake, 0f, dt * 4f);
             }
             transform.SetPositionAndRotation(desired, rotation);
+            // a wall or a low ceiling pushed the camera up to the head: hide the body instead of
+            // looking out through the inside of the head scarf (as in the big shooters)
+            Close = !dead && (desired - pivot).magnitude < 0.75f;
 
             float want = Scope ? AimFov : Aim ? Mathf.Max(AimFov, 40f) : 62f;
             fov = Mathf.Lerp(fov, want, 1f - Mathf.Exp(-14f * dt));

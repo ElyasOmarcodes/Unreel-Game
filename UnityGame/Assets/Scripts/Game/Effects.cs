@@ -27,6 +27,7 @@ namespace UA
             root = new GameObject("Effects").transform;
             runner = root.gameObject.AddComponent<Runner>();
             tracers.Clear();
+            holes.Clear();
             flashes.Clear();
             tracerMaterial = Resources.Load<Material>("Materials/Tracer");
             flashMaterial = Resources.Load<Material>("Materials/Flash");
@@ -158,6 +159,102 @@ namespace UA
             Ensure();
             Emit(sparks, pos + normal * 0.02f, normal, 6, 0.6f);
             Emit(dust, pos + normal * 0.05f, normal, 3, 0.4f);
+            BulletHole(pos, normal);
+        }
+
+        // ---------------------------------------------------------------- bullet holes
+        // A mark stays where a bullet hit a wall, the ground or a crate, and fades away after a while.
+
+        private const int MaxHoles = 64;
+        private const float HoleLife = 15f;
+        private static readonly List<(Transform t, Renderer r, float born)> holes = new List<(Transform, Renderer, float)>();
+        private static int nextHole;
+        private static Material holeMaterial;
+        private static Mesh holeMesh;
+        private static MaterialPropertyBlock holeBlock;
+
+        private static void BulletHole(Vector3 pos, Vector3 normal)
+        {
+            if (normal.sqrMagnitude < 0.01f) return;
+            if (holeMaterial == null)
+            {
+                holeMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = HoleTexture(), renderQueue = 2450 };
+                holeMesh = new Mesh { name = "BulletHole" };
+                holeMesh.vertices = new[] { new Vector3(-0.5f, -0.5f, 0), new Vector3(0.5f, -0.5f, 0), new Vector3(-0.5f, 0.5f, 0), new Vector3(0.5f, 0.5f, 0) };
+                holeMesh.uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) };
+                holeMesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+                holeMesh.RecalculateBounds();
+                holeBlock = new MaterialPropertyBlock();
+            }
+            (Transform t, Renderer r, float born) hole;
+            if (holes.Count < MaxHoles)
+            {
+                var go = new GameObject("BulletHole");
+                go.transform.SetParent(root);
+                go.AddComponent<MeshFilter>().sharedMesh = holeMesh;
+                var mr = go.AddComponent<MeshRenderer>();
+                mr.sharedMaterial = holeMaterial;
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                mr.receiveShadows = false;
+                hole = (go.transform, mr, 0f);
+                holes.Add(hole);
+                nextHole = holes.Count - 1;
+            }
+            else
+            {
+                nextHole = (nextHole + 1) % MaxHoles;   // the oldest one moves here
+                hole = holes[nextHole];
+            }
+            hole.t.SetPositionAndRotation(pos + normal * 0.012f, Quaternion.LookRotation(-normal) * Quaternion.Euler(0, 0, Random.Range(0f, 360f)));
+            hole.t.localScale = Vector3.one * Random.Range(0.11f, 0.16f);
+            hole.r.enabled = true;
+            holeBlock.SetColor("_Color", Color.white);
+            hole.r.SetPropertyBlock(holeBlock);
+            holes[nextHole] = (hole.t, hole.r, Time.time);
+        }
+
+        private static void FadeHoles(float now)
+        {
+            for (int i = 0; i < holes.Count; i++)
+            {
+                var (t, r, born) = holes[i];
+                if (!r.enabled) continue;
+                float age = now - born;
+                if (age > HoleLife) { r.enabled = false; continue; }
+                if (age < HoleLife - 4f) continue;
+                holeBlock.SetColor("_Color", new Color(1, 1, 1, (HoleLife - age) / 4f));
+                r.SetPropertyBlock(holeBlock);
+            }
+        }
+
+        /// <summary>A dark hole with a broken grey rim and short cracks, drawn once.</summary>
+        private static Texture2D HoleTexture()
+        {
+            const int n = 64;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, name = "BulletHole" };
+            var rng = new System.Random(7);
+            var cracks = new float[6];
+            for (int i = 0; i < cracks.Length; i++) cracks[i] = (float)rng.NextDouble() * Mathf.PI * 2f;
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = (x + 0.5f) / n - 0.5f, dy = (y + 0.5f) / n - 0.5f;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy), a = Mathf.Atan2(dy, dx);
+                    float noise = Mathf.PerlinNoise(x * 0.35f, y * 0.35f);
+                    Color c;
+                    if (d < 0.13f + noise * 0.03f) c = new Color(0.03f, 0.03f, 0.03f, 1f);                      // the hole
+                    else if (d < 0.26f + noise * 0.05f) c = new Color(0.16f, 0.15f, 0.14f, 0.85f - (d - 0.13f) * 2f); // scorched rim
+                    else
+                    {
+                        float crack = 0f;
+                        foreach (float ca in cracks) crack = Mathf.Max(crack, 1f - Mathf.Abs(Mathf.DeltaAngle(a * Mathf.Rad2Deg, ca * Mathf.Rad2Deg)) / 6f);
+                        float alpha = Mathf.Clamp01(crack) * Mathf.Clamp01((0.48f - d) * 6f) * 0.7f + Mathf.Clamp01((0.36f - d) * 4f) * 0.25f;
+                        c = new Color(0.22f, 0.21f, 0.2f, alpha);
+                    }
+                    tex.SetPixel(x, y, c);
+                }
+            tex.Apply(true, true);
+            return tex;
         }
 
         public static void Blood(Vector3 pos, Vector3 normal)
@@ -195,6 +292,7 @@ namespace UA
         private static void Tick()
         {
             float now = Time.time;
+            FadeHoles(now);
             for (int i = blasts.Count - 1; i >= 0; i--)
             {
                 var b = blasts[i];

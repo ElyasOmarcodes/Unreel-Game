@@ -284,6 +284,19 @@ namespace UA
                 (9, "44-town-wall-climb", new Vector3(-58f, 5f, 22f), new Vector3(-71f, 3f, 31f)),
                 (9, "45-town-wall-walk", new Vector3(-71.5f, 6.4f, -20f), new Vector3(-50f, 2f, 10f)),
                 (9, "46-town-garden-terrace", new Vector3(44f, 6f, 36f), new Vector3(50f, 2f, 56f)),
+                (12, "48-zahra-salon-rico", new Vector3(-5f, 6.4f, 16f), new Vector3(-5f, 7.5f, 42f)),
+                (12, "49-zahra-inside-hall", new Vector3(-5f, 6.2f, 41f), new Vector3(-5f, 6f, 58f)),
+                (12, "50-zahra-upper-garden", new Vector3(-36f, 13f, -24f), new Vector3(-5f, 4f, 6f)),
+                (12, "51-zahra-portico", new Vector3(72f, 6.5f, 14f), new Vector3(36f, 8f, 8f)),
+                (12, "52-zahra-ramp-street", new Vector3(47f, 5.8f, 48.5f), new Vector3(86f, 7f, 48.5f)),
+                (12, "53-zahra-mosque", new Vector3(36f, 6f, -40f), new Vector3(66f, 4f, -62f)),
+                (12, "54-zahra-houses", new Vector3(-50f, 6f, -40f), new Vector3(-72f, 1.5f, -50f)),
+                (12, "55-zahra-lower-garden", new Vector3(-5f, 6.5f, -32f), new Vector3(-5f, 0f, -70f)),
+                (12, "56-zahra-dar-al-mulk", new Vector3(-62f, 12.5f, 63f), new Vector3(-5f, 4f, 0f)),
+                (12, "57-zahra-north-gate", new Vector3(47f, 12f, 86f), new Vector3(30f, 11f, 86f)),
+                (12, "58-zahra-roof-climb", new Vector3(-6f, 12.5f, 66f), new Vector3(-1f, 12f, 58f)),
+                (13, "59-zahra-sunset", new Vector3(-80f, 26f, -80f), new Vector3(0f, 6f, 20f)),
+                (14, "60-zahra-night", new Vector3(-5f, 6.4f, 16f), new Vector3(-5f, 7.5f, 42f)),
             };
             foreach (var v in views)
             {
@@ -292,6 +305,34 @@ namespace UA
                 cam.transform.SetPositionAndRotation(v.from, Quaternion.LookRotation(v.to - v.from));
                 yield return Wait(0.8f);
                 yield return Shot(v.name);
+            }
+            // the Old Town store houses are placed on free ground when the map is built: look them up
+            World.I.ApplyLighting(9);
+            yield return Until(() => World.I.MapReady, 30);
+            int k = 0;
+            foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                         .Where(x => x.name == "Loft" || x.name == "Granary").OrderBy(x => x.name).ToList())
+            {
+                var p = t.position;
+                bool loft = t.name == "Loft";
+                var from = p + (loft ? new Vector3(-13f, 8f, -12f) : new Vector3(-12f, 7f, 13f));
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(p + Vector3.up * 3f - from));
+                yield return Wait(0.8f);
+                yield return Shot($"47{(char)('a' + k++)}-town-{(loft ? "roof-stair" : "roof-hidden-way")}");
+            }
+            // the view from the top of the minaret
+            World.I.ApplyLighting(12);
+            yield return Until(() => World.I.MapReady, 30);
+            var minaret = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "MinaretTop");
+            if (minaret != null)
+            {
+                cam.transform.SetPositionAndRotation(minaret.position, Quaternion.LookRotation(new Vector3(0f, 4f, 0f) - minaret.position));
+                yield return Wait(0.8f);
+                yield return Shot("61-zahra-minaret-view");
+                var foot = minaret.position - Vector3.up * 13f + minaret.forward * -9f;
+                cam.transform.SetPositionAndRotation(foot, Quaternion.LookRotation(minaret.position - Vector3.up * 6f - foot));
+                yield return Wait(0.5f);
+                yield return Shot("62-zahra-minaret");
             }
             CameraRig.Frozen = false;
         }

@@ -93,6 +93,7 @@ namespace UA
             CarryArms();
             AimArms();
             ThrowArm();
+            HoldSyringe();
         }
 
         /// <summary>
@@ -376,5 +377,56 @@ namespace UA
             if (Anim != null) Anim.SetTrigger(FireId);
         }
         public void PlayReload() { if (Anim != null) Anim.SetTrigger(ReloadId); }
+
+        private GameObject syringe;
+        private float syringeUntil;
+        private static Material barrelMat, plungerMat, needleMat;
+        private static readonly Material[] liquidMats = new Material[2];
+
+        /// <summary>
+        /// A syringe in the right hand for a moment: green adrenaline (kind 0) or dark red blood given to a
+        /// team mate (kind 1). Built from a few small cylinders, no model file.
+        /// </summary>
+        public void ShowSyringe(byte kind, float seconds)
+        {
+            if (syringe != null) Destroy(syringe);
+            Material M(ref Material m, Color c, float smooth, float metal)
+            {
+                if (m == null) { m = new Material(Shader.Find("Standard")) { color = c }; m.SetFloat("_Glossiness", smooth); m.SetFloat("_Metallic", metal); }
+                return m;
+            }
+            barrelMat = M(ref barrelMat, new Color(0.86f, 0.9f, 0.92f), 0.85f, 0f);
+            plungerMat = M(ref plungerMat, new Color(0.15f, 0.35f, 0.75f), 0.4f, 0f);
+            needleMat = M(ref needleMat, new Color(0.8f, 0.8f, 0.82f), 0.9f, 1f);
+            liquidMats[kind & 1] = M(ref liquidMats[kind & 1], kind == 0 ? new Color(0.35f, 0.95f, 0.45f) : new Color(0.5f, 0.02f, 0.03f), 0.9f, 0f);
+            syringe = new GameObject("Syringe");
+            void Part(Vector3 local, float radius, float length, Material m)
+            {
+                var c = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                Destroy(c.GetComponent<Collider>());
+                c.transform.SetParent(syringe.transform, false);
+                c.transform.localPosition = local;
+                c.transform.localRotation = Quaternion.Euler(90, 0, 0);   // along +Z
+                c.transform.localScale = new Vector3(radius * 2f, length / 2f, radius * 2f);
+                var r = c.GetComponent<Renderer>();
+                r.sharedMaterial = m;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            Part(new Vector3(0, 0, 0), 0.016f, 0.11f, barrelMat);
+            Part(new Vector3(0, 0, 0.012f), 0.012f, 0.07f, liquidMats[kind & 1]);
+            Part(new Vector3(0, 0, -0.075f), 0.005f, 0.05f, plungerMat);
+            Part(new Vector3(0, 0, -0.1f), 0.02f, 0.008f, plungerMat);
+            Part(new Vector3(0, 0, 0.075f), 0.0015f, 0.04f, needleMat);
+            syringeUntil = Time.time + seconds;
+        }
+
+        private void HoldSyringe()
+        {
+            if (syringe == null) return;
+            if (Time.time > syringeUntil || !Alive) { Destroy(syringe); syringe = null; return; }
+            // held in the right hand, the needle forward and a little down
+            var hand = handBone != null ? handBone.position : transform.position + transform.up * 1.2f + transform.right * 0.25f;
+            syringe.transform.SetPositionAndRotation(hand + transform.forward * 0.05f, Quaternion.LookRotation(transform.forward * 0.8f - transform.up * 0.5f + transform.right * 0.2f));
+        }
     }
 }
