@@ -476,7 +476,11 @@ public static class AssetSetup
             var src = filter.sharedMesh;
             if (src == null) continue;
             // only safe characters in the file name (some models name their parts like "762*54r.001")
-            string file = System.Text.RegularExpressions.Regex.Replace($"{key}_{filter.name}_{src.name}", @"[^A-Za-z0-9_.-]", "_");
+            // (with a short checksum of the real name, so parts named in other scripts stay apart)
+            string original = $"{key}_{filter.name}_{src.name}";
+            uint sum = 2166136261;
+            foreach (char ch in original) sum = (sum ^ ch) * 16777619;
+            string file = System.Text.RegularExpressions.Regex.Replace(original, @"[^A-Za-z0-9_.-]", "_") + "_" + sum.ToString("x8");
             string path = $"{Generated}/GunMeshes/{file}.asset";
             var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
             if (mesh == null)
