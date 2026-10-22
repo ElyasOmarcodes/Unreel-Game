@@ -578,7 +578,7 @@ namespace UA
             var fx = new ShotFx { Shooter = shot.Shooter, Weapon = shot.Weapon, Origin = shot.Origin, HitKind = 2, End = shot.Origin + shot.Dir * def.Range };
             for (int i = 0; i < dirs.Length; i++)
             {
-                var hit = World.I.TraceShot(shot.Origin, dirs[i], def.Range, shot.Shooter);
+                var hit = World.I.TraceShot(shot.Origin, dirs[i], def.Range, shot.Shooter, def.DropVelocity);
                 if (i == 0) { fx.End = hit.Point; fx.HitKind = hit.Kind; }
                 if (hit.Victim != NoPlayer && Players.TryGetValue(hit.Victim, out var victim))
                 {

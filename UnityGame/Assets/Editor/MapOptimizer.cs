@@ -48,7 +48,7 @@ public static class MapOptimizer
             {
                 var key = (mats[s], cx, cz, r.shadowCastingMode, detail);
                 if (!groups.TryGetValue(key, out var list)) groups[key] = list = new List<CombineInstance>();
-                list.Add(new CombineInstance { mesh = mesh, subMeshIndex = s, transform = matrix });
+                list.Add(new CombineInstance { mesh = Part(mesh, s), subMeshIndex = 0, transform = matrix });
             }
             merged.Add(r);
         }
@@ -66,6 +66,7 @@ public static class MapOptimizer
             {
                 if (chunk.Count == 0) return;
                 var mesh = new Mesh { name = $"{name}_{count}" };
+                if (vertices > 65535) mesh.indexFormat = IndexFormat.UInt32;   // one very big piece
                 mesh.CombineMeshes(chunk.ToArray(), true, true, false);
                 mesh.RecalculateBounds();
                 if (firstAsset) { AssetDatabase.CreateAsset(mesh, path); firstAsset = false; }
@@ -85,7 +86,7 @@ public static class MapOptimizer
             }
             foreach (var c in g.Value)
             {
-                int n = c.mesh.GetSubMesh(c.subMeshIndex).vertexCount;
+                int n = c.mesh.vertexCount;   // a sub-mesh brings the whole vertex list of its mesh
                 if (vertices + n > MaxVertices) Flush();
                 chunk.Add(c);
                 vertices += n;
@@ -99,6 +100,34 @@ public static class MapOptimizer
             if (filter != null) Object.DestroyImmediate(filter);
         }
         Debug.Log($"[Map] {name}: {merged.Count} of {before} renderers merged into {count}");
+    }
+
+    private static readonly Dictionary<(Mesh, int), Mesh> parts = new Dictionary<(Mesh, int), Mesh>();
+
+    /// <summary>One sub-mesh as a mesh of its own, with only the vertices it uses (merging a sub-mesh copies all of them).</summary>
+    private static Mesh Part(Mesh mesh, int sub)
+    {
+        if (mesh.subMeshCount == 1) return mesh;
+        if (parts.TryGetValue((mesh, sub), out var cached) && cached != null) return cached;
+        var indices = mesh.GetIndices(sub);
+        var map = new Dictionary<int, int>();
+        var used = new List<int>();
+        var remapped = new int[indices.Length];
+        for (int i = 0; i < indices.Length; i++)
+        {
+            if (!map.TryGetValue(indices[i], out int n)) { n = used.Count; map[indices[i]] = n; used.Add(indices[i]); }
+            remapped[i] = n;
+        }
+        List<T> Pick<T>(T[] all) => all.Length == mesh.vertexCount ? used.Select(i => all[i]).ToList() : null;
+        var part = new Mesh { name = $"{mesh.name}_{sub}" };
+        part.SetVertices(Pick(mesh.vertices));
+        var normals = Pick(mesh.normals); if (normals != null) part.SetNormals(normals);
+        var tangents = Pick(mesh.tangents); if (tangents != null) part.SetTangents(tangents);
+        var uv = Pick(mesh.uv); if (uv != null) part.SetUVs(0, uv);
+        var colors = Pick(mesh.colors); if (colors != null) part.SetColors(colors);
+        part.SetIndices(remapped, mesh.GetTopology(sub), 0);
+        parts[(mesh, sub)] = part;
+        return part;
     }
 
     private static bool ActiveUnder(Transform t, Transform root)

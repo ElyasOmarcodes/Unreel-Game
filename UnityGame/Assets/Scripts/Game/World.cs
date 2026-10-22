@@ -147,6 +147,36 @@ namespace UA
         }
 
         /// <summary>Ray against walls and agent hitboxes, ignoring the shooter.</summary>
+        /// <summary>
+        /// Hit test of a shot. With a muzzle velocity the bullet flies a real arc: the sights are zeroed
+        /// at 100 m (the barrel points that much up), gravity pulls it down, the arc is tested in 30 m pieces.
+        /// </summary>
+        public TraceResult TraceShot(Vector3 origin, Vector3 dir, float range, byte shooter, float velocity)
+        {
+            if (velocity <= 0f) return TraceShot(origin, dir, range, shooter);
+            const float zero = 100f;
+            var gravity = new Vector3(0f, -9.81f, 0f);
+            float lift = 0.5f * 9.81f * (zero / velocity) * (zero / velocity) / zero * Mathf.Rad2Deg;
+            var axis = Vector3.Cross(dir, Vector3.up);
+            if (axis.sqrMagnitude > 1e-6f) dir = Quaternion.AngleAxis(lift, axis.normalized) * dir;
+            var p = origin;
+            var v = dir.normalized * velocity;
+            float travelled = 0f;
+            while (travelled < range - 0.01f)
+            {
+                float h = Mathf.Min(30f, range - travelled) / velocity;
+                var next = p + v * h + 0.5f * h * h * gravity;
+                v += gravity * h;
+                var piece = next - p;
+                float length = piece.magnitude;
+                var hit = TraceShot(p, piece / length, length, shooter);
+                if (hit.Kind != 2) { hit.Distance += travelled; return hit; }
+                travelled += length;
+                p = next;
+            }
+            return new TraceResult { Point = p, Distance = range, Kind = 2, Victim = Session.NoPlayer };
+        }
+
         public TraceResult TraceShot(Vector3 origin, Vector3 dir, float range, byte shooter)
         {
             var hits = Physics.RaycastAll(origin, dir, range, ShotMask, QueryTriggerInteraction.Collide);

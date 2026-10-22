@@ -560,8 +560,9 @@ namespace UA
             Row(R, UIKit.Stepper(panel, "SCOPE SPEED", -225, () => Speed(Settings.ScopeSensitivity), d => Settings.ScopeSensitivity = Step(Settings.ScopeSensitivity, d), W));
             Row(R, UIKit.Stepper(panel, "LEFT / RIGHT", -320, () => Settings.ReverseHorizontal ? "REVERSED" : "NORMAL", d => Settings.ReverseHorizontal = !Settings.ReverseHorizontal, W));
             Row(R, UIKit.Stepper(panel, "UP / DOWN", -415, () => Settings.ReverseVertical ? "REVERSED" : "NORMAL", d => Settings.ReverseVertical = !Settings.ReverseVertical, W));
+            Row(R, UIKit.Stepper(panel, "AIM ASSIST", -505, () => Settings.AimAssist ? "ON" : "OFF", d => Settings.AimAssist = !Settings.AimAssist, W));
             var hint = UIKit.Txt(panel, "Running speed is the same for everyone and cannot be changed.", 24, TextAnchor.MiddleCenter, UIKit.Muted);
-            hint.rectTransform.At(0.5f, 1f, R, -515, W, 40, 0.5f, 1f);
+            hint.rectTransform.At(0.5f, 1f, R, -600, W, 40, 0.5f, 1f);
             var layout = UIKit.Btn(panel, "CONTROLS LAYOUT", OpenLayoutEditor, 30, UIKit.AccentDark, "open_with");
             layout.GetComponent<RectTransform>().At(0.5f, 1f, L, -600, 480, 76, 0.5f, 1f);
             var back = UIKit.Btn(s, "BACK", () => { Settings.PlayerName = nameField.text; Back(); }, 36, null, "arrow_back");

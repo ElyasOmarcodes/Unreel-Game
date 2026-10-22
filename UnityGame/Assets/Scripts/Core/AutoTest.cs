@@ -278,6 +278,7 @@ namespace UA
             var app = App.I;
             yield return Until(() => app.Current == "menu", 15);
             yield return Wait(1f);
+            Settings.Primary = 7;   // the client plays the SVD: a look through the PSO-1 scope
             app.ShowScreen("join");
             yield return Until(() => Session.I.Groups.Count > 0, 90);
             yield return Wait(1.5f);
@@ -292,6 +293,14 @@ namespace UA
             yield return Wait(4f);
             yield return Shot("c1-client-in-match");
             yield return Play(10f, "c2-client-firing", "c3-client-fight");
+            if (LocalPlayer.I != null && LocalPlayer.I.Current.Scope)
+            {
+                Controls.SimMove = Vector2.zero;
+                LocalPlayer.I.Aiming = true;
+                yield return Wait(1f);
+                yield return Shot("c3b-client-scope");
+                LocalPlayer.I.Aiming = false;
+            }
             yield return Until(() => app.Current == "results", 90);
             yield return Wait(1.5f);
             yield return Shot("c4-client-results");

@@ -64,6 +64,8 @@ namespace UA
         }
         /// <summary>Back to how the ready-made character came.</summary>
         public static void ResetLook() => Look = Wardrobe.PresetLook(Preset);
+        /// <summary>Help with aiming (slow down over enemies, follow them, snap when aiming, far shots bend onto the body).</summary>
+        public static bool AimAssist { get => PlayerPrefs.GetInt("aimAssist", 1) == 1; set => PlayerPrefs.SetInt("aimAssist", value ? 1 : 0); }
         public static float ControlsOpacity { get => PlayerPrefs.GetFloat("ctrlAlpha", 1f); set => PlayerPrefs.SetFloat("ctrlAlpha", Mathf.Clamp(value, 0.3f, 1.5f)); }
         public static bool ShowFps { get => PlayerPrefs.GetInt("fps", 0) == 1; set => PlayerPrefs.SetInt("fps", value ? 1 : 0); }
         public static byte Primary { get => (byte)PlayerPrefs.GetInt("primary", 0); set => PlayerPrefs.SetInt("primary", value); }

@@ -92,8 +92,11 @@ namespace UA
             // look
             if (Controls.Enabled)
             {
-                float turnSpeed = !Aiming ? 1f : Mathf.Lerp(0.35f, 0.8f, Current.AimFov / 50f) * (Current.Scope ? Settings.ScopeSensitivity : Settings.AimSensitivity);
+                // aiming: the turn follows the zoom (the picture moves as fast under the finger at any zoom)
+                float zoom = Mathf.Tan(rig.Cam.fieldOfView * 0.5f * Mathf.Deg2Rad) / Mathf.Tan(31f * Mathf.Deg2Rad);
+                float turnSpeed = !Aiming ? 1f : Mathf.Pow(Mathf.Clamp01(zoom), 0.8f) * (Current.Scope ? Settings.ScopeSensitivity : Settings.AimSensitivity);
                 var look = Controls.Look * turnSpeed;
+                if (Settings.AimAssist && alive && canShoot) look = AimAssist(rig, look, dt);
                 rig.Yaw += look.x;
                 rig.Pitch = Mathf.Clamp(rig.Pitch + look.y, prone ? -25f : -70f, 75f);
             }
@@ -210,10 +213,11 @@ namespace UA
             var aim = rig.AimRay();
             var world = World.I;
             // what is under the crosshair decides the direction; the shot itself starts at the eyes
-            var target = world.TraceShot(aim.origin, aim.direction, def.Range, agent.Id).Point;
+            var under = world.TraceShot(aim.origin, aim.direction, def.Range, agent.Id);
             var origin = agent.Eye;
-            var dir = (target - origin).normalized;
+            var dir = (under.Point - origin).normalized;
             if (Vector3.Dot(dir, aim.direction) < 0.5f) dir = aim.direction;
+            if (Settings.AimAssist && under.Kind != 1 && def.Pellets <= 1) dir = Magnetism(origin, dir, aim, def.Range);
             if (def.Pellets <= 1) dir = Ballistics.Spray(dir, Spread, rng);
             var shot = new Shot { Weapon = def.Id, Origin = origin, Dir = dir, Seed = rng.Next() };
             Session.I.FireLocal(shot);
@@ -222,7 +226,7 @@ namespace UA
             var muzzle = agent.Muzzle.position;
             foreach (var d in Ballistics.Pellets(dir, shot.Seed, def))
             {
-                var hit = world.TraceShot(origin, d, def.Range, agent.Id);
+                var hit = world.TraceShot(origin, d, def.Range, agent.Id, def.DropVelocity);
                 Effects.Tracer(muzzle, hit.Point, def.Pellets > 1 ? 0.6f : 1f);
                 if (hit.Kind == 0) Effects.Impact(hit.Point, -d);
                 else if (hit.Kind == 1) Effects.Blood(hit.Point, -d);
@@ -272,6 +276,114 @@ namespace UA
             Session.I.ThrowLocal(origin, throwVelocity);
             Sfx.Play("grenade_pin", 0.7f);
             agent.PlayReload();
+        }
+
+        // ---------------------------------------------------------------- aim assist
+        // As in the big mobile shooters: the look slows down over an enemy (friction), follows one that
+        // moves (tracking), aiming down the sights next to one turns onto it (snap), and while shooting
+        // or aiming the crosshair is pulled gently to the body. Far away a shot that just misses the
+        // edge of a body bends onto it (bullet magnetism), so small far targets can be hit.
+
+        private Agent assistTarget;
+        private Vector2 assistLast;
+        private float snapUntil;
+        private bool wasAiming;
+
+        private static Vector2 Angles(Vector3 d) =>
+            new Vector2(Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, Mathf.Asin(Mathf.Clamp(d.normalized.y, -1f, 1f)) * Mathf.Rad2Deg);
+
+        private bool Enemy(Agent other) =>
+            other != agent && other.State != null && other.State.Alive && World.I.IsEnemy(agent.State, other.State, Session.I);
+
+        private Agent FindAssistTarget(Vector3 eye, Vector3 forward, out float angle, out float radius)
+        {
+            Agent best = null;
+            angle = radius = 0f;
+            float bestScore = 1f;
+            foreach (var other in World.I.Agents.Values)
+            {
+                if (!Enemy(other)) continue;
+                var to = other.Chest - eye;
+                float d = to.magnitude;
+                if (d < 1f || d > Current.Range) continue;
+                // the cone is about a body's width around it, never smaller than 1.5 degrees
+                float r = Mathf.Clamp(Mathf.Atan2(0.9f, d) * Mathf.Rad2Deg, 1.5f, 9f) * (Aiming ? 1.25f : 1f);
+                float a = Vector3.Angle(forward, to);
+                if (a / r >= bestScore) continue;
+                if (!World.I.LineOfSight(eye, other.Chest)) continue;
+                best = other;
+                bestScore = a / r;
+                angle = a;
+                radius = r;
+            }
+            return best;
+        }
+
+        private Vector2 AimAssist(CameraRig rig, Vector2 look, float dt)
+        {
+            var cam = rig.transform;
+            var target = FindAssistTarget(cam.position, cam.forward, out float angle, out float radius);
+            if (Aiming && !wasAiming) snapUntil = Time.time + 0.14f;
+            wasAiming = Aiming;
+            if (target == null) { assistTarget = null; return look; }
+            var want = Angles(target.Chest - cam.position);
+            bool firing = Time.time - LastShotTime < 0.2f;
+            // friction: up to half speed over the middle of the body
+            var result = look * Mathf.Lerp(0.5f, 1f, Mathf.Clamp01(angle / radius));
+            // tracking: keep up with the target's movement across the view while the player aims at it
+            if (assistTarget == target && (look.sqrMagnitude > 1e-4f || firing || Aiming))
+            {
+                float limit = 60f * dt;
+                result.x += 0.55f * Mathf.Clamp(Mathf.DeltaAngle(assistLast.x, want.x), -limit, limit);
+                result.y += 0.55f * Mathf.Clamp(want.y - assistLast.y, -limit, limit);
+            }
+            // pull: a quick turn just after aiming down the sights, a gentle one while shooting or aiming
+            bool snap = Time.time < snapUntil;
+            if (snap || firing || Aiming)
+            {
+                float pull = (snap ? 70f : Aiming ? 7f : 4f) * dt;
+                result.x += Mathf.Clamp(Mathf.DeltaAngle(rig.Yaw + result.x, want.x), -pull, pull);
+                result.y += Mathf.Clamp(want.y - (rig.Pitch + result.y), -pull, pull);
+            }
+            assistTarget = target;
+            assistLast = want;
+            return result;
+        }
+
+        /// <summary>Bends a shot that passes just beside an enemy's body onto it (more allowance further away).</summary>
+        private Vector3 Magnetism(Vector3 origin, Vector3 dir, Ray aim, float range)
+        {
+            var best = dir;
+            float bestMiss = float.MaxValue;
+            foreach (var other in World.I.Agents.Values)
+            {
+                if (!Enemy(other)) continue;
+                var st = other.State;
+                // the body as a line from the hips to the top of the head
+                var bottom = other.transform.position + Vector3.up * (st.Prone ? 0.2f : st.Crouch ? 0.6f : 0.9f);
+                var top = other.Chest + Vector3.up * (st.Prone ? 0.1f : 0.4f);
+                var p = ClosestOnSegment(aim, bottom, top);
+                float along = Vector3.Dot(p - aim.origin, aim.direction);
+                if (along < 2f || along > range) continue;
+                float miss = Vector3.Distance(aim.origin + aim.direction * along, p);
+                float allowance = 0.2f + Mathf.Clamp(along * 0.004f, 0f, 0.4f);
+                if (miss > allowance || miss >= bestMiss) continue;
+                if (!World.I.LineOfSight(origin, p)) continue;
+                bestMiss = miss;
+                best = (p - origin).normalized;
+            }
+            return best;
+        }
+
+        private static Vector3 ClosestOnSegment(Ray ray, Vector3 a, Vector3 b)
+        {
+            var u = b - a;
+            var w = a - ray.origin;
+            float uu = Vector3.Dot(u, u), uv = Vector3.Dot(u, ray.direction), vv = Vector3.Dot(ray.direction, ray.direction);
+            float uw = Vector3.Dot(u, w), vw = Vector3.Dot(ray.direction, w);
+            float den = uu * vv - uv * uv;
+            float t = den > 1e-6f ? (uv * vw - vv * uw) / den : 0f;
+            return a + u * Mathf.Clamp01(t);
         }
 
         public void Swap()

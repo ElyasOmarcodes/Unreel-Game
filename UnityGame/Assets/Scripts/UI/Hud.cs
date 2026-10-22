@@ -17,6 +17,82 @@ namespace UA
         private readonly Dictionary<Controls.Button, Text> buttonLabels = new Dictionary<Controls.Button, Text>();
         private Image stickBase, stickKnob, healthFill, healthBack, damageFlash, scope, reloadRing;
         private Image[] cross = new Image[4];
+        private Image scopeLine1, scopeLine2;
+
+        // ---- PSO-1 reticle of the SVD, drawn in thousandths (1/6000 of a circle) at the real angle:
+        // the main chevron (the sights are zeroed at 100 m), three holdover chevrons below it, the
+        // windage scale with a tick each thousandth (longer at 5 and 10) and the rangefinder at the
+        // lower left: put the feet of a man (1.7 m) on the bottom line, where his head touches the
+        // curve reads the distance in hundreds of metres.
+        private RectTransform pso;
+        private readonly List<(RectTransform rt, Vector2 a, Vector2 b, float width)> psoLines = new List<(RectTransform, Vector2, Vector2, float)>();
+        private readonly List<(RectTransform rt, Vector2 at)> psoLabels = new List<(RectTransform, Vector2)>();
+        private float psoFov = -1f;
+        private static readonly Color ReticleInk = new Color(0.04f, 0.04f, 0.04f, 0.95f);
+
+        private void BuildPso1()
+        {
+            pso = UIKit.Node(scope.transform, "PSO-1").At(0.5f, 0.5f, 0, 0, 10, 10);
+            void Line(Vector2 a, Vector2 b, float width = 2.6f)
+            {
+                var img = UIKit.Img(pso, ReticleInk);
+                psoLines.Add((img.rectTransform, a, b, width));
+            }
+            void Label(string text, Vector2 at)
+            {
+                var t = UIKit.Txt(pso, text, 22, TextAnchor.MiddleCenter, ReticleInk);
+                psoLabels.Add((t.rectTransform, at));
+            }
+            void Chevron(float y, float halfWidth, float height)
+            {
+                Line(new Vector2(-halfWidth, y - height), new Vector2(0, y), 3f);
+                Line(new Vector2(halfWidth, y - height), new Vector2(0, y), 3f);
+            }
+            Chevron(0f, 0.75f, 1.5f);
+            Chevron(-3.2f, 0.5f, 1f);
+            Chevron(-5.6f, 0.5f, 1f);
+            Chevron(-8f, 0.5f, 1f);
+            foreach (int side in new[] { -1, 1 })
+            {
+                Line(new Vector2(side * 1.6f, 0f), new Vector2(side * 10f, 0f), 1.8f);
+                for (int i = 1; i <= 10; i++)
+                {
+                    float h = i % 5 == 0 ? 1.2f : 0.6f;
+                    Line(new Vector2(side * i, 0f), new Vector2(side * i, -h), 2f);
+                }
+                Label("10", new Vector2(side * 10f, 1.1f));
+            }
+            // rangefinder: 1.7 m tall at 200 to 1000 m, from left to right
+            const float baseY = -13f, left = -18f, right = -6f;
+            float X(float d) => Mathf.Lerp(left, right, (d - 200f) / 800f);
+            float Y(float d) => baseY + 1.7f / d * 1000f / 1.0472f;
+            Line(new Vector2(left - 0.6f, baseY), new Vector2(right + 0.6f, baseY), 2f);
+            for (float d = 200f; d < 1000f; d += 50f)
+                if (((int)(d / 50f)) % 2 == 0) Line(new Vector2(X(d), Y(d)), new Vector2(X(d + 50f), Y(d + 50f)), 2f);
+            for (int d = 200; d <= 1000; d += 200)
+                Label((d / 100).ToString(), new Vector2(X(d), Y(d) + 1f));
+        }
+
+        /// <summary>Places the reticle for the camera's field of view (one thousandth = 1/6000 of a turn).</summary>
+        private void LayoutPso1(float fov)
+        {
+            if (Mathf.Abs(fov - psoFov) < 0.01f) return;
+            psoFov = fov;
+            // the canvas is 1080 units high whatever the screen
+            float k = 540f / Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad) * (Mathf.PI * 2f / 6000f);
+            foreach (var (rt, a, b, width) in psoLines)
+            {
+                var d = (b - a) * k;
+                rt.anchoredPosition = (a + b) * 0.5f * k;
+                rt.sizeDelta = new Vector2(d.magnitude + width, width);
+                rt.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
+            }
+            foreach (var (rt, at) in psoLabels)
+            {
+                rt.anchoredPosition = at * k;
+                rt.sizeDelta = new Vector2(60, 30);
+            }
+        }
         private Image hitMarker, crossDot;
         private Text health, ammo, reserve, weaponName, otherWeapon, timer, scoreBlue, scoreRed, center, centerSmall, killFeed, fps, modeLabel;
         private RectTransform scoreboard;
@@ -37,10 +113,11 @@ namespace UA
             damageFlash.rectTransform.Fill(-300);
             scope = UIKit.Img(root, new Color(0, 0, 0, 0.92f), UIKit.Ring);
             scope.rectTransform.At(0.5f, 0.5f, 0, 0, 1080, 1080);
-            var scopeLine1 = UIKit.Img(scope.transform, new Color(0, 0, 0, 0.9f));
+            scopeLine1 = UIKit.Img(scope.transform, new Color(0, 0, 0, 0.9f));
             scopeLine1.rectTransform.At(0.5f, 0.5f, 0, 0, 1000, 3);
-            var scopeLine2 = UIKit.Img(scope.transform, new Color(0, 0, 0, 0.9f));
+            scopeLine2 = UIKit.Img(scope.transform, new Color(0, 0, 0, 0.9f));
             scopeLine2.rectTransform.At(0.5f, 0.5f, 0, 0, 3, 1000);
+            BuildPso1();
             foreach (var side in new[] { -1, 1 })
             {
                 var bar = UIKit.Img(scope.transform, Color.black);
@@ -278,6 +355,10 @@ namespace UA
             }
             scope.enabled = scoped;
             foreach (var g in scope.GetComponentsInChildren<Image>()) g.enabled = scoped;
+            bool pso1 = scoped && lp != null && lp.Current.Id == 7;
+            scopeLine1.enabled = scopeLine2.enabled = scoped && !pso1;
+            pso.gameObject.SetActive(pso1);
+            if (pso1) LayoutPso1(CameraRig.I.Cam.fieldOfView);
 
             // countdown / death / center messages
             if (s.Phase == Phase.Countdown)
