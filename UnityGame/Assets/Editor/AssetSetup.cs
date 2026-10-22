@@ -434,12 +434,14 @@ public static class AssetSetup
     {
         new[] { "AssaultRifle_2" }, new[] { "AssaultRifle2_1" }, new[] { "Shotgun_1" }, new[] { "SniperRifle_1" },
         new[] { "Pistol_1" }, new[] { "Revolver_1" }, new[] { "SubmachineGun_2", "SubmachineGun_1" }, new[] { "SniperRifle_4", "SniperRifle_2", "SniperRifle_1" },
+        new[] { "Assets/Weapons/PKM/PKM.fbx" },   // PKM machine gun model brought by the player (barrel already along +Z)
     };
-    private static readonly float[] GunLengths = { 0.88f, 0.84f, 0.98f, 1.15f, 0.2f, 0.27f, 0.55f, 1.12f };
+    private static readonly float[] GunLengths = { 0.88f, 0.84f, 0.98f, 1.15f, 0.2f, 0.27f, 0.55f, 1.12f, 1.19f };
     private static readonly Vector2[] GunGrips =
     {
         new Vector2(0.36f, 0.35f), new Vector2(0.36f, 0.35f), new Vector2(0.32f, 0.35f), new Vector2(0.3f, 0.35f),
         new Vector2(0.2f, 0.45f), new Vector2(0.2f, 0.45f), new Vector2(0.4f, 0.35f), new Vector2(0.3f, 0.35f),
+        new Vector2(0.34f, 0.3f),
     };
 
     private static readonly Dictionary<string, Material> gunMaterials = new Dictionary<string, Material>();
@@ -448,7 +450,12 @@ public static class AssetSetup
     private static Material GunMaterial(Material source)
     {
         var c = source != null && source.HasProperty("_Color") ? source.color : new Color(0.15f, 0.15f, 0.15f);
-        bool wood = c.r > c.g && c.g > c.b && c.r - c.b > 0.12f;
+        string sourceName = source != null ? source.name : "";
+        // models that name their materials: wood without a colour of its own, copper / brass cartridges
+        if (sourceName.Contains("Wood") && Mathf.Abs(c.r - c.b) < 0.05f) c = new Color(0.5f, 0.28f, 0.15f);
+        bool brass = sourceName.Contains("Copper") || sourceName.Contains("Brass");
+        if (brass) c = new Color(0.8f, 0.55f, 0.25f);
+        bool wood = !brass && c.r > c.g && c.g > c.b && c.r - c.b > 0.12f;
         string key = (wood ? "Wood_" : "Metal_") + ColorUtility.ToHtmlStringRGB(c);
         if (gunMaterials.TryGetValue(key, out var m) && m != null) return m;
         string set = wood ? "Wood049" : "Metal032";
@@ -513,8 +520,11 @@ public static class AssetSetup
     /// <summary>Instance of a gun model from the pack, barrel along +Z, scaled to the given length.</summary>
     public static GameObject GunModel(string name, float length, bool textured = false)
     {
-        var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{GunsPath}/{name}.fbx");
+        // a full asset path for models outside the pack (their barrel already points to +Z)
+        bool own = name.EndsWith(".fbx");
+        var model = AssetDatabase.LoadAssetAtPath<GameObject>(own ? name : $"{GunsPath}/{name}.fbx");
         if (model == null) return null;
+        if (own) name = System.IO.Path.GetFileNameWithoutExtension(name);
         var holder = new GameObject(name);
         var go = (GameObject)Object.Instantiate(model, holder.transform);
         foreach (var c in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
@@ -523,7 +533,7 @@ public static class AssetSetup
         // longest side becomes the barrel axis; in this pack the barrel then points to -Z, so turn it round
         if (b.size.x >= b.size.z && b.size.x >= b.size.y) go.transform.localRotation = Quaternion.Euler(0, 90, 0) * go.transform.localRotation;
         else if (b.size.y > b.size.z) go.transform.localRotation = Quaternion.Euler(90, 0, 0) * go.transform.localRotation;
-        else go.transform.localRotation = Quaternion.Euler(0, 180, 0) * go.transform.localRotation;
+        else if (!own) go.transform.localRotation = Quaternion.Euler(0, 180, 0) * go.transform.localRotation;
         b = RendererBounds(go);
         float scale = length / Mathf.Max(0.001f, b.size.z);
         go.transform.localScale *= scale;

@@ -20,7 +20,7 @@ namespace UA
         private Image scopeLine1, scopeLine2;
 
         // ---- PSO-1 reticle of the SVD, drawn in thousandths (1/6000 of a circle) at the real angle:
-        // the main chevron (the sights are zeroed at 100 m), three holdover chevrons below it, the
+        // the main chevron (where the bullet goes: shots fly straight), three holdover chevrons below it, the
         // windage scale with a tick each thousandth (longer at 5 and 10) and the rangefinder at the
         // lower left: put the feet of a man (1.7 m) on the bottom line, where his head touches the
         // curve reads the distance in hundreds of metres.

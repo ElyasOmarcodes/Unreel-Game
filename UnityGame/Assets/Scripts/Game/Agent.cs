@@ -90,8 +90,31 @@ namespace UA
         /// </summary>
         private void LateUpdate()
         {
+            CarryArms();
             AimArms();
             ThrowArm();
+        }
+
+        /// <summary>
+        /// 1 while the gun is up at the shoulder (aiming, or shot within the last second), 0 when it is
+        /// carried low in the right hand and the arms swing with the steps (as in Battle of Agents).
+        /// </summary>
+        public float Ready { get; private set; } = 1f;
+        public bool Firing => Time.time - lastFire < 0.8f;
+        private float lastFire = -10f;
+
+        /// <summary>Low carry: the right hand turns the barrel forwards and down, along the body.</summary>
+        private void CarryArms()
+        {
+            if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
+            bool up = State.Aiming || Time.time - lastFire < 1.1f || State.Prone;
+            Ready = Mathf.MoveTowards(Ready, up ? 1f : 0f, Time.deltaTime * (up ? 7f : 2.5f));
+            if (Anim != null && Anim.layerCount > 1) Anim.SetLayerWeight(1, State.Prone ? 0f : Ready);
+            if (Ready > 0.99f) return;
+            var muzzle = Muzzles[weapon];
+            var want = Quaternion.AngleAxis(48f, transform.right) * transform.forward;
+            var turn = Limit(Quaternion.FromToRotation(muzzle.forward, want), 100f);
+            handBone.rotation = Quaternion.Slerp(Quaternion.identity, turn, 1f - Ready) * handBone.rotation;
         }
 
         /// <summary>Grenade throw: the right arm winds up behind the head, swings over and follows through.</summary>
@@ -116,6 +139,7 @@ namespace UA
         {
             if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
             if (State.MoveY > 1.2f) return;   // sprinting: the gun is carried, not aimed
+            if (Ready < 0.5f) return;   // carried low
             var muzzle = Muzzles[weapon];
             var forward = Quaternion.Euler(-State.Pitch, State.Yaw, 0) * Vector3.forward;
             var target = Eye + forward * 60f;
@@ -286,7 +310,8 @@ namespace UA
             Anim.SetFloat(MoveYId, animMoveY);
             // shorter, quicker steps when running (same speed over the ground)
             float move = new Vector2(animMoveX, Mathf.Min(1f, animMoveY)).magnitude;
-            Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 1.12f : 1f + 0.3f * Mathf.Clamp01(move));
+            // walking takes small quick steps, running a little longer ones (same speed over the ground)
+            Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 1.12f : move < 0.7f ? 1.55f : 1.3f);
             Steps(s, move);
             Anim.SetBool(CrouchId, s.Crouch);
             Anim.SetBool(ProneId, s.Prone);
@@ -302,7 +327,7 @@ namespace UA
             Anim.SetBool(GroundedId, s.Grounded);
             Anim.SetBool(DeadId, !s.Alive);
             Anim.SetFloat(PitchId, Mathf.Clamp(s.Pitch / 70f, -1f, 1f));
-            if (Anim.layerCount > 1) Anim.SetLayerWeight(1, s.Alive && !s.Prone ? 1f : 0f);
+            if (Anim.layerCount > 1 && (!s.Alive || s.Prone)) Anim.SetLayerWeight(1, 0f);
         }
 
         /// <summary>Footsteps (walking, running, sprinting, crouching) and the rustle of crawling.</summary>
@@ -312,7 +337,7 @@ namespace UA
             stepTimer -= Time.deltaTime;
             if (stepTimer > 0f) return;
             bool sprint = animMoveY > 1.2f;
-            stepTimer = s.Prone ? 0.8f : s.Crouch ? 0.5f : sprint ? 0.25f : move < 0.6f ? 0.45f : 0.27f;
+            stepTimer = s.Prone ? 0.8f : s.Crouch ? 0.42f : sprint ? 0.25f : move < 0.6f ? 0.33f : 0.27f;
             bool running = !s.Crouch && (sprint || move > 0.8f);
             float volume = (IsLocal ? 0.3f : 0.6f) * (s.Crouch ? 0.45f : 1f) * (sprint ? 1.15f : 1f);
             // recorded steps (Fantozzi, CC0): soft ground in the village, stone and concrete elsewhere;
@@ -343,7 +368,11 @@ namespace UA
             lastHealth = s.Health;
         }
 
-        public void PlayFire() { if (Anim != null) Anim.SetTrigger(FireId); }
+        public void PlayFire()
+        {
+            lastFire = Time.time;
+            if (Anim != null) Anim.SetTrigger(FireId);
+        }
         public void PlayReload() { if (Anim != null) Anim.SetTrigger(ReloadId); }
     }
 }

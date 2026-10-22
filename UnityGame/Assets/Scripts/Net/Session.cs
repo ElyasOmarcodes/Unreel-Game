@@ -21,7 +21,11 @@ namespace UA
         public byte Bots = 2;
         public byte BotSkill = 1;
 
-        public static readonly string[] MapNames = { "DOWNTOWN - DAY", "DOWNTOWN - SUNSET", "DOWNTOWN - NIGHT", "PORT - DAY", "PORT - SUNSET", "VILLAGE - DAY", "VILLAGE - SUNSET" };
+        public static readonly string[] MapNames =
+        {
+            "DOWNTOWN - DAY", "DOWNTOWN - SUNSET", "DOWNTOWN - NIGHT", "PORT - DAY", "PORT - SUNSET", "PORT - NIGHT",
+            "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT", "OLD TOWN - DAY", "OLD TOWN - SUNSET", "OLD TOWN - NIGHT",
+        };
         public static readonly string[] ModeNames = { "TEAM DEATHMATCH", "FREE FOR ALL" };
         public static readonly string[] SkillNames = { "EASY", "NORMAL", "HARD" };
 
@@ -83,7 +87,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 4;
+        public const byte Version = 5;
         public const byte NoPlayer = 255;
 
         public bool Active, IsHost, Practice;
@@ -578,7 +582,7 @@ namespace UA
             var fx = new ShotFx { Shooter = shot.Shooter, Weapon = shot.Weapon, Origin = shot.Origin, HitKind = 2, End = shot.Origin + shot.Dir * def.Range };
             for (int i = 0; i < dirs.Length; i++)
             {
-                var hit = World.I.TraceShot(shot.Origin, dirs[i], def.Range, shot.Shooter, def.DropVelocity);
+                var hit = World.I.TraceShot(shot.Origin, dirs[i], def.Range, shot.Shooter);
                 if (i == 0) { fx.End = hit.Point; fx.HitKind = hit.Kind; }
                 if (hit.Victim != NoPlayer && Players.TryGetValue(hit.Victim, out var victim))
                 {

@@ -24,6 +24,8 @@ namespace UA
         public Vector2Int[] Links = new Vector2Int[0];
         public Vector3 Center;
         public float Radius = 80f;
+        /// <summary>Lit windows, lamp glass and halos: shown at night only.</summary>
+        public Renderer[] NightLights = new Renderer[0];
     }
 
     /// <summary>
@@ -44,7 +46,6 @@ namespace UA
         public MapLayout[] Layouts = new MapLayout[0];
         public Light Sun;
         public Material Skybox;
-        public Renderer[] NightLamps = new Renderer[0];
 
         public readonly Dictionary<byte, Agent> Agents = new Dictionary<byte, Agent>();
         public List<int>[] Neighbours;
@@ -58,8 +59,8 @@ namespace UA
         public Vector3 Center => layout.Center;
         public float Radius => layout.Radius;
 
-        /// <summary>Map index (as in MatchConfig.MapNames) to layout: 0-2 downtown, 3-4 port, 5-6 village.</summary>
-        public static int LayoutOf(int map) => map >= 5 ? 2 : map >= 3 ? 1 : 0;
+        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for downtown, port, village, old town.</summary>
+        public static int LayoutOf(int map) => map / 3;
 
         private void Awake()
         {
@@ -147,36 +148,6 @@ namespace UA
         }
 
         /// <summary>Ray against walls and agent hitboxes, ignoring the shooter.</summary>
-        /// <summary>
-        /// Hit test of a shot. With a muzzle velocity the bullet flies a real arc: the sights are zeroed
-        /// at 100 m (the barrel points that much up), gravity pulls it down, the arc is tested in 30 m pieces.
-        /// </summary>
-        public TraceResult TraceShot(Vector3 origin, Vector3 dir, float range, byte shooter, float velocity)
-        {
-            if (velocity <= 0f) return TraceShot(origin, dir, range, shooter);
-            const float zero = 100f;
-            var gravity = new Vector3(0f, -9.81f, 0f);
-            float lift = 0.5f * 9.81f * (zero / velocity) * (zero / velocity) / zero * Mathf.Rad2Deg;
-            var axis = Vector3.Cross(dir, Vector3.up);
-            if (axis.sqrMagnitude > 1e-6f) dir = Quaternion.AngleAxis(lift, axis.normalized) * dir;
-            var p = origin;
-            var v = dir.normalized * velocity;
-            float travelled = 0f;
-            while (travelled < range - 0.01f)
-            {
-                float h = Mathf.Min(30f, range - travelled) / velocity;
-                var next = p + v * h + 0.5f * h * h * gravity;
-                v += gravity * h;
-                var piece = next - p;
-                float length = piece.magnitude;
-                var hit = TraceShot(p, piece / length, length, shooter);
-                if (hit.Kind != 2) { hit.Distance += travelled; return hit; }
-                travelled += length;
-                p = next;
-            }
-            return new TraceResult { Point = p, Distance = range, Kind = 2, Victim = Session.NoPlayer };
-        }
-
         public TraceResult TraceShot(Vector3 origin, Vector3 dir, float range, byte shooter)
         {
             var hits = Physics.RaycastAll(origin, dir, range, ShotMask, QueryTriggerInteraction.Collide);
@@ -248,8 +219,7 @@ namespace UA
             appliedMap = map;
             if (Layouts.Length > 0) UseLayout(LayoutOf(map));
             if (Sun == null) return;
-            // downtown: day, sunset, night; port and village: day, sunset
-            int preset = map < 3 ? map : (map - 3) % 2;
+            int preset = map % 3;
             bool night = preset == 2;
             switch (preset)
             {
@@ -264,14 +234,15 @@ namespace UA
                     RenderSettings.fogDensity = 0.009f;
                     break;
                 case 2:
-                    Sun.transform.rotation = Quaternion.Euler(35f, 140f, 0f);
-                    Sun.color = new Color(0.55f, 0.65f, 1f);
-                    Sun.intensity = 0.35f;
-                    RenderSettings.ambientSkyColor = new Color(0.12f, 0.15f, 0.26f);
-                    RenderSettings.ambientEquatorColor = new Color(0.1f, 0.11f, 0.16f);
-                    RenderSettings.ambientGroundColor = new Color(0.05f, 0.05f, 0.06f);
-                    RenderSettings.fogColor = new Color(0.05f, 0.06f, 0.1f);
-                    RenderSettings.fogDensity = 0.016f;
+                    // moonlit night: violet blue light from the sky, lavender walls, warm lamps and windows
+                    Sun.transform.rotation = Quaternion.Euler(38f, 140f, 0f);
+                    Sun.color = new Color(0.62f, 0.6f, 1f);
+                    Sun.intensity = 0.5f;
+                    RenderSettings.ambientSkyColor = new Color(0.36f, 0.33f, 0.62f);
+                    RenderSettings.ambientEquatorColor = new Color(0.3f, 0.26f, 0.5f);
+                    RenderSettings.ambientGroundColor = new Color(0.14f, 0.12f, 0.2f);
+                    RenderSettings.fogColor = new Color(0.1f, 0.08f, 0.2f);
+                    RenderSettings.fogDensity = 0.011f;
                     break;
                 default:
                     Sun.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
@@ -291,11 +262,13 @@ namespace UA
             if (Skybox != null)
             {
                 RenderSettings.skybox = Skybox;
-                Skybox.SetFloat("_Exposure", night ? 0.15f : preset == 1 ? 1.0f : 1.25f);
+                Skybox.SetFloat("_Exposure", night ? 0.3f : preset == 1 ? 1.0f : 1.25f);
                 Skybox.SetFloat("_AtmosphereThickness", preset == 1 ? 1.6f : 1f);
+                Skybox.SetColor("_SkyTint", night ? new Color(0.42f, 0.3f, 0.75f) : new Color(0.5f, 0.55f, 0.62f));
             }
-            foreach (var lamp in NightLamps)
-                if (lamp != null) lamp.enabled = night;
+            for (int i = 0; i < Layouts.Length; i++)
+                foreach (var light in Layouts[i].NightLights)
+                    if (light != null) light.enabled = night && Layouts[i] == layout;
             if (Camera.main != null) Camera.main.backgroundColor = RenderSettings.fogColor;
         }
     }

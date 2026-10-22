@@ -46,6 +46,7 @@ public static class MapBuilder
         waypoints.Clear();
         links.Clear();
         lamps.Clear();
+        global::Buildings.Night = lamps;
         AssetSetup.Folder("Assets/Scenes");
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -99,12 +100,14 @@ public static class MapBuilder
             GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
             if (t.gameObject.layer != 0 && t.gameObject.layer != World.FenceLayer) t.gameObject.layer = 0;
         }
-        MapOptimizer.Merge(map, "Downtown", lamps);
+        global::Buildings.Night = null;
+        var downtownNight = MapOptimizer.Merge(map, "Downtown", null, lamps);
 
         var downtown = new MapLayout
         {
             Name = "DOWNTOWN", Root = map.gameObject, Center = Vector3.zero, Radius = Half,
             Waypoints = waypoints.ToArray(), Links = links.ToArray(), Spawns = Spawns().ToArray(),
+            NightLights = downtownNight.ToArray(),
         };
         // the port is built while the downtown map is switched off so their colliders do not mix
         map.gameObject.SetActive(false);
@@ -112,14 +115,15 @@ public static class MapBuilder
         port.Root.SetActive(false);
         var village = VillageBuilder.Build();
         village.Root.SetActive(false);
+        var town = TownBuilder.Build();
+        town.Root.SetActive(false);
         map.gameObject.SetActive(true);
 
         var worldGo = new GameObject("World");
         var world = worldGo.AddComponent<World>();
         world.Sun = sun;
         world.Skybox = skybox;
-        world.Layouts = new[] { downtown, port, village };
-        world.NightLamps = lamps.ToArray();
+        world.Layouts = new[] { downtown, port, village, town };
 
         new GameObject("App").AddComponent<App>();
 
@@ -699,15 +703,16 @@ public static class MapBuilder
 
         // street lights on the sidewalk corners (lamps glow at night)
         var pole = AssetSetup.Solid("Pole", new Color(0.15f, 0.15f, 0.16f), 0.4f, 0.6f);
-        var lampMat = AssetSetup.Mat("Lamp", new Color(1f, 0.9f, 0.7f), 0.5f, 0f, null, null, null, null, new Color(2.2f, 1.8f, 1.2f));
+        var lampMat = AssetSetup.Solid("LampHousing", new Color(0.2f, 0.2f, 0.21f), 0.5f, 0.5f);
         for (int bx = -1; bx <= 1; bx++)
             for (int bz = -1; bz <= 1; bz++)
                 foreach (var (sx, sz) in new[] { (-1, -1), (1, -1), (-1, 1), (1, 1) })
                 {
                     var p = new Vector3(bx * Pitch + sx * (BlockSize / 2f - 0.8f), 0, bz * Pitch + sz * (BlockSize / 2f - 0.8f));
                     Cylinder("LightPole", p + Vector3.up * 3.2f, 0.09f, 6.4f, pole, props);
-                    var lamp = Box("Lamp", p + new Vector3(-sx * 0.6f, 6.3f, -sz * 0.6f), new Vector3(0.5f, 0.15f, 0.5f), lampMat, props, 0, false);
-                    lamps.Add(lamp.GetComponent<Renderer>());
+                    var head = p + new Vector3(-sx * 0.6f, 6.3f, -sz * 0.6f);
+                    Box("Lamp", head, new Vector3(0.5f, 0.15f, 0.5f), lampMat, props, 0, false);
+                    NightLights.Lamp(props, head + Vector3.down * 0.09f, new Vector3(0.42f, 0.04f, 0.42f), lamps, 3.2f);
                     // kit props near the corners: bollards and planters
                     if (rng.NextDouble() < 0.5) Place("Prop_Planter_Single", p + new Vector3(-sx * 2.5f, 0, 0), 0, props, 0.16f);
                     if (rng.NextDouble() < 0.5) Place("Prop_Bollard", p + new Vector3(0, 0, -sz * 2.5f), 0, props, 0.16f);

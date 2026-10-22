@@ -21,14 +21,14 @@ public class ImportRules : AssetPostprocessor
             importer.meshCompression = ModelImporterMeshCompression.Medium;
             importer.importBlendShapes = false;
         }
-        else if (assetPath.Contains("ThirdParty/Props/") || assetPath.Contains("ThirdParty/Guns/") || assetPath.Contains("ThirdParty/Nature/") || assetPath.Contains("ThirdParty/Cars/"))
+        else if (assetPath.Contains("ThirdParty/Props/") || assetPath.Contains("ThirdParty/Guns/") || assetPath.Contains("Assets/Weapons/") || assetPath.Contains("ThirdParty/Nature/") || assetPath.Contains("ThirdParty/Cars/"))
         {
             importer.addCollider = false;
             importer.importAnimation = false;
             importer.animationType = ModelImporterAnimationType.None;
             importer.importCameras = false;
             importer.importLights = false;
-            importer.isReadable = assetPath.Contains("ThirdParty/Guns/");   // gun meshes get new texture coordinates
+            importer.isReadable = assetPath.Contains("ThirdParty/Guns/") || assetPath.Contains("Assets/Weapons/");   // gun meshes get new texture coordinates
             importer.meshCompression = ModelImporterMeshCompression.Medium;
         }
         else if (assetPath.Contains("ThirdParty/UBC/"))

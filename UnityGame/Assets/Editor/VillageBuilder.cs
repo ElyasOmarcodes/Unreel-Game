@@ -21,6 +21,16 @@ public static class VillageBuilder
     private static Transform root;
     private static System.Random rng;
     private static readonly List<Rect> flats = new List<Rect>();
+    private static readonly List<Renderer> night = new List<Renderer>();
+
+    /// <summary>An oil lantern (glows at night) hanging at a point, with its small iron cap.</summary>
+    private static void Lantern(Transform t, Vector3 world)
+    {
+        var iron = AssetSetup.Solid("T_Iron", new Color(0.07f, 0.07f, 0.08f), 0.45f, 0.6f);
+        MeshGen.TexBox("LanternCap", world + Vector3.up * 0.18f, new Vector3(0.24f, 0.05f, 0.24f), iron, 1f, t, 0f, false);
+        MeshGen.TexBox("LanternHook", world + Vector3.up * 0.3f, new Vector3(0.03f, 0.2f, 0.03f), iron, 1f, t, 0f, false);
+        NightLights.Lamp(t, world, new Vector3(0.16f, 0.26f, 0.16f), night, 2.6f);
+    }
 
     private static float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
 
@@ -419,6 +429,7 @@ public static class VillageBuilder
         // front wall with the gate, back wall with a breach, solid sides with a low gap
         Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)), null, false, ruin);
         Block("GateBeam", t, new Vector3(gate, 2.62f, -l / 2f), new Vector3(3.2f, 0.2f, 0.75f), OldWood, 0.04f, false);
+        Lantern(t, t.TransformPoint(new Vector3(gate + 1.3f, 2.2f, -l / 2f - 0.42f)));
         foreach (float s in new[] { -1f, 1f })
         {
             // half-open wooden gate leaves
@@ -612,6 +623,7 @@ public static class VillageBuilder
     public static MapLayout Build()
     {
         rng = new System.Random(23);
+        night.Clear();
         root = new GameObject("Map_Village").transform;
         flats.Clear();
         mudMats.Clear();
@@ -659,6 +671,14 @@ public static class VillageBuilder
             Hut(huts, p, yaw, 4f + (i % 3) * 0.8f, 3.6f + (i % 2) * 0.6f, i % 3 == 1 ? new System.Random(100 + i) : null);
         }
         Bazaar();
+        // lantern posts at the corners of the bazaar square
+        foreach (var (x, z) in new[] { (-14f, -19f), (14f, -19f), (-14f, 19f), (14f, 19f) })
+        {
+            float gy = Y(x, z);
+            MeshGen.TexBox("LanternPost", new Vector3(x, gy + 1.5f, z), new Vector3(0.16f, 3f, 0.16f), OldWood, 1f, root);
+            MeshGen.TexBox("LanternArm", new Vector3(x, gy + 2.95f, z + 0.3f), new Vector3(0.1f, 0.1f, 0.7f), OldWood, 1f, root, 0f, false);
+            Lantern(root, new Vector3(x, gy + 2.5f, z + 0.6f));
+        }
 
         // the watchtower on its hill, the bridge and a ford over the river bed
         var hill = new Vector3(58f, 0, 56f);
@@ -763,7 +783,7 @@ public static class VillageBuilder
 
         var layout = new MapLayout { Name = "VILLAGE", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
         BuildNavigation(layout);
-        MapOptimizer.Merge(root, "Village");
+        layout.NightLights = MapOptimizer.Merge(root, "Village", null, night).ToArray();
         Debug.Log($"[Village] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
         return layout;
     }

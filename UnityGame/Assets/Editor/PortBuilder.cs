@@ -574,6 +574,8 @@ public static class PortBuilder
         mats.Clear();
         root = new GameObject("Map_Port").transform;
         root.SetParent(parent, false);
+        var night = new List<Renderer>();
+        Buildings.Night = night;
         LoadProps();
 
         // ground, quay and sea
@@ -726,7 +728,23 @@ public static class PortBuilder
         foreach (var (x, z, yaw) in new[] { (-4f, 12f, 90f), (2f, 12f, 90f), (-26f, -36f, 0f), (20f, 26f, 0f), (46f, 4f, 90f), (-50f, 14f, 0f) })
             Prop(rng.NextDouble() < 0.5 ? "concrete_road_barrier" : "concrete_road_barrier_02", new Vector3(x, 0, z), yaw, small);
         foreach (var (x, z) in new[] { (-60f, -20f), (-10f, 40f), (34f, -48f), (66f, 40f), (0f, -8f) })
-            Prop("street_lamp_01", new Vector3(x, 0, z), R(0, 360), small);
+        {
+            var lamp = Prop("street_lamp_01", new Vector3(x, 0, z), R(0, 360), small);
+            if (lamp == null) continue;
+            var rs = lamp.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) continue;
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            NightLights.Halo(small, new Vector3(b.center.x, b.max.y - 0.3f, b.center.z), 3.4f, new Color(0.55f, 0.4f, 0.2f), night);
+        }
+        // flood light masts over the container yard (glow only: no real lights)
+        var steel = AssetSetup.Solid("Pole", new Color(0.15f, 0.15f, 0.16f), 0.4f, 0.6f);
+        foreach (var (x, z) in new[] { (-70f, -48f), (70f, -48f), (-70f, 48f), (30f, 52f) })
+        {
+            MeshGen.TexCylinder("FloodMast", new Vector3(x, 0, z), 0.18f, 14f, steel, 1f, small);
+            MeshGen.TexBox("FloodHead", new Vector3(x, 14.1f, z), new Vector3(1.6f, 0.5f, 0.6f), steel, 1f, small, 0f, false);
+            NightLights.Lamp(small, new Vector3(x, 13.85f, z), new Vector3(1.4f, 0.06f, 0.5f), night, 6f);
+        }
 
         foreach (var t in root.GetComponentsInChildren<Transform>(true))
             if (t.gameObject.layer != World.FenceLayer)
@@ -734,7 +752,8 @@ public static class PortBuilder
 
         var layout = new MapLayout { Name = "PORT", Root = root.gameObject, Center = Vector3.zero, Radius = 90f };
         BuildNavigation(layout);
-        MapOptimizer.Merge(root, "Port");
+        Buildings.Night = null;
+        layout.NightLights = MapOptimizer.Merge(root, "Port", null, night).ToArray();
         Debug.Log($"[Port] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {props.Count} props, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
         return layout;
     }

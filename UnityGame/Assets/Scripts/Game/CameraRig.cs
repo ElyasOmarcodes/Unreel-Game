@@ -75,6 +75,8 @@ namespace UA
             Vector3 offset;
             if (Scope) offset = new Vector3(0f, 0f, 0.25f);
             else if (Aim) offset = new Vector3(0.55f * shoulder, 0.05f, -1.35f);
+            // shooting from the hip: the camera comes in over the shoulder (Battle of Agents style)
+            else if (Target.Firing && !dead) offset = new Vector3(0.58f * shoulder, 0.1f, -1.9f);
             else if (dead) offset = new Vector3(0f, 1.5f, -4.5f);
             else offset = new Vector3(0.62f * shoulder, 0.18f, -2.7f);
             smoothOffset = Scope ? offset : Vector3.Lerp(smoothOffset, offset, 1f - Mathf.Exp(-16f * dt));

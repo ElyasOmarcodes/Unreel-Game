@@ -19,7 +19,7 @@ namespace UA
         /// <summary>0 low, 1 medium, 2 high. The first start picks what the phone can carry.</summary>
         public static int Quality { get => PlayerPrefs.GetInt("quality", DeviceClass); set { PlayerPrefs.SetInt("quality", Mathf.Clamp(value, 0, 2)); Apply(); } }
         /// <summary>Share of the screen's own resolution the game draws at, in percent (the screen still fills).</summary>
-        public static int RenderScale { get => PlayerPrefs.GetInt("renderScale", DeviceClass == 0 ? 60 : DeviceClass == 1 ? 75 : 85); set { PlayerPrefs.SetInt("renderScale", Mathf.Clamp(value, 50, 100)); Apply(); } }
+        public static int RenderScale { get => PlayerPrefs.GetInt("renderScale", DeviceClass == 0 ? 65 : DeviceClass == 1 ? 80 : 90); set { PlayerPrefs.SetInt("renderScale", Mathf.Clamp(value, 50, 100)); Apply(); } }
         /// <summary>Frames per second the game aims for (a steady 30 is smoother than a jumpy 60 on a weak phone).</summary>
         public static int FrameRate { get => PlayerPrefs.GetInt("frameRate", 60); set { PlayerPrefs.SetInt("frameRate", value); Apply(); } }
         public static readonly int[] FrameRates = { 30, 60, 90 };
@@ -102,11 +102,11 @@ namespace UA
                     QualitySettings.shadowResolution = ShadowResolution.Medium;
                     QualitySettings.shadowCascades = 1;
                     QualitySettings.shadowDistance = 30;
-                    QualitySettings.antiAliasing = 0;
+                    QualitySettings.antiAliasing = 2;   // MSAA: nearly free on phone GPUs, smooth edges far away
                     QualitySettings.lodBias = 1f;
                     QualitySettings.pixelLightCount = 1;
                     QualitySettings.globalTextureMipmapLimit = 0;
-                    QualitySettings.anisotropicFiltering = AnisotropicFiltering.Disable;
+                    QualitySettings.anisotropicFiltering = AnisotropicFiltering.Enable;   // sharp ground at a slant
                     QualitySettings.skinWeights = SkinWeights.FourBones;
                     break;
                 default:
@@ -114,7 +114,7 @@ namespace UA
                     QualitySettings.shadowResolution = ShadowResolution.High;
                     QualitySettings.shadowCascades = 2;
                     QualitySettings.shadowDistance = 55;
-                    QualitySettings.antiAliasing = 2;
+                    QualitySettings.antiAliasing = 4;
                     QualitySettings.lodBias = 1.5f;
                     QualitySettings.pixelLightCount = 2;
                     QualitySettings.globalTextureMipmapLimit = 0;
@@ -130,9 +130,9 @@ namespace UA
         public static void ApplyCamera(Camera cam)
         {
             cam.allowHDR = false;
-            cam.allowMSAA = Quality == 2;
+            cam.allowMSAA = Quality > 0;
             var distances = new float[32];
-            distances[DetailLayer] = Quality == 0 ? 55f : Quality == 1 ? 80f : 120f;
+            distances[DetailLayer] = Quality == 0 ? 70f : Quality == 1 ? 100f : 140f;
             cam.layerCullDistances = distances;
             cam.layerCullSpherical = true;
         }

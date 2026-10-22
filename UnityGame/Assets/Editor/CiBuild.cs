@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
@@ -59,6 +60,8 @@ public static class CiBuild
         PlayerSettings.Android.renderOutsideSafeArea = true;
         // Android frame pacing (Swappy): frames shown at even intervals, no stutter at 30 or 60 fps
         PlayerSettings.Android.optimizedFramePacing = true;
+        // smaller build: vertex data no shader reads is left out of the meshes
+        PlayerSettings.stripUnusedMeshComponents = true;
         PlayerSettings.SetMobileMTRendering(NamedBuildTarget.Android, true);
         EditorUserBuildSettings.buildAppBundle = false;
         EditorUserBuildSettings.androidBuildSubtarget = MobileTextureSubtarget.ASTC;
@@ -99,6 +102,12 @@ public static class CiBuild
             options = BuildOptions.None,
         });
         var s = report.summary;
+        // what fills the build: the biggest kinds of asset and the biggest assets
+        var packed = report.packedAssets.SelectMany(p => p.contents).ToList();
+        foreach (var g in packed.GroupBy(a => a.type.Name).OrderByDescending(g => g.Sum(a => (long)a.packedSize)).Take(8))
+            Debug.Log($"[CiBuild] {target} size by type: {g.Key} {g.Sum(a => (long)a.packedSize) / 1024} KB ({g.Count()})");
+        foreach (var a in packed.OrderByDescending(a => a.packedSize).Take(12))
+            Debug.Log($"[CiBuild] {target} big asset: {a.sourceAssetPath} {a.type.Name} {a.packedSize / 1024} KB");
         Debug.Log($"[CiBuild] {target}: {s.result}, {s.totalSize / (1024 * 1024)} MB, {s.totalErrors} errors, {s.totalTime}");
         return s.result == BuildResult.Succeeded;
     }

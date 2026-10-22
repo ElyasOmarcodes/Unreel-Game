@@ -17,6 +17,10 @@ public static class Buildings
 
     private static Mesh paneMesh;
 
+    /// <summary>When set, about half the windows get a warm light at night (see NightLights).</summary>
+    public static List<Renderer> Night;
+    private static int windowCount;
+
     /// <summary>A one-sided pane of glass in a window: it faces outwards and is not there from inside (no collider either).</summary>
     private static void Pane(Transform t, Vector3 localCenter, Vector3 outward, float width, float height, Material glass)
     {
@@ -82,12 +86,13 @@ public static class Buildings
             if (a > cursor) Box(t, "Wall", Pos((cursor + a) / 2f, y0 + FloorHeight / 2f), Size(a - cursor, FloorHeight), m);
             if (o.b > 0.01f) Box(t, "Sill", Pos(o.c, y0 + o.b / 2f), Size(o.w, o.b), m);
             if (o.top < FloorHeight - 0.01f) Box(t, "Lintel", Pos(o.c, y0 + (o.top + FloorHeight) / 2f), Size(o.w, FloorHeight - o.top), m);
+            var n = alongX ? new Vector3(0, 0, outward) : new Vector3(outward, 0, 0);
             // tinted glass in the windows (doors stay open), on the outer face of the wall
             if (glass != null && o.b > 0.01f)
-            {
-                var n = alongX ? new Vector3(0, 0, outward) : new Vector3(outward, 0, 0);
                 Pane(t, Pos(o.c, y0 + (o.b + o.top) / 2f) + n * (Wall / 2f - 0.03f), n, o.w, o.top - o.b, glass);
-            }
+            // someone is at home behind every other window at night
+            if (Night != null && o.b > 0.01f && outward != 0f && windowCount++ % 2 == 0)
+                NightLights.Window(t, t.TransformPoint(Pos(o.c, y0 + (o.b + o.top) / 2f) + n * (Wall / 2f - 0.02f)), t.TransformDirection(n), o.w * 0.96f, o.top - o.b, Night);
             cursor = b;
         }
         if (u1 > cursor) Box(t, "Wall", Pos((cursor + u1) / 2f, y0 + FloorHeight / 2f), Size(u1 - cursor, FloorHeight), m);

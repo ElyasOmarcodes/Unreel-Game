@@ -116,6 +116,9 @@ namespace UA
             // the ready-made characters, then their feet from the side (which way the boots point)
             for (int i = 0; i < Wardrobe.Presets.Length; i++)
                 Dress(Wardrobe.PresetLook(i), new Vector3(i * 0.9f, 300, 0), 180);
+            // the PKM and the SVD in the hands of the first two
+            row[0].GetComponent<Agent>().SetWeapon(8);
+            row[1].GetComponent<Agent>().SetWeapon(7);
             cam.Cam.fieldOfView = 40;
             cam.transform.SetPositionAndRotation(new Vector3(4.5f, 301.0f, -7.6f), Quaternion.Euler(3, 0, 0));
             yield return Wait(1f);
@@ -253,15 +256,26 @@ namespace UA
                 (4, "27e-port-ship", new Vector3(40f, 9f, 48f), new Vector3(10f, 4f, 88f)),
                 (3, "27f-port-tunnel", new Vector3(79f, -2.3f, -9f), new Vector3(79f, -3f, 20f)),
                 (3, "27g-port-slopes", new Vector3(44f, 4f, 46f), new Vector3(62f, 1f, 56f)),
-                (5, "28-village-bazaar", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
-                (5, "29-village-compound", new Vector3(-16f, 8f, -4f), new Vector3(-34f, 2f, 12f)),
-                (5, "30-village-house", new Vector3(18f, 3f, 12f), new Vector3(32f, 2f, 18f)),
-                (5, "31-village-tower", new Vector3(30f, 14f, 28f), new Vector3(58f, 12f, 56f)),
-                (5, "32-village-river", new Vector3(30f, 5f, -25f), new Vector3(12f, 0f, -40f)),
-                (5, "33-village-terraces", new Vector3(-28f, 10f, 30f), new Vector3(-52f, 5f, 60f)),
-                (6, "34-village-sunset", new Vector3(-62f, 26f, -72f), new Vector3(0f, 0f, 0f)),
-                (5, "35-village-ruins", new Vector3(-46f, 6f, -2f), new Vector3(-62f, 1f, -12f)),
-                (5, "36-village-hills", new Vector3(20f, 22f, 70f), new Vector3(4f, 18f, 112f)),
+                (6, "28-village-bazaar", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
+                (6, "29-village-compound", new Vector3(-16f, 8f, -4f), new Vector3(-34f, 2f, 12f)),
+                (6, "30-village-house", new Vector3(18f, 3f, 12f), new Vector3(32f, 2f, 18f)),
+                (6, "31-village-tower", new Vector3(30f, 14f, 28f), new Vector3(58f, 12f, 56f)),
+                (6, "32-village-river", new Vector3(30f, 5f, -25f), new Vector3(12f, 0f, -40f)),
+                (6, "33-village-terraces", new Vector3(-28f, 10f, 30f), new Vector3(-52f, 5f, 60f)),
+                (7, "34-village-sunset", new Vector3(-62f, 26f, -72f), new Vector3(0f, 0f, 0f)),
+                (6, "35-village-ruins", new Vector3(-46f, 6f, -2f), new Vector3(-62f, 1f, -12f)),
+                (6, "36-village-hills", new Vector3(20f, 22f, 70f), new Vector3(4f, 18f, 112f)),
+                (8, "36b-village-night", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
+                (2, "36c-downtown-night", new Vector3(29f, 2.2f, -36f), new Vector3(25f, 1f, -62f)),
+                (5, "36d-port-night", new Vector3(-4f, 6f, -24f), new Vector3(-30f, 2f, 10f)),
+                (9, "37-town-square", new Vector3(-16f, 6f, -20f), new Vector3(0f, 1.5f, 0f)),
+                (9, "38-town-street", new Vector3(-62f, 2f, 0f), new Vector3(-20f, 3f, 0f)),
+                (11, "39-town-night", new Vector3(-56f, 1.8f, -1.5f), new Vector3(-38f, 3f, 6f)),
+                (11, "39b-town-night-square", new Vector3(-16f, 6f, -20f), new Vector3(0f, 1.5f, 0f)),
+                (9, "40-town-church", new Vector3(-20f, 4f, 22f), new Vector3(0f, 12f, 44f)),
+                (9, "41-town-tower-view", new Vector3(0f, 18.6f, 38.4f), new Vector3(0f, 2f, 0f)),
+                (9, "42-town-canal", new Vector3(50f, 3f, -20f), new Vector3(58f, 0f, 10f)),
+                (10, "43-town-sunset", new Vector3(-70f, 25f, -70f), new Vector3(0f, 0f, 0f)),
             };
             foreach (var v in views)
             {

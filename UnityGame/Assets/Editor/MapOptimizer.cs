@@ -18,19 +18,30 @@ public static class MapOptimizer
     private const int MaxVertices = 65000;
     private const string Folder = "Assets/Generated/Merged";
 
-    public static void Merge(Transform root, string name, ICollection<Renderer> keep = null)
+    /// <summary>
+    /// Merges the map under root. Pieces listed in nightOnly (lit windows, lamp glass) are merged
+    /// apart; the merged renderers are returned so the world switches them on at night.
+    /// </summary>
+    public static List<Renderer> Merge(Transform root, string name, ICollection<Renderer> keep = null, ICollection<Renderer> nightOnly = null)
     {
+        // glows face the camera around their own centre: never batched, never merged
+        foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+            if (r.sharedMaterial != null && r.sharedMaterial.shader != null && r.sharedMaterial.shader.name == "UA/Glow")
+                GameObjectUtility.SetStaticEditorFlags(r.gameObject, 0);
+        var night = new List<Renderer>();
+        var nightSet = new HashSet<Renderer>(nightOnly ?? new Renderer[0]);
         AssetSetup.Folder(Folder);
         string path = $"{Folder}/{name}.asset";
         AssetDatabase.DeleteAsset(path);
         var toLocal = root.worldToLocalMatrix;
-        var groups = new Dictionary<(Material mat, int x, int z, ShadowCastingMode shadows, bool detail), List<CombineInstance>>();
+        var groups = new Dictionary<(Material mat, int x, int z, ShadowCastingMode shadows, bool detail, bool night), List<CombineInstance>>();
         var merged = new List<MeshRenderer>();
         int before = 0;
         foreach (var r in root.GetComponentsInChildren<MeshRenderer>(true))
         {
             before++;
-            if (!r.enabled || (keep != null && keep.Contains(r)) || !ActiveUnder(r.transform, root)) continue;
+            bool isNight = nightSet.Contains(r);
+            if ((!r.enabled && !isNight) || (keep != null && keep.Contains(r)) || !ActiveUnder(r.transform, root)) continue;
             if (r.GetComponentInParent<LODGroup>(true) != null) continue;
             if (r.shadowCastingMode == ShadowCastingMode.ShadowsOnly) continue;
             var filter = r.GetComponent<MeshFilter>();
@@ -42,11 +53,11 @@ public static class MapOptimizer
             if (matrix.determinant <= 0f) continue;   // mirrored pieces keep their own renderer
             var b = r.bounds;
             if (Mathf.Max(b.size.x, b.size.z) > Cell) continue;   // ground and other big pieces gain nothing
-            bool detail = Mathf.Max(b.size.x, b.size.y, b.size.z) < 1.6f && b.min.y < 2.5f;
+            bool detail = !isNight && Mathf.Max(b.size.x, b.size.y, b.size.z) < 1.6f && b.min.y < 2.5f;
             int cx = Mathf.FloorToInt(b.center.x / Cell), cz = Mathf.FloorToInt(b.center.z / Cell);
             for (int s = 0; s < mats.Length; s++)
             {
-                var key = (mats[s], cx, cz, r.shadowCastingMode, detail);
+                var key = (mats[s], isNight ? 0 : cx, isNight ? 0 : cz, r.shadowCastingMode, detail, isNight);
                 if (!groups.TryGetValue(key, out var list)) groups[key] = list = new List<CombineInstance>();
                 list.Add(new CombineInstance { mesh = Part(mesh, s), subMeshIndex = 0, transform = matrix });
             }
@@ -69,6 +80,7 @@ public static class MapOptimizer
                 if (vertices > 65535) mesh.indexFormat = IndexFormat.UInt32;   // one very big piece
                 mesh.CombineMeshes(chunk.ToArray(), true, true, false);
                 mesh.RecalculateBounds();
+                Slim(mesh, g.Key.mat);
                 if (firstAsset) { AssetDatabase.CreateAsset(mesh, path); firstAsset = false; }
                 else AssetDatabase.AddObjectToAsset(mesh, path);
                 var go = new GameObject($"Merged_{g.Key.mat.name}");
@@ -80,6 +92,7 @@ public static class MapOptimizer
                 r.shadowCastingMode = g.Key.shadows;
                 r.lightProbeUsage = LightProbeUsage.Off;
                 r.reflectionProbeUsage = ReflectionProbeUsage.Off;
+                if (g.Key.night) { r.enabled = false; night.Add(r); }
                 count++;
                 chunk.Clear();
                 vertices = 0;
@@ -99,7 +112,25 @@ public static class MapOptimizer
             Object.DestroyImmediate(r);
             if (filter != null) Object.DestroyImmediate(filter);
         }
-        Debug.Log($"[Map] {name}: {merged.Count} of {before} renderers merged into {count}");
+        Debug.Log($"[Map] {name}: {merged.Count} of {before} renderers merged into {count} ({night.Count} for the night)");
+        // night pieces that could not be merged still go on and off with the night
+        night.AddRange(nightSet.Where(r => r != null));
+        return night;
+    }
+
+    /// <summary>
+    /// Smaller in the APK and in memory: only the vertex data the material reads (tangents only for
+    /// normal maps, no colours or extra UV sets), quantised, and no copy kept for scripts.
+    /// </summary>
+    private static void Slim(Mesh mesh, Material m)
+    {
+        if (!m.IsKeywordEnabled("_NORMALMAP")) mesh.tangents = new Vector4[0];
+        if (m.shader == null || !m.shader.name.StartsWith("UA/Ground")) mesh.colors = new Color[0];
+        for (int i = 1; i < 8; i++) mesh.SetUVs(i, new List<Vector2>());
+        MeshUtility.SetMeshCompression(mesh, ModelImporterMeshCompression.Medium);
+        var so = new SerializedObject(mesh);
+        var readable = so.FindProperty("m_IsReadable");
+        if (readable != null) { readable.boolValue = false; so.ApplyModifiedPropertiesWithoutUndo(); }
     }
 
     private static readonly Dictionary<(Mesh, int), Mesh> parts = new Dictionary<(Mesh, int), Mesh>();
