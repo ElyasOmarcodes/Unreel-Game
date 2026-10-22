@@ -53,6 +53,20 @@ namespace UA
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.linearVelocity = velocity;
             rb.angularVelocity = Random.onUnitSphere * 12f;
+            // the fuse ticking away until the blast, heard around the grenade
+            var fuse = Resources.Load<AudioClip>("Audio/grenade_fuse");
+            if (fuse != null)
+            {
+                var tick = go.AddComponent<AudioSource>();
+                tick.clip = fuse;
+                tick.spatialBlend = 1f;
+                tick.rolloffMode = AudioRolloffMode.Logarithmic;
+                tick.minDistance = 2f;
+                tick.maxDistance = 40f;
+                tick.dopplerLevel = 0f;
+                tick.volume = 0.8f;
+                tick.Play();
+            }
             var g = go.AddComponent<Grenade>();
             g.Thrower = thrower;
             g.ThrowSeq = seq;

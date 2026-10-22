@@ -101,11 +101,12 @@ public class ImportRules : AssetPostprocessor
     private void OnPreprocessAudio()
     {
         var importer = (AudioImporter)assetImporter;
-        importer.forceToMono = true;
+        bool music = assetPath.Contains("/music_");
+        importer.forceToMono = !music;   // the music keeps its stereo
         var settings = importer.defaultSampleSettings;
-        settings.loadType = AudioClipLoadType.DecompressOnLoad;
+        settings.loadType = AudioClipLoadType.DecompressOnLoad;   // also keeps the music loop seamless
         settings.compressionFormat = AudioCompressionFormat.Vorbis;
-        settings.quality = 0.5f;
+        settings.quality = music ? 0.6f : 0.5f;
         importer.defaultSampleSettings = settings;
     }
 }

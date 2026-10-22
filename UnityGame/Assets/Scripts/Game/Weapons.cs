@@ -36,7 +36,7 @@ namespace UA
     /// <summary>
     /// Damage rules (100 health): AK-47 kills with 5 body shots or 2 head shots, M4A1 6 / 2,
     /// L96 sniper 2 body shots or 1 head shot, SVD 3 / 1, Glock 7 / 3, Desert Eagle 3 / 2,
-    /// MP5 8 / 3, PKM 5 / 2 (a belt of 100, slow to reload, heavy to carry), SPAS-12 one close shot. Scoped guns: M4A1 (ACOG), SVD (PSO-1: its real field of view of about 6 degrees, reticle in true thousandths), L96.
+    /// MP5 8 / 3, PKM 6 / 3 (fast, a belt of 100, slow to reload, heavy to carry), SPAS-12 one close shot. Scoped guns: M4A1 (ACOG), SVD (PSO-1: its real field of view of about 6 degrees, reticle in true thousandths), L96.
     /// Any weapon can go in either slot.
     /// </summary>
     public static class Weapons
@@ -53,7 +53,7 @@ namespace UA
             new WeaponDef { Id = 5, Name = "DESERT EAGLE", Primary = false, Damage = 35, HeadMultiplier = 2.5f, FireRate = 2.6f, Range = 150, Spread = 2.6f, AimSpread = 0.7f, Recoil = 3.2f, ReloadTime = 1.9f, MagSize = 7, Reserve = 35, AimFov = 48, Sound = "shot_deagle", MoveSpeed = 1.03f, Caliber = ".50 AE", MuzzleVelocity = 470, EffectiveRange = 50, Action = "SEMI-AUTO" },
             new WeaponDef { Id = 6, Name = "MP5", Primary = false, Damage = 14, HeadMultiplier = 2.2f, FireRate = 13.33f, Range = 220, Spread = 2.8f, AimSpread = 1f, Recoil = 0.8f, ReloadTime = 2f, MagSize = 30, Reserve = 180, Auto = true, AimFov = 46, Sound = "shot_smg", MoveSpeed = 1.02f, Caliber = "9×19 mm", MuzzleVelocity = 400, EffectiveRange = 150, Action = "AUTO 800 RPM" },
             new WeaponDef { Id = 7, Name = "SVD DRAGUNOV", Primary = true, Damage = 46, HeadMultiplier = 2.4f, FireRate = 3f, Range = 700, Spread = 4f, AimSpread = 0.1f, Recoil = 3f, ReloadTime = 2.6f, MagSize = 10, Reserve = 40, Scope = true, AimFov = 6.5f, Sound = "shot_marksman", MoveSpeed = 0.92f, Caliber = "7.62×54 mm R", MuzzleVelocity = 830, EffectiveRange = 800, Action = "SEMI-AUTO" },
-            new WeaponDef { Id = 8, Name = "PKM", Primary = true, Damage = 24, HeadMultiplier = 2.4f, FireRate = 10.8f, Range = 500, Spread = 3.4f, AimSpread = 1.2f, Recoil = 1.9f, ReloadTime = 5.5f, MagSize = 100, Reserve = 200, Auto = true, AimFov = 45, Sound = "shot_ak", SoundPitch = 0.86f, MoveSpeed = 0.85f, Caliber = "7.62×54 mm R", MuzzleVelocity = 825, EffectiveRange = 1000, Action = "AUTO 650 RPM, BELT 100" },
+            new WeaponDef { Id = 8, Name = "PKM", Primary = true, Damage = 19, HeadMultiplier = 2.4f, FireRate = 12.5f, Range = 500, Spread = 3.4f, AimSpread = 1.2f, Recoil = 1.9f, ReloadTime = 5.5f, MagSize = 100, Reserve = 200, Auto = true, AimFov = 45, Sound = "shot_ak", SoundPitch = 0.86f, MoveSpeed = 0.85f, Caliber = "7.62×54 mm R", MuzzleVelocity = 825, EffectiveRange = 1000, Action = "AUTO 750 RPM, BELT 100" },
         };
 
         /// <summary>Weapons the bots pick from.</summary>

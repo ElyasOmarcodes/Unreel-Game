@@ -9,9 +9,10 @@ namespace UA
         {
             get
             {
-                if (!PlayerPrefs.HasKey("name"))
-                    PlayerPrefs.SetString("name", "Agent" + Random.Range(100, 999));
-                return PlayerPrefs.GetString("name");
+                // until the player types a name, they go by their character's name (ELYAS, ABID, ...)
+                string name = PlayerPrefs.GetString("name", "");
+                if (name.Length == 0 || name.StartsWith("Agent")) return Wardrobe.Presets[Preset].Name;
+                return name;
             }
             set => PlayerPrefs.SetString("name", Clean(value));
         }
@@ -45,6 +46,9 @@ namespace UA
         public static bool AutoGraphics { get => PlayerPrefs.GetInt("autoGfx", 1) == 1; set => PlayerPrefs.SetInt("autoGfx", value ? 1 : 0); }
         public static float Sensitivity { get => PlayerPrefs.GetFloat("sens", 1f); set => PlayerPrefs.SetFloat("sens", Mathf.Clamp(value, 0.3f, 3f)); }
         public static float Volume { get => PlayerPrefs.GetFloat("volume", 0.8f); set { PlayerPrefs.SetFloat("volume", Mathf.Clamp01(value)); AudioListener.volume = value; } }
+        /// <summary>Music in the menus (never during a match).</summary>
+        public static bool Music { get => PlayerPrefs.GetInt("music", 1) == 1; set => PlayerPrefs.SetInt("music", value ? 1 : 0); }
+        public static float MusicVolume { get => PlayerPrefs.GetFloat("musicVol", 0.8f); set => PlayerPrefs.SetFloat("musicVol", Mathf.Clamp01(value)); }
         public static bool InvertY { get => PlayerPrefs.GetInt("invert", 0) == 1; set => PlayerPrefs.SetInt("invert", value ? 1 : 0); }
         /// <summary>Touch look directions: both follow the finger unless reversed here.</summary>
         public static bool ReverseHorizontal { get => PlayerPrefs.GetInt("revH", 0) == 1; set => PlayerPrefs.SetInt("revH", value ? 1 : 0); }

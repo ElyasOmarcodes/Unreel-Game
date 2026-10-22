@@ -342,7 +342,9 @@ namespace UA
             float volume = (IsLocal ? 0.3f : 0.6f) * (s.Crouch ? 0.45f : 1f) * (sprint ? 1.15f : 1f);
             // recorded steps (Fantozzi, CC0): soft ground in the village, stone and concrete elsewhere;
             // the made-up ones only when the recordings are missing
-            string surface = World.I != null && World.I.Layout != null && World.I.Layout.Name == "VILLAGE" ? "fs_sand_" : "fs_stone_";
+            // the player's own footstep recording first, then the recorded ones by ground
+            string surface = Sfx.Count("step_b2_") > 0 ? "step_b2_"
+                : World.I != null && World.I.Layout != null && World.I.Layout.Name == "VILLAGE" ? "fs_sand_" : "fs_stone_";
             int recorded = Sfx.Count(surface);
             string clip = s.Prone ? "crawl_" + (stepIndex++ % 2)
                 : recorded > 0 ? surface + (stepIndex++ % recorded)

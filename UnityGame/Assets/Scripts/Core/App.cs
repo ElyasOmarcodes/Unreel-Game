@@ -31,7 +31,7 @@ namespace UA
         private Text createTitle;
         private GameObject[] botRows = new GameObject[0];
         private Button createButton;
-        private InputField groupNameField, ipField, nameField;
+        private InputField groupNameField, ipField;
         private RectTransform joinList;
         private Text joinStatus;
         private float joinRefresh;
@@ -49,6 +49,7 @@ namespace UA
             gameObject.AddComponent<Session>();
             gameObject.AddComponent<Controls>();
             gameObject.AddComponent<PerfGuard>();
+            gameObject.AddComponent<Music>();
             // the phone is short of memory: let go of everything not in use right now
             Application.lowMemory += () => Resources.UnloadUnusedAssets();
             UIKit.Init();
@@ -306,6 +307,7 @@ namespace UA
             // a group on Wi-Fi is for people: bots only in practice
             if (!practice) Draft.Bots = 0;
             foreach (var row in botRows) row.SetActive(practice);
+            World.I?.ApplyLighting(Draft.Map);
             ShowScreen("create");
         }
 
@@ -323,7 +325,11 @@ namespace UA
             groupNameField.onEndEdit.AddListener(v => Draft.GroupName = Settings.Clean(v, 24));
             byte[] minutes = { 3, 5, 8, 10, 15, 20, 30, 45, 60 };
             UIKit.Stepper(panel, "GAME MODE", -130, () => MatchConfig.ModeNames[(int)Draft.Mode], d => Draft.Mode = (Mode)(((int)Draft.Mode + 2 + d) % 2), 1080);
-            UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapNames[Draft.Map], d => Draft.Map = (byte)((Draft.Map + MatchConfig.MapNames.Length + d) % MatchConfig.MapNames.Length), 1080);
+            UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapNames[Draft.Map], d =>
+            {
+                Draft.Map = (byte)((Draft.Map + MatchConfig.MapNames.Length + d) % MatchConfig.MapNames.Length);
+                World.I?.ApplyLighting(Draft.Map);   // the map behind the menu changes with the choice
+            }, 1080);
             UIKit.Stepper(panel, "MATCH TIME", -320, () => Draft.Minutes + " MIN", d =>
             {
                 int i = System.Array.IndexOf(minutes, Draft.Minutes);
@@ -536,7 +542,6 @@ namespace UA
 
         private void OpenSettings()
         {
-            nameField.text = Settings.PlayerName;
             ShowScreen("settings");
         }
 
@@ -550,34 +555,36 @@ namespace UA
             void Row(float x, Text value) => ((RectTransform)value.transform.parent).anchoredPosition += new Vector2(x, 0);
             string Speed(float v) => "x" + v.ToString("0.0");
             float Step(float v, int d) => Mathf.Round((v + d * 0.1f) * 10f) / 10f;
-            var nameRow = UIKit.Node(panel, "NameRow").At(0.5f, 1f, L, -30, W, 84, 0.5f, 1f);
-            var nameLabel = UIKit.Txt(nameRow, "PLAYER NAME", 34, TextAnchor.MiddleLeft, UIKit.Muted);
-            nameLabel.rectTransform.Fill();
-            nameLabel.rectTransform.offsetMin = new Vector2(30, 0);
-            nameField = UIKit.Input(nameRow, Settings.PlayerName, "Your name", 34);
-            nameField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 400, 74, 1f, 0.5f);
-            nameField.onEndEdit.AddListener(v => Settings.PlayerName = v);
-            Row(L, UIKit.Stepper(panel, "GRAPHICS", -125, () => Settings.QualityNames[Settings.Quality], d => Settings.Quality = Mathf.Clamp(Settings.Quality + d, 0, 2), W));
-            Row(L, UIKit.Stepper(panel, "RESOLUTION", -215, () => Settings.RenderScale + "%", d => Settings.RenderScale += d * 5, W));
-            Row(L, UIKit.Stepper(panel, "FRAME RATE", -305, () => Settings.FrameRate + " FPS", d =>
+            // the player's name is set on the profile page only (the same name in the menus and in battle)
+            Row(L, UIKit.Stepper(panel, "GRAPHICS", -30, () => Settings.QualityNames[Settings.Quality], d => Settings.Quality = Mathf.Clamp(Settings.Quality + d, 0, 2), W));
+            Row(L, UIKit.Stepper(panel, "RESOLUTION", -125, () => Settings.RenderScale + "%", d => Settings.RenderScale += d * 5, W));
+            Row(L, UIKit.Stepper(panel, "FRAME RATE", -215, () => Settings.FrameRate + " FPS", d =>
             {
                 int i = System.Array.IndexOf(Settings.FrameRates, Settings.FrameRate);
                 Settings.FrameRate = Settings.FrameRates[Mathf.Clamp((i < 0 ? 1 : i) + d, 0, Settings.FrameRates.Length - 1)];
             }, W));
-            Row(L, UIKit.Stepper(panel, "SOUND VOLUME", -395, () => Mathf.RoundToInt(Settings.Volume * 100) + "%", d => Settings.Volume = Mathf.Round(Settings.Volume * 10 + d) / 10f, W));
-            Row(L, UIKit.Stepper(panel, "SHOW FPS", -485, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, W));
-            Row(L, UIKit.Stepper(panel, "AUTO GRAPHICS", -575, () => Settings.AutoGraphics ? "ON" : "OFF", d => Settings.AutoGraphics = !Settings.AutoGraphics, W));
+            Row(L, UIKit.Stepper(panel, "SOUND VOLUME", -305, () => Mathf.RoundToInt(Settings.Volume * 100) + "%", d => Settings.Volume = Mathf.Round(Settings.Volume * 10 + d) / 10f, W));
+            Row(L, UIKit.Stepper(panel, "SHOW FPS", -395, () => Settings.ShowFps ? "ON" : "OFF", d => Settings.ShowFps = !Settings.ShowFps, W));
+            Row(L, UIKit.Stepper(panel, "AUTO GRAPHICS", -485, () => Settings.AutoGraphics ? "ON" : "OFF", d => Settings.AutoGraphics = !Settings.AutoGraphics, W));
             Row(R, UIKit.Stepper(panel, "TURN SPEED", -30, () => Speed(Settings.Sensitivity), d => Settings.Sensitivity = Step(Settings.Sensitivity, d), W));
             Row(R, UIKit.Stepper(panel, "AIM SPEED", -130, () => Speed(Settings.AimSensitivity), d => Settings.AimSensitivity = Step(Settings.AimSensitivity, d), W));
             Row(R, UIKit.Stepper(panel, "SCOPE SPEED", -225, () => Speed(Settings.ScopeSensitivity), d => Settings.ScopeSensitivity = Step(Settings.ScopeSensitivity, d), W));
             Row(R, UIKit.Stepper(panel, "LEFT / RIGHT", -320, () => Settings.ReverseHorizontal ? "REVERSED" : "NORMAL", d => Settings.ReverseHorizontal = !Settings.ReverseHorizontal, W));
             Row(R, UIKit.Stepper(panel, "UP / DOWN", -415, () => Settings.ReverseVertical ? "REVERSED" : "NORMAL", d => Settings.ReverseVertical = !Settings.ReverseVertical, W));
             Row(R, UIKit.Stepper(panel, "AIM ASSIST", -505, () => Settings.AimAssist ? "ON" : "OFF", d => Settings.AimAssist = !Settings.AimAssist, W));
+            Row(R, UIKit.Stepper(panel, "MUSIC", -595, () => !Settings.Music ? "OFF" : Mathf.RoundToInt(Settings.MusicVolume * 100) + "%", d =>
+            {
+                // OFF, 20 % ... 100 %
+                float v = Settings.Music ? Settings.MusicVolume : 0f;
+                v = Mathf.Clamp01(Mathf.Round(v * 5f + d) / 5f);
+                Settings.Music = v > 0f;
+                if (v > 0f) Settings.MusicVolume = v;
+            }, W));
             var hint = UIKit.Txt(panel, "Running speed is the same for everyone and cannot be changed.", 24, TextAnchor.MiddleCenter, UIKit.Muted);
-            hint.rectTransform.At(0.5f, 1f, R, -600, W, 40, 0.5f, 1f);
+            hint.rectTransform.At(0.5f, 1f, R, -690, W, 40, 0.5f, 1f);
             var layout = UIKit.Btn(panel, "CONTROLS LAYOUT", OpenLayoutEditor, 30, UIKit.AccentDark, "open_with");
-            layout.GetComponent<RectTransform>().At(0.5f, 1f, L, -680, 480, 76, 0.5f, 1f);
-            var back = UIKit.Btn(s, "BACK", () => { Settings.PlayerName = nameField.text; Back(); }, 36, null, "arrow_back");
+            layout.GetComponent<RectTransform>().At(0.5f, 1f, L, -600, 480, 76, 0.5f, 1f);
+            var back = UIKit.Btn(s, "BACK", Back, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 50, 380, 96, 0.5f, 0f);
         }
 

@@ -36,6 +36,9 @@ namespace UA
         {
             var clip = Clip(name);
             if (clip == null) return;
+            // too far to hear a footstep at all
+            var listener = CameraRig.I != null ? CameraRig.I.transform.position : position;
+            if ((listener - position).sqrMagnitude > 36f * 36f) return;
             if (root == null) Next();
             AudioSource source = null;
             foreach (var s in steps)
@@ -47,9 +50,9 @@ namespace UA
                 go.transform.SetParent(root);
                 source = go.AddComponent<AudioSource>();
                 source.playOnAwake = false;
-                source.rolloffMode = AudioRolloffMode.Linear;
-                source.minDistance = 2f;
-                source.maxDistance = 30f;
+                source.rolloffMode = AudioRolloffMode.Logarithmic;
+                source.minDistance = 1.8f;
+                source.maxDistance = 38f;
                 source.dopplerLevel = 0f;
                 source.spatialBlend = 1f;
                 source.priority = 200;
@@ -63,6 +66,8 @@ namespace UA
             source.clip = clip;
             source.Play();
         }
+
+        public static bool Has(string name) => Clip(name) != null;
 
         private static readonly Dictionary<string, int> counts = new Dictionary<string, int>();
 
@@ -98,9 +103,11 @@ namespace UA
             go.transform.SetParent(root);
             var source = go.AddComponent<AudioSource>();
             source.playOnAwake = false;
-            source.rolloffMode = AudioRolloffMode.Linear;
-            source.minDistance = 4f;
-            source.maxDistance = 90f;
+            // world sounds fade with distance like real ones: loud close by, still heard far away
+            // (a shot 100 m off is quiet but tells where it came from)
+            source.rolloffMode = AudioRolloffMode.Logarithmic;
+            source.minDistance = 5f;
+            source.maxDistance = 260f;
             source.dopplerLevel = 0f;
             pool.Add(source);
             return source;

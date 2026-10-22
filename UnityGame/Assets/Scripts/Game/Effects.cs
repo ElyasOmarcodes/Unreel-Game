@@ -184,7 +184,7 @@ namespace UA
             light.intensity = 9f;
             light.shadows = LightShadows.None;
             blasts.Add((light, Time.time, Time.time + 0.35f));
-            Sfx.PlayAt("explosion", pos, 1f, Random.Range(0.92f, 1.05f));
+            Sfx.PlayAt(Sfx.Has("explosion_b5") ? "explosion_b5" : "explosion", pos, 1f, Random.Range(0.94f, 1.04f));
             if (CameraRig.I != null)
             {
                 float d = Vector3.Distance(CameraRig.I.transform.position, pos);

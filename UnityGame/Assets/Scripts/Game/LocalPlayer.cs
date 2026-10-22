@@ -286,7 +286,6 @@ namespace UA
 
         private Agent assistTarget;
         private Vector2 assistLast;
-        private float snapUntil;
         private bool wasAiming;
 
         private static Vector2 Angles(Vector3 d) =>
@@ -306,8 +305,8 @@ namespace UA
                 var to = other.Chest - eye;
                 float d = to.magnitude;
                 if (d < 1f || d > Current.Range) continue;
-                // the cone is about a body's width around it, never smaller than 1.5 degrees
-                float r = Mathf.Clamp(Mathf.Atan2(0.9f, d) * Mathf.Rad2Deg, 1.5f, 9f) * (Aiming ? 1.25f : 1f);
+                // the cone is about the body's own width, between 1 and 5 degrees
+                float r = Mathf.Clamp(Mathf.Atan2(0.6f, d) * Mathf.Rad2Deg, 1f, 5f);
                 float a = Vector3.Angle(forward, to);
                 if (a / r >= bestScore) continue;
                 if (!World.I.LineOfSight(eye, other.Chest)) continue;
@@ -323,25 +322,20 @@ namespace UA
         {
             var cam = rig.transform;
             var target = FindAssistTarget(cam.position, cam.forward, out float angle, out float radius);
-            if (Aiming && !wasAiming) snapUntil = Time.time + 0.14f;
             wasAiming = Aiming;
             if (target == null) { assistTarget = null; return look; }
             var want = Angles(target.Chest - cam.position);
             bool firing = Time.time - LastShotTime < 0.2f;
-            // friction: up to half speed over the middle of the body
-            var result = look * Mathf.Lerp(0.5f, 1f, Mathf.Clamp01(angle / radius));
-            // tracking: keep up with the target's movement across the view while the player aims at it
-            if (assistTarget == target && (look.sqrMagnitude > 1e-4f || firing || Aiming))
+            // as in the big mobile shooters, help that the player feels but does not see: the finger
+            // slows a little over a body (never a snap), and while shooting the crosshair keeps up with
+            // part of the target's own movement and leans very slightly towards it
+            var result = look * Mathf.Lerp(0.72f, 1f, Mathf.Clamp01(angle / radius));
+            if (firing && assistTarget == target)
             {
-                float limit = 60f * dt;
-                result.x += 0.55f * Mathf.Clamp(Mathf.DeltaAngle(assistLast.x, want.x), -limit, limit);
-                result.y += 0.55f * Mathf.Clamp(want.y - assistLast.y, -limit, limit);
-            }
-            // pull: a quick turn just after aiming down the sights, a gentle one while shooting or aiming
-            bool snap = Time.time < snapUntil;
-            if (snap || firing || Aiming)
-            {
-                float pull = (snap ? 70f : Aiming ? 7f : 4f) * dt;
+                float limit = 40f * dt;
+                result.x += 0.3f * Mathf.Clamp(Mathf.DeltaAngle(assistLast.x, want.x), -limit, limit);
+                result.y += 0.3f * Mathf.Clamp(want.y - assistLast.y, -limit, limit);
+                float pull = 2f * dt;
                 result.x += Mathf.Clamp(Mathf.DeltaAngle(rig.Yaw + result.x, want.x), -pull, pull);
                 result.y += Mathf.Clamp(want.y - (rig.Pitch + result.y), -pull, pull);
             }
@@ -366,7 +360,7 @@ namespace UA
                 float along = Vector3.Dot(p - aim.origin, aim.direction);
                 if (along < 2f || along > range) continue;
                 float miss = Vector3.Distance(aim.origin + aim.direction * along, p);
-                float allowance = 0.2f + Mathf.Clamp(along * 0.004f, 0f, 0.4f);
+                float allowance = 0.05f + Mathf.Clamp(along * 0.002f, 0f, 0.2f);
                 if (miss > allowance || miss >= bestMiss) continue;
                 if (!World.I.LineOfSight(origin, p)) continue;
                 bestMiss = miss;
