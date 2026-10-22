@@ -65,7 +65,7 @@ public static class ZahraBuilder
     private static Material MarbleBlue => AssetSetup.Solid("Z_MarbleBlue", new Color(0.6f, 0.67f, 0.76f), 0.75f);
     private static Material Capital => AssetSetup.Solid("Z_Capital", new Color(0.94f, 0.93f, 0.88f), 0.5f);
     private static Material Leaf => AssetSetup.Solid("Z_PalmLeaf", new Color(0.3f, 0.48f, 0.18f), 0.25f);
-    private static Material Cypress => PortBuilder.Pbr("Z_Cypress", "Grass001", new Color(0.16f, 0.3f, 0.14f), 0.1f);
+    private static Material Cypress => PortBuilder.Pbr("Z_Cypress", "Grass001", new Color(0.3f, 0.48f, 0.24f), 0.1f);
     private static Material Orange => AssetSetup.Solid("Z_Orange", new Color(1f, 0.55f, 0.08f), 0.5f);
     private static Material Bronze => AssetSetup.Solid("Z_Bronze", new Color(0.25f, 0.18f, 0.1f), 0.5f, 0.6f);
     private static Material Water => AssetSetup.WaterMat("Water_Pool", new Color(0.04f, 0.17f, 0.18f), new Color(0.18f, 0.42f, 0.4f), 3f, 0.15f);
@@ -521,9 +521,9 @@ public static class ZahraBuilder
         LBox(t, "Trunk", new Vector3(0, 0.4f, 0), new Vector3(0.22f, 0.8f, 0.22f), PalmTrunk, 1f, false);
         var crown = MeshObject(t, "Crown", cypressMesh, Cypress, false);
         crown.transform.localPosition = new Vector3(0, 0.5f, 0);
-        crown.transform.localScale = new Vector3(height * 0.24f, height - 0.5f, height * 0.24f);
+        crown.transform.localScale = new Vector3(height * 0.15f, height - 0.5f, height * 0.15f);
         var col = t.gameObject.AddComponent<CapsuleCollider>();
-        col.radius = 0.35f; col.height = height; col.center = new Vector3(0, height / 2f, 0);
+        col.radius = 0.3f; col.height = height; col.center = new Vector3(0, height / 2f, 0);
     }
 
     /// <summary>A date palm: a slightly leaning trunk and a crown of drooping fronds.</summary>

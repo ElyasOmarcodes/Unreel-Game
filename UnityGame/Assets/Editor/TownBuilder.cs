@@ -613,27 +613,20 @@ public static class TownBuilder
         Barrel(t, new Vector3(3f, 0, d / 2f + 1f));
     }
 
-    /// <summary>Puts the store houses on free ground between the houses (not on streets, gardens or the canal).</summary>
+    /// <summary>
+    /// The store houses with a way onto the roof, on the main street before the houses are put in
+    /// (the rows leave room for them): two with the timber stair on the street side, one climbed the
+    /// hidden way from its back yard.
+    /// </summary>
     private static void Lofts()
     {
-        var placed = new List<Vector3>();
         int k = 0;
-        for (int ring = 0; ring < 70 && placed.Count < 3; ring += 2)
-            for (float x = -ring; x <= ring && placed.Count < 3; x += 2f)
-                foreach (float z in new[] { -(float)ring, (float)ring })
-                {
-                    var c = new Vector3(x, 0, z);
-                    if (Mathf.Abs(c.x) > Half - 12f || Mathf.Abs(c.z) > Half - 14f || (c.x > CanalX0 - 12f && c.x < CanalX1 + 12f)) continue;
-                    if (placed.Any(p => (p - c).magnitude < 28f)) continue;
-                    // the building, the stair in front (3 m) or the shed and crates behind (5 m), and a lane round it
-                    var area = Rect.MinMaxRect(c.x - 7.5f, c.z - 3.5f - 4.5f, c.x + 6.5f, c.z + 3.5f + 6f);
-                    if (taken.Any(r => r.Overlaps(area))) continue;
-                    taken.Add(area);
-                    Loft(c, placed.Count != 1, k++);
-                    placed.Add(c);
-                    Debug.Log($"[Map] OldTown store house ({(placed.Count != 1 ? "stair" : "hidden way")}) at {c}");
-                    break;
-                }
+        foreach (var (c, tall) in new[] { (new Vector3(-52f, 0, 12.6f), true), (new Vector3(26f, 0, 12.6f), false), (new Vector3(-52f, 0, -25f), true) })
+        {
+            taken.Add(Rect.MinMaxRect(c.x - 7.5f, c.z - 3.5f - 3.5f, c.x + 6.5f, c.z + 3.5f + (tall ? 1f : 6f)));
+            Loft(c, tall, k++);
+            Debug.Log($"[Map] OldTown store house ({(tall ? "stair" : "hidden way")}) at {c}");
+        }
     }
 
     /// <summary>A raised garden by the canal: stone retaining walls, a stair, a little pavilion, benches and trees.</summary>
@@ -745,6 +738,7 @@ public static class TownBuilder
         B(sign, "SignArm", new Vector3(0, 0.2f, -0.6f), new Vector3(0.06f, 0.06f, 1.2f), Iron, 1f, false);
         B(sign, "Sign", new Vector3(0, -0.3f, -0.9f), new Vector3(0.06f, 0.7f, 0.9f), AssetSetup.Solid("T_SignGold", new Color(0.85f, 0.65f, 0.25f), 0.6f, 0.5f), 1f, false);
 
+        Lofts();
         // houses along the streets: front to the street, gable up, in many colours and heights
         int index = 0;
         void Row(float from, float to, float lineZ, float facing, bool alongX)
@@ -811,7 +805,6 @@ public static class TownBuilder
             Barrel(cover, new Vector3(x + 0.7f, 0, z + 0.3f));
             Obstacles.CrateStack(cover, new Vector3(x + 1.6f, 0, z - 0.6f), R(0, 90), rng);
         }
-        Lofts();
         Obstacles.AmmoCrate(cover, new Vector3(-3f, 0, 18f), 0f);
         Obstacles.AmmoCrate(cover, new Vector3(30f, 0, -3.2f), 90f);
         Obstacles.AmmoCrate(cover, new Vector3(-50f, 0, 3.4f), 90f);
