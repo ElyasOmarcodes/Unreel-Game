@@ -217,8 +217,13 @@ public static class AssetSetup
         c.AddParameter("Prone", AnimatorControllerParameterType.Bool);
         c.AddParameter("Fire", AnimatorControllerParameterType.Trigger);
         c.AddParameter("Reload", AnimatorControllerParameterType.Trigger);
+        c.AddParameter("Cadence", AnimatorControllerParameterType.Float);
         var parameters = c.parameters;
-        foreach (var p in parameters) if (p.name == "Grounded") p.defaultBool = true;
+        foreach (var p in parameters)
+        {
+            if (p.name == "Grounded") p.defaultBool = true;
+            if (p.name == "Cadence") p.defaultFloat = 1f;
+        }
         c.parameters = parameters;
 
         var sm = c.layers[0].stateMachine;
@@ -238,6 +243,9 @@ public static class AssetSetup
         Add(tree, "Jog_Bwd_R_Loop", 0.7f, -0.7f);
         Add(tree, "Sprint_Loop", 0, 2);
         sm.defaultState = loco;
+        // step rate set by the agent: running takes shorter, quicker steps
+        loco.speedParameterActive = true;
+        loco.speedParameter = "Cadence";
 
         var crouch = c.CreateBlendTreeInController("Crouch", out var crouchTree, 0);
         crouchTree.blendType = BlendTreeType.FreeformDirectional2D;

@@ -57,13 +57,21 @@ namespace UA
         {
             var s = MakeScreen("profile");
             UIKit.Title(s, "PROFILE", -30, 64);
+            lookValues.Clear();
             var left = UIKit.Panel(s, 620, 820, -20);
             left.anchoredPosition = new Vector2(-560, -20);
             characterView = UIKit.Node(left, "Character").gameObject.AddComponent<RawImage>();
             characterView.rectTransform.Fill(12);
+            characterView.rectTransform.offsetMax = new Vector2(-12, -100);
             characterView.gameObject.AddComponent<RotateDrag>();
             var dragHint = UIKit.Txt(left, "drag to turn", 22, TextAnchor.LowerCenter, UIKit.Muted);
             dragHint.rectTransform.At(0.5f, 0f, 0, 20, 400, 30, 0.5f, 0f);
+            // ready-made characters: arrows go through them, every one keeps its own changes
+            System.Func<string> presetValue = () => Wardrobe.Presets[Settings.Preset].Name;
+            var presetText = UIKit.MiniStepper(left, "CHARACTER", 0, -14, 560, presetValue, d => { Settings.Preset += d; RefreshProfile(); });
+            lookValues.Add((presetText, presetValue));
+            var reset = UIKit.Btn(left, "RESET", () => { Settings.ResetLook(); RefreshProfile(); }, 24, null, "refresh");
+            reset.GetComponent<RectTransform>().At(1f, 0f, -20, 60, 170, 54, 1f, 0f);
 
             var right = UIKit.Panel(s, 1060, 820, -20);
             right.anchoredPosition = new Vector2(330, -20);
@@ -83,7 +91,6 @@ namespace UA
             // character: every piece chosen on its own, in two columns
             characterTab = UIKit.Node(right, "CharacterTab");
             characterTab.Fill();
-            lookValues.Clear();
             void Look(Wardrobe.Slot slot, int column, int row)
             {
                 System.Func<string> value = () => Wardrobe.Label(Settings.Look, slot);

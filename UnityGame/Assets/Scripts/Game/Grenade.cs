@@ -27,6 +27,8 @@ namespace UA
         public static Grenade Spawn(byte thrower, int seq, Vector3 origin, Vector3 velocity, bool authoritative)
         {
             if (Find(thrower, seq) is Grenade existing) return existing;
+            // the thrower's arm swings over the shoulder (everyone sees it, bots included)
+            if (World.I != null && World.I.Agents.TryGetValue(thrower, out var agent) && agent != null) agent.PlayThrow();
             if (material == null) material = new Material(Shader.Find("Standard")) { color = new Color(0.22f, 0.26f, 0.16f) };
             if (bounce == null) bounce = new PhysicsMaterial("Grenade") { bounciness = 0.35f, dynamicFriction = 0.6f, staticFriction = 0.6f, bounceCombine = PhysicsMaterialCombine.Average };
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);

@@ -26,6 +26,18 @@ public static class MapBuilder
     private static readonly List<Vector2Int> links = new List<Vector2Int>();
     private static readonly List<Renderer> lamps = new List<Renderer>();
 
+    // the metro under the south street (z = -26): floor 5 m down, the street slab is its ceiling
+    private const float MetroFloor = -5f, MetroCeiling = -1f;
+    private static readonly Rect MetroWest = Rect.MinMaxRect(-71.5f, -27f, -20f, -20.5f);
+    private static readonly Rect MetroHall = Rect.MinMaxRect(-20f, -32f, 20f, -20f);
+    private static readonly Rect MetroEast = Rect.MinMaxRect(20f, -27f, 71.5f, -20.5f);
+    // stairwells: open holes in the street
+    private static readonly Rect StairWest = Rect.MinMaxRect(-71.3f, -23.6f, -62f, -20.6f);
+    private static readonly Rect StairEast = Rect.MinMaxRect(62f, -23.6f, 71.3f, -20.6f);
+    private static readonly Rect StairHall = Rect.MinMaxRect(-5f, -23.2f, 4.3f, -20.3f);
+    private static readonly Rect[] Holes = { StairWest, StairEast, StairHall };
+    private static bool OverHole(Vector3 p, float margin = 2.5f) => Underground.InAny(Holes, p, margin);
+
     public static void BuildScene()
     {
         rng = new System.Random(7);
@@ -78,6 +90,7 @@ public static class MapBuilder
                 else BuildBlock(center, bx, bz);
             }
         BuildStreetProps();
+        BuildMetro();
         BuildBackdrop();
         BuildWaypoints();
 
@@ -213,7 +226,8 @@ public static class MapBuilder
     {
         float size = Half * 2 + 120;
         var asphalt = PortBuilder.Pbr("Road", "Asphalt025C", new Color(0.8f, 0.8f, 0.83f), 0.55f);
-        MeshGen.TexBox("Asphalt", new Vector3(0, -0.5f, 0), new Vector3(size, 1f, size), asphalt, 4f, map);
+        foreach (var r in Underground.Cover(new Rect(-size / 2f, -size / 2f, size, size), Holes))
+            MeshGen.TexBox("Asphalt", new Vector3(r.center.x, -0.5f, r.center.y), new Vector3(r.width, 1f, r.height), asphalt, 4f, map);
         var white = AssetSetup.Solid("LineWhite", new Color(0.85f, 0.85f, 0.82f), 0.2f);
         var yellow = AssetSetup.Solid("LineYellow", new Color(0.95f, 0.75f, 0.15f), 0.2f);
         // lane markings on every street line
@@ -223,6 +237,7 @@ public static class MapBuilder
             {
                 bool nearCross = new[] { -78f, -26f, 26f, 78f }.Any(x => Mathf.Abs(t + 1.25f - x) < Street / 2f + 0.5f);
                 if (nearCross) continue;
+                if (OverHole(new Vector3(c, 0, t + 1.25f), 0.6f) || OverHole(new Vector3(t + 1.25f, 0, c), 0.6f)) continue;
                 Box("Lane", new Vector3(c, 0.005f, t + 1.25f), new Vector3(0.15f, 0.01f, 2.5f), c == 26f || c == -26f ? yellow : white, null, 0, false);
                 Box("Lane", new Vector3(t + 1.25f, 0.005f, c), new Vector3(2.5f, 0.01f, 0.15f), c == 26f || c == -26f ? yellow : white, null, 0, false);
             }
@@ -230,6 +245,7 @@ public static class MapBuilder
             foreach (float d in new[] { -78f, -26f, 26f, 78f })
                 for (int i = -4; i <= 4; i++)
                 {
+                    if (OverHole(new Vector3(c + i * 1.2f, 0, d - Street / 2f - 1.2f), 0.5f)) continue;
                     Box("Crosswalk", new Vector3(c + i * 1.2f, 0.006f, d - Street / 2f - 1.2f), new Vector3(0.6f, 0.01f, 2.2f), white, null, 0, false);
                 }
         }
@@ -273,6 +289,8 @@ public static class MapBuilder
             (-1, -1) => (16f, 12f, 5),
             (0, -1) => (12f, 12f, 4),
             (-1, 0) => (12f, 14f, 3),
+            (1, 0) => (14f, 14f, 7),
+            (0, 1) => (12f, 16f, 6),
             _ => (0f, 0f, 0),
         };
         if (floors > 0)
@@ -349,6 +367,85 @@ public static class MapBuilder
             if (occupied.Any(o => o.Contains(new Vector2(p.x, p.z)))) continue;
             Box("Crate", p + Vector3.up * 0.76f, Vector3.one * 1.2f, crate, block, R(0, 90));
         }
+    }
+
+    /// <summary>
+    /// The metro under the south street: a station hall with a sunken track and a parked train, two
+    /// tunnels to stairs at the far crossings, and a stair from the hall up into the middle of the
+    /// street. Pillars, benches, ticket barriers and crates for cover; lights and light strips.
+    /// </summary>
+    private static void BuildMetro()
+    {
+        var t = new GameObject("Metro").transform;
+        t.SetParent(map, false);
+        var style = new Underground.Style
+        {
+            Floor = PortBuilder.Pbr("MetroTiles", "Tiles101", new Color(0.85f, 0.85f, 0.82f), 0.55f),
+            Wall = PortBuilder.Pbr("MetroWall", "Plaster001", new Color(0.86f, 0.88f, 0.86f), 0.4f),
+            Ceiling = PortBuilder.Pbr("Concrete", "Concrete034", Color.white, 0.6f),
+            Trim = PortBuilder.Pbr("OldConcrete", "Concrete042A", Color.white, 0.6f),
+            Lamp = AssetSetup.Mat("MetroLamp", new Color(1f, 0.97f, 0.9f), 0.5f, 0f, null, null, null, null, new Color(2.4f, 2.3f, 2.1f)),
+        };
+        var concrete = style.Ceiling;
+        var steps = PortBuilder.Pbr("StairConcrete", "Concrete034", new Color(0.9f, 0.89f, 0.86f), 0.5f);
+        float f = MetroFloor, c = MetroCeiling;
+        // tunnels (open at their hall end) and the hall (open where the tunnels come in)
+        // the hall floor drops 1 m into the track bed along its south side
+        var trench = Rect.MinMaxRect(-20f, -32f, 20f, -28.6f);
+        var none = new Rect[0];
+        Underground.Room(t, MetroWest, f, c, style, Holes, none, ('E', -27f, -20.5f));
+        Underground.Room(t, MetroEast, f, c, style, Holes, none, ('W', -27f, -20.5f));
+        Underground.Room(t, MetroHall, f, c, style, Holes, new[] { trench }, ('W', -27f, -20.5f), ('E', -27f, -20.5f));
+        MeshGen.TexBox("TrackBed", new Vector3(trench.center.x, f - 1.15f, trench.center.y), new Vector3(trench.width, 0.3f, trench.height), style.Trim, 2f, t);
+        MeshGen.TexBox("PlatformEdge", new Vector3(0, f - 0.5f, -28.45f), new Vector3(40f, 1.1f, 0.3f), concrete, 2f, t);
+        MeshGen.TexBox("SafetyLine", new Vector3(0, f + 0.005f, -28.2f), new Vector3(40f, 0.01f, 0.35f), AssetSetup.Solid("SafetyYellow", new Color(0.95f, 0.78f, 0.1f), 0.3f), 1f, t, 0, false);
+        foreach (float z in new[] { -31.2f, -29.4f })
+            MeshGen.TexBox("Rail", new Vector3(0, f - 0.92f, z), new Vector3(40f, 0.12f, 0.1f), AssetSetup.Solid("RailSteel", new Color(0.35f, 0.33f, 0.3f), 0.6f, 0.8f), 1f, t, 0, false);
+        // a train standing in the station: cover, and a wall of windows
+        var trainBody = AssetSetup.Mat("TrainBody", new Color(0.78f, 0.8f, 0.82f), 0.6f, 0.3f);
+        var trainStripe = AssetSetup.Solid("TrainStripe", new Color(0.1f, 0.35f, 0.7f), 0.5f);
+        var glass = AssetSetup.Solid("TrainGlass", new Color(0.08f, 0.1f, 0.12f), 0.9f, 0.4f);
+        MeshGen.RoundBox("Train", new Vector3(3f, f - 1f + 1.6f, -30.3f), new Vector3(24f, 2.9f, 2.9f), 0.35f, trainBody, 3f, t);
+        MeshGen.TexBox("TrainStripe", new Vector3(3f, f - 1f + 1.05f, -28.83f), new Vector3(23.6f, 0.25f, 0.04f), trainStripe, 1f, t, 0, false);
+        for (float x = -7f; x <= 13f; x += 2.5f)
+            MeshGen.TexBox("TrainWindow", new Vector3(3f + x - 3f, f - 1f + 2.1f, -28.83f), new Vector3(1.6f, 0.8f, 0.04f), glass, 1f, t, 0, false);
+        // pillars, benches, kiosk, ticket barriers, crates
+        foreach (float x in new[] { -14f, -7f, 8f, 14f })
+            MeshGen.RoundBox("Pillar", new Vector3(x, (f + c) / 2f, -26.5f), new Vector3(0.8f, c - f, 0.8f), 0.12f, style.Wall, 2f, t);
+        var wood = PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
+        foreach (float x in new[] { -11f, 11f })
+            MeshGen.RoundBox("Bench", new Vector3(x, f + 0.45f, -27.6f), new Vector3(3f, 0.12f, 0.6f), 0.04f, wood, 1f, t);
+        MeshGen.RoundBox("Kiosk", new Vector3(13f, f + 1.2f, -21.6f), new Vector3(3f, 2.4f, 2f), 0.1f, AssetSetup.Solid("Kiosk", new Color(0.7f, 0.2f, 0.15f), 0.4f), 1f, t);
+        for (int i = 0; i < 4; i++)
+            MeshGen.RoundBox("Barrier", new Vector3(-17f + i * 1.4f, f + 0.55f, -22f), new Vector3(0.3f, 1.1f, 1.6f), 0.06f, concrete, 1f, t);
+        Obstacles.CrateStack(t, new Vector3(-44f, f, -25.3f), 90f, rng);
+        Obstacles.CrateStack(t, new Vector3(46f, f, -25.3f), -90f, rng);
+        Obstacles.Blocks(t, new Vector3(-30f, f, -25.8f), 0f, 2);
+        Obstacles.Blocks(t, new Vector3(30f, f, -25.8f), 0f, 2);
+        Obstacles.AmmoCrate(t, new Vector3(-3f, f, -27.3f), 0f);
+        // stairs: from the tunnel ends up to the street at the far crossings, and from the hall up
+        global::Buildings.Stairs(t, new Vector3(-62f, f, StairWest.center.y), Vector3.left, -f, StairWest.height - 0.1f, steps);
+        global::Buildings.Stairs(t, new Vector3(62f, f, StairEast.center.y), Vector3.right, -f, StairEast.height - 0.1f, steps);
+        global::Buildings.Stairs(t, new Vector3(-5f, f, StairHall.center.y), Vector3.right, -f, StairHall.height - 0.1f, steps);
+        // the side of each stair facing the room gets a wall up to the street (no fall from the steps)
+        MeshGen.TexBox("StairWall", new Vector3(StairWest.center.x, (f + c) / 2f, StairWest.yMin - 0.15f), new Vector3(StairWest.width, c - f, 0.3f), style.Wall, 2f, t);
+        MeshGen.TexBox("StairWall", new Vector3(StairEast.center.x, (f + c) / 2f, StairEast.yMin - 0.15f), new Vector3(StairEast.width, c - f, 0.3f), style.Wall, 2f, t);
+        MeshGen.TexBox("StairWall", new Vector3(StairHall.center.x, (f + c) / 2f, StairHall.yMin - 0.15f), new Vector3(StairHall.width, c - f, 0.3f), style.Wall, 2f, t);
+        // railings around the openings in the street, open where the stairs arrive
+        var rail = PortBuilder.Pbr("CurbStone", "Concrete034", new Color(0.78f, 0.78f, 0.76f), 0.35f);
+        Underground.Railing(t, StairWest, 'W', rail);
+        Underground.Railing(t, StairEast, 'E', rail);
+        Underground.Railing(t, StairHall, 'E', rail);
+        // signs over the entrances
+        var sign = AssetSetup.Mat("MetroSign", new Color(0.1f, 0.3f, 0.75f), 0.5f, 0f, null, null, null, null, new Color(0.2f, 0.5f, 1.2f));
+        foreach (var (x, z) in new[] { (-72.2f, -24f), (72.2f, -24f), (5.2f, -23.6f) })
+        {
+            MeshGen.TexCylinder("SignPost", new Vector3(x, 0, z), 0.06f, 2.6f, AssetSetup.Solid("Pole", new Color(0.15f, 0.15f, 0.16f), 0.4f, 0.6f), 1f, t, false);
+            MeshGen.RoundBox("Sign", new Vector3(x, 2.75f, z), new Vector3(0.12f, 0.6f, 0.6f), 0.05f, sign, 1f, t, 0, false);
+        }
+        // lights: a few real ones in the hall and the tunnels
+        foreach (var p in new[] { new Vector3(-12f, -2f, -25f), new Vector3(3f, -2f, -25f), new Vector3(14f, -2f, -24f), new Vector3(-45f, -2f, -23.7f), new Vector3(45f, -2f, -23.7f) })
+            Underground.Lamp(t, p);
     }
 
     private static Material Paving => PortBuilder.Pbr("Paving", "PavingStones070", new Color(0.92f, 0.9f, 0.88f), 0.5f);
@@ -513,8 +610,9 @@ public static class MapBuilder
                     float t = start + R(-12f, 12f);
                     float side = rng.NextDouble() < 0.5 ? -1f : 1f;
                     var paint = paints[rng.Next(paints.Length)];
-                    if (rng.NextDouble() < 0.5) Car(props, new Vector3(line + side * (Street / 2f - 1.3f), 0, t), 0f, paint);
-                    else Car(props, new Vector3(t, 0, line + side * (Street / 2f - 1.3f)), 90f, paint);
+                    var carPos = rng.NextDouble() < 0.5 ? new Vector3(line + side * (Street / 2f - 1.3f), 0, t) : new Vector3(t, 0, line + side * (Street / 2f - 1.3f));
+                    if (OverHole(carPos, 3.5f)) continue;
+                    Car(props, carPos, Mathf.Abs(carPos.x - line) < 6f ? 0f : 90f, paint);
                 }
             }
         // concrete barriers and dumpsters in the streets
@@ -529,6 +627,7 @@ public static class MapBuilder
             float offset = (rng.NextDouble() < 0.5 ? -1f : 1f) * R(2.4f, 3.6f);   // keep the middle of the street free for the bots
             var p = vertical ? new Vector3(line + offset, 0, t) : new Vector3(t, 0, line + offset);
             if (Spawns().Any(sp => (sp - p).sqrMagnitude < 25f)) continue;
+            if (OverHole(p, 2.5f)) continue;
             float yaw = (vertical ? 0f : 90f) + R(-25f, 25f);
             if (rng.NextDouble() < 0.7)
             {
@@ -555,6 +654,7 @@ public static class MapBuilder
                     float offset = side * (kind == 2 || kind == 0 ? 3.7f : kind == 3 ? 3.0f : 3.4f);
                     var p = vertical ? new Vector3(line + offset, 0, t) : new Vector3(t, 0, line + offset);
                     if (spawns.Any(sp => (sp - p).sqrMagnitude < 36f)) continue;
+                    if (OverHole(p, 3f)) continue;
                     if (Physics.CheckBox(p + Vector3.up * 1.1f, new Vector3(2f, 0.85f, 2f), Quaternion.identity)) continue;
                     float streetYaw = vertical ? 0f : 90f;
                     switch (kind)
@@ -575,12 +675,13 @@ public static class MapBuilder
                 if (rng.NextDouble() > 0.4) continue;
                 float sx = rng.NextDouble() < 0.5 ? -1f : 1f, sz = rng.NextDouble() < 0.5 ? -1f : 1f;
                 var p = new Vector3(a + sx * 4.3f, 0, b + sz * 4.3f);
+                if (OverHole(p, 2.5f)) continue;
                 Obstacles.SandbagBunker(cover, p, Mathf.Atan2(-sx, -sz) * Mathf.Rad2Deg);
             }
 
         // ammunition crates on the sidewalks around the city and one by the fountain
         foreach (var (x, z, yaw) in new[] { (-33.5f, -12f, 90f), (33.5f, 12f, 90f), (-12f, 33.5f, 0f), (12f, -33.5f, 0f),
-                                            (-70.5f, -60f, 90f), (70.5f, 60f, 90f), (-60f, 70.5f, 0f), (60f, -70.5f, 0f), (0f, 6.6f, 0f) })
+                                            (-70.5f, -60f, 90f), (70.5f, 60f, 90f), (-60f, 70.5f, 0f), (60f, -70.5f, 0f), (-5.2f, 0.8f, 90f) })
             Obstacles.AmmoCrate(props, new Vector3(x, x == 0f ? 0.19f : 0.16f, z), yaw);
 
         // street lights on the sidewalk corners (lamps glow at night)
@@ -724,6 +825,21 @@ public static class MapBuilder
             court.Add(down);
         }
         for (int i = 0; i < court.Count; i++) Link(court[i], court[(i + 1) % court.Count]);
+        // the metro: down the end stairs, through the tunnels and the hall, up the hall stair
+        float f = MetroFloor;
+        Link(new Vector3(-78, 0, -26), new Vector3(-72.6f, 0, -22.1f));
+        Link(new Vector3(-72.6f, 0, -22.1f), new Vector3(-60.5f, f, -22.1f));
+        Link(new Vector3(-60.5f, f, -22.1f), new Vector3(-40f, f, -23.7f));
+        Link(new Vector3(-40f, f, -23.7f), new Vector3(-16f, f, -24f));
+        Link(new Vector3(-16f, f, -24f), new Vector3(0f, f, -25.5f));
+        Link(new Vector3(0f, f, -25.5f), new Vector3(16f, f, -24f));
+        Link(new Vector3(16f, f, -24f), new Vector3(40f, f, -23.7f));
+        Link(new Vector3(40f, f, -23.7f), new Vector3(60.5f, f, -22.1f));
+        Link(new Vector3(60.5f, f, -22.1f), new Vector3(72.6f, 0, -22.1f));
+        Link(new Vector3(72.6f, 0, -22.1f), new Vector3(78, 0, -26));
+        Link(new Vector3(-16f, f, -24f), new Vector3(-6.6f, f, -21.75f));
+        Link(new Vector3(-6.6f, f, -21.75f), new Vector3(5.8f, 0, -21.75f));
+        Link(new Vector3(5.8f, 0, -21.75f), new Vector3(26, 0, -26));
     }
 
     /// <summary>Spawn points all over the map: every crossing, the middle of every street, park corners.</summary>
@@ -743,6 +859,8 @@ public static class MapBuilder
         // on the park terrace corners and in the sunken court
         foreach (var (x, z) in new[] { (-14f, -14f), (14f, -14f), (-14f, 14f), (14f, 14f) }) list.Add(new Vector3(x, 1.8f, z));
         foreach (var (x, z) in new[] { (-6.5f, -3.5f), (6.5f, 3.5f) }) list.Add(new Vector3(x, 0.25f, z));
+        // in the metro
+        foreach (var x in new[] { -42f, -12f, 12f, 42f }) list.Add(new Vector3(x, MetroFloor + 0.1f, -24.5f));
         return list;
     }
 }

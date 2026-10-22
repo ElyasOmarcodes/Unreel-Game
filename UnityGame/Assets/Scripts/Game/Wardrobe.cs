@@ -159,6 +159,40 @@ namespace UA
             return best;
         }
 
+        /// <summary>A ready-made character: a name, a body and a style with its colours.</summary>
+        public struct Preset
+        {
+            public string Name;
+            public int Body, Style, TopColor, BottomColor, HeadColor, Beard;
+            public Preset(string name, int body, int style, int top, int bottom, int head, int beard)
+            { Name = name; Body = body; Style = style; TopColor = top; BottomColor = bottom; HeadColor = head; Beard = beard; }
+        }
+
+        /// <summary>The characters the profile page offers (each one can be changed piece by piece).</summary>
+        public static readonly Preset[] Presets =
+        {
+            new Preset("ELYAS", 0, 2, 0, 0, 0, 1),       // Afghan: white perahan, pakol, waistcoat
+            new Preset("ABID", 1, 3, 1, 1, 2, 1),        // Afghan elder: blue chapan, white turban
+            new Preset("MONIB", 0, 0, 2, 2, 3, 0),       // soldier in woodland camo
+            new Preset("HAMMAD", 0, 4, 0, 0, 2, 1),      // Arab thobe and ghutra
+            new Preset("JACK", 0, 1, 3, 3, 1, 1),        // special forces, black
+            new Preset("ZALMAI", 1, 6, 1, 0, 2, 1),      // everyday: long shirt, jeans
+            new Preset("KARIM", 0, 5, 1, 1, 1, 0),       // statesman: navy suit
+            new Preset("NASIR", 1, 7, 4, 2, 3, 1),       // village guard
+            new Preset("MARYAM", 2, 8, 0, 0, 1, 0),      // abaya and hijab
+            new Preset("ZARGHUNA", 3, 9, 4, 4, 3, 0),    // woman soldier
+        };
+
+        public static int PresetLook(int index)
+        {
+            var p = Presets[((index % Presets.Length) + Presets.Length) % Presets.Length];
+            int look = Apply(Set(0, Slot.Body, p.Body), Styles[p.Style]);
+            look = Set(look, Slot.TopColor, p.TopColor);
+            look = Set(look, Slot.BottomColor, p.BottomColor);
+            look = Set(look, Slot.HeadColor, p.HeadColor);
+            return Set(look, Slot.Beard, p.Beard);
+        }
+
         /// <summary>A believable random outfit (bots, first start).</summary>
         public static int Random()
         {

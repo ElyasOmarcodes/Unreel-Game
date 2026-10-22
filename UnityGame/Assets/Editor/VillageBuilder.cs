@@ -14,7 +14,8 @@ using UnityEngine;
 /// </summary>
 public static class VillageBuilder
 {
-    public const float Half = 86f;              // playable half size
+    public const float Half = 86f;              // the village and its fields (bots, spawns)
+    private const float Edge = Half + 44f;      // players can climb the hills around it up to here
     private const float Size = 340f;
 
     private static Transform root;
@@ -26,9 +27,29 @@ public static class VillageBuilder
     // ------------------------------------------------------------------ materials
 
     // kahgel: mud and straw plaster, light beige brown (the hand smoothed clay texture)
-    private static Material Mud => PortBuilder.Pbr("V_Mud", "Clay007", new Color(0.88f, 0.78f, 0.64f), 0.12f);
-    private static Material MudPlaster => PortBuilder.Pbr("V_MudPlaster", "Clay007", new Color(0.97f, 0.9f, 0.78f), 0.1f);
-    private static Material MudDark => PortBuilder.Pbr("V_MudDark", "Clay007", new Color(0.68f, 0.58f, 0.47f), 0.1f);
+    // (shader UA/Mud: projected in world space, so separate pieces read as one plastered surface)
+    private static Material Mud => MudMat("V_Mud", new Color(0.9f, 0.8f, 0.66f));
+    private static Material MudPlaster => MudMat("V_MudPlaster", new Color(0.98f, 0.9f, 0.77f));
+    private static Material MudDark => MudMat("V_MudDark", new Color(0.7f, 0.6f, 0.48f));
+    private static readonly Dictionary<string, Material> mudMats = new Dictionary<string, Material>();
+
+    private static Material MudMat(string name, Color tint)
+    {
+        if (mudMats.TryGetValue(name, out var cached) && cached != null) return cached;
+        string path = $"{AssetSetup.Generated}/Materials/{name}.mat";
+        AssetDatabase.DeleteAsset(path);
+        var shader = Shader.Find("UA/Mud");
+        if (shader == null) Debug.LogWarning("[Map] village: mud shader missing");
+        var m = new Material(shader ?? Shader.Find("Standard")) { name = name };
+        m.SetTexture("_MainTex", T("Clay007_BaseColor.jpg"));
+        m.SetTexture("_Patches", T("Ground104_BaseColor.jpg"));
+        m.SetColor("_Color", tint);
+        m.SetFloat("_Tile", 2.2f);
+        m.SetFloat("_PatchTile", 9f);
+        m.SetFloat("_GroundY", 0f);
+        AssetDatabase.CreateAsset(m, path);
+        return mudMats[name] = m;
+    }
     private static Material Dirt => PortBuilder.Pbr("V_Dirt", "Ground104", Color.white, 0.1f);
     private static Material Wood => PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
     private static Material OldWood => PortBuilder.Pbr("V_OldWood", "Planks037A", new Color(0.72f, 0.62f, 0.5f), 0.3f);
@@ -204,24 +225,54 @@ public static class VillageBuilder
     /// A wall along local X from x0 to x1 at local z, base y, with openings (centre x, width, bottom,
     /// top): wooden lintels over doors and windows.
     /// </summary>
-    private static void Wall(Transform t, float x0, float x1, float z, float y, float height, float thick, List<(float c, float w, float b, float top)> openings, Material m = null, bool alongZ = false)
+    private static void Wall(Transform t, float x0, float x1, float z, float y, float height, float thick, List<(float c, float w, float b, float top)> openings, Material m = null, bool alongZ = false, System.Random ruin = null)
     {
         Vector3 P(float u, float v) => alongZ ? new Vector3(z, v, u) : new Vector3(u, v, z);
         Vector3 S(float len, float h) => alongZ ? new Vector3(thick, h, len) : new Vector3(len, h, thick);
+        // a run of solid wall; a ruined one is broken into pieces of different heights with gaps
+        void Span(float a0, float a1)
+        {
+            if (a1 - a0 < 0.02f) return;
+            if (ruin == null) { Block("Wall", t, P((a0 + a1) / 2f, y + height / 2f), S(a1 - a0 + 0.02f, height), m); return; }
+            for (float u = a0; u < a1 - 0.01f;)
+            {
+                float len = Mathf.Min(a1 - u, 0.8f + (float)ruin.NextDouble());
+                if (ruin.NextDouble() > 0.12)
+                {
+                    float hh = height * (0.3f + 0.7f * (float)ruin.NextDouble());
+                    Block("RuinedWall", t, P(u + len / 2f, y + hh / 2f), S(len + 0.02f, hh), m, 0.2f);
+                }
+                u += len;
+            }
+        }
         float cursor = x0;
         foreach (var o in openings.OrderBy(o => o.c))
         {
             float a = o.c - o.w / 2f, b = o.c + o.w / 2f;
-            if (a > cursor) Block("Wall", t, P((cursor + a) / 2f, y + height / 2f), S(a - cursor + 0.02f, height), m);
+            if (a > cursor) Span(cursor, a);
             if (o.b > 0.01f) Block("Sill", t, P(o.c, y + o.b / 2f), S(o.w + 0.02f, o.b), m);
-            if (o.top < height - 0.01f)
+            if (o.top < height - 0.01f && ruin == null)
             {
                 Block("Above", t, P(o.c, y + (o.top + height) / 2f), S(o.w + 0.02f, height - o.top), m);
                 Block("Lintel", t, P(o.c, y + o.top + 0.06f), S(o.w + 0.5f, 0.12f) + (alongZ ? new Vector3(0.06f, 0, 0) : new Vector3(0, 0, 0.06f)), Wood, 0.03f, false);
             }
             cursor = b;
         }
-        if (x1 > cursor) Block("Wall", t, P((cursor + x1) / 2f, y + height / 2f), S(x1 - cursor, height), m);
+        if (x1 > cursor) Span(cursor, x1);
+    }
+
+    /// <summary>A heap of fallen mud blocks and beams.</summary>
+    private static void Rubble(Transform t, Vector3 local, float radius, System.Random r)
+    {
+        for (int i = 0; i < 9; i++)
+        {
+            float a = (float)r.NextDouble() * Mathf.PI * 2f, d = (float)r.NextDouble() * radius;
+            var size = new Vector3(0.4f + (float)r.NextDouble() * 0.8f, 0.25f + (float)r.NextDouble() * 0.45f, 0.4f + (float)r.NextDouble() * 0.7f);
+            var piece = Block("Rubble", t, local + new Vector3(Mathf.Cos(a) * d, size.y * 0.35f, Mathf.Sin(a) * d), size, i % 3 == 0 ? MudDark : Mud, 0.15f, i % 2 == 0);
+            if (piece != null) piece.transform.rotation = t.rotation * Quaternion.Euler((float)r.NextDouble() * 30f - 15f, (float)r.NextDouble() * 360f, (float)r.NextDouble() * 30f - 15f);
+        }
+        var beam = Block("FallenBeam", t, local + new Vector3(0, 0.3f, 0), new Vector3(0.14f, 0.14f, radius * 1.8f), OldWood, 0.03f, false);
+        if (beam != null) beam.transform.rotation = t.rotation * Quaternion.Euler(18f, (float)r.NextDouble() * 360f, 0);
     }
 
     private static List<(float, float, float, float)> Openings(params (float c, float w, float b, float top)[] o) => o.ToList();
@@ -229,9 +280,21 @@ public static class VillageBuilder
     private static (float, float, float, float) Window(float c) => (c, 0.7f, 1.1f, 1.9f);
 
     /// <summary>Flat mud roof on wooden beams with a low parapet; the beam ends show on the front and back.</summary>
-    private static void Roof(Transform t, float w, float l, float y, bool parapet, float stairGap = 0f, float gapSide = 1f)
+    private static void Roof(Transform t, float w, float l, float y, bool parapet, float stairGap = 0f, float gapSide = 1f, System.Random collapsed = null)
     {
-        Block("Roof", t, new Vector3(0, y + 0.15f, 0), new Vector3(w + 0.3f, 0.3f, l + 0.3f), MudPlaster, 0.1f);
+        if (collapsed != null)
+        {
+            // fallen in: a piece of roof over the front, the bare beams over the rest
+            Block("Roof", t, new Vector3(0, y + 0.15f, -l / 2f + l * 0.22f), new Vector3(w + 0.3f, 0.3f, l * 0.44f + 0.3f), MudPlaster, 0.05f);
+            for (float x = -w / 2f + 0.4f; x < w / 2f - 0.2f; x += 0.75f)
+                if (collapsed.NextDouble() < 0.55)
+                {
+                    var beam = Block("BrokenBeam", t, new Vector3(x, y + 0.05f, l * 0.1f), new Vector3(0.13f, 0.13f, l * (0.35f + 0.4f * (float)collapsed.NextDouble())), OldWood, 0.03f, false);
+                    if (beam != null) beam.transform.rotation = t.rotation * Quaternion.Euler((float)collapsed.NextDouble() * 25f, 0, 0);
+                }
+            return;
+        }
+        Block("Roof", t, new Vector3(0, y + 0.15f, 0), new Vector3(w + 0.3f, 0.3f, l + 0.3f), MudPlaster, 0.05f);
         for (float x = -w / 2f + 0.4f; x < w / 2f - 0.2f; x += 0.75f)
             foreach (float s in new[] { -1f, 1f })
                 Block("Beam", t, new Vector3(x, y - 0.08f, s * (l / 2f + 0.3f)), new Vector3(0.13f, 0.13f, 0.45f), OldWood, 0.03f, false);
@@ -257,19 +320,28 @@ public static class VillageBuilder
     /// A mud house (front at local -Z): rooms with a partition, doors and small windows, a flat roof,
     /// optionally an upper room (balakhana) with a wooden balcony. Returns the roof height.
     /// </summary>
-    private static float House(Transform parent, Vector3 pos, float yaw, float w, float l, bool upper, int stairSide)
+    private static float House(Transform parent, Vector3 pos, float yaw, float w, float l, bool upper, int stairSide, System.Random ruin = null)
     {
         var t = new GameObject("House").transform;
         t.SetParent(parent, false);
         t.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
         const float h = 3.1f, thick = 0.45f;
         Block("Floor", t, new Vector3(0, 0.05f, 0), new Vector3(w, 0.1f, l), Dirt, 0.04f);
-        Wall(t, -w / 2f, w / 2f, -l / 2f + thick / 2f, 0, h, thick, Openings(Door(-w * 0.22f), Door(w * 0.25f), Window(-w * 0.4f), Window(w * 0.02f), Window(w * 0.42f)));
-        Wall(t, -w / 2f, w / 2f, l / 2f - thick / 2f, 0, h, thick, Openings(Window(-w * 0.25f), Window(w * 0.25f)));
-        Wall(t, -l / 2f + thick, l / 2f - thick, -w / 2f + thick / 2f, 0, h, thick, Openings(Window(0)), null, true);
-        Wall(t, -l / 2f + thick, l / 2f - thick, w / 2f - thick / 2f, 0, h, thick, Openings(Window(0)), null, true);
+        // the walls rise into the roof slab (no seam between wall and roof)
+        float wh = h + 0.2f;
+        Wall(t, -w / 2f, w / 2f, -l / 2f + thick / 2f, 0, wh, thick, Openings(Door(-w * 0.22f), Door(w * 0.25f), Window(-w * 0.4f), Window(w * 0.02f), Window(w * 0.42f)), null, false, ruin);
+        Wall(t, -w / 2f, w / 2f, l / 2f - thick / 2f, 0, wh, thick, Openings(Window(-w * 0.25f), Window(w * 0.25f)), null, false, ruin);
+        Wall(t, -l / 2f + thick, l / 2f - thick, -w / 2f + thick / 2f, 0, wh, thick, Openings(Window(0)), null, true, ruin);
+        Wall(t, -l / 2f + thick, l / 2f - thick, w / 2f - thick / 2f, 0, wh, thick, Openings(Window(0)), null, true, ruin);
         // partition between the two rooms with a doorway
-        Wall(t, -l / 2f + thick, l / 2f - thick, 0, 0, h, 0.3f, Openings((-0.4f, 1f, 0f, 2.1f)), MudDark, true);
+        Wall(t, -l / 2f + thick, l / 2f - thick, 0, 0, wh, 0.3f, Openings((-0.4f, 1f, 0f, 2.1f)), MudDark, true, ruin);
+        if (ruin != null)
+        {
+            Roof(t, w, l, h, false, 0f, 1f, ruin);
+            Rubble(t, new Vector3(w * 0.2f, 0, l * 0.15f), 1.6f, ruin);
+            Rubble(t, new Vector3(-w * 0.3f, 0, l * 0.2f), 1.2f, ruin);
+            return h;
+        }
         // the guest room has a raised sitting platform (toshak place) along the back wall: low cover
         Block("Platform", t, new Vector3(-w / 4f, 0.25f, l / 2f - 1f), new Vector3(w / 2f - 1f, 0.4f, 1.1f), MudDark, 0.12f);
         Roof(t, w, l, h, true, 1.6f, stairSide);
@@ -286,10 +358,10 @@ public static class VillageBuilder
             u.SetParent(t, false);
             float uw = w * 0.45f, ul = l - 0.6f;
             u.localPosition = new Vector3(-stairSide * (w / 2f - uw / 2f - 0.15f), top, 0.15f);
-            Wall(u, -uw / 2f, uw / 2f, -ul / 2f + 0.2f, 0, 2.8f, 0.4f, Openings(Window(-uw * 0.2f), Window(uw * 0.25f)));
-            Wall(u, -uw / 2f, uw / 2f, ul / 2f - 0.2f, 0, 2.8f, 0.4f, Openings(Window(0)));
-            Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, -stairSide * (uw / 2f - 0.2f), 0, 2.8f, 0.4f, Openings(Window(0.6f)), null, true);
-            Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, stairSide * (uw / 2f - 0.2f), 0, 2.8f, 0.4f, Openings(Door(-0.4f)), null, true);
+            Wall(u, -uw / 2f, uw / 2f, -ul / 2f + 0.2f, 0, 3f, 0.4f, Openings(Window(-uw * 0.2f), Window(uw * 0.25f)));
+            Wall(u, -uw / 2f, uw / 2f, ul / 2f - 0.2f, 0, 3f, 0.4f, Openings(Window(0)));
+            Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, -stairSide * (uw / 2f - 0.2f), 0, 3f, 0.4f, Openings(Window(0.6f)), null, true);
+            Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, stairSide * (uw / 2f - 0.2f), 0, 3f, 0.4f, Openings(Door(-0.4f)), null, true);
             Roof(u, uw, ul, 2.8f, false);
             // wooden balcony on carved posts
             Block("Balcony", u, new Vector3(0, 0.0f, -ul / 2f - 0.75f), new Vector3(uw * 0.7f, 0.12f, 1.1f), OldWood, 0.03f);
@@ -298,17 +370,52 @@ public static class VillageBuilder
         return top;
     }
 
+    /// <summary>
+    /// A small one-room mud house (kota): door at the front, a small window at the back, a flat roof on
+    /// beams. On sloping ground it stands on a mud plinth. A ruined one has broken walls and no roof.
+    /// </summary>
+    private static void Hut(Transform parent, Vector3 pos, float yaw, float w, float l, System.Random ruin, bool plinth = true)
+    {
+        var t = new GameObject(ruin != null ? "RuinedHut" : "Hut").transform;
+        t.SetParent(parent, false);
+        float floor = pos.y;
+        if (plinth)
+        {
+            // stand on the highest corner, a plinth fills down to the lowest
+            float lo = float.MaxValue, hi = float.MinValue;
+            foreach (var (dx, dz) in new[] { (-1f, -1f), (1f, -1f), (-1f, 1f), (1f, 1f) })
+            {
+                var p = pos + Quaternion.Euler(0, yaw, 0) * new Vector3(dx * w / 2f, 0, dz * l / 2f);
+                float y = Y(p.x, p.z);
+                lo = Mathf.Min(lo, y);
+                hi = Mathf.Max(hi, y);
+            }
+            floor = hi + 0.15f;
+            t.SetPositionAndRotation(new Vector3(pos.x, floor, pos.z), Quaternion.Euler(0, yaw, 0));
+            Block("Plinth", t, new Vector3(0, (lo - floor) / 2f - 0.25f, 0), new Vector3(w + 0.4f, floor - lo + 0.5f, l + 0.4f), MudDark, 0.15f);
+        }
+        else t.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
+        const float h = 2.6f, thick = 0.4f;
+        Wall(t, -w / 2f, w / 2f, -l / 2f + thick / 2f, 0, h + 0.2f, thick, Openings(Door(0.2f)), null, false, ruin);
+        Wall(t, -w / 2f, w / 2f, l / 2f - thick / 2f, 0, h + 0.2f, thick, Openings(Window(0)), null, false, ruin);
+        foreach (float s in new[] { -1f, 1f })
+            Wall(t, -l / 2f + thick, l / 2f - thick, s * (w / 2f - thick / 2f), 0, h + 0.2f, thick, Openings(), null, true, ruin);
+        if (ruin == null) Roof(t, w, l, h, true);
+        else Rubble(t, new Vector3(0.3f, 0, 0.2f), 1f, ruin);
+    }
+
     /// <summary>A compound: mud walls with a gate (and a breach), corner towers, a house against the back wall and a yard.</summary>
-    private static void Compound(Vector3 c, float w, float l, float yaw, bool upper, bool towers, int seed)
+    private static void Compound(Vector3 c, float w, float l, float yaw, bool upper, bool towers, int seed, bool ruined = false)
     {
         var r = new System.Random(seed);
+        var ruin = ruined ? r : null;
         var t = new GameObject("Qala").transform;
         t.SetParent(root, false);
         t.SetPositionAndRotation(c, Quaternion.Euler(0, yaw, 0));
         const float wallH = 2.9f, thick = 0.6f;
         float gate = (float)(r.NextDouble() - 0.5) * (w - 8f);
         // front wall with the gate, back wall with a breach, solid sides with a low gap
-        Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)));
+        Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)), null, false, ruin);
         Block("GateBeam", t, new Vector3(gate, 2.62f, -l / 2f), new Vector3(3.2f, 0.2f, 0.75f), OldWood, 0.04f, false);
         foreach (float s in new[] { -1f, 1f })
         {
@@ -317,11 +424,11 @@ public static class VillageBuilder
             if (leaf != null) leaf.transform.RotateAround(t.TransformPoint(new Vector3(gate + s * 1.3f, 0, -l / 2f - 0.3f)), Vector3.up, s * 20f);
         }
         float breach = (float)(r.NextDouble() - 0.5) * (w - 6f);
-        Wall(t, -w / 2f, w / 2f, l / 2f, 0, wallH, thick, Openings((breach, 1.5f, 0f, wallH)));
+        Wall(t, -w / 2f, w / 2f, l / 2f, 0, wallH, thick, Openings((breach, 1.5f, 0f, wallH)), null, false, ruin);
         foreach (float s in new[] { -1f, 1f })
-            Wall(t, -l / 2f + thick / 2f, l / 2f - thick / 2f, s * w / 2f, 0, wallH, thick, Openings((s * l * 0.15f, 1.3f, 0.95f, wallH)), null, true);
-        // soft rounded wall tops
-        foreach (float s in new[] { -1f, 1f })
+            Wall(t, -l / 2f + thick / 2f, l / 2f - thick / 2f, s * w / 2f, 0, wallH, thick, Openings((s * l * 0.15f, 1.3f, 0.95f, wallH)), null, true, ruin);
+        // soft rounded wall tops (a ruin has broken tops instead)
+        foreach (float s in ruined ? new float[0] : new[] { -1f, 1f })
         {
             Block("Cap", t, new Vector3(0, wallH + 0.08f, s * l / 2f), new Vector3(w + 0.1f, 0.16f, thick + 0.12f), MudPlaster, 0.08f, false);
             Block("Cap", t, new Vector3(s * w / 2f, wallH + 0.08f, 0), new Vector3(thick + 0.12f, 0.16f, l), MudPlaster, 0.08f, false);
@@ -331,30 +438,36 @@ public static class VillageBuilder
                 foreach (float z in new[] { -1f, 1f })
                 {
                     var p = t.TransformPoint(new Vector3(x * w / 2f, 0, z * l / 2f));
-                    MeshGen.TexCylinder("Tower", p, 1.5f, 4.2f, Mud, 2.5f, t);
-                    MeshGen.TexCylinder("TowerTop", p + Vector3.up * 4.2f, 1.62f, 0.3f, MudPlaster, 2.5f, t, false);
+                    float th = ruined ? 1.8f + (float)r.NextDouble() * 2f : 4.2f;
+                    MeshGen.TexCylinder("Tower", p, 1.5f, th, Mud, 2.5f, t);
+                    if (!ruined) MeshGen.TexCylinder("TowerTop", p + Vector3.up * th, 1.62f, 0.3f, MudPlaster, 2.5f, t, false);
                 }
         // the house along the back wall, its stair on the side with room for it
         float hw = Mathf.Min(w - 5.2f, 13f), hl = 6f;
         int stairSide = r.NextDouble() < 0.5 ? -1 : 1;
         float hx = -stairSide * (w / 2f - thick - 0.3f - hw / 2f);
-        House(t, t.TransformPoint(new Vector3(hx, 0, l / 2f - thick / 2f - 0.2f - hl / 2f)), yaw, hw, hl, upper, stairSide);
+        House(t, t.TransformPoint(new Vector3(hx, 0, l / 2f - thick / 2f - 0.2f - hl / 2f)), yaw, hw, hl, upper && !ruined, stairSide, ruin);
+        // a small store room in the front corner away from the gate, its door to the yard
+        float g = gate >= 0f ? 1f : -1f;
+        Hut(t, t.TransformPoint(new Vector3(-g * (w / 2f - thick / 2f - 2.2f), 0, -l / 2f + thick / 2f + 2.1f)), yaw + 180f, 4f, 3.6f, ruin, false);
         // the yard: tandoor oven, hay stack, firewood, a tree, sacks and a water jar
         Yard(t, w, l, gate, r);
+        if (ruined) Rubble(t, new Vector3(breach, 0, l / 2f - 1.5f), 1.8f, r);
     }
 
     private static void Yard(Transform t, float w, float l, float gate, System.Random r)
     {
         float yardZ = -l / 2f + (l - 6f) / 2f;
-        var tandoor = t.TransformPoint(new Vector3(w / 2f - 2f, 0, -l / 2f + 2f));
+        float g = gate >= 0f ? 1f : -1f;
+        var tandoor = t.TransformPoint(new Vector3(g * (w / 2f - 1.6f), 0, yardZ + 2f));
         MeshGen.TexCylinder("Tandoor", tandoor, 0.55f, 0.9f, MudDark, 1.5f, t);
         var hay = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         hay.name = "HayStack";
         hay.transform.SetParent(t, false);
-        hay.transform.localPosition = new Vector3(-w / 2f + 2.4f, 0.6f, yardZ);
-        hay.transform.localScale = new Vector3(2.6f, 2.2f, 2.6f);
+        hay.transform.localPosition = new Vector3(-g * (w / 2f - 2.4f), 0.6f, yardZ + 2.4f);
+        hay.transform.localScale = new Vector3(2.4f, 2f, 2.4f);
         hay.GetComponent<Renderer>().sharedMaterial = Hay;
-        Block("Firewood", t, new Vector3(-w / 2f + 1.2f, 0.45f, -l / 2f + 1.8f), new Vector3(1.8f, 0.9f, 1.1f), OldWood, 0.08f);
+        Block("Firewood", t, new Vector3(g * (w / 2f - 1.2f), 0.45f, -l / 2f + 1.6f), new Vector3(1.1f, 0.9f, 1.8f), OldWood, 0.08f);
         Block("Sacks", t, new Vector3(gate + (gate > 0 ? -3.5f : 3.5f), 0.35f, yardZ + 1f), new Vector3(1.6f, 0.7f, 0.9f), Hay, 0.25f);
         // a charpai (rope bed) as low cover
         Block("Charpai", t, new Vector3(w * 0.15f, 0.45f, yardZ - 1.5f), new Vector3(1.9f, 0.12f, 0.95f), OldWood, 0.03f);
@@ -499,6 +612,7 @@ public static class VillageBuilder
         rng = new System.Random(23);
         root = new GameObject("Map_Village").transform;
         flats.Clear();
+        mudMats.Clear();
         // where the compounds stand the ground is levelled (with a few metres of margin)
         var compounds = new (Vector3 c, float w, float l, float yaw, bool upper, bool towers)[]
         {
@@ -522,7 +636,26 @@ public static class VillageBuilder
         flats.Add(new Rect(-16f, -21f, 32f, 42f));   // the bazaar square
         BuildGround();
         int seed = 5;
-        foreach (var k in compounds) Compound(k.c, k.w, k.l, k.yaw, k.upper, k.towers, seed++);
+        var ruins = new[] { 5, 8, 9 };
+        for (int i = 0; i < compounds.Length; i++)
+        {
+            var k = compounds[i];
+            Compound(k.c, k.w, k.l, k.yaw, k.upper, k.towers, seed++, ruins.Contains(i));
+        }
+        // lone huts: by the fields and up on the hills around the village, some of them in ruins
+        var huts = new GameObject("Huts").transform;
+        huts.SetParent(root, false);
+        var hutSpots = new[]
+        {
+            (new Vector3(-78f, 0, -40f), 20f), (new Vector3(76f, 0, -44f), -15f), (new Vector3(40f, 0, 76f), 180f), (new Vector3(-80f, 0, 32f), 90f),
+            (new Vector3(4f, 0, 112f), 170f), (new Vector3(112f, 0, -24f), -100f), (new Vector3(-110f, 0, 8f), 80f), (new Vector3(-62f, 0, -110f), 10f),
+            (new Vector3(96f, 0, 92f), 225f), (new Vector3(-100f, 0, 96f), 135f),
+        };
+        for (int i = 0; i < hutSpots.Length; i++)
+        {
+            var (p, yaw) = hutSpots[i];
+            Hut(huts, p, yaw, 4f + (i % 3) * 0.8f, 3.6f + (i % 2) * 0.6f, i % 3 == 1 ? new System.Random(100 + i) : null);
+        }
         Bazaar();
 
         // the watchtower on its hill, the bridge and a ford over the river bed
@@ -611,8 +744,8 @@ public static class VillageBuilder
         // invisible walls just outside the playable area
         foreach (var (c, s) in new[]
         {
-            (new Vector3(0, 10f, Half + 3f), new Vector3(Half * 2f + 10f, 40f, 1f)), (new Vector3(0, 10f, -Half - 3f), new Vector3(Half * 2f + 10f, 40f, 1f)),
-            (new Vector3(Half + 3f, 10f, 0), new Vector3(1f, 40f, Half * 2f + 10f)), (new Vector3(-Half - 3f, 10f, 0), new Vector3(1f, 40f, Half * 2f + 10f)),
+            (new Vector3(0, 20f, Edge), new Vector3(Edge * 2f, 80f, 1f)), (new Vector3(0, 20f, -Edge), new Vector3(Edge * 2f, 80f, 1f)),
+            (new Vector3(Edge, 20f, 0), new Vector3(1f, 80f, Edge * 2f)), (new Vector3(-Edge, 20f, 0), new Vector3(1f, 80f, Edge * 2f)),
         })
         {
             var wall = new GameObject("Edge");

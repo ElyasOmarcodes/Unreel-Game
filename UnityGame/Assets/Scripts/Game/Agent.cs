@@ -63,7 +63,10 @@ namespace UA
 
         /// <summary>Where the local player's crosshair points this frame (others aim along their yaw / pitch).</summary>
         [System.NonSerialized] public Vector3? AimPoint;
-        private Transform chestBone, handBone;
+        private Transform chestBone, handBone, upperArmBone, lowerArmBone;
+        private float throwStart = -10f, stepTimer;
+        private int stepIndex;
+        private static readonly int CadenceId = Animator.StringToHash("Cadence");
 
         public Transform Muzzle => weapon >= 0 && Muzzles[weapon] != null ? Muzzles[weapon] : Head;
         public Vector3 Eye => transform.position + Vector3.up * (State == null ? 1.6f : State.Prone ? 0.45f : State.Crouch ? 1.15f : 1.6f);
@@ -73,8 +76,11 @@ namespace UA
         {
             foreach (var t in GetComponentsInChildren<Transform>(true))
             {
-                if (t.name == "spine_03") chestBone = t;
-                else if (t.name == "hand_r") handBone = t;
+                string n = t.name.ToLowerInvariant();
+                if (n == "spine_03") chestBone = t;
+                else if (n == "hand_r") handBone = t;
+                else if (n == "upperarm_r") upperArmBone = t;
+                else if (n == "lowerarm_r") lowerArmBone = t;
             }
         }
 
@@ -83,6 +89,30 @@ namespace UA
         /// barrel points exactly at the aim point and the bullets visibly leave the muzzle towards it.
         /// </summary>
         private void LateUpdate()
+        {
+            AimArms();
+            ThrowArm();
+        }
+
+        /// <summary>Grenade throw: the right arm winds up behind the head, swings over and follows through.</summary>
+        public void PlayThrow() => throwStart = Time.time;
+
+        private void ThrowArm()
+        {
+            const float length = 0.65f;
+            float t = Time.time - throwStart;
+            if (t < 0f || t > length || upperArmBone == null || State == null || !Alive) return;
+            float angle = t < 0.25f ? Mathf.SmoothStep(0f, -150f, t / 0.25f)
+                : t < 0.4f ? Mathf.Lerp(-150f, 40f, (t - 0.25f) / 0.15f)
+                : Mathf.SmoothStep(40f, 0f, (t - 0.4f) / (length - 0.4f));
+            var right = transform.right;
+            // the body turns into the throw: away while winding up, towards the target on release
+            if (chestBone != null && !State.Prone) chestBone.rotation = Quaternion.AngleAxis(angle / 150f * 28f, Vector3.up) * chestBone.rotation;
+            upperArmBone.rotation = Quaternion.AngleAxis(angle, right) * upperArmBone.rotation;
+            if (lowerArmBone != null) lowerArmBone.rotation = Quaternion.AngleAxis(Mathf.Min(0f, angle) * 0.35f, right) * lowerArmBone.rotation;
+        }
+
+        private void AimArms()
         {
             if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
             if (State.MoveY > 1.2f) return;   // sprinting: the gun is carried, not aimed
@@ -252,6 +282,10 @@ namespace UA
             animMoveY = Mathf.Lerp(animMoveY, s.MoveY, k);
             Anim.SetFloat(MoveXId, animMoveX);
             Anim.SetFloat(MoveYId, animMoveY);
+            // shorter, quicker steps when running (same speed over the ground)
+            float move = new Vector2(animMoveX, Mathf.Min(1f, animMoveY)).magnitude;
+            Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 1.12f : 1f + 0.3f * Mathf.Clamp01(move));
+            Steps(s, move);
             Anim.SetBool(CrouchId, s.Crouch);
             Anim.SetBool(ProneId, s.Prone);
             if (s.Prone != proneBox && Hitboxes.Length > 0 && Hitboxes[0].GetComponent<CapsuleCollider>() is CapsuleCollider body)
@@ -267,6 +301,21 @@ namespace UA
             Anim.SetBool(DeadId, !s.Alive);
             Anim.SetFloat(PitchId, Mathf.Clamp(s.Pitch / 70f, -1f, 1f));
             if (Anim.layerCount > 1) Anim.SetLayerWeight(1, s.Alive && !s.Prone ? 1f : 0f);
+        }
+
+        /// <summary>Footsteps (walking, running, sprinting, crouching) and the rustle of crawling.</summary>
+        private void Steps(PlayerState s, float move)
+        {
+            if (!s.Alive || !s.Grounded || move < 0.25f) { stepTimer = Mathf.Min(stepTimer, 0.06f); return; }
+            stepTimer -= Time.deltaTime;
+            if (stepTimer > 0f) return;
+            bool sprint = animMoveY > 1.2f;
+            stepTimer = s.Prone ? 0.8f : s.Crouch ? 0.5f : sprint ? 0.25f : move < 0.6f ? 0.45f : 0.27f;
+            float volume = (IsLocal ? 0.3f : 0.6f) * (s.Crouch ? 0.45f : 1f) * (sprint ? 1.15f : 1f);
+            string clip = s.Prone ? "crawl_" + (stepIndex++ % 2)
+                : !s.Crouch && (sprint || move > 0.8f) ? "step_run_" + (stepIndex++ % 3)
+                : "step_" + (stepIndex++ % 4);
+            Sfx.Step(clip, transform.position, s.Prone ? volume * 0.8f : volume);
         }
 
         public void PlayFire() { if (Anim != null) Anim.SetTrigger(FireId); }

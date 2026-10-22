@@ -166,6 +166,35 @@ def grenade():
     save("grenade_bounce", click(length, 0.001, 900, 0.02, 1.0) + lowpass(noise(length), 1500) * env(length, 0.0005, 0.01) * 0.5)
 
 
+def footsteps():
+    """Steps on dry ground: a soft heel thud, the crunch of grit under the sole, a little scuff."""
+    for i in range(4):
+        length = 0.22
+        heel = lowpass(noise(length), 420 + 60 * i) * env(length, 0.002, 0.03) * 1.4
+        crunch = band(noise(length), 1800, 6500) * env(length, 0.001, 0.018, 0.012 + 0.004 * i) * (0.55 + 0.1 * i)
+        grains = np.zeros(int(SR * length))
+        for k in range(6 + i):
+            at = int(SR * (0.01 + rng.random() * 0.06))
+            grains[at] += rng.uniform(0.3, 1.0) * (1 if rng.random() < 0.5 else -1)
+        grains = band(grains, 2500, 8000) * 3
+        save(f"step_{i}", heel + crunch + grains * 0.4)
+    for i in range(3):
+        # running: harder heel strike, more grit, a short scrape as the foot pushes off
+        length = 0.24
+        heel = lowpass(noise(length), 520 + 80 * i) * env(length, 0.001, 0.025) * 1.7
+        crunch = band(noise(length), 1500, 7000) * env(length, 0.001, 0.022, 0.008) * 0.9
+        scrape = band(noise(length), 900, 3500) * env(length, 0.02, 0.03, 0.06) * 0.35
+        save(f"step_run_{i}", heel + crunch + scrape)
+    for i in range(2):
+        # crawling: cloth and gear dragged over the ground
+        length = 0.6
+        t = t_axis(length)
+        rustle = band(noise(length), 700, 4200) * (0.6 + 0.4 * np.sin(2 * np.pi * (7 + 3 * i) * t) ** 2)
+        shape = np.sin(np.pi * np.clip(t / length, 0, 1)) ** 1.5
+        drag = lowpass(noise(length), 300) * shape * 0.5
+        save(f"crawl_{i}", rustle * shape + drag)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     #        name           len  crack lo    hi    tau    thumpHz tau  lvl  tail  lvl  drive action(at, Hz, level)
@@ -183,6 +212,7 @@ def main():
     explosion()
     grenade()
     ui()
+    footsteps()
 
 
 if __name__ == "__main__":

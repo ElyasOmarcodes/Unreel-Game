@@ -224,6 +224,9 @@ namespace UA
                 (0, "20c-ammo-crate", new Vector3(-29.5f, 1.9f, -9.5f), new Vector3(-33.5f, 0.5f, -12f)),
                 (0, "20d-downtown-tower", new Vector3(38f, 3f, 18f), new Vector3(62f, 14f, 42f)),
                 (0, "20e-downtown-terrace", new Vector3(-12f, 2.6f, -12.5f), new Vector3(4f, 0.5f, 3f)),
+                (0, "20f-metro-entrance", new Vector3(-58f, 3f, -15f), new Vector3(-68f, -1.5f, -22f)),
+                (0, "20g-metro-hall", new Vector3(-17.5f, -3.3f, -21.3f), new Vector3(10f, -4.6f, -29f)),
+                (0, "20h-metro-tunnel", new Vector3(-24f, -3.4f, -22f), new Vector3(-60f, -3.8f, -24f)),
                 (3, "21-port-office", new Vector3(44f, 4f, 4f), new Vector3(58f, 5f, 24f)),
                 (3, "22-port-office-inside", new Vector3(53f, 1.7f, 16.3f), new Vector3(63f, 1.6f, 24f)),
                 (3, "23-port-office-roof", new Vector3(52f, 12f, 17f), new Vector3(10f, 3f, 0f)),
@@ -235,6 +238,8 @@ namespace UA
                 (3, "27c-port-pit", new Vector3(66f, 4f, -40f), new Vector3(79f, -2f, -23f)),
                 (3, "27d-port-crane", new Vector3(-2f, 6f, 34f), new Vector3(-21f, 8f, 57f)),
                 (4, "27e-port-ship", new Vector3(40f, 9f, 48f), new Vector3(10f, 4f, 88f)),
+                (3, "27f-port-tunnel", new Vector3(79f, -2.3f, -9f), new Vector3(79f, -3f, 20f)),
+                (3, "27g-port-slopes", new Vector3(44f, 4f, 46f), new Vector3(62f, 1f, 56f)),
                 (5, "28-village-bazaar", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
                 (5, "29-village-compound", new Vector3(-16f, 8f, -4f), new Vector3(-34f, 2f, 12f)),
                 (5, "30-village-house", new Vector3(18f, 3f, 12f), new Vector3(32f, 2f, 18f)),
@@ -242,6 +247,8 @@ namespace UA
                 (5, "32-village-river", new Vector3(30f, 5f, -25f), new Vector3(12f, 0f, -40f)),
                 (5, "33-village-terraces", new Vector3(-28f, 10f, 30f), new Vector3(-52f, 5f, 60f)),
                 (6, "34-village-sunset", new Vector3(-62f, 26f, -72f), new Vector3(0f, 0f, 0f)),
+                (5, "35-village-ruins", new Vector3(-46f, 6f, -2f), new Vector3(-62f, 1f, -12f)),
+                (5, "36-village-hills", new Vector3(20f, 22f, 70f), new Vector3(4f, 18f, 112f)),
             };
             foreach (var v in views)
             {

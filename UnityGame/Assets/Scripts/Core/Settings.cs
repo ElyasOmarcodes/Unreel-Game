@@ -33,11 +33,20 @@ namespace UA
         {
             get
             {
-                if (!PlayerPrefs.HasKey("look2")) PlayerPrefs.SetInt("look2", Wardrobe.Random());
-                return PlayerPrefs.GetInt("look2");
+                string key = "look_p" + Preset;
+                if (!PlayerPrefs.HasKey(key)) PlayerPrefs.SetInt(key, Wardrobe.PresetLook(Preset));
+                return PlayerPrefs.GetInt(key);
             }
-            set => PlayerPrefs.SetInt("look2", value);
+            set => PlayerPrefs.SetInt("look_p" + Preset, value);
         }
+        /// <summary>Which ready-made character is played (each keeps its own changes).</summary>
+        public static int Preset
+        {
+            get => Mathf.Clamp(PlayerPrefs.GetInt("preset", 0), 0, Wardrobe.Presets.Length - 1);
+            set => PlayerPrefs.SetInt("preset", ((value % Wardrobe.Presets.Length) + Wardrobe.Presets.Length) % Wardrobe.Presets.Length);
+        }
+        /// <summary>Back to how the ready-made character came.</summary>
+        public static void ResetLook() => Look = Wardrobe.PresetLook(Preset);
         public static float ControlsOpacity { get => PlayerPrefs.GetFloat("ctrlAlpha", 1f); set => PlayerPrefs.SetFloat("ctrlAlpha", Mathf.Clamp(value, 0.3f, 1.5f)); }
         public static bool ShowFps { get => PlayerPrefs.GetInt("fps", 0) == 1; set => PlayerPrefs.SetInt("fps", value ? 1 : 0); }
         public static byte Primary { get => (byte)PlayerPrefs.GetInt("primary", 0); set => PlayerPrefs.SetInt("primary", value); }

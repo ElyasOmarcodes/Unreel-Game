@@ -26,6 +26,42 @@ namespace UA
             source.Play();
         }
 
+        private static readonly List<AudioSource> steps = new List<AudioSource>();
+
+        /// <summary>
+        /// Footsteps and other small body sounds: their own few voices that fade out within 30 m, so
+        /// they never take a voice from a gunshot.
+        /// </summary>
+        public static void Step(string name, Vector3 position, float volume)
+        {
+            var clip = Clip(name);
+            if (clip == null) return;
+            if (root == null) Next();
+            AudioSource source = null;
+            foreach (var s in steps)
+                if (!s.isPlaying) { source = s; break; }
+            if (source == null)
+            {
+                if (steps.Count >= 8) return;
+                var go = new GameObject("Step");
+                go.transform.SetParent(root);
+                source = go.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                source.rolloffMode = AudioRolloffMode.Linear;
+                source.minDistance = 2f;
+                source.maxDistance = 30f;
+                source.dopplerLevel = 0f;
+                source.spatialBlend = 1f;
+                source.priority = 200;
+                steps.Add(source);
+            }
+            source.transform.position = position;
+            source.pitch = Random.Range(0.9f, 1.1f);
+            source.volume = volume;
+            source.clip = clip;
+            source.Play();
+        }
+
         private static AudioClip Clip(string name)
         {
             if (!clips.TryGetValue(name, out var clip))
@@ -40,6 +76,7 @@ namespace UA
                 root = new GameObject("Sfx").transform;
                 Object.DontDestroyOnLoad(root.gameObject);
                 pool.Clear();
+                steps.Clear();
             }
             foreach (var s in pool)
                 if (!s.isPlaying) return s;

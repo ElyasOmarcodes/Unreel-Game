@@ -334,6 +334,44 @@ public static class MeshGen
         return Save(key, mesh);
     }
 
+    /// <summary>
+    /// A ramp-shaped wedge: width along X, rising along +Z from 0 at the origin to height at length.
+    /// Flat faces with UVs in meters.
+    /// </summary>
+    public static Mesh Wedge(float width, float length, float height, float texScale)
+    {
+        string key = $"wedge_{K(width)}_{K(length)}_{K(height)}_{K(texScale)}";
+        if (cache.TryGetValue(key, out var cached)) return cached;
+        var v = new List<Vector3>(); var n = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
+        float hw = width / 2f;
+        // a polygon facing 'outward': fan from the first corner, wound clockwise as seen from outside
+        void Face(Vector3 outward, params Vector3[] corners)
+        {
+            int start = v.Count;
+            var normal = outward.normalized;
+            var u = Vector3.Cross(normal, Mathf.Abs(normal.y) > 0.9f ? Vector3.forward : Vector3.up).normalized;
+            var w = Vector3.Cross(normal, u);
+            foreach (var c in corners) { v.Add(c); n.Add(normal); uv.Add(new Vector2(Vector3.Dot(c, u), Vector3.Dot(c, w)) / texScale); }
+            for (int i = 1; i + 1 < corners.Length; i++)
+            {
+                var cross = Vector3.Cross(corners[i] - corners[0], corners[i + 1] - corners[0]);
+                if (Vector3.Dot(cross, normal) > 0) { t.Add(start); t.Add(start + i); t.Add(start + i + 1); }
+                else { t.Add(start); t.Add(start + i + 1); t.Add(start + i); }
+            }
+        }
+        var a = new Vector3(-hw, 0, 0); var b = new Vector3(hw, 0, 0);
+        var c0 = new Vector3(-hw, 0, length); var d = new Vector3(hw, 0, length);
+        var e = new Vector3(-hw, height, length); var f = new Vector3(hw, height, length);
+        Face(Vector3.down, a, b, d, c0);
+        Face(Vector3.forward, c0, d, f, e);
+        Face(new Vector3(0, length, -height), a, e, f, b);
+        Face(Vector3.left, a, c0, e);
+        Face(Vector3.right, b, f, d);
+        var mesh = new Mesh();
+        mesh.SetVertices(v); mesh.SetNormals(n); mesh.SetUVs(0, uv); mesh.SetTriangles(t, 0);
+        return Save(key, mesh);
+    }
+
     /// <summary>Game object with a generated mesh, a material and (optionally) a collider.</summary>
     public static GameObject Object(string name, Mesh mesh, Material material, Transform parent, Vector3 position, float yaw = 0f, Collider collider = null)
     {

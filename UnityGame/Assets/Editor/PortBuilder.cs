@@ -18,8 +18,13 @@ public static class PortBuilder
     public const float HalfX = 92f, HalfZ = 64f;
     // the sunken loading pit in the east of the yard (x0, z0, width, depth) and its depth
     private static readonly Rect Pit = new Rect(72f, -34f, 14f, 22f);
-    private const float PitDepth = 2.4f;
-    private static bool InPit(Vector3 p, float margin = 1.5f) => p.x > Pit.xMin - margin && p.x < Pit.xMax + margin && p.z > Pit.yMin - margin && p.z < Pit.yMax + margin;
+    private const float PitDepth = 4f;
+    // a service tunnel runs north from the pit under the yard to a stair up near the pump house,
+    // with a pump room off its side
+    private static readonly Rect Tunnel = Rect.MinMaxRect(76f, -12f, 82f, 31.6f);
+    private static readonly Rect PumpRoom = Rect.MinMaxRect(82f, 4f, 90f, 14f);
+    private static readonly Rect ExitHole = Rect.MinMaxRect(77.2f, 24f, 80.8f, 31.6f);
+    private static bool InPit(Vector3 p, float margin = 1.5f) => Underground.InAny(new[] { Pit, ExitHole }, p, margin);
 
     private static Transform root;
     private static System.Random rng;
@@ -363,14 +368,17 @@ public static class PortBuilder
         Box("PitWall", new Vector3(Pit.xMin + 0.15f, floor / 2f, c.z), new Vector3(0.3f, PitDepth, Pit.height), Concrete, 2.5f, t);
         Box("PitWall", new Vector3(Pit.xMax - 0.15f, floor / 2f, c.z), new Vector3(0.3f, PitDepth, Pit.height), Concrete, 2.5f, t);
         Box("PitWall", new Vector3(c.x, floor / 2f, Pit.yMin + 0.15f), new Vector3(Pit.width, PitDepth, 0.3f), Concrete, 2.5f, t);
-        Box("PitWall", new Vector3(c.x, floor / 2f, Pit.yMax - 0.15f), new Vector3(Pit.width, PitDepth, 0.3f), Concrete, 2.5f, t);
+        // north wall: the tunnel opens out of it
+        Box("PitWall", new Vector3((Pit.xMin + Tunnel.xMin) / 2f, floor / 2f, Pit.yMax - 0.15f), new Vector3(Tunnel.xMin - Pit.xMin, PitDepth, 0.3f), Concrete, 2.5f, t);
+        Box("PitWall", new Vector3((Tunnel.xMax + Pit.xMax) / 2f, floor / 2f, Pit.yMax - 0.15f), new Vector3(Pit.xMax - Tunnel.xMax, PitDepth, 0.3f), Concrete, 2.5f, t);
+        Box("PitWall", new Vector3(Tunnel.center.x, -0.5f, Pit.yMax - 0.15f), new Vector3(Tunnel.width, 1f, 0.3f), Concrete, 2.5f, t);
+        MeshGen.TexBox("TunnelSign", new Vector3(Tunnel.center.x, -0.75f, Pit.yMax - 0.32f), new Vector3(3f, 0.4f, 0.04f), Yellow, 1f, t, 0, false);
         // stairs down at the west end (rising towards the west edge)
         float run = Mathf.CeilToInt(PitDepth / 0.2f) * 0.36f;
         Buildings.Stairs(t, new Vector3(Pit.xMin + 0.3f + run, floor, c.z + 6f), Vector3.left, PitDepth, 1.8f, Concrete);
-        // truck ramp from the south edge down to the floor
-        float rampLength = 9f, slope = Mathf.Atan2(PitDepth, rampLength) * Mathf.Rad2Deg;
-        var ramp = Box("Ramp", new Vector3(c.x + 3f, floor / 2f, Pit.yMin + 0.3f + rampLength / 2f), new Vector3(4f, 0.4f, Mathf.Sqrt(rampLength * rampLength + PitDepth * PitDepth)), OldConcrete, 2f, t);
-        ramp.transform.rotation = Quaternion.Euler(slope, 0, 0);
+        // truck ramp from the south edge down to the floor (a solid slope)
+        const float rampLength = 14f;
+        Underground.Wedge(t, "Ramp", new Vector3(c.x + 3f, floor, Pit.yMin + 0.3f + rampLength), new Vector3(c.x + 3f, 0f, Pit.yMin + 0.3f), 4f, OldConcrete);
         Box("RampWall", new Vector3(c.x + 0.8f, floor / 2f + 0.3f, Pit.yMin + 0.3f + rampLength / 2f), new Vector3(0.3f, PitDepth + 0.6f, rampLength), Concrete, 2f, t);
         // kerbs around the edge, open at the stairs and the ramp
         MeshGen.RoundBox("Kerb", new Vector3(Pit.xMax + 0.3f, 0.45f, c.z), new Vector3(0.5f, 0.9f, Pit.height), 0.07f, Concrete, 2f, t);
@@ -380,7 +388,58 @@ public static class PortBuilder
         // inside: a container and pallets of crates
         Container(new Vector3(c.x - 2.5f, floor, c.z + 2f), 0, 5, t);
         Pallet(new Vector3(c.x + 4f, floor, c.z + 6f), 20f, 3, t);
-        Drums(new Vector3(c.x + 3.5f, floor, c.z - 1f), 4, t);
+        Drums(new Vector3(c.x - 5f, floor, c.z - 8f), 4, t);
+    }
+
+    /// <summary>The service tunnel from the pit to a stair up by the pump house, and the pump room.</summary>
+    private static void ServiceTunnel()
+    {
+        var t = new GameObject("ServiceTunnel").transform;
+        t.SetParent(root, false);
+        var style = new Underground.Style
+        {
+            Floor = OldConcrete, Wall = Concrete, Ceiling = Concrete, Trim = RustPlates,
+            Lamp = AssetSetup.Mat("TunnelLamp", new Color(1f, 0.9f, 0.7f), 0.5f, 0f, null, null, null, null, new Color(2.2f, 1.9f, 1.3f)),
+        };
+        float f = -PitDepth, c = -1f;
+        var holes = new[] { ExitHole };
+        var none = new Rect[0];
+        Underground.Room(t, Tunnel, f, c, style, holes, none, ('S', Tunnel.xMin, Tunnel.xMax), ('E', PumpRoom.yMin + 2f, PumpRoom.yMax - 2f));
+        Underground.Room(t, PumpRoom, f, c, style, none, none, ('W', PumpRoom.yMin + 2f, PumpRoom.yMax - 2f));
+        // stair up to the yard at the north end
+        Buildings.Stairs(t, new Vector3(ExitHole.center.x, f, ExitHole.yMin + 0.2f), Vector3.forward, PitDepth, ExitHole.width - 0.1f, Concrete);
+        foreach (float x in new[] { ExitHole.xMin - 0.15f, ExitHole.xMax + 0.15f })
+            Box("StairWall", new Vector3(x, (f + c) / 2f, ExitHole.center.y), new Vector3(0.3f, c - f, ExitHole.height), Concrete, 2f, t);
+        Underground.Railing(t, ExitHole, 'N', Concrete);
+        // pipes along the walls, a big pump and tanks in the pump room, crates for cover
+        foreach (float y in new[] { -1.6f, -2.1f })
+        {
+            var pipe = MeshGen.Object("Pipe", MeshGen.Cylinder(0.18f, Tunnel.height, 2f, 12), TankPaint, t, new Vector3(Tunnel.xMin + 0.35f, y, Tunnel.yMin));
+            pipe.transform.rotation = Quaternion.Euler(90, 0, 0);
+        }
+        MeshGen.TexCylinder("Pump", new Vector3(87f, f, 9f), 1.2f, 1.8f, Yellow, 1f, t);
+        MeshGen.TexCylinder("Tank", new Vector3(88.3f, f, 5.6f), 0.9f, 2.4f, TankPaint, 1f, t);
+        MeshGen.TexCylinder("Tank", new Vector3(88.3f, f, 12.4f), 0.9f, 2.4f, TankPaint, 1f, t);
+        Pallet(new Vector3(84f, f, 12.8f), 0, 2, t);
+        Obstacles.CrateStack(t, new Vector3(79f, f, -2f), 0f, rng);
+        Obstacles.Blocks(t, new Vector3(79f, f, 14f), 0f, 1);
+        Obstacles.AmmoCrate(t, new Vector3(84.5f, f, 6f), 90f);
+        Underground.Lamp(t, new Vector3(79f, -1.8f, 4f), 13f, 1.1f);
+        Underground.Lamp(t, new Vector3(79f, -1.8f, 20f), 13f, 1.1f);
+        Underground.Lamp(t, new Vector3(86f, -1.8f, 9f), 9f, 1.1f);
+    }
+
+    /// <summary>Sloped surfaces in the yard: a ramp onto the loading dock, one onto a container, a ramped block.</summary>
+    private static void Slopes()
+    {
+        var t = new GameObject("Slopes").transform;
+        t.SetParent(root, false);
+        Underground.Wedge(t, "DockRamp", new Vector3(-80f, 0, -14f), new Vector3(-80f, 1.4f, -24f), 4f, OldConcrete);
+        Underground.Wedge(t, "ContainerRamp", new Vector3(-84f, 0, 4f), new Vector3(-84f, 2.62f, -2.95f), 2.2f, Walkway);
+        MeshGen.RoundBox("RampBlock", new Vector3(62f, 1f, 56f), new Vector3(6f, 2f, 6f), 0.1f, Concrete, 2f, t);
+        Underground.Wedge(t, "BlockRamp", new Vector3(52f, 0, 56f), new Vector3(59f, 2f, 56f), 4f, OldConcrete);
+        Underground.Wedge(t, "BlockRamp", new Vector3(72f, 0, 56f), new Vector3(65f, 2f, 56f), 4f, OldConcrete);
+        MeshGen.RoundBox("RampBlockWall", new Vector3(62f, 2.5f, 58.7f), new Vector3(6f, 1f, 0.5f), 0.07f, Concrete, 2f, t);
     }
 
     /// <summary>A rail-mounted gantry crane over the north quay; a steel stair climbs to a platform on one leg.</summary>
@@ -518,15 +577,18 @@ public static class PortBuilder
         LoadProps();
 
         // ground, quay and sea
-        // the yard (in four pieces around the loading pit)
+        // the yard: a 1 m slab laid around the loading pit and the tunnel stairwell, quay walls below
         float yx = HalfX + 8f, yz = HalfZ + 8f;
-        void Ground(float x0, float x1, float z0, float z1) =>
-            Box("Yard", new Vector3((x0 + x1) / 2f, -1.5f, (z0 + z1) / 2f), new Vector3(x1 - x0, 3f, z1 - z0), Asphalt, 5f, root);
-        Ground(-yx, Pit.xMin, -yz, yz);
-        Ground(Pit.xMax, yx, -yz, yz);
-        Ground(Pit.xMin, Pit.xMax, -yz, Pit.yMin);
-        Ground(Pit.xMin, Pit.xMax, Pit.yMax, yz);
+        foreach (var r in Underground.Cover(Rect.MinMaxRect(-yx, -yz, yx, yz), new[] { Pit, ExitHole }))
+            Box("Yard", new Vector3(r.center.x, -0.5f, r.center.y), new Vector3(r.width, 1f, r.height), Asphalt, 5f, root);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            Box("QuayWall", new Vector3(0, -2.4f, s * yz), new Vector3(yx * 2f, 2.8f, 0.6f), OldConcrete, 3f, root, 0, false);
+            Box("QuayWall", new Vector3(s * yx, -2.4f, 0), new Vector3(0.6f, 2.8f, yz * 2f), OldConcrete, 3f, root, 0, false);
+        }
         LoadingPit();
+        ServiceTunnel();
+        Slopes();
         var sea = MeshGen.Object("Sea", MeshGen.Box(new Vector3(1600, 0.1f, 1600), 40f), AssetSetup.Mat("Port_Sea", new Color(0.08f, 0.22f, 0.32f), 0.95f, 0.1f), root, new Vector3(0, -2.6f, 0));
         sea.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
@@ -705,16 +767,22 @@ public static class PortBuilder
         // the loading pit: down the stairs and the ramp, joined to the nearest points above and below
         float run = Mathf.CeilToInt(PitDepth / 0.2f) * 0.36f;
         var c = new Vector3(Pit.center.x, 0, Pit.center.y);
-        foreach (var (top, bottom) in new[]
+        float f = -PitDepth;
+        var chains = new[]
         {
-            (new Vector3(Pit.xMin - 1.2f, 0, c.z + 6f), new Vector3(Pit.xMin + run + 1f, -PitDepth, c.z + 6f)),
-            (new Vector3(c.x + 3f, 0, Pit.yMin - 1.5f), new Vector3(c.x + 3f, -PitDepth, Pit.yMin + 10.5f)),
-        })
+            new[] { new Vector3(Pit.xMin - 1.2f, 0, c.z + 6f), new Vector3(Pit.xMin + run + 1f, f, c.z + 6f) },
+            new[] { new Vector3(c.x + 3f, 0, Pit.yMin - 1.5f), new Vector3(c.x + 3f, f, Pit.yMin + 15.5f) },
+            new[] { new Vector3(79f, f, -10f), new Vector3(79f, f, 9f), new Vector3(79f, f, 23.2f), new Vector3(79f, 0, 33f) },
+            new[] { new Vector3(79f, f, 9f), new Vector3(86f, f, 9f) },
+        };
+        foreach (var chain in chains)
         {
-            int a = points.Count, b = points.Count + 1;
-            points.Add(top);
-            points.Add(bottom);
-            links.Add(new Vector2Int(a, b));
+            int a = points.Count, b = points.Count + chain.Length - 1;
+            for (int i = 0; i < chain.Length; i++)
+            {
+                points.Add(chain[i]);
+                if (i > 0) links.Add(new Vector2Int(a + i - 1, a + i));
+            }
             foreach (int end in new[] { a, b })
             {
                 var p = points[end];
