@@ -231,4 +231,60 @@ else
   echo "::warning::the car pack could not be downloaded; simple cars are used"
 fi
 
+# ---------------------------------------------------------------- sounds (OpenGameArt): footsteps recorded on sand/grass
+# and stone by Fantozzi (CC0), pain and death voices by Michel Baradari (CC-BY 3.0, credited in the game)
+cd "$WORK"
+mkdir -p snd && cd snd
+command -v ffmpeg >/dev/null && command -v 7z >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg p7zip-full >/dev/null; } || true
+oga() {  # every archive or sound file linked from an OpenGameArt page
+  curl -sfL "https://opengameart.org/content/$1" | grep -oE 'https://opengameart.org/sites/default/files/[^"<> ]+\.(7z|zip|ogg|wav|flac)' | sort -u |
+    while read -r u; do curl -sfL "$u" -o "$(basename "$u")" || echo "could not download $u"; done
+}
+oga fantozzis-footsteps-grasssand-stone || true
+oga 11-male-human-paindeath-sounds || true
+for a in *.7z *.zip; do [ -f "$a" ] && 7z x -y -o"x_${a%.*}" "$a" >/dev/null || true; done
+find . -type f \( -iname "*.ogg" -o -iname "*.wav" -o -iname "*.flac" \) | sort
+mkdir -p "$DEST/Sounds/Resources/Audio"
+python3 - "$DEST/Sounds/Resources/Audio" <<'PY' || echo "::warning::the sound packs could not be prepared; the made-up sounds are used"
+import array, os, subprocess, sys, wave
+out = sys.argv[1]
+files = sorted(os.path.join(d, f) for d, _, fs in os.walk(".") for f in fs if f.lower().endswith((".ogg", ".wav", ".flac")))
+def stem(f): return os.path.splitext(os.path.basename(f))[0].lower()
+def pick(f):
+    # one file per sound: prefer the lossless copy of a pack that ships both
+    return not (f.lower().endswith(".ogg") and any(g != f and stem(g) == stem(f) for g in files))
+files = [f for f in files if pick(f)]
+def convert(src, name, peak, keep):
+    """mono 44.1 kHz 16 bit, leading silence cut, at most `keep` seconds, peak at `peak` of full scale"""
+    tmp = os.path.join(out, name + ".tmp.wav")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-ac", "1", "-ar", "44100",
+                    "-af", f"silenceremove=start_periods=1:start_threshold=-50dB,atrim=0:{keep},afade=t=out:st={keep - 0.04}:d=0.04",
+                    "-sample_fmt", "s16", tmp], check=True)
+    with wave.open(tmp) as w:
+        data = array.array("h", w.readframes(w.getnframes()))
+    os.remove(tmp)
+    top = max(1, max(abs(x) for x in data))
+    data = array.array("h", (int(x * peak * 32767 / top) for x in data))
+    with wave.open(os.path.join(out, name + ".wav"), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(44100); w.writeframes(data.tobytes())
+    print("sound", name, "<-", src, f"{len(data) / 44100:.2f}s")
+def duration(f):
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f], capture_output=True, text=True)
+    try: return float(r.stdout.strip())
+    except ValueError: return 0.0
+steps = [f for f in files if "fantozzi" in f.lower()]
+for surface, key in (("stone", "stone"), ("sand", "sand")):
+    for i, f in enumerate(f for f in steps if key in os.path.basename(f).lower()):
+        convert(f, f"fs_{surface}_{i}", 0.8, 0.5)
+voices = [f for f in files if "baradari" in f.lower() or "human" in f.lower()]
+voices = [f for f in voices if f not in steps]
+dying = [f for f in voices if any(k in os.path.basename(f).lower() for k in ("die", "death", "dying"))]
+if not dying and voices:
+    # no names to go by: the longest cries are the deaths
+    dying = sorted(voices, key=duration)[-max(1, len(voices) // 3):]
+for i, f in enumerate(dying): convert(f, f"death_{i}", 0.85, 2.0)
+for i, f in enumerate(f for f in voices if f not in dying): convert(f, f"pain_{i}", 0.8, 1.0)
+PY
+ls -la "$DEST/Sounds/Resources/Audio" || true
+
 du -sh "$DEST"/*

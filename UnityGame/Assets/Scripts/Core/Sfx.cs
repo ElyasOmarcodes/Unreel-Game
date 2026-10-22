@@ -62,6 +62,17 @@ namespace UA
             source.Play();
         }
 
+        private static readonly Dictionary<string, int> counts = new Dictionary<string, int>();
+
+        /// <summary>How many clips prefix_0, prefix_1, ... there are (0 when the set is missing).</summary>
+        public static int Count(string prefix)
+        {
+            if (counts.TryGetValue(prefix, out int n)) return n;
+            n = 0;
+            while (n < 32 && Clip(prefix + n) != null) n++;
+            return counts[prefix] = n;
+        }
+
         private static AudioClip Clip(string name)
         {
             if (!clips.TryGetValue(name, out var clip))

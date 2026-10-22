@@ -187,6 +187,7 @@ namespace UA
                 else transform.position = Vector3.Lerp(transform.position, target, k);
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0, state.Yaw, 0), k);
             }
+            Voice(state);
             if (state.Alive != Alive)
             {
                 Alive = state.Alive;
@@ -225,6 +226,7 @@ namespace UA
         /// <summary>Dress the agent as the look says (see Wardrobe).</summary>
         public void SetLook(int look)
         {
+            female = Wardrobe.Female(look);
             foreach (var part in Parts)
             {
                 if (part.Object == null) continue;
@@ -311,11 +313,34 @@ namespace UA
             if (stepTimer > 0f) return;
             bool sprint = animMoveY > 1.2f;
             stepTimer = s.Prone ? 0.8f : s.Crouch ? 0.5f : sprint ? 0.25f : move < 0.6f ? 0.45f : 0.27f;
+            bool running = !s.Crouch && (sprint || move > 0.8f);
             float volume = (IsLocal ? 0.3f : 0.6f) * (s.Crouch ? 0.45f : 1f) * (sprint ? 1.15f : 1f);
+            // recorded steps (Fantozzi, CC0): soft ground in the village, stone and concrete elsewhere;
+            // the made-up ones only when the recordings are missing
+            string surface = World.I != null && World.I.Layout != null && World.I.Layout.Name == "VILLAGE" ? "fs_sand_" : "fs_stone_";
+            int recorded = Sfx.Count(surface);
             string clip = s.Prone ? "crawl_" + (stepIndex++ % 2)
-                : !s.Crouch && (sprint || move > 0.8f) ? "step_run_" + (stepIndex++ % 3)
+                : recorded > 0 ? surface + (stepIndex++ % recorded)
+                : running ? "step_run_" + (stepIndex++ % 3)
                 : "step_" + (stepIndex++ % 4);
+            if (recorded > 0 && !s.Prone) volume *= running ? 1.2f : 0.85f;
             Sfx.Step(clip, transform.position, s.Prone ? volume * 0.8f : volume);
+        }
+
+        private float lastHealth = 100f, nextPain;
+        private bool female;
+
+        /// <summary>A cry when hit and when killed (Michel Baradari, CC-BY 3.0), heard around the body.</summary>
+        private void Voice(PlayerState s)
+        {
+            if (s.Alive && s.Health < lastHealth - 0.5f && Time.time >= nextPain && Sfx.Count("pain_") > 0)
+            {
+                nextPain = Time.time + 0.6f;
+                Sfx.PlayAt("pain_" + Random.Range(0, Sfx.Count("pain_")), Chest, IsLocal ? 0.55f : 0.8f, female ? 1.22f : 1f);
+            }
+            if (!s.Alive && Alive && Sfx.Count("death_") > 0)
+                Sfx.PlayAt("death_" + Random.Range(0, Sfx.Count("death_")), Chest, 0.9f, female ? 1.22f : 1f);
+            lastHealth = s.Health;
         }
 
         public void PlayFire() { if (Anim != null) Anim.SetTrigger(FireId); }

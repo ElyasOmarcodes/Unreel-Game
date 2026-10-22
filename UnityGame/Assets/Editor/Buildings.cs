@@ -11,6 +11,37 @@ public static class Buildings
     public class Style
     {
         public Material Outer, Inner, Floor, Stairs, Trim, Furniture;
+        /// <summary>Dark glass tower: tall ribbon windows with tinted panes (seen from outside only, so those inside see out).</summary>
+        public Material Glass;
+    }
+
+    private static Mesh paneMesh;
+
+    /// <summary>A one-sided pane of glass in a window: it faces outwards and is not there from inside (no collider either).</summary>
+    private static void Pane(Transform t, Vector3 localCenter, Vector3 outward, float width, float height, Material glass)
+    {
+        if (paneMesh == null || !UnityEditor.AssetDatabase.Contains(paneMesh))
+        {
+            paneMesh = new Mesh { name = "GlassPane" };
+            paneMesh.vertices = new[] { new Vector3(-0.5f, -0.5f, 0), new Vector3(0.5f, -0.5f, 0), new Vector3(-0.5f, 0.5f, 0), new Vector3(0.5f, 0.5f, 0) };
+            paneMesh.normals = new[] { Vector3.back, Vector3.back, Vector3.back, Vector3.back };
+            paneMesh.uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) };
+            paneMesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            paneMesh.RecalculateTangents();
+            paneMesh.RecalculateBounds();
+            AssetSetup.Folder("Assets/Generated/Meshes");
+            UnityEditor.AssetDatabase.CreateAsset(paneMesh, "Assets/Generated/Meshes/GlassPane.asset");
+        }
+        var go = new GameObject("GlassPane");
+        go.transform.SetParent(t, false);
+        go.transform.localPosition = localCenter;
+        // the quad shows its -Z side
+        go.transform.localRotation = Quaternion.LookRotation(-outward);
+        go.transform.localScale = new Vector3(width, height, 1f);
+        go.AddComponent<MeshFilter>().sharedMesh = paneMesh;
+        var r = go.AddComponent<MeshRenderer>();
+        r.sharedMaterial = glass;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
     }
 
     private const float FloorHeight = 3.4f, Wall = 0.25f, Slab = 0.25f, StepH = 0.2f, StepRun = 0.36f, Lane = 1.4f;
@@ -39,7 +70,7 @@ public static class Buildings
     }
 
     /// <summary>One wall of one floor, from u0 to u1 along the side, with openings (center, width, bottom, top).</summary>
-    private static void WallStrip(Transform t, bool alongX, float fixedCoord, float y0, float u0, float u1, List<(float c, float w, float b, float top)> openings, Material m)
+    private static void WallStrip(Transform t, bool alongX, float fixedCoord, float y0, float u0, float u1, List<(float c, float w, float b, float top)> openings, Material m, Material glass = null, float outward = 0f)
     {
         float cursor = u0;
         openings.Sort((a, b) => a.c.CompareTo(b.c));
@@ -51,14 +82,34 @@ public static class Buildings
             if (a > cursor) Box(t, "Wall", Pos((cursor + a) / 2f, y0 + FloorHeight / 2f), Size(a - cursor, FloorHeight), m);
             if (o.b > 0.01f) Box(t, "Sill", Pos(o.c, y0 + o.b / 2f), Size(o.w, o.b), m);
             if (o.top < FloorHeight - 0.01f) Box(t, "Lintel", Pos(o.c, y0 + (o.top + FloorHeight) / 2f), Size(o.w, FloorHeight - o.top), m);
+            // tinted glass in the windows (doors stay open), on the outer face of the wall
+            if (glass != null && o.b > 0.01f)
+            {
+                var n = alongX ? new Vector3(0, 0, outward) : new Vector3(outward, 0, 0);
+                Pane(t, Pos(o.c, y0 + (o.b + o.top) / 2f) + n * (Wall / 2f - 0.03f), n, o.w, o.top - o.b, glass);
+            }
             cursor = b;
         }
         if (u1 > cursor) Box(t, "Wall", Pos((cursor + u1) / 2f, y0 + FloorHeight / 2f), Size(u1 - cursor, FloorHeight), m);
     }
 
-    private static List<(float, float, float, float)> Windows(float length, bool door, float doorAt = 0f)
+    private static List<(float, float, float, float)> Windows(float length, bool door, float doorAt = 0f, bool ribbon = false)
     {
         var list = new List<(float, float, float, float)>();
+        if (ribbon)
+        {
+            // curtain wall: tall panes from knee height almost to the ceiling between narrow mullions
+            int panes = Mathf.Max(1, Mathf.FloorToInt((length - 1f) / 2.1f));
+            float pitch = (length - 1f) / panes;
+            for (int i = 0; i < panes; i++)
+            {
+                float c = -length / 2f + 0.5f + pitch * (i + 0.5f);
+                if (door && Mathf.Abs(c - doorAt) < 1.9f) continue;
+                list.Add((c, pitch - 0.3f, 0.45f, 3.05f));
+            }
+            if (door) list.Add((doorAt, 1.8f, 0f, 2.5f));
+            return list;
+        }
         int count = Mathf.FloorToInt((length - 2f) / 3.6f);
         float spacing = (length - 2f) / Mathf.Max(1, count);
         for (int i = 0; i < count; i++)
@@ -213,15 +264,16 @@ public static class Buildings
             float frontDoor = k == 0 ? -w * 0.2f : k % 2 == 1 ? -w * 0.25f : w * 0.12f;
             float backDoor = k == 0 ? w * 0.2f : k % 2 == 0 ? -w * 0.22f : w * 0.12f;
             bool frontBalcony = k > 0, backBalcony = k > 0 && k % 2 == 0;
-            WallStrip(t, true, -hl + Wall / 2f, y0, -hw, hw, Windows(w, k == 0 || frontBalcony, frontDoor), s.Outer);
-            WallStrip(t, true, hl - Wall / 2f, y0, -hw, hw, Windows(w, k == 0 || backBalcony, backDoor), s.Outer);
+            bool ribbon = s.Glass != null;
+            WallStrip(t, true, -hl + Wall / 2f, y0, -hw, hw, Windows(w, k == 0 || frontBalcony, frontDoor, ribbon), s.Outer, s.Glass, -1f);
+            WallStrip(t, true, hl - Wall / 2f, y0, -hw, hw, Windows(w, k == 0 || backBalcony, backDoor, ribbon), s.Outer, s.Glass, 1f);
             if (frontBalcony) Balcony(t, frontDoor, y0, -hl, -1f, s);
             if (backBalcony) Balcony(t, backDoor, y0, hl, 1f, s);
             if (k == 0)
                 foreach (var (x, z, side) in new[] { (frontDoor, -hl, -1f), (backDoor, hl, 1f) })
                     Box(t, "Porch", new Vector3(x, 0.08f, z + side * 0.9f), new Vector3(2.6f, 0.16f, 1.6f), s.Trim, 1.5f, 0.05f);
-            WallStrip(t, false, -hw + Wall / 2f, y0, -hl + Wall, hl - Wall, Windows(l - 2 * Wall, false), s.Outer);
-            WallStrip(t, false, hw - Wall / 2f, y0, -hl + Wall, hl - Wall, Windows(l - 2 * Wall, false), s.Outer);
+            WallStrip(t, false, -hw + Wall / 2f, y0, -hl + Wall, hl - Wall, Windows(l - 2 * Wall, false, 0f, ribbon), s.Outer, s.Glass, -1f);
+            WallStrip(t, false, hw - Wall / 2f, y0, -hl + Wall, hl - Wall, Windows(l - 2 * Wall, false, 0f, ribbon), s.Outer, s.Glass, 1f);
             // floor band on the outside of the walls (decoration, no collider)
             if (k > 0)
                 foreach (float sgn in new[] { -1f, 1f })

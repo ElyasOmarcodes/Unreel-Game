@@ -317,7 +317,7 @@ namespace UA
             if (me != null && hp < lastHealth - 0.5f && me.Alive)
             {
                 damageAlpha = Mathf.Min(0.75f, damageAlpha + (lastHealth - hp) / 60f);
-                Sfx.Play("hurt", 0.6f);
+                if (Sfx.Count("pain_") == 0) Sfx.Play("hurt", 0.6f);   // otherwise the agent cries out itself
             }
             lastHealth = hp;
             damageAlpha = Mathf.MoveTowards(damageAlpha, hp < 30 && me != null && me.Alive ? 0.25f : 0f, Time.unscaledDeltaTime * 0.9f);

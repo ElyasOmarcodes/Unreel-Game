@@ -298,7 +298,19 @@ public static class MapBuilder
         {
             var pos = center + new Vector3(inner - bw / 2f, 0.16f, -inner + bl / 2f);
             occupied.Add(new Rect(pos.x - bw / 2f - 0.5f, pos.z - bl / 2f - 0.5f, bw + 1f, bl + 1f));
-            var style = floors >= 6
+            // the two tallest are dark glass towers like the city's other high-rises
+            var style = floors >= 7
+                ? new global::Buildings.Style
+                {
+                    Outer = PortBuilder.Pbr("GlassSpandrel", "Metal032", new Color(0.2f, 0.23f, 0.27f), 0.8f, 0.5f),
+                    Inner = PortBuilder.Pbr("PlasterInner", "Plaster001", new Color(0.93f, 0.92f, 0.88f), 0.5f),
+                    Floor = PortBuilder.Pbr("Tiles", "Tiles101", Color.white, 0.6f),
+                    Stairs = PortBuilder.Pbr("Concrete", "Concrete034", Color.white, 0.6f),
+                    Trim = PortBuilder.Pbr("DarkAluminium", "Metal032", new Color(0.3f, 0.32f, 0.35f), 0.75f, 0.7f),
+                    Furniture = PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f),
+                    Glass = AssetSetup.Mat("TowerGlass", new Color(0.07f, 0.1f, 0.13f), 0.95f, 0.85f),
+                }
+                : floors >= 6
                 ? new global::Buildings.Style
                 {
                     Outer = PortBuilder.Pbr("TowerPlaster", "PaintedPlaster017", new Color(0.78f, 0.82f, 0.86f), 0.5f),
@@ -317,7 +329,7 @@ public static class MapBuilder
                     Trim = PortBuilder.Pbr("OldConcrete", "Concrete042A", Color.white, 0.6f),
                     Furniture = PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f),
                 };
-            global::Buildings.Build(block, floors >= 6 ? "Tower" : "MidRise", pos, 0f, bw, bl, floors, style);
+            global::Buildings.Build(block, floors >= 7 ? "GlassTower" : floors >= 6 ? "Tower" : "MidRise", pos, 0f, bw, bl, floors, style);
         }
         // walk around the four edges, buildings facing the street
         for (int edge = 0; edge < 4; edge++)

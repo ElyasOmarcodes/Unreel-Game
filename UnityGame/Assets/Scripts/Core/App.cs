@@ -223,8 +223,9 @@ namespace UA
             splashBar.rectTransform.Fill();
             splashBar.rectTransform.anchorMax = new Vector2(0, 1);
             var credits = UIKit.Txt(s, "Made with Unity  -  3D characters, animations and city by Quaternius (CC0)\n"
-                + "Military gear based on \"Military Character Kit 1.1\" by britdawgmasterfunk (sketchfab.com), CC-BY-4.0", 24, TextAnchor.MiddleCenter, new Color(1, 1, 1, 0.4f));
-            credits.rectTransform.At(0.5f, 0f, 0, 50, 1800, 70);
+                + "Military gear based on \"Military Character Kit 1.1\" by britdawgmasterfunk (sketchfab.com), CC-BY-4.0\n"
+                + "Pain and death voices: \"11 male human pain/death sounds\" by Michel Baradari (opengameart.org), CC-BY 3.0; footsteps by Fantozzi, CC0", 24, TextAnchor.MiddleCenter, new Color(1, 1, 1, 0.4f));
+            credits.rectTransform.At(0.5f, 0f, 0, 40, 1800, 105);
         }
 
         private void BuildMenu()
