@@ -684,10 +684,12 @@ public static class ZahraBuilder
         void Parapet(float z, float y, params (float a, float b)[] gaps)
         {
             float x = -Half;
-            foreach (var g in gaps.OrderBy(g => g.a).Append((Half, Half)))
+            var ordered = gaps.OrderBy(g => g.a).ToList();
+            ordered.Add((Half, Half));
+            foreach (var (ga, gb) in ordered)
             {
-                if (g.a - x > 0.1f) Box(t, "Parapet", new Vector3((x + g.a) / 2f, y + 0.45f, z), new Vector3(g.a - x, 0.9f, 0.45f), Ashlar, 2f);
-                x = g.b;
+                if (ga - x > 0.1f) Box(t, "Parapet", new Vector3((x + ga) / 2f, y + 0.45f, z), new Vector3(ga - x, 0.9f, 0.45f), Ashlar, 2f);
+                x = gb;
             }
         }
         Parapet(MidSouth + 0.23f, Middle, (-8.2f, -1.8f), (-50.2f, -45.8f), (33f, 41f));
