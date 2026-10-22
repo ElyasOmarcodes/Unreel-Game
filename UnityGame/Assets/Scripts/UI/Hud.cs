@@ -40,7 +40,7 @@ namespace UA
             }
             void Label(string text, Vector2 at)
             {
-                var t = UIKit.Txt(pso, text, 22, TextAnchor.MiddleCenter, ReticleInk);
+                var t = UIKit.Txt(pso, text, 17, TextAnchor.MiddleCenter, ReticleInk);
                 psoLabels.Add((t.rectTransform, at));
             }
             void Chevron(float y, float halfWidth, float height)
@@ -90,7 +90,7 @@ namespace UA
             foreach (var (rt, at) in psoLabels)
             {
                 rt.anchoredPosition = at * k;
-                rt.sizeDelta = new Vector2(60, 30);
+                rt.sizeDelta = new Vector2(44, 24);
             }
         }
         private Image hitMarker, crossDot;
