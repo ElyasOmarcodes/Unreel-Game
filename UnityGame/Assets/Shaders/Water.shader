@@ -1,5 +1,6 @@
 // Water for phones: opaque (no sorting, no refraction), small moving waves made from a few sine waves in
-// world space (no texture), the sky colour mirrored at grazing angles, a bright glint of the sun, fog.
+// world space (no texture), the sky mirrored at grazing angles (a small panorama of a lakeside sky, darkened
+// with the ambient light so the night water stays dark), a bright glint of the sun, fog.
 Shader "UA/Water"
 {
     Properties
@@ -10,6 +11,8 @@ Shader "UA/Water"
         _Speed ("Wave speed", Float) = 1
         _Strength ("Wave height", Float) = 0.3
         _Flow ("Flow (x, z direction, speed)", Vector) = (0, 0, 0, 0)
+        _Sky ("Sky panorama (equirectangular)", 2D) = "white" {}
+        _SkyAmount ("Sky panorama amount", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -28,6 +31,8 @@ Shader "UA/Water"
             fixed4 _Deep, _Shallow;
             float _Scale, _Speed, _Strength;
             float4 _Flow;
+            sampler2D _Sky;
+            float _SkyAmount;
 
             struct v2f
             {
@@ -71,6 +76,11 @@ Shader "UA/Water"
                 fixed3 body = lerp(_Deep.rgb, _Shallow.rgb, saturate(view.y * 1.2));
                 body *= unity_AmbientEquator.rgb * 1.4 + _LightColor0.rgb * saturate(dot(n, light)) * 0.35;
                 fixed3 sky = unity_AmbientSky.rgb * 1.25;
+                // the panorama in the reflected direction (upper half), lit like the scene's sky
+                float3 r = reflect(-view, n);
+                float2 uv = float2(atan2(r.x, r.z) * 0.15915 + 0.5, asin(clamp(r.y, 0.0, 1.0)) * 0.31831 + 0.5);
+                fixed3 pano = tex2D(_Sky, uv).rgb * (unity_AmbientSky.rgb * 1.6 + 0.1);
+                sky = lerp(sky, pano, _SkyAmount);
                 float glint = pow(saturate(dot(reflect(-light, n), view)), 180) * 2.5;
                 fixed4 c = fixed4(lerp(body, sky, saturate(fresnel)) + _LightColor0.rgb * glint, 1);
                 UNITY_APPLY_FOG(i.fogCoord, c);

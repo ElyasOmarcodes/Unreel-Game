@@ -205,6 +205,9 @@ public static class ZahraBuilder
             }
         var tex = SaveTexture("Ashlar", size, (x, y) => albedo[x, y], false);
         var nrm = NormalFrom("Ashlar_N", size, h, 3.5f);
+        // the stone walls: rock_wall_11 (golden stones in courses) where it is in the project
+        var rock = AssetSetup.ExtraTex("RockWall11_BaseColor.jpg");
+        if (rock != null) { tex = rock; nrm = AssetSetup.ExtraTex("RockWall11_Normal.jpg"); }
         ashlar = AssetSetup.Mat("Z_Ashlar", Color.white, 0.18f, 0f, tex, nrm);
     }
 
@@ -324,6 +327,9 @@ public static class ZahraBuilder
         }
         var tex = SaveTexture("Myrtle", size, (x, y) => col[x, y], false);
         var nrm = NormalFrom("Myrtle_N", size, h, 4f);
+        // the green walls: thick moss shoots (moss_01) where they are in the project
+        var green = AssetSetup.ExtraTex("GreenWall_BaseColor.jpg");
+        if (green != null) { tex = green; nrm = AssetSetup.ExtraTex("GreenWall_Normal.jpg"); }
         hedge = AssetSetup.Mat("Z_Myrtle", Color.white, 0.25f, 0f, tex, nrm);
     }
 

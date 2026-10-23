@@ -54,7 +54,7 @@ public static class VillageBuilder
         if (shader == null) Debug.LogWarning("[Map] village: mud shader missing");
         var m = new Material(shader ?? Shader.Find("Standard")) { name = name };
         // grainy dry earth as the plaster, the smoothed clay as large patches of fresher mud
-        m.SetTexture("_MainTex", T("Ground104_BaseColor.jpg"));
+        m.SetTexture("_MainTex", T("ExcavatedSoil_BaseColor.jpg") ?? T("Ground104_BaseColor.jpg"));
         m.SetTexture("_Patches", T("Clay007_BaseColor.jpg"));
         m.SetColor("_Color", tint);
         m.SetFloat("_Tile", 3f);
@@ -108,7 +108,7 @@ public static class VillageBuilder
 
     public static float GroundHeight(float x, float z) => Mathf.Lerp(RawHeight(x, z), 0f, FlatWeight(x, z));
 
-    private static Texture2D T(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{PortBuilder.Textures}/{file}");
+    private static Texture2D T(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{PortBuilder.Textures}/{file}") ?? AssetSetup.ExtraTex(file);
 
     /// <summary>
     /// The ground: a height field mesh (2 m cells) with a mesh collider, painted with grass, dirt,
@@ -172,8 +172,9 @@ public static class VillageBuilder
         var shader = Shader.Find("UA/Ground");
         if (shader == null) Debug.LogWarning("[Map] village: ground shader missing");
         var mat = new Material(shader ?? Shader.Find("Standard")) { name = "Village_Ground" };
-        mat.SetTexture("_Grass", T("Grass004_BaseColor.jpg"));
-        mat.SetTexture("_Dirt", T("Ground104_BaseColor.jpg"));
+        // rocky grass on the fields; the dug earth (the mud of the walls, darker and mixed with grass) on the paths and yards
+        mat.SetTexture("_Grass", T("RockyTerrain02_BaseColor.jpg") ?? T("Grass004_BaseColor.jpg"));
+        mat.SetTexture("_Dirt", T("ExcavatedSoil_BaseColor.jpg") ?? T("Ground104_BaseColor.jpg"));
         mat.SetTexture("_Gravel", T("Gravel036L_BaseColor.jpg"));
         mat.SetTexture("_Rock", T("Rock055_BaseColor.jpg"));
         mat.SetColor("_GrassTint", new Color(0.9f, 1f, 0.85f));

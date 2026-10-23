@@ -66,6 +66,24 @@ public class ImportRules : AssetPostprocessor
             icon.wrapMode = TextureWrapMode.Clamp;
             return;
         }
+        if (assetPath.Contains("Textures/Extra/"))
+        {
+            // the textures kept in the project: 512 px at most, small ASTC blocks on phones
+            var extra = (TextureImporter)assetImporter;
+            string name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
+            extra.maxTextureSize = 512;
+            extra.mipmapEnabled = true;
+            extra.anisoLevel = 2;
+            if (name.EndsWith("_Normal")) extra.textureType = TextureImporterType.NormalMap;
+            if (name.Contains("Sky")) { extra.wrapModeU = TextureWrapMode.Repeat; extra.wrapModeV = TextureWrapMode.Clamp; }
+            var phone = extra.GetPlatformTextureSettings("Android");
+            phone.overridden = true;
+            phone.maxTextureSize = 512;
+            phone.format = name.EndsWith("_Normal") ? TextureImporterFormat.ASTC_8x8 : TextureImporterFormat.ASTC_6x6;
+            phone.compressionQuality = 50;
+            extra.SetPlatformTextureSettings(phone);
+            return;
+        }
         if (!assetPath.Contains("ThirdParty/")) return;
         var importer = (TextureImporter)assetImporter;
         string file = System.IO.Path.GetFileNameWithoutExtension(assetPath);

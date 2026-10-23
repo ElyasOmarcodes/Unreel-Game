@@ -35,11 +35,13 @@ public static class PortBuilder
 
     // ------------------------------------------------------------------ materials
 
-    private static Texture2D T(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Textures}/{file}") ;
+    private static Texture2D T(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Textures}/{file}") ?? AssetSetup.ExtraTex(file);
 
     public static Material Pbr(string name, string set, Color tint, float smoothness = 0.8f, float metallic = 0f)
     {
         if (mats.TryGetValue(name, out var m)) return m;
+        // the grass of every map is the rocky grass (rocky_terrain_02) where it is in the project
+        if (set == "Grass004" && AssetSetup.ExtraTex("RockyTerrain02_BaseColor.jpg") != null) set = "RockyTerrain02";
         var albedo = T(set + "_BaseColor.jpg");
         if (albedo == null) Debug.LogWarning("[Port] missing texture set " + set);
         return mats[name] = AssetSetup.Mat("Port_" + name, tint, smoothness, metallic, albedo, T(set + "_Normal.jpg"), T(set + "_MS.png"));

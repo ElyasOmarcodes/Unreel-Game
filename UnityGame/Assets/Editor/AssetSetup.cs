@@ -25,6 +25,13 @@ public static class AssetSetup
     public const string CityModels = "Assets/ThirdParty/City/Models";
     public const string CityTextures = "Assets/ThirdParty/City/Textures";
     public const string Generated = "Assets/Generated";
+    /// <summary>
+    /// Small textures kept in the project (Poly Haven, CC0, brought down to 512 px): the rocky grass of all
+    /// the maps, the mud of the village, the stone of Al-Zahra, the green walls, the sky in the water.
+    /// </summary>
+    public const string Extra = "Assets/Textures/Extra";
+
+    public static Texture2D ExtraTex(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Extra}/{file}");
 
     public static readonly Dictionary<string, Material> CityMaterials = new Dictionary<string, Material>();
     private static readonly Dictionary<string, Material> materialCache = new Dictionary<string, Material>();
@@ -119,6 +126,9 @@ public static class AssetSetup
         m.SetFloat("_Scale", scale);
         m.SetFloat("_Strength", strength);
         m.SetVector("_Flow", new Vector4(flow.x, flow.z, flow.y, 0f));   // direction on the ground, speed in y
+        // the lakeside sky mirrored in the water
+        var sky = ExtraTex("LakesideSky.jpg");
+        if (sky != null && m.HasProperty("_Sky")) { m.SetTexture("_Sky", sky); m.SetFloat("_SkyAmount", 1f); }
         EditorUtility.SetDirty(m);
         return materialCache[name] = m;
     }
