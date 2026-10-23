@@ -842,6 +842,12 @@ public static class VillageBuilder
                 GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
 
         var layout = new MapLayout { Name = "VILLAGE", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
+        // CityLord chain-link fence walls on the open fields and by the compounds (not in the river bed)
+        var fences = new GameObject("ChainLinkFences").transform;
+        fences.SetParent(root, false);
+        int fencePanels = CityLordBuilder.ChainLinkRuns(fences, rng, Rect.MinMaxRect(-Half + 10f, -Half + 10f, Half - 10f, Half - 10f), 6,
+            h => Mathf.Abs(h.point.z - RiverZ(h.point.x)) > 9f && h.collider.gameObject.layer == 0);
+        Debug.Log($"[Map] Village: {fencePanels} chain-link fence panels");
         // the parts of the village named on boards (Arabic and English), as in Al-Zahra
         var boards = new GameObject("Boards").transform;
         boards.SetParent(root, false);

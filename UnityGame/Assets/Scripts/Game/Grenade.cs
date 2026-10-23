@@ -11,7 +11,7 @@ namespace UA
     public class Grenade : MonoBehaviour
     {
         public const float Fuse = 3f;
-        public const float LethalRadius = 3f;      // 100+ damage: always a kill
+        public const float LethalRadius = 4.5f;    // a kill for anyone this close (lying down too)
         public const float Radius = 8.5f;          // no damage beyond this
         public const float ThroughWalls = 4.5f;    // closer than this, walls do not protect
         public const int PerLife = 2, Max = 5;   // a resupply fills up to five
@@ -94,9 +94,9 @@ namespace UA
         /// <summary>Damage at a distance from the blast (before cover is checked).</summary>
         public static float DamageAt(float distance)
         {
-            if (distance <= LethalRadius) return 130f;
+            if (distance <= LethalRadius) return 200f;
             if (distance >= Radius) return 0f;
-            return Mathf.Lerp(95f, 8f, (distance - LethalRadius) / (Radius - LethalRadius));
+            return Mathf.Lerp(100f, 12f, (distance - LethalRadius) / (Radius - LethalRadius));
         }
 
         private void Update()

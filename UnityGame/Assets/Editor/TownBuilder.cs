@@ -882,6 +882,12 @@ public static class TownBuilder
 
         Buildings.Night = null;
         var layout = new MapLayout { Name = "OLD TOWN", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
+        // CityLord chain-link fence walls on the grass by the gardens, the barn and the fields (never across a street)
+        var fences = new GameObject("ChainLinkFences").transform;
+        fences.SetParent(root, false);
+        int fencePanels = CityLordBuilder.ChainLinkRuns(fences, rng, Rect.MinMaxRect(-Half + 6f, -Half + 6f, CanalX0 - 4f, Half - 6f), 5,
+            h => h.collider.name == "Ground");
+        Debug.Log($"[Map] OldTown: {fencePanels} chain-link fence panels");
         // the parts of the town named on boards (Arabic and English), as in Al-Zahra
         var boards = new GameObject("Boards").transform;
         boards.SetParent(root, false);

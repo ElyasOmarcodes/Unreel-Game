@@ -314,9 +314,11 @@ namespace UA
                 (12, "84-citylord-from-above", new Vector3(31f, 60f, -60f), new Vector3(31f, 0f, -4f)),
                 (13, "85-citylord-sunset", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
                 (14, "86-citylord-night", new Vector3(17.3f, 1.7f, 14.3f), new Vector3(39f, 2f, -2f)),
-                (12, "87-citylord-hangar-door", new Vector3(55f, 3.6f, -9.5f), new Vector3(66f, 3f, -9.5f)),
-                (12, "88-citylord-hangar-inside", new Vector3(63.5f, 3.4f, -9.5f), new Vector3(72f, 2.6f, -15f)),
-                (12, "89-citylord-north-door", new Vector3(48.8f, 3.6f, 14f), new Vector3(48.8f, 3.2f, 25f)),
+                (12, "87-citylord-hangar-door", new Vector3(81f, 3.6f, -13.3f), new Vector3(70f, 3f, -13.3f)),
+                (12, "88-citylord-hangar-inside", new Vector3(72.6f, 3.4f, -13.3f), new Vector3(64f, 2.6f, -6f)),
+                (12, "89-citylord-east-door", new Vector3(61f, 3.6f, 29.9f), new Vector3(50f, 3f, 29.9f)),
+                (12, "89b-citylord-west-door", new Vector3(-24f, 3.2f, -29.8f), new Vector3(-12f, 2.5f, -29.8f)),
+                (12, "89c-citylord-small-door", new Vector3(46.3f, 3.2f, 16f), new Vector3(46.3f, 2.6f, 26f)),
             };
             foreach (var v in views)
             {
@@ -414,6 +416,23 @@ namespace UA
                     cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position + Vector3.up * 1.9f - from));
                     yield return Wait(0.5f);
                     yield return Shot($"94{(char)('a' + named++)}-map{map}-board");
+                }
+            }
+            // the CityLord chain-link fence walls in the Village and the Old Town
+            int link = 0;
+            foreach (int map in new[] { 3, 6 })
+            {
+                World.I.ApplyLighting(map);
+                yield return Until(() => World.I.MapReady, 30);
+                var holder = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "ChainLinkFences");
+                if (holder == null) continue;
+                foreach (Transform t in holder)
+                {
+                    if (link >= 4 + (map == 6 ? 3 : 0)) break;
+                    var from = t.position + t.right * 6f + Vector3.up * 2.2f + t.forward * 4f;
+                    cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position + Vector3.up * 1.2f - from));
+                    yield return Wait(0.5f);
+                    yield return Shot($"97{(char)('a' + link++)}-map{map}-chain-link-fence");
                 }
             }
             // the CityLord wooden ladders in the Port (no stairs)

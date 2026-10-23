@@ -12,14 +12,19 @@ using UnityEngine.Rendering;
 /// </summary>
 public static partial class CityLordBuilder
 {
-    /// <summary>The buildings opened: the side of the door (N, S, E, W), its width and height.</summary>
-    private static readonly (string path, char side, float width, float height)[] Opened =
+    /// <summary>
+    /// The buildings opened, at their own doors (the recessed roller doors and side doors of the models,
+    /// measured from the meshes): the side (N, S, E, W), where the door runs along the wall (scene x for
+    /// N and S, z for E and W) and how high it is above the foot of the building. The first is the main door.
+    /// </summary>
+    private static readonly (string path, (char side, float from, float to, float top)[] doors)[] Opened =
     {
-        ("Map_v1/Static/Hangar_v4", 'W', 3.4f, 3.8f),
-        ("Map_v1/Static/Hangar_v3_basic", 'S', 3.2f, 3.6f),
-        ("Map_v1/Static/Hangar_v3_basic (2)", 'E', 3.2f, 3.6f),
-        ("Map_v1/Static/Hangar_v1_full", 'N', 2.6f, 2.9f),
-        ("Map_v1/Static/Hangar_v1_full (1)", 'W', 2.6f, 2.9f),
+        ("Map_v1/Static/Hangar_v4", new[] { ('E', -16.3f, -10.39f, 4.22f), ('E', -0.89f, 0.53f, 2.6f) }),
+        ("Map_v1/Static/Hangar_v3_basic", new[] { ('E', 27.33f, 32.5f, 3.84f), ('S', 45.25f, 47.39f, 2.49f) }),
+        ("Map_v1/Static/Hangar_v3_basic (2)", new[] { ('W', -32.35f, -27.17f, 3.84f), ('N', -9.6f, -7.46f, 2.49f) }),
+        ("Map_v1/Static/Hangar_v1_full", new[] { ('N', 8.55f, 11.29f, 3.14f) }),
+        ("Map_v1/Static/Hangar_v1_full (1)", new[] { ('W', 24.64f, 27.37f, 3.14f) }),
+        ("Map_v1/Static/Hangar_v4 (6)", new[] { ('W', -20.71f, -14.8f, 4.22f), ('W', -31.63f, -30.21f, 2.6f) }),
     };
 
     /// <summary>The four parts of the town: letter, Pashto and English name, where the board stands.</summary>
@@ -66,22 +71,26 @@ public static partial class CityLordBuilder
     {
         var insides = Node("Insides");
         int opened = 0;
-        foreach (var (path, side, width, height) in Opened)
+        foreach (var (path, doorList) in Opened)
         {
             if (!outlines.TryGetValue(path, out var b)) { Debug.LogWarning("[Map] CityLord: no building " + path); continue; }
-            var n = Outward(side);
-            var face = b.center + Vector3.Scale(n, b.extents);
-            float ground = Ground(face + n * 1.5f, b.min.y + 1.5f, b.min.y);
-            var door = DoorBox(b, n, ground, width, height);
-
-            // the doorway through every piece there (walls, colliders)
-            foreach (Transform t in geometry)
+            var boxes = new List<Bounds>();
+            foreach (var d in doorList)
             {
-                var f = t.GetComponent<MeshFilter>();
-                if (f != null && f.sharedMesh != null && f.sharedMesh.bounds.Intersects(door)) f.sharedMesh = Cut(f.sharedMesh, door);
+                var n = Outward(d.side);
+                var face = b.center + Vector3.Scale(n, b.extents);
+                float ground = Ground(face + n * 1.5f, b.min.y + 1.5f, b.min.y);
+                var door = DoorBox(b, d.side, d.from, d.to, ground, b.min.y + d.top);
+                boxes.Add(door);
+                // the doorway through every piece there (the door leaf, the wall, their colliders)
+                foreach (Transform t in geometry)
+                {
+                    var f = t.GetComponent<MeshFilter>();
+                    if (f != null && f.sharedMesh != null && f.sharedMesh.bounds.Intersects(door)) f.sharedMesh = Cut(f.sharedMesh, door);
+                }
+                foreach (var cell in cells)
+                    if (cell.sharedMesh.bounds.Intersects(door)) cell.sharedMesh = Cut(cell.sharedMesh, door);
             }
-            foreach (var cell in cells)
-                if (cell.sharedMesh.bounds.Intersects(door)) cell.sharedMesh = Cut(cell.sharedMesh, door);
 
             // the inside: the walls, roof and their colliders seen from within
             if (parts.TryGetValue(path, out var gos))
@@ -100,27 +109,36 @@ public static partial class CityLordBuilder
                 var mesh = new Mesh { name = "CityLord_Inside_" + opened };
                 mesh.SetVertices(shell.v);
                 mesh.SetTriangles(shell.t, 0);
-                mesh = Reversed(Cut(mesh, door));
+                foreach (var door in boxes) mesh = Cut(mesh, door);
+                mesh = Reversed(mesh);
                 var go = new GameObject("InsideCollision");
                 go.transform.SetParent(colliders, false);
                 go.AddComponent<MeshCollider>().sharedMesh = mesh;
             }
-            Furnish(insides, b, n, ground);
+            var main = doorList[0];
+            Furnish(insides, b, Outward(main.side), boxes[0].min.y - 0.04f);
             opened++;
         }
         Physics.SyncTransforms();
         return opened;
     }
 
-    /// <summary>The doorway: through the wall on side n, from just outside to 4 m in (walls set back under the eaves).</summary>
-    private static Bounds DoorBox(Bounds b, Vector3 n, float ground, float width, float height)
+    /// <summary>
+    /// A doorway: the door's own width and height (a few centimetres inside its frame), from the street
+    /// level up, through the wall on that side from 1 m outside to 2.6 m in (the door leaf sits back in the wall).
+    /// </summary>
+    private static Bounds DoorBox(Bounds b, char side, float from, float to, float ground, float top)
     {
+        var n = Outward(side);
         var face = b.center + Vector3.Scale(n, b.extents);
-        const float outside = 1f, inside = 4f;
+        const float outside = 1f, inside = 2.6f;
         var center = face + n * ((outside - inside) / 2f);
-        center.y = ground + 0.04f + (height - 0.04f) / 2f;
-        bool alongX = Mathf.Abs(n.x) > 0.5f;
-        var size = alongX ? new Vector3(outside + inside, height - 0.04f, width) : new Vector3(width, height - 0.04f, outside + inside);
+        float a0 = Mathf.Min(from, to) + 0.04f, a1 = Mathf.Max(from, to) - 0.04f;
+        float bottom = ground + 0.04f, height = Mathf.Max(0.5f, top - 0.03f - bottom);
+        center.y = bottom + height / 2f;
+        bool alongZ = Mathf.Abs(n.x) > 0.5f;
+        if (alongZ) center.z = (a0 + a1) / 2f; else center.x = (a0 + a1) / 2f;
+        var size = alongZ ? new Vector3(outside + inside, height, a1 - a0) : new Vector3(a1 - a0, height, outside + inside);
         return new Bounds(center, size);
     }
 
@@ -279,11 +297,14 @@ public static partial class CityLordBuilder
             foreach (var (path, b) in group.OrderBy(kv => Mathf.Round(kv.Value.center.x / 10f)).ThenBy(kv => kv.Value.center.z).Select(kv => (kv.Key, kv.Value)))
             {
                 number++;
-                var door = Opened.FirstOrDefault(o => o.path == path);
-                bool open = door.path != null;
-                char side = open ? door.side : FacingSide(b);
+                var opened = Opened.FirstOrDefault(o => o.path == path);
+                bool open = opened.path != null;
+                var main = open ? opened.doors[0] : default;
+                char side = open ? main.side : FacingSide(b);
                 bool tank = path.Contains("Oil_tank");
-                Plate(signs, path, b, side, open ? door.height + 0.75f : tank ? 3.2f : 3.6f, tank ? "د تېلو ټانک" : open ? "ګودام - خلاص" : "ګودام", $"{group.Key}-{number}");
+                // on an opened building: right over its main door
+                Plate(signs, path, b, side, open ? main.top + 0.7f : tank ? 3.2f : 3.6f, tank ? "د تېلو ټانک" : open ? "ګودام - خلاص" : "ګودام", $"{group.Key}-{number}",
+                      open ? (main.from + main.to) / 2f : (float?)null);
                 count++;
             }
         }
@@ -291,10 +312,14 @@ public static partial class CityLordBuilder
     }
 
     /// <summary>A small blue plate with the building's kind and its number, on the wall of the given side.</summary>
-    private static void Plate(Transform parent, string path, Bounds b, char side, float height, string kind, string number)
+    private static void Plate(Transform parent, string path, Bounds b, char side, float height, string kind, string number, float? along = null)
     {
         var n = Outward(side);
         var face = b.center + Vector3.Scale(n, b.extents);
+        if (along.HasValue)
+        {
+            if (Mathf.Abs(n.x) > 0.5f) face.z = along.Value; else face.x = along.Value;
+        }
         float ground = Ground(face + n * 1.5f, b.min.y + 1.5f, b.min.y);
         float y = Mathf.Min(ground + height, b.max.y - 0.6f);
         var local = new Vector3(face.x, y, face.z);
@@ -330,12 +355,21 @@ public static partial class CityLordBuilder
             {
                 float a = k * Mathf.PI * 2f / Mathf.Max(1, ring * 8);
                 var probe = at + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * (ring * 1.5f);
-                var top = root.TransformPoint(new Vector3(probe.x, 10f, probe.z));
-                if (!Physics.Raycast(top, Vector3.down, out var hit, 40f, World.EnvMask, QueryTriggerInteraction.Ignore) || hit.normal.y < 0.8f) continue;
+                // the street itself: the lowest level surface there (not a container, a roof or a tank)
+                var top = root.TransformPoint(new Vector3(probe.x, 25f, probe.z));
+                RaycastHit hit = default;
+                bool any = false;
+                foreach (var h in Physics.RaycastAll(top, Vector3.down, 60f, World.EnvMask, QueryTriggerInteraction.Ignore))
+                {
+                    // not the big plane under the roads either: something must not lie just above it
+                    if (h.normal.y < 0.85f || Physics.Raycast(h.point + Vector3.up * 3.4f, Vector3.down, 3.1f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
+                    if (!any || h.point.y < hit.point.y) { hit = h; any = true; }
+                }
+                if (!any) continue;
                 var f = TownMiddle - root.InverseTransformPoint(hit.point);
                 f.y = 0;
                 var rot = Quaternion.LookRotation(f.sqrMagnitude > 1f ? -f.normalized : Vector3.back);
-                if (Physics.CheckBox(hit.point + Vector3.up * 1.55f, new Vector3(1.9f, 1.3f, 0.5f), rot, mask, QueryTriggerInteraction.Ignore)) continue;
+                if (Physics.CheckBox(hit.point + Vector3.up * 2.3f, new Vector3(1.9f, 2.1f, 0.5f), rot, mask, QueryTriggerInteraction.Ignore)) continue;
                 foot = hit.point;
                 found = true;
             }

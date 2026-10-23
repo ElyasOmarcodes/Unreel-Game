@@ -357,7 +357,7 @@ namespace UA
             var aim = rig.AimRay().direction;
             var origin = agent.Eye + Quaternion.Euler(0, rig.Yaw, 0) * new Vector3(0.3f, 0.15f, 0.45f);
             if (Physics.Linecast(agent.Eye, origin, World.EnvMask, QueryTriggerInteraction.Ignore)) origin = agent.Eye;
-            var throwVelocity = (aim + Vector3.up * 0.22f).normalized * (prone ? 11f : 19f) + velocity * 0.5f;
+            var throwVelocity = (aim + Vector3.up * 0.22f).normalized * (prone ? 8f : 13f) + velocity * 0.35f;   // about 15-20 m before it rolls, not across the map
             Session.I.ThrowLocal(origin, throwVelocity);
             // the fuse on the grenade itself is the throw sound now, and the arm swing is played there (Grenade.Spawn)
         }

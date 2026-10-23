@@ -156,6 +156,95 @@ public static partial class CityLordBuilder
     }
 
     /// <summary>
+    /// A wall of the CityLord chain-link fence from a to b (world, x and z): concrete panels with their
+    /// steel frame, 5.67 m each, the chain-link set in above the concrete (it stops players, not bullets),
+    /// every panel on the ground below it. Returns the panels put up.
+    /// </summary>
+    public static int PlaceChainLinkFence(Transform parent, Vector3 a, Vector3 b)
+    {
+        var wall = Kit("Concrete_fence_v2_S");
+        var mesh = Kit("Concrete_fence_v2_lattice_S");
+        if (wall == null) return 0;
+        var run = b - a;
+        run.y = 0;
+        float length = run.magnitude;
+        if (length < 1f) return 0;
+        var dir = run / length;
+        bool longX = wall.Bounds.size.x > wall.Bounds.size.z;
+        float panel = longX ? wall.Bounds.size.x : wall.Bounds.size.z;
+        // turn the panel's long axis onto the run
+        float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg - (longX ? 90f : 0f);
+        int count = Mathf.Max(1, Mathf.FloorToInt(length / panel));
+        int placed = 0;
+        for (int i = 0; i < count; i++)
+        {
+            var c = a + dir * (panel * (i + 0.5f));
+            float y = c.y;
+            if (Physics.Raycast(new Vector3(c.x, c.y + 3f, c.z), Vector3.down, out var h, 8f, UA.World.EnvMask, QueryTriggerInteraction.Ignore)) y = h.point.y;
+            var foot = new Vector3(c.x, y - 0.05f, c.z);
+            var go = Place("Concrete_fence_v2_S", parent, foot, yaw);
+            if (go == null) continue;
+            if (mesh != null)
+            {
+                // the chain-link sits 1.07 m above the foot of the concrete, as in the town's own fence
+                var link = Place("Concrete_fence_v2_lattice_S", go.transform, foot + Vector3.up * 1.07f, yaw, false);
+                var blocker = new GameObject("FenceBlocker");
+                blocker.layer = UA.World.FenceLayer;
+                blocker.transform.SetParent(go.transform, false);
+                blocker.transform.localPosition = new Vector3(0, 1.8f, 0);
+                var size = longX ? new Vector3(panel, 1.45f, 0.25f) : new Vector3(0.25f, 1.45f, panel);
+                blocker.AddComponent<BoxCollider>().size = size;
+                if (link == null) Object.DestroyImmediate(blocker);
+            }
+            placed++;
+        }
+        return placed;
+    }
+
+    /// <summary>
+    /// A few chain-link fence walls on free, fairly level ground of a map (3 to 5 panels each, room to
+    /// walk on both sides, where 'allowed' says yes); returns the panels put up.
+    /// </summary>
+    public static int ChainLinkRuns(Transform parent, System.Random rng, Rect area, int runs, System.Func<RaycastHit, bool> allowed = null)
+    {
+        var wall = Kit("Concrete_fence_v2_S");
+        if (wall == null) return 0;
+        float panel = Mathf.Max(wall.Bounds.size.x, wall.Bounds.size.z);
+        int mask = UA.World.EnvMask | (1 << UA.World.FenceLayer);
+        int panels = 0, built = 0;
+        for (int attempt = 0; attempt < 600 && built < runs; attempt++)
+        {
+            Physics.SyncTransforms();
+            int n = 3 + rng.Next(3);
+            float length = n * panel;
+            var a = new Vector3(area.xMin + (float)rng.NextDouble() * area.width, 0, area.yMin + (float)rng.NextDouble() * area.height);
+            float angle = rng.Next(4) * 90f + (float)(rng.NextDouble() * 20.0 - 10.0);
+            var dir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
+            var b = a + dir * length;
+            if (!area.Contains(new Vector2(b.x, b.z))) continue;
+            // the ground along the run: found, fairly level, allowed
+            bool ok = true;
+            float lo = float.MaxValue, hi = float.MinValue;
+            for (int k = 0; k <= n && ok; k++)
+            {
+                var p = a + dir * (length * k / n);
+                if (!Physics.Raycast(new Vector3(p.x, 120f, p.z), Vector3.down, out var hit, 240f, mask, QueryTriggerInteraction.Ignore) || hit.normal.y < 0.85f) { ok = false; break; }
+                if (allowed != null && !allowed(hit)) ok = false;
+                lo = Mathf.Min(lo, hit.point.y);
+                hi = Mathf.Max(hi, hit.point.y);
+                if (k == 0) a.y = hit.point.y;
+            }
+            if (!ok || hi - lo > 1.2f) continue;
+            var mid = a + dir * (length / 2f);
+            mid.y = (lo + hi) / 2f;
+            if (Physics.CheckBox(mid + Vector3.up * 1.6f, new Vector3(1.8f, 1.4f, length / 2f + 1.5f), Quaternion.LookRotation(dir), mask, QueryTriggerInteraction.Ignore)) continue;
+            panels += PlaceChainLinkFence(parent, a, b);
+            built++;
+        }
+        return panels;
+    }
+
+    /// <summary>
     /// The CityLord wooden ladder against a wall: its foot at 'foot' (world, on the ground at the wall
     /// face), the wall facing 'outward', reaching 'height' up, with the zone players and bots climb in.
     /// </summary>
