@@ -293,26 +293,15 @@ namespace UA
                     RenderSettings.fogDensity = 0.009f;
                     break;
                 case 2:
-                    // moonlit night: violet blue light from the sky, lavender walls, warm lamps and windows
-                    Sun.transform.rotation = Quaternion.Euler(40f, 140f, 0f);
-                    Sun.color = new Color(0.7f, 0.64f, 1f);
-                    Sun.intensity = 0.6f;
-                    RenderSettings.ambientSkyColor = new Color(0.44f, 0.4f, 0.76f);
-                    RenderSettings.ambientEquatorColor = new Color(0.36f, 0.3f, 0.6f);
-                    RenderSettings.ambientGroundColor = new Color(0.16f, 0.13f, 0.24f);
-                    RenderSettings.fogColor = new Color(0.08f, 0.06f, 0.18f);
-                    RenderSettings.fogDensity = 0.009f;
-                    if (LayoutOf(map) == 2)
-                    {
-                        // the village at night: a softer, brighter blue-violet moonlight over the mud walls
-                        Sun.color = new Color(0.62f, 0.6f, 1f);
-                        Sun.intensity = 0.72f;
-                        RenderSettings.ambientSkyColor = new Color(0.5f, 0.46f, 0.88f);
-                        RenderSettings.ambientEquatorColor = new Color(0.44f, 0.38f, 0.76f);
-                        RenderSettings.ambientGroundColor = new Color(0.2f, 0.17f, 0.32f);
-                        RenderSettings.fogColor = new Color(0.11f, 0.09f, 0.24f);
-                        RenderSettings.fogDensity = 0.0075f;
-                    }
+                    // moonlit night as in the reference: lavender walls, a deep blue-violet sky, warm lamps and windows
+                    Sun.transform.rotation = Quaternion.Euler(42f, 140f, 0f);
+                    Sun.color = new Color(0.66f, 0.6f, 1f);
+                    Sun.intensity = 0.85f;
+                    RenderSettings.ambientSkyColor = new Color(0.56f, 0.5f, 0.92f);
+                    RenderSettings.ambientEquatorColor = new Color(0.5f, 0.44f, 0.86f);
+                    RenderSettings.ambientGroundColor = new Color(0.27f, 0.23f, 0.42f);
+                    RenderSettings.fogColor = new Color(0.1f, 0.09f, 0.26f);
+                    RenderSettings.fogDensity = 0.0065f;
                     break;
                 default:
                     Sun.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
@@ -344,9 +333,9 @@ namespace UA
             if (Skybox != null)
             {
                 RenderSettings.skybox = Skybox;
-                Skybox.SetFloat("_Exposure", night ? 0.22f : preset == 1 ? 1.0f : 1.25f);
+                Skybox.SetFloat("_Exposure", night ? 0.3f : preset == 1 ? 1.0f : 1.25f);
                 Skybox.SetFloat("_AtmosphereThickness", preset == 1 ? 1.6f : 1f);
-                Skybox.SetColor("_SkyTint", night ? new Color(0.42f, 0.3f, 0.75f) : new Color(0.5f, 0.55f, 0.62f));
+                Skybox.SetColor("_SkyTint", night ? new Color(0.36f, 0.3f, 0.8f) : new Color(0.5f, 0.55f, 0.62f));
             }
             this.night = night;
             if (loadedMap != null)

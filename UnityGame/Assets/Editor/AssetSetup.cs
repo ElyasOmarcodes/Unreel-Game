@@ -102,7 +102,7 @@ public static class AssetSetup
 
     /// <summary>Simple colored material, cached by name (procedural props, weapons, gear).</summary>
     /// <summary>Moving water (UA/Water): deep and shallow colours, wave size (1 = sea, more for small pools).</summary>
-    public static Material WaterMat(string name, Color deep, Color shallow, float scale = 1f, float strength = 0.3f)
+    public static Material WaterMat(string name, Color deep, Color shallow, float scale = 1f, float strength = 0.3f, Vector3 flow = default)
     {
         if (materialCache.TryGetValue(name, out var cached) && cached != null) return cached;
         string path = $"{Generated}/Materials/{name}.mat";
@@ -118,6 +118,7 @@ public static class AssetSetup
         m.SetColor("_Shallow", shallow);
         m.SetFloat("_Scale", scale);
         m.SetFloat("_Strength", strength);
+        m.SetVector("_Flow", new Vector4(flow.x, flow.z, flow.y, 0f));   // direction on the ground, speed in y
         EditorUtility.SetDirty(m);
         return materialCache[name] = m;
     }

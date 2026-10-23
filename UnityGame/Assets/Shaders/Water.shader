@@ -9,6 +9,7 @@ Shader "UA/Water"
         _Scale ("Wave size (bigger = smaller waves)", Float) = 1
         _Speed ("Wave speed", Float) = 1
         _Strength ("Wave height", Float) = 0.3
+        _Flow ("Flow (x, z direction, speed)", Vector) = (0, 0, 0, 0)
     }
     SubShader
     {
@@ -26,6 +27,7 @@ Shader "UA/Water"
 
             fixed4 _Deep, _Shallow;
             float _Scale, _Speed, _Strength;
+            float4 _Flow;
 
             struct v2f
             {
@@ -52,7 +54,8 @@ Shader "UA/Water"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                float2 p = i.world.xz * _Scale;
+                // running water (channels, cascades): the whole wave pattern drifts downstream
+                float2 p = (i.world.xz - _Flow.xy * _Flow.z * _Time.y) * _Scale;
                 float t = _Time.y * _Speed;
                 float2 g = Wave(p, float2(0.8, 0.6), 0.9, 0.05, t)
                          + Wave(p, float2(-0.45, 0.89), 1.7, 0.03, t)

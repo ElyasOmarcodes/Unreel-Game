@@ -155,7 +155,7 @@ public static class CiBuild
             scenes = EditorBuildSettings.scenes.Where(e => e.enabled).Select(e => e.path).ToArray(),
             locationPathName = output,
             target = target,
-            options = BuildOptions.None,
+            options = target == BuildTarget.Android ? BuildOptions.CompressWithLz4HC : BuildOptions.None,   // the strongest packing the player can still read fast
         });
         var s = report.summary;
         // what fills the build: the biggest kinds of asset and the biggest assets

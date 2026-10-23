@@ -110,8 +110,7 @@ namespace UA
         {
             float speed = c.relativeVelocity.magnitude;
             if (speed < 1.5f || Time.time - lastBounce < 0.12f) return;
-            lastBounce = Time.time;
-            Sfx.PlayAt("grenade_bounce", transform.position, Mathf.Clamp01(speed / 9f), Random.Range(0.9f, 1.1f));
+            lastBounce = Time.time;   // no sound of its own: only the player's fuse and blast recordings are heard
         }
 
         private void OnDestroy() => Live.Remove(this);

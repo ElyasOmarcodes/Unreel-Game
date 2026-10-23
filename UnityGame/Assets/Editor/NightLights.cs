@@ -61,14 +61,26 @@ public static class NightLights
     }
 
     /// <summary>Lamp glass that lights up at night (inside a dark housing), with its halo.</summary>
+    public static Material DayGlass => AssetSetup.Mat("Night_LampGlassDay", new Color(0.86f, 0.74f, 0.5f), 0.85f, 0f);
+    public static Material LampMetal => AssetSetup.Solid("Night_LampMetal", new Color(0.2f, 0.15f, 0.09f), 0.55f, 0.65f);
+
     public static void Lamp(Transform parent, Vector3 center, Vector3 size, List<Renderer> night, float halo = 2.2f)
     {
+        // the lantern itself, seen by day too: amber glass (unlit) in a dark bronze frame with a little dome
+        MeshGen.TexBox("LampGlass", center, size * 0.97f, DayGlass, 1f, parent, 0f, false);
+        float hx = size.x / 2f, hz = size.z / 2f, hy = size.y / 2f;
+        foreach (var (dx, dz) in new[] { (-1f, -1f), (1f, -1f), (-1f, 1f), (1f, 1f) })
+            MeshGen.TexBox("LampFrame", center + new Vector3(dx * hx, 0, dz * hz), new Vector3(0.025f, size.y + 0.02f, 0.025f), LampMetal, 1f, parent, 0f, false);
+        MeshGen.TexBox("LampFrame", center + Vector3.up * (hy + 0.015f), new Vector3(size.x + 0.06f, 0.03f, size.z + 0.06f), LampMetal, 1f, parent, 0f, false);
+        MeshGen.TexBox("LampFrame", center - Vector3.up * (hy + 0.015f), new Vector3(size.x + 0.04f, 0.03f, size.z + 0.04f), LampMetal, 1f, parent, 0f, false);
+        MeshGen.TexCylinder("LampDome", center + Vector3.up * (hy + 0.03f), Mathf.Max(hx, hz) * 0.85f, size.y * 0.22f, LampMetal, 1f, parent, false);
+        MeshGen.TexCylinder("LampFinial", center + Vector3.up * (hy + 0.03f + size.y * 0.22f), 0.015f, size.y * 0.25f, LampMetal, 1f, parent, false);
         var glass = MeshGen.TexBox("LampGlow", center, size, WarmGlass, 1f, parent, 0f, false);
         var r = glass.GetComponent<Renderer>();
         r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         r.enabled = false;
         night.Add(r);
-        if (halo > 0f) Halo(parent, center, halo, new Color(0.55f, 0.36f, 0.16f), night);
+        if (halo > 0f) Halo(parent, center, halo, new Color(0.78f, 0.5f, 0.2f), night);
         // the warm pool of light on the ground under it
         if (halo > 0f)
         {
@@ -92,7 +104,7 @@ public static class NightLights
                 poolMaterial = new Material(Shader.Find("UA/GlowPool") ?? Shader.Find("Sprites/Default"));
                 AssetDatabase.CreateAsset(poolMaterial, path);
             }
-            poolMaterial.SetColor("_Color", new Color(0.62f, 0.33f, 0.12f));
+            poolMaterial.SetColor("_Color", new Color(0.82f, 0.46f, 0.16f));
         }
         var go = new GameObject("LightPool");
         go.transform.SetParent(parent, false);

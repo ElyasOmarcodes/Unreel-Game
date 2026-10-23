@@ -4,10 +4,12 @@ using System.Linq;
 using UA;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
-/// Al-Zahra: Madinat al-Zahra, the 10th-century caliphal city below the Sierra Morena near Córdoba, in
-/// spring. A compressed slice of the real site on three terraces stepping down to the south:
+/// Al-Zahra: Madinat al-Zahra, the 10th-century caliphal city below the Sierra Morena near Córdoba, as it
+/// stood in its golden age (nothing broken), in spring, inside its walls, on three terraces stepping down
+/// to the south:
 /// <list type="bullet">
 /// <item>upper (10 m): Dar al-Mulk with its view over everything, the Edificio Basilical Superior and its
 /// plaza, the bent North Gate passage with four doors, the north wall walk;</item>
@@ -24,7 +26,7 @@ using UnityEngine;
 /// </summary>
 public static class ZahraBuilder
 {
-    public const float Half = 96f;
+    public const float Half = 128f;
     private const float Lower = 0f, Middle = 4f, Upper = 10f;
     private const float MidSouth = -30f, UpSouth = 60f;   // where the middle and the upper terrace begin
     private const string MeshFolder = "Assets/Generated/Meshes/Zahra";
@@ -69,6 +71,21 @@ public static class ZahraBuilder
     private static Material Orange => AssetSetup.Solid("Z_Orange", new Color(1f, 0.55f, 0.08f), 0.5f);
     private static Material Bronze => AssetSetup.Solid("Z_Bronze", new Color(0.25f, 0.18f, 0.1f), 0.5f, 0.6f);
     private static Material Water => AssetSetup.WaterMat("Water_Pool", new Color(0.04f, 0.17f, 0.18f), new Color(0.18f, 0.42f, 0.4f), 3f, 0.15f);
+    private static Material LimeOchre => PortBuilder.Pbr("Z_LimeOchre", "Plaster001", new Color(0.96f, 0.86f, 0.66f), 0.3f);
+    private static Material Gold => AssetSetup.Solid("Z_Gold", new Color(0.85f, 0.65f, 0.25f), 0.75f, 0.85f);
+    private static Material Velvet => AssetSetup.Solid("Z_Velvet", new Color(0.5f, 0.06f, 0.08f), 0.2f);
+    private static Material Terracotta => AssetSetup.Solid("Z_Terracotta", new Color(0.7f, 0.36f, 0.22f), 0.2f);
+    private static Material Signboard => PortBuilder.Pbr("Z_Signboard", "Wood049", new Color(0.35f, 0.22f, 0.14f), 0.4f);
+    private static Material lattice, carpet;
+
+    /// <summary>Running water, the waves drifting the way it flows (one material per direction).</summary>
+    private static Material Flowing(Vector3 dir)
+    {
+        dir.y = 0;
+        dir.Normalize();
+        string key = $"Water_Flow_{Mathf.RoundToInt(dir.x * 10)}_{Mathf.RoundToInt(dir.z * 10)}";
+        return AssetSetup.WaterMat(key, new Color(0.05f, 0.18f, 0.19f), new Color(0.22f, 0.46f, 0.44f), 4f, 0.22f, new Vector3(dir.x, 1.4f, dir.z));
+    }
 
     private static void Box(Transform t, string name, Vector3 center, Vector3 size, Material m, float tex = 2f, bool collider = true, float yaw = 0f)
     {
@@ -240,6 +257,120 @@ public static class ZahraBuilder
         }, false);
         var nrm = NormalFrom("Ataurique_N", size, h, 5f);
         ataurique = AssetSetup.Mat("Z_Ataurique", Color.white, 0.2f, 0f, tex, nrm);
+    }
+
+    /// <summary>Wooden lattice (for the windows) and a red carpet with a border and a medallion.</summary>
+    private static void MakeLatticeAndCarpet()
+    {
+        var lt = SaveTexture("Lattice", 128, (x, y) =>
+        {
+            float u = (x + 0.5f) / 16f, v = (y + 0.5f) / 16f;
+            float a = Mathf.Abs((u + v) % 1f - 0.5f), b = Mathf.Abs((u - v + 8f) % 1f - 0.5f);
+            bool bar = a > 0.38f || b > 0.38f;
+            var c = bar ? new Color(0.38f, 0.24f, 0.14f) : new Color(0.06f, 0.05f, 0.05f);
+            c.a = 1f;
+            return c;
+        }, false);
+        lattice = AssetSetup.Mat("Z_Lattice", Color.white, 0.3f, 0f, lt);
+        var ct = SaveTexture("Carpet", 256, (x, y) =>
+        {
+            float u = x / 256f, v = y / 256f;
+            float edge = Mathf.Min(Mathf.Min(u, 1f - u), Mathf.Min(v, 1f - v));
+            float du = u - 0.5f, dv = v - 0.5f, r = Mathf.Sqrt(du * du + dv * dv);
+            Color c = new Color(0.55f, 0.07f, 0.08f);
+            if (edge < 0.08f) c = new Color(0.1f, 0.12f, 0.3f);
+            else if (edge < 0.1f || Mathf.Abs(r - 0.22f) < 0.012f) c = new Color(0.85f, 0.68f, 0.3f);
+            else if (r < 0.2f) c = Mathf.Sin(Mathf.Atan2(dv, du) * 8f) > 0.2f ? new Color(0.85f, 0.68f, 0.3f) : new Color(0.1f, 0.12f, 0.3f);
+            else if ((Mathf.FloorToInt(u * 12f) + Mathf.FloorToInt(v * 12f)) % 2 == 0 && edge > 0.14f) c *= 0.85f;
+            c.a = 1f;
+            return c;
+        }, false);
+        carpet = AssetSetup.Mat("Z_Carpet", Color.white, 0.1f, 0f, ct);
+    }
+
+    // ------------------------------------------------------------------ boards with writing
+
+    private static Font font;
+
+    /// <summary>Width of a letter of the UA font in ems (Arabic forms 0.6, capitals 0.69, small letters 0.58).</summary>
+    private static float Advance(char c) => c == ' ' ? 0.3f : Rtl.IsRtl(c) ? 0.6f : char.IsUpper(c) ? 0.69f : char.IsDigit(c) ? 0.6f : char.IsLower(c) ? 0.58f : 0.38f;
+
+    /// <summary>Words of a text in lines no wider than 'width' ems (Arabic is wrapped before it is shaped).</summary>
+    private static List<string> Wrap(string text, float width)
+    {
+        var lines = new List<string>();
+        foreach (var para in text.Split('\n'))
+        {
+            var line = "";
+            float used = 0f;
+            foreach (var w in para.Split(' '))
+            {
+                float ww = w.Sum(Advance);
+                if (line.Length > 0 && used + 0.3f + ww > width) { lines.Add(line); line = w; used = ww; }
+                else { line = line.Length == 0 ? w : line + " " + w; used += (used > 0f ? 0.3f : 0f) + ww; }
+            }
+            lines.Add(line);
+        }
+        return lines;
+    }
+
+    /// <summary>
+    /// A block of writing on the front (local -Z face) of a board: local centre, size in metres, the
+    /// letters at most 'maxSize' cm and smaller until the whole text fits.
+    /// </summary>
+    private static void Writing(Transform board, Vector3 local, Vector2 size, string text, float maxSize, Color color, TextAnchor anchor = TextAnchor.MiddleCenter, FontStyle style = FontStyle.Normal)
+    {
+        const float scale = 0.0025f;   // metres per canvas unit: big font sizes, sharp letters
+        if (font == null) font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/UAFont.ttf");
+        float w = size.x / scale, h = size.y / scale;
+        int fs = Mathf.Max(8, Mathf.RoundToInt(maxSize * 0.01f / scale));
+        var lines = Wrap(text, w / fs);
+        while (fs > 8 && (lines.Count * 1.62f * fs > h || lines.Any(l => l.Sum(Advance) * fs > w)))
+        {
+            fs = Mathf.Max(8, Mathf.FloorToInt(fs * 0.94f));
+            lines = Wrap(text, w / fs);
+        }
+        var go = new GameObject("Writing");
+        go.transform.SetParent(board, false);
+        go.transform.localPosition = local;
+        go.transform.localScale = Vector3.one * scale;
+        var canvas = go.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        var rt = go.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(w, h);
+        var t = new GameObject("Text").AddComponent<Text>();
+        t.transform.SetParent(go.transform, false);
+        var trt = t.rectTransform;
+        trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one; trt.offsetMin = trt.offsetMax = Vector2.zero;
+        t.font = font;
+        t.fontSize = fs;
+        t.fontStyle = style;
+        t.color = color;
+        t.alignment = anchor;
+        t.supportRichText = false;
+        t.raycastTarget = false;
+        t.horizontalOverflow = HorizontalWrapMode.Overflow;
+        t.verticalOverflow = VerticalWrapMode.Overflow;
+        t.lineSpacing = 1f;
+        t.text = string.Join("\n", lines.Select(Rtl.Shape));
+    }
+
+    /// <summary>
+    /// A name board (dark wood, gilt frame) with an Arabic line over an English line, its face towards
+    /// 'yaw' + 180 (it is read from the side its local -Z points to).
+    /// </summary>
+    private static Transform Sign(Transform parent, Vector3 pos, float yaw, string arabic, string english, float width = 3f, float height = 1.1f)
+    {
+        var t = Node("Sign", parent, pos, yaw);
+        LBox(t, "SignBoard", Vector3.zero, new Vector3(width, height, 0.12f), Signboard, 1f, false);
+        LBox(t, "SignFrame", new Vector3(0, height / 2f, -0.03f), new Vector3(width + 0.1f, 0.06f, 0.1f), Gold, 1f, false);
+        LBox(t, "SignFrame", new Vector3(0, -height / 2f, -0.03f), new Vector3(width + 0.1f, 0.06f, 0.1f), Gold, 1f, false);
+        foreach (float s in new[] { -1f, 1f })
+            LBox(t, "SignFrame", new Vector3(s * width / 2f, 0, -0.03f), new Vector3(0.06f, height, 0.1f), Gold, 1f, false);
+        var gilt = new Color(0.98f, 0.84f, 0.45f);
+        Writing(t, new Vector3(0, height * 0.2f, -0.07f), new Vector2(width - 0.2f, height * 0.5f), arabic, height * 36f, gilt);
+        Writing(t, new Vector3(0, -height * 0.24f, -0.07f), new Vector2(width - 0.2f, height * 0.4f), english, height * 20f, new Color(0.95f, 0.9f, 0.8f));
+        return t;
     }
 
     // ------------------------------------------------------------------ arches
@@ -495,9 +626,15 @@ public static class ZahraBuilder
 
     private static Mesh cypressMesh;
 
-    /// <summary>A spindle of dark foliage on a short trunk: the Mediterranean cypress.</summary>
+    /// <summary>A Mediterranean cypress: a pine of the nature kit drawn in tall and narrow (a spindle if the kit is missing).</summary>
     private static void CypressTree(Transform parent, Vector3 p, float height)
     {
+        var pine = Nature.Place(Nature.Pines[rng.Next(Nature.Pines.Length)], p, R(0, 360), height, parent);
+        if (pine != null)
+        {
+            pine.transform.localScale = Vector3.Scale(pine.transform.localScale, new Vector3(0.34f, 1f, 0.34f));
+            return;
+        }
         if (cypressMesh == null)
         {
             var b = new Builder(1.2f);
@@ -518,12 +655,9 @@ public static class ZahraBuilder
             cypressMesh = b.Save("cypress");
         }
         var t = Node("Cypress", parent, p, R(0, 360));
-        LBox(t, "Trunk", new Vector3(0, 0.4f, 0), new Vector3(0.22f, 0.8f, 0.22f), PalmTrunk, 1f, false);
         var crown = MeshObject(t, "Crown", cypressMesh, Cypress, false);
         crown.transform.localPosition = new Vector3(0, 0.5f, 0);
         crown.transform.localScale = new Vector3(height * 0.15f, height - 0.5f, height * 0.15f);
-        var col = t.gameObject.AddComponent<CapsuleCollider>();
-        col.radius = 0.3f; col.height = height; col.center = new Vector3(0, height / 2f, 0);
     }
 
     /// <summary>A date palm: a slightly leaning trunk and a crown of drooping fronds.</summary>
@@ -556,11 +690,50 @@ public static class ZahraBuilder
         }
     }
 
-    private static void Hedge(Transform parent, Vector3 a, Vector3 b, float height = 0.8f)
+    private static readonly Dictionary<string, (Vector3 size, bool alongX)> bushShape = new Dictionary<string, (Vector3, bool)>();
+
+    /// <summary>
+    /// A clipped myrtle hedge from a to b: the long bushes of the nature kit end to end, turned along
+    /// the line and stretched to fill it (leaves, not a green box).
+    /// </summary>
+    private static void Hedge(Transform parent, Vector3 a, Vector3 b, float height = 0.9f)
     {
-        var d = b - a;
-        float len = new Vector2(d.x, d.z).magnitude;
-        MeshGen.RoundBox("Myrtle", (a + b) / 2f + Vector3.up * height / 2f, new Vector3(0.7f, height, len), 0.2f, HedgeMat, 1.5f, parent, Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg);
+        var d = b - a; d.y = 0;
+        float len = d.magnitude;
+        if (len < 0.3f) return;
+        float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+        string key = rng.NextDouble() < 0.5 ? "Bush_Long_1" : "Bush_Long_2";
+        var probe = Nature.Place(key, a, 0, height, parent);
+        if (probe == null)
+        {
+            MeshGen.RoundBox("Myrtle", (a + b) / 2f + Vector3.up * height / 2f, new Vector3(0.7f, height, len), 0.2f, HedgeMat, 1.5f, parent, yaw);
+            return;
+        }
+        if (!bushShape.TryGetValue(key, out var shape))
+        {
+            var rs = probe.GetComponentsInChildren<Renderer>();
+            var bb = rs[0].bounds;
+            foreach (var r in rs) bb.Encapsulate(r.bounds);
+            shape = (bb.size, bb.size.x > bb.size.z);
+            bushShape[key] = shape;
+        }
+        Object.DestroyImmediate(probe);
+        float piece = Mathf.Max(shape.alongX ? shape.size.x : shape.size.z, 0.5f);
+        int count = Mathf.Max(1, Mathf.RoundToInt(len / piece));
+        float stretch = len / count / piece;
+        for (int i = 0; i < count; i++)
+        {
+            var p = a + d / len * ((i + 0.5f) * len / count);
+            var go = Nature.Place(key, p, yaw + (shape.alongX ? 90f : 0f), height, parent);
+            if (go == null) continue;
+            var sc = go.transform.localScale;
+            go.transform.localScale = shape.alongX ? new Vector3(sc.x * stretch, sc.y, sc.z * 0.8f) : new Vector3(sc.x * 0.8f, sc.y, sc.z * stretch);
+        }
+        // a box inside the leaves for bullets and feet
+        var block = new GameObject("HedgeCollider");
+        block.transform.SetParent(parent, false);
+        block.transform.SetPositionAndRotation((a + b) / 2f + Vector3.up * height * 0.45f, Quaternion.Euler(0, yaw, 0));
+        block.AddComponent<BoxCollider>().size = new Vector3(0.6f, height * 0.9f, len);
     }
 
     private static void Flowers(Transform parent, Vector3 c, float rx, float rz, int count, float y)
@@ -574,13 +747,61 @@ public static class ZahraBuilder
         }
     }
 
-    /// <summary>A bronze lantern on a post (lit at night).</summary>
+    /// <summary>A bronze lantern on a post: a pierced dome lamp on an arm, seen by day, lit at night.</summary>
     private static void Lantern(Transform parent, Vector3 p)
     {
-        var t = Node("Lantern", parent, p, 0);
-        MeshGen.TexCylinder("LanternPost", p, 0.06f, 2.6f, Bronze, 1f, t);
-        LBox(t, "LanternCap", new Vector3(0, 3.02f, 0), new Vector3(0.34f, 0.08f, 0.34f), Bronze, 1f, false);
-        NightLights.Lamp(t, p + Vector3.up * 2.8f, new Vector3(0.2f, 0.32f, 0.2f), night, 3f);
+        var t = Node("Lantern", parent, p, R(0, 360));
+        MeshGen.TexCylinder("LanternPost", p, 0.07f, 2.9f, Bronze, 1f, t);
+        MeshGen.TexCylinder("LanternFoot", p, 0.16f, 0.25f, Bronze, 1f, t, false);
+        LBox(t, "LanternArm", new Vector3(0.22f, 2.85f, 0), new Vector3(0.5f, 0.05f, 0.05f), Bronze, 1f, false);
+        LBox(t, "LanternChain", new Vector3(0.44f, 2.72f, 0), new Vector3(0.02f, 0.26f, 0.02f), Bronze, 1f, false);
+        NightLights.Lamp(t, t.TransformPoint(new Vector3(0.44f, 2.4f, 0)), new Vector3(0.24f, 0.36f, 0.24f), night, 3f);
+    }
+
+    /// <summary>A lantern hanging on a chain from a ceiling (halls and galleries).</summary>
+    private static void HangingLamp(Transform parent, Vector3 p, float chain)
+    {
+        MeshGen.TexBox("LampChain", p + Vector3.up * (0.2f + chain / 2f), new Vector3(0.02f, chain, 0.02f), Bronze, 1f, parent, 0f, false);
+        NightLights.Lamp(parent, p, new Vector3(0.3f, 0.42f, 0.3f), night, 3.4f);
+    }
+
+    /// <summary>
+    /// A stone channel of running water from a to b (level): two low rims, a dark bed, the water drifting
+    /// downstream. 'top' is the height of the rims.
+    /// </summary>
+    private static void Channel(Transform parent, Vector3 a, Vector3 b, float width, float top, float foot = float.NaN)
+    {
+        var d = b - a; d.y = 0;
+        float len = d.magnitude;
+        if (len < 0.2f) return;
+        float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+        var c = (a + b) / 2f;
+        c.y = top;
+        var t = Node("Channel", parent, c, yaw);
+        LBox(t, "ChannelBed", new Vector3(0, -0.22f, 0), new Vector3(width, 0.06f, len), Ashlar, 2f, false);
+        var water = LBox(t, "ChannelWater", new Vector3(0, -0.07f, 0), new Vector3(width, 0.02f, len), Flowing(d), 4f, false);
+        water.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        foreach (float s in new[] { -1f, 1f })
+            LBox(t, "ChannelRim", new Vector3(s * (width / 2f + 0.09f), -0.1f, 0), new Vector3(0.18f, 0.2f, len), Cream, 1f);
+        // raised above the ground: a stone base under it
+        if (!float.IsNaN(foot) && top - 0.25f - foot > 0.05f)
+            LBox(t, "ChannelBase", new Vector3(0, (foot - top - 0.25f) / 2f + 0.0f, 0), new Vector3(width + 0.36f, top - 0.25f - foot, len), Ashlar, 2f);
+    }
+
+    /// <summary>A cascade: water running down a stone chute between two cheeks, from 'high' to 'low'.</summary>
+    private static void Cascade(Transform parent, Vector3 high, Vector3 low, float width)
+    {
+        Underground.Wedge(parent, "CascadeStone", low - Vector3.up * 0.15f, high - Vector3.up * 0.15f, width + 0.5f, Ashlar);
+        var water = Underground.Wedge(parent, "Cascade", low, high + Vector3.up * 0.02f, width, Flowing(low - high));
+        water.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        var d = high - low; d.y = 0;
+        var side = Vector3.Cross(Vector3.up, d.normalized);
+        float len = d.magnitude;
+        foreach (float s in new[] { -1f, 1f })
+        {
+            var cheek = MeshGen.TexBox("CascadeCheek", (high + low) / 2f + side * s * (width / 2f + 0.2f) + Vector3.up * 0.15f, new Vector3(0.3f, 0.5f, Mathf.Sqrt(len * len + (high.y - low.y) * (high.y - low.y))), Cream, 1f, parent);
+            cheek.transform.rotation = Quaternion.LookRotation(high - low);
+        }
     }
 
     /// <summary>A pool with a stone rim; the water a little below the walk.</summary>
@@ -616,39 +837,48 @@ public static class ZahraBuilder
         foreach (var r in Underground.Cover(area, holes)) Slab(t, name, r, top, thick, m, tex);
     }
 
+
     public static MapLayout Build()
     {
         rng = new System.Random(936);   // the year the building of the city began
         night.Clear();
         meshes.Clear();
+        bushShape.Clear();
         cypressMesh = null;
+        houses = 0;
         AssetDatabase.DeleteAsset(MeshFolder);
         AssetSetup.Folder(MeshFolder);
         MakeAshlar();
         MakeMarble();
         MakeAtaurique();
+        MakeLatticeAndCarpet();
         root = new GameObject("Map_Zahra").transform;
 
         Terraces();
+        CityWalls();
         UpperGarden();
         SalonRico();
+        Hammam();
         Portico();
         PlazaDeArmas();
         RampStreet();
         CaminoDeRonda();
         LowerGarden();
-        Mosque(new Vector3(68f, Lower, -63f), -28f);
+        Waters();
+        Palace(new Vector3(70f, Lower, -70f));
         Houses();
         DarAlMulk();
         BasilicalHall();
         NorthGate();
         NorthWall();
+        Medina();
         Supplies();
+        Boards();
         Surroundings();
 
-        float edge = Half + 2f;
-        foreach (var (c, sz) in new[] { (new Vector3(0, 20, edge), new Vector3(edge * 2 + 4, 40, 1)), (new Vector3(0, 20, -edge), new Vector3(edge * 2 + 4, 40, 1)),
-                                        (new Vector3(edge, 20, 0), new Vector3(1, 40, edge * 2 + 4)), (new Vector3(-edge, 20, 0), new Vector3(1, 40, edge * 2 + 4)) })
+        float edge = Half + 4f;
+        foreach (var (c, sz) in new[] { (new Vector3(0, 30, edge), new Vector3(edge * 2 + 4, 60, 1)), (new Vector3(0, 30, -edge), new Vector3(edge * 2 + 4, 60, 1)),
+                                        (new Vector3(edge, 30, 0), new Vector3(1, 60, edge * 2 + 4)), (new Vector3(-edge, 30, 0), new Vector3(1, 60, edge * 2 + 4)) })
         {
             var wall = new GameObject("Edge");
             wall.layer = World.FenceLayer;
@@ -663,39 +893,133 @@ public static class ZahraBuilder
         var layout = new MapLayout { Name = "AL-ZAHRA", Root = root.gameObject, Center = new Vector3(0, Middle, 0), Radius = Half };
         BuildNavigation(layout);
         root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "Zahra", null, night).ToArray();
-        Debug.Log($"[Map] Zahra built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
+        Debug.Log($"[Map] Zahra built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns, {houses} houses");
         return layout;
     }
+
 
     /// <summary>The three terraces, faced with ashlar where they step down, with a parapet along the edges.</summary>
     private static void Terraces()
     {
         var t = Node("Terraces", root, Vector3.zero, 0);
-        const float far = 320f;
-        // the valley beyond the south wall, then the three terraces
-        Slab(t, "Valley", Rect.MinMaxRect(-far, -far, far, -93f), -3f, 2f, Grass, 6f);
-        Slab(t, "LowerTerrace", Rect.MinMaxRect(-far, -93f, far, MidSouth), Lower, 5f, Earth, 4f);
+        const float far = 380f, south = -127f;
+        Slabs(t, "Valley", Rect.MinMaxRect(-far, -far, far, south), new[] { Rect.MinMaxRect(-far, -323f, far, -277f) }, -3f, 2f, Grass, 6f);
+        Slab(t, "RiverBed", Rect.MinMaxRect(-far, -323f, far, -277f), -4.4f, 1f, Earth, 6f);
+        Slab(t, "LowerTerrace", Rect.MinMaxRect(-far, south, far, MidSouth), Lower, 5f, Earth, 4f);
         Slab(t, "MiddleTerrace", Rect.MinMaxRect(-far, MidSouth, far, UpSouth), Middle, 8f, Earth, 4f);
         Slab(t, "UpperTerrace", Rect.MinMaxRect(-far, UpSouth, far, far), Upper, 14f, Earth, 4f);
-        // ashlar faces of the steps between the terraces
         Box(t, "TerraceFace", new Vector3(0, (Lower + Middle) / 2f - 0.32f, MidSouth - 0.15f), new Vector3(Half * 2f + 8f, Middle - Lower + 0.6f, 0.3f), Ashlar);
         Box(t, "TerraceFace", new Vector3(0, (Middle + Upper) / 2f - 0.32f, UpSouth - 0.15f), new Vector3(Half * 2f + 8f, Upper - Middle + 0.6f, 0.3f), Ashlar);
-        // parapets on the edges, open where stairs, ramps and the hidden climb arrive
         void Parapet(float z, float y, params (float a, float b)[] gaps)
         {
-            float x = -Half;
+            float x = -123.5f;
             var ordered = gaps.OrderBy(g => g.a).ToList();
-            ordered.Add((Half, Half));
+            ordered.Add((123.5f, 123.5f));
             foreach (var (ga, gb) in ordered)
             {
                 if (ga - x > 0.1f) Box(t, "Parapet", new Vector3((x + ga) / 2f, y + 0.45f, z), new Vector3(ga - x, 0.9f, 0.45f), Ashlar, 2f);
-                x = gb;
+                x = Mathf.Max(x, gb);
             }
         }
-        Parapet(MidSouth + 0.23f, Middle, (-8.2f, -1.8f), (-50.2f, -45.8f), (33f, 41f));
-        Parapet(UpSouth + 0.23f, Upper, (-60.2f, -55.8f), (49.8f, 54.2f), (-20.6f, 10.6f));   // behind the Salón Rico its back wall stands higher
-        // the strip along the foot of the middle terrace: a paved street
-        Slab(t, "Street", Rect.MinMaxRect(-Half, MidSouth - 4f, Half, MidSouth), Lower + 0.04f, 0.1f, Paving, 2.5f);
+        Parapet(MidSouth + 0.23f, Middle, (-10.4f, 0.4f), (-50.2f, -45.8f), (33f, 41f));
+        Parapet(UpSouth + 0.23f, Upper, (-60.2f, -55.8f), (49.8f, 54.2f), (-20.6f, 10.6f), (19.4f, 22.6f));
+        // the paved streets of the lower town: along the foot of the middle terrace, from the gate north, east to west
+        Slab(t, "Street", Rect.MinMaxRect(-123.5f, MidSouth - 4f, 123.5f, MidSouth), Lower + 0.04f, 0.1f, Paving, 2.5f);
+        Slab(t, "Street", Rect.MinMaxRect(GateX - 3f, -123f, GateX + 3f, MidSouth - 4f), Lower + 0.05f, 0.1f, Paving, 2.5f);
+        Slab(t, "Street", Rect.MinMaxRect(GateX + 3f, -91.6f, 123.5f, -88.7f), Lower + 0.05f, 0.1f, Paving, 2.5f);
+        Slab(t, "Street", Rect.MinMaxRect(-123.5f, -91.6f, GateX - 3f, -88.7f), Lower + 0.05f, 0.1f, Paving, 2.5f);
+    }
+
+    private const float GateX = -53.5f;
+
+    /// <summary>A square tower of ashlar with a band and merlons on top.</summary>
+    private static void Tower(Transform t, Vector3 foot, float height, float size = 6f)
+    {
+        Box(t, "Tower", foot + Vector3.up * (height / 2f - 2f), new Vector3(size, height + 4f, size), Ashlar, 2.5f);
+        Box(t, "TowerBand", foot + Vector3.up * (height - 0.15f), new Vector3(size + 0.3f, 0.3f, size + 0.3f), Cream, 1.5f, false);
+        for (int i = 0; i < 4; i++)
+            for (float u = -size / 2f + 0.5f; u <= size / 2f - 0.4f; u += 1.4f)
+            {
+                var off = i == 0 ? new Vector3(u, 0, size / 2f - 0.25f) : i == 1 ? new Vector3(u, 0, -size / 2f + 0.25f) : i == 2 ? new Vector3(size / 2f - 0.25f, 0, u) : new Vector3(-size / 2f + 0.25f, 0, u);
+                Box(t, "Merlon", foot + off + Vector3.up * (height + 0.5f), new Vector3(0.7f, 1f, 0.7f), Ashlar, 1f);
+            }
+    }
+
+    /// <summary>
+    /// The walls round the whole city with towers, and the main gate in the south wall: a tall horseshoe
+    /// arch between two towers, its name over it on both faces, and inside it a board with the story of
+    /// the city in Arabic and English.
+    /// </summary>
+    private static void CityWalls()
+    {
+        var t = Node("CityWalls", root, Vector3.zero, 0);
+        const float x = 125f, th = 3f;
+        foreach (float s in new[] { -1f, 1f })
+            foreach (var (z0, z1, y) in new[] { (-126.5f, MidSouth, Lower), (MidSouth, UpSouth, Middle), (UpSouth, 126.5f, Upper) })
+            {
+                Box(t, "CityWall", new Vector3(s * x, y + 2f, (z0 + z1) / 2f), new Vector3(th, 12f, z1 - z0), Ashlar, 2.5f);
+                Box(t, "WallBand", new Vector3(s * x, y + 8.1f, (z0 + z1) / 2f), new Vector3(th + 0.2f, 0.2f, z1 - z0), Cream, 1.5f, false);
+                for (float z = z0 + 14f; z < z1 - 6f; z += 24f) Tower(t, new Vector3(s * x, y, z), 10f);
+            }
+        // the south wall, open for the gate
+        foreach (var (a, b) in new[] { (-126.5f, GateX - 4f), (GateX + 4f, 126.5f) })
+        {
+            Box(t, "CityWall", new Vector3((a + b) / 2f, 2.5f, -125f), new Vector3(b - a, 11f, th), Ashlar, 2.5f);
+            Box(t, "WallBand", new Vector3((a + b) / 2f, 8.1f, -125f), new Vector3(b - a, 0.2f, th + 0.2f), Cream, 1.5f, false);
+        }
+        for (float xx = -110f; xx < 125f; xx += 26f)
+            if (Mathf.Abs(xx - GateX) > 12f) Tower(t, new Vector3(xx, Lower, -125f), 10f);
+        foreach (var c in new[] { new Vector3(-x, Lower, -125f), new Vector3(x, Lower, -125f), new Vector3(-x, Upper, 124f), new Vector3(x, Upper, 124f) })
+            Tower(t, c, 12f, 8f);
+        // the gate: two towers and a great horseshoe arch, wooden doors open against the inside
+        foreach (float s in new[] { -1f, 1f }) Tower(t, new Vector3(GateX + s * 7f, Lower, -125f), 14f, 6f);
+        var gate = Node("MainGate", t, new Vector3(GateX, Lower, -125f), 0);
+        Arch(gate, 0, 8f, 4.6f, 13f, 4f, 30f, Ashlar);
+        foreach (float s in new[] { -1f, 1f })
+            Box(t, "GateDoor", new Vector3(GateX + s * 3.9f, 2.2f, -122.85f), new Vector3(2.6f, 4.4f, 0.16f), Wood, 1.5f);
+        Sign(t, new Vector3(GateX, 11.7f, -122.85f), 180f, "مدينة الزهراء  -  سنة 325 للهجرة", "MADINAT AL-ZAHRA  -  FOUNDED 936 CE (325 AH)", 6.4f, 1.8f);
+        Sign(t, new Vector3(GateX, 11.7f, -127.15f), 0f, "مدينة الزهراء  -  سنة 325 للهجرة", "MADINAT AL-ZAHRA  -  FOUNDED 936 CE (325 AH)", 6.4f, 1.8f);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            NightLights.Lamp(t, new Vector3(GateX + s * 4.6f, 5.6f, -122.7f), new Vector3(0.3f, 0.45f, 0.3f), night, 3.4f);
+            NightLights.Lamp(t, new Vector3(GateX + s * 4.6f, 5.6f, -127.3f), new Vector3(0.3f, 0.45f, 0.3f), night, 3.4f);
+        }
+        HistoryBoard(new Vector3(GateX + 6.2f, Lower, -112f), 90f);
+        // the road from the valley up to the gate
+        Underground.Wedge(t, "Ramp", new Vector3(GateX, Lower - 3f, -141f), new Vector3(GateX, Lower, -127f), 8f, Paving);
+    }
+
+    private const string StoryArabic =
+        "بنى الخليفة عبد الرحمن الناصر لدين الله مدينة الزهراء سنة 325 للهجرة (936 للميلاد) على سفح جبل العروس غربي قرطبة، وجعلها مقر الخلافة الأموية في الأندلس.\n" +
+        "قامت على ثلاث مدرجات: في أعلاها دار الملك قصر الخليفة، وفي وسطها مجالس الحكم والمجلس الشرقي والجنان والبرك، وفي أسفلها المدينة بدورها وأسواقها وحماماتها.\n" +
+        "عمل في بنائها آلاف الصناع والبنائين، وجلب إليها الرخام من أنحاء الأندلس وإفريقية، وجرى إليها الماء من الجبل في قناة عظيمة.\n" +
+        "استقبل فيها الخلفاء رسل القسطنطينية وملوك أوروبا والمغرب، فكانت من عجائب زمانها، وأتم بناءها ابنه الحكم المستنصر بالله.";
+
+    private const string StoryEnglish =
+        "Caliph Abd al-Rahman III founded Madinat al-Zahra in 936 CE (325 AH) on the slopes of the Sierra Morena, west of Cordoba, as the seat of the Umayyad Caliphate of al-Andalus.\n" +
+        "It rises on three terraces: the Caliph's house (Dar al-Mulk) at the top, the halls of state, the Salon Rico, the gardens and pools in the middle, and the town with its houses, markets and baths below.\n" +
+        "Thousands of masons and craftsmen built it; marble came from all of al-Andalus and North Africa, and water ran down from the mountain in a great aqueduct.\n" +
+        "Here the caliphs received the envoys of Constantinople and the kings of Europe and the Maghreb. His son al-Hakam II completed the city, one of the wonders of its age.";
+
+    /// <summary>A marble stele on a plinth with the story of the city, Arabic above and English below.</summary>
+    private static void HistoryBoard(Vector3 foot, float yaw)
+    {
+        var t = Node("HistoryBoard", root, foot, yaw);
+        const float w = 6f, h = 6f, face = -0.19f;
+        LBox(t, "SteleBase", new Vector3(0, 0.3f, 0), new Vector3(w + 0.6f, 0.6f, 1.1f), Ashlar, 1.5f);
+        LBox(t, "Stele", new Vector3(0, 0.6f + h / 2f, 0), new Vector3(w, h, 0.35f), Marble, 2f);
+        LBox(t, "SteleCrown", new Vector3(0, 0.6f + h + 0.15f, 0), new Vector3(w + 0.3f, 0.3f, 0.55f), Cream, 1f, false);
+        foreach (float s in new[] { -1f, 1f })
+            LBox(t, "SteleFrame", new Vector3(s * (w / 2f - 0.08f), 0.6f + h / 2f, face), new Vector3(0.1f, h - 0.1f, 0.04f), Gold, 1f, false);
+        LBox(t, "SteleRule", new Vector3(0, 0.6f + h / 2f, face), new Vector3(w - 0.6f, 0.04f, 0.04f), Gold, 1f, false);
+        var ink = new Color(0.2f, 0.12f, 0.06f);
+        var title = new Color(0.55f, 0.3f, 0.05f);
+        float top = 0.6f + h, mid = 0.6f + h / 2f;
+        Writing(t, new Vector3(0, top - 0.42f, face - 0.01f), new Vector2(w - 0.4f, 0.55f), "قصة مدينة الزهراء", 40f, title);
+        Writing(t, new Vector3(0, (top - 0.75f + mid + 0.1f) / 2f, face - 0.01f), new Vector2(w - 0.5f, top - 0.75f - mid - 0.1f), StoryArabic, 20f, ink);
+        Writing(t, new Vector3(0, mid - 0.3f, face - 0.01f), new Vector2(w - 0.4f, 0.42f), "THE STORY OF MADINAT AL-ZAHRA", 28f, title);
+        Writing(t, new Vector3(0, (mid - 0.58f + 0.75f) / 2f, face - 0.01f), new Vector2(w - 0.5f, mid - 0.58f - 0.75f), StoryEnglish, 20f, ink);
+        NightLights.Lamp(t, t.TransformPoint(new Vector3(0, 0.6f + h + 0.6f, -0.4f)), new Vector3(0.24f, 0.34f, 0.24f), night, 3f);
     }
 
     /// <summary>
@@ -864,33 +1188,41 @@ public static class ZahraBuilder
         Lantern(t, new Vector3(x - 4.2f, Middle, zEnd - 1f));
     }
 
-    /// <summary>The Plaza de Armas: the parade ground in front of the Portico, with foundations, fallen column drums and trees in planters.</summary>
+
+    /// <summary>The Plaza de Armas: the parade ground in front of the Portico, galleries on two sides, a great fountain, planters with myrtle for cover.</summary>
     private static void PlazaDeArmas()
     {
         var t = Node("Plaza", root, Vector3.zero, 0);
-        Slab(t, "Plaza", Rect.MinMaxRect(38f, MidSouth, Half + 4f, 44f), Middle + 0.04f, 0.1f, Sand, 3f);
-        // low foundations of lost buildings (cover), fallen drums
-        Ruin(t, new Vector3(52f, Middle, 30f), new Vector3(66f, Middle, 30f), 1.5f, 0.7f, Ashlar);
-        Ruin(t, new Vector3(66f, Middle, 30f), new Vector3(66f, Middle, 20f), 1.3f, 0.7f, Ashlar);
-        Ruin(t, new Vector3(76f, Middle, -6f), new Vector3(90f, Middle, -6f), 1.6f, 0.7f, Ashlar);
-        Ruin(t, new Vector3(76f, Middle, -6f), new Vector3(76f, Middle, -18f), 1.2f, 0.7f, Ashlar);
-        Ruin(t, new Vector3(50f, Middle, -14f), new Vector3(62f, Middle, -14f), 1.1f, 0.7f, Ashlar);
-        Ruin(t, new Vector3(80f, Middle, 26f), new Vector3(80f, Middle, 38f), 1.4f, 0.7f, Ashlar);
-        for (int i = 0; i < 7; i++)
+        Slab(t, "Plaza", Rect.MinMaxRect(38f, MidSouth, 101f, 44f), Middle + 0.04f, 0.1f, Paving, 3f);
+        // galleries on columns along the north and the south side, roofed
+        Arcade(t, new Vector3(40f, Middle, 39.5f), Vector3.right, 7, 7f, 3f, 5f, 0.5f, 28f, Ashlar, true);
+        Box(t, "GalleryRoof", new Vector3(64.5f, Middle + 5.2f, 42.25f), new Vector3(49.5f, 0.4f, 5.9f), RoofTiles, 2f);
+        Box(t, "GalleryBack", new Vector3(44f, Middle + 2.5f, 42.4f), new Vector3(8f, 5f, 0.4f), Ashlar);
+        Arcade(t, new Vector3(44f, Middle, -24f), Vector3.right, 7, 7f, 3f, 5f, 0.5f, 28f, Ashlar, true);
+        Box(t, "GalleryRoof", new Vector3(68.5f, Middle + 5.2f, -26.9f), new Vector3(49.5f, 0.4f, 6f), RoofTiles, 2f);
+        Box(t, "GalleryBack", new Vector3(68.5f, Middle + 2.5f, -29.6f), new Vector3(49f, 5f, 0.4f), Ashlar);
+        // the great fountain
+        var fc = new Vector3(70f, Middle, 8f);
+        MeshGen.Object("FountainBasin", MeshGen.Cylinder(3.2f, 0.7f, 2f, 16), Cream, t, fc).AddComponent<MeshCollider>();
+        var fw = MeshGen.TexCylinder("FountainWater", fc + Vector3.up * 0.62f, 3f, 0.02f, Water, 3f, t, false);
+        fw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        MeshGen.TexCylinder("FountainShaft", fc, 0.35f, 2.2f, MarblePink, 1f, t);
+        MeshGen.TexCylinder("FountainBowl", fc + Vector3.up * 2.2f, 1.1f, 0.3f, Cream, 1f, t, false);
+        // planters of clipped myrtle: cover across the open ground
+        foreach (var (x, z, along) in new[] { (55f, -10f, true), (55f, 26f, true), (85f, -10f, true), (85f, 26f, true), (70f, -17f, true), (70f, 33f, true), (50f, 8f, false), (90f, 8f, false) })
         {
-            var p = new Vector3(R(46f, 90f), Middle + 0.35f, R(-24f, 40f));
-            var drum = MeshGen.Object("ColumnDrum", MeshGen.Cylinder(0.35f, 1.2f, 1f, 12), i % 2 == 0 ? MarblePink : Cream, t, p);
-            drum.transform.rotation = Quaternion.Euler(0, R(0, 180), 90f);
-            var c = drum.AddComponent<CapsuleCollider>();
-            c.radius = 0.35f; c.height = 1.2f; c.center = new Vector3(0, 0.6f, 0); c.direction = 1;
+            var size = along ? new Vector3(5f, 0.8f, 1.3f) : new Vector3(1.3f, 0.8f, 5f);
+            Box(t, "Planter", new Vector3(x, Middle + 0.4f, z), size, Ashlar, 1.5f);
+            var a = new Vector3(x - (along ? 2.2f : 0f), Middle + 0.8f, z - (along ? 0f : 2.2f));
+            var b = new Vector3(x + (along ? 2.2f : 0f), Middle + 0.8f, z + (along ? 0f : 2.2f));
+            Hedge(t, a, b, 0.8f);
         }
-        // orange trees in square planters along the east side and lanterns
-        for (float z = -24f; z < 40f; z += 9f)
+        for (float z = -18f; z < 36f; z += 9f)
         {
-            Box(t, "Planter", new Vector3(91f, Middle + 0.3f, z), new Vector3(2.4f, 0.6f, 2.4f), Ashlar, 1.5f);
-            OrangeTree(t, new Vector3(91f, Middle + 0.6f, z));
+            Box(t, "Planter", new Vector3(96f, Middle + 0.3f, z), new Vector3(2.4f, 0.6f, 2.4f), Ashlar, 1.5f);
+            OrangeTree(t, new Vector3(96f, Middle + 0.6f, z));
         }
-        foreach (var (x, z) in new[] { (44f, -20f), (44f, 10f), (44f, 38f), (70f, 10f) }) Lantern(t, new Vector3(x, Middle, z));
+        foreach (var (x, z) in new[] { (44f, -20f), (44f, 10f), (44f, 36f), (62f, 8f), (78f, 8f) }) Lantern(t, new Vector3(x, Middle, z));
         // the double stair from the lower street up to the plaza
         Buildings.Stairs(t, new Vector3(37f, Lower, MidSouth - 7.2f), Vector3.forward, Middle - Lower, 3.6f, Ashlar);
     }
@@ -975,19 +1307,31 @@ public static class ZahraBuilder
         fw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         var beds = new[] { Rect.MinMaxRect(area.xMin + 3f, -59f, -7f, area.yMax - 3f), Rect.MinMaxRect(-3f, -59f, area.xMax - 3f, area.yMax - 3f),
                            Rect.MinMaxRect(area.xMin + 3f, area.yMin + 3f, -7f, -63f), Rect.MinMaxRect(-3f, area.yMin + 3f, area.xMax - 3f, -63f) };
-        bool Wet(Vector3 p, float margin) => pools.Any(r => p.x > r.xMin - margin && p.x < r.xMax + margin && p.z > r.yMin - margin && p.z < r.yMax + margin);
+        bool Wet(Vector3 p, float margin) => pools.Any(r => p.x > r.xMin - margin && p.x < r.xMax + margin && p.z > r.yMin - margin && p.z < r.yMax + margin)
+            || (p.z > -59.5f && (Mathf.Abs(p.x + 9.4f) < margin + 0.5f || Mathf.Abs(p.x + 0.6f) < margin + 0.5f));   // the channels from the cascades
         foreach (var bed in beds)
         {
             var c = new Vector3(bed.center.x, Lower, bed.center.y);
             float hx = bed.width / 2f - 0.6f, hz = bed.height / 2f - 0.6f;
             foreach (float sz in new[] { -1f, 1f })
                 foreach (var (a, b) in new[] { (c + new Vector3(-hx, 0, sz * hz), c + new Vector3(-1.2f, 0, sz * hz)), (c + new Vector3(1.2f, 0, sz * hz), c + new Vector3(hx, 0, sz * hz)) })
-                    if (!Wet(a, 1f) && !Wet(b, 1f) && !Wet((a + b) / 2f, 1f)) Hedge(t, a, b, 1f);
+                {
+                    // hedges stop short of the channels
+                    var (ha, hb) = (a, b);
+                    foreach (float cx in new[] { -9.4f, -0.6f })
+                        if (ha.z > -59.5f && ha.x < cx + 1.3f && hb.x > cx - 1.3f)
+                        {
+                            if (cx - ha.x > hb.x - cx) hb.x = cx - 1.3f;
+                            else ha.x = cx + 1.3f;
+                        }
+                    if (!Wet(ha, 0.6f) && !Wet(hb, 0.6f) && !Wet((ha + hb) / 2f, 0.6f)) Hedge(t, ha, hb, 1f);
+                }
             for (float x = bed.xMin + 5f; x < bed.xMax - 3f; x += 9f)
                 for (float z = bed.yMin + 5f; z < bed.yMax - 3f; z += 9f)
                     if (rng.NextDouble() < 0.6 && !Wet(new Vector3(x, 0, z), 2.5f)) OrangeTree(t, new Vector3(x, Lower, z));
             Flowers(t, c, hx - 1f, hz - 1f, 8, Lower);
             var palm = c + new Vector3(hx - 1.5f, 0, hz - 1.5f);
+            if (Wet(palm, 2f)) palm = c + new Vector3(-(hx - 1.5f), 0, hz - 1.5f);
             if (!Wet(palm, 2f)) Palm(t, palm, R(7f, 9f));
         }
         foreach (float z in new[] { -44f, -50f, -72f, -78f, -84f })
@@ -1001,50 +1345,129 @@ public static class ZahraBuilder
             Lantern(t, new Vector3(x, walk, z));
     }
 
+
     /// <summary>
-    /// The Aljama mosque, turned towards the qibla (south-east, so at an angle to the city): a raised
-    /// walk round it, a courtyard with galleries, the prayer hall of five naves, the mihrab, and the
-    /// minaret in the north-west corner of the courtyard with a stair climbing round a core to the top.
+    /// The Caliph's palace in the lower town: a fortified square with corner towers and a watch tower,
+    /// a gate under a horseshoe arch, a courtyard with a fountain and four channels between orange
+    /// trees, galleries on marble columns, side chambers, and the throne hall: three naves, a carpet
+    /// to the dais, the throne under a canopy before a carved arch, hanging lamps.
     /// </summary>
-    private static void Mosque(Vector3 c, float yaw)
+    private static void Palace(Vector3 c)
     {
-        var t = Node("Mosque", root, c, yaw);
-        const float hw = 14f, hl = 21f, wallH = 6.5f, floor = 0.5f;
+        var t = Node("RoyalPalace", root, c, 0);
+        const float hx = 28f, hz = 26f, wallH = 8f, floor = 0.5f;
         Vector3 W(float x, float y, float z) => t.TransformPoint(new Vector3(x, y, z));
-        Vector3 D(float x, float z) => t.TransformDirection(new Vector3(x, 0, z));
-        LBox(t, "Platform", new Vector3(0, floor / 2f, 0), new Vector3(hw * 2f + 7f, floor, hl * 2f + 7f), Ashlar, 2f);
-        LBox(t, "Floor", new Vector3(0, floor + 0.02f, -9f), new Vector3(hw * 2f - 1f, 0.04f, 23f), Marble, 2f, false);
-        LBox(t, "Sahn", new Vector3(0, floor + 0.02f, 12f), new Vector3(hw * 2f - 1f, 0.04f, 17.4f), Paving, 2.5f, false);
-        // the double stair up to the walk on the north side
+        LBox(t, "Podium", new Vector3(0, floor / 2f, 0), new Vector3(hx * 2f + 4f, floor, hz * 2f + 4f), Ashlar, 2f);
+        LBox(t, "CourtFloor", new Vector3(0, floor + 0.02f, 11f), new Vector3(34f, 0.04f, 22f), Marble, 2f, false);
+        LBox(t, "HallFloor", new Vector3(0, floor + 0.02f, -12.5f), new Vector3(34f, 0.04f, 25f), Marble, 2f, false);
         foreach (float s in new[] { -1f, 1f })
-            Buildings.Stairs(t, W(s * 6f, 0, hl + 3.5f + 1.2f), D(0, -1), floor, 3f, Ashlar);
-        // outer walls: doors north and on both sides of the courtyard
-        Wall(t, W(-hw, floor, hl), W(hw, floor, hl), wallH, 0.8f, Ashlar, hw, 3f, 3.6f);
-        Wall(t, W(-hw, floor, -hl), W(hw, floor, -hl), wallH, 0.8f, Ashlar);
-        Wall(t, W(-hw, floor, -hl), W(-hw, floor, hl), wallH, 0.8f, Ashlar, hl + 10f, 2.2f, 3f);
-        Wall(t, W(hw, floor, -hl), W(hw, floor, hl), wallH, 0.8f, Ashlar, hl + 10f, 2.2f, 3f);
-        // the courtyard galleries on columns
-        Arcade(t, W(-10f, floor, 3f), D(0, 1), 3, 11.4f / 3f, 2.8f, 4.6f, 0.5f, 25f, Plaster, true);
-        Arcade(t, W(10f, floor, 3f), D(0, 1), 4, 17.2f / 4f, 2.8f, 4.6f, 0.5f, 25f, Plaster, true);
-        Arcade(t, W(-7.4f, floor, 17f), D(1, 0), 4, 17.4f / 4f, 2.8f, 4.6f, 0.5f, 25f, Plaster, true);
-        LBox(t, "GalleryRoof", new Vector3(-12f, floor + 4.8f, 8.7f), new Vector3(4.4f, 0.4f, 11.4f), RoofTiles, 2f);
-        LBox(t, "GalleryRoof", new Vector3(12.1f, floor + 4.8f, 11.6f), new Vector3(4.2f, 0.4f, 17.2f), RoofTiles, 2f);
-        LBox(t, "GalleryRoof", new Vector3(1.3f, floor + 4.8f, 19f), new Vector3(17.4f, 0.4f, 4f), RoofTiles, 2f);
-        // the prayer hall: a front of seven arches, five naves on columns, a tiled roof
-        Arcade(t, W(-hw, floor, 3f), D(1, 0), 7, 4f, 3.2f, wallH, 0.8f, 28f, Ashlar, false, true, 0.8f);
-        foreach (float x in new[] { -8.4f, -2.8f, 2.8f, 8.4f })
-            Arcade(t, W(x, floor, 2.2f), D(0, -1), 6, 22.8f / 6f, 3.2f, wallH, 0.5f, 28f, Plaster, true, false);
-        LBox(t, "HallRoof", new Vector3(0, floor + wallH + 0.2f, -9f), new Vector3(hw * 2f + 0.8f, 0.4f, 24.8f), RoofTiles, 2.5f);
-        LBox(t, "HallCeiling", new Vector3(0, floor + wallH - 0.03f, -9f), new Vector3(hw * 2f - 1f, 0.06f, 23f), Wood, 2f, false);
-        // the mihrab in the qibla wall
-        var mihrab = Node("Mihrab", t, W(0, floor, -hl + 0.6f), t.eulerAngles.y);
-        Arch(mihrab, 0, 2.6f, 2f, 4.2f, 0.4f, 32f, Ataurique);
-        LBox(t, "MihrabBack", new Vector3(0, floor + 2.1f, -hl + 0.42f), new Vector3(2.2f, 4.2f, 0.05f), Ataurique, 1f, false);
-        Minaret(t, new Vector3(-10.6f, floor, 17.6f), 14.4f);
-        foreach (var (x, z) in new[] { (-6f, 12f), (6f, 12f), (0f, -2f), (0f, -15f) })
-            NightLights.Lamp(t, W(x, floor + (z > 3f ? 3f : 5f), z), new Vector3(0.22f, 0.32f, 0.22f), night, 3f);
-        foreach (var (x, z) in new[] { (-17f, 24f), (17f, 24f), (-17f, -24f), (17f, -24f) })
-            CypressTree(t, W(x, 0, z), R(9f, 11f));
+            LBox(t, "RoomFloor", new Vector3(s * 22.25f, floor + 0.02f, -2.5f), new Vector3(10.5f, 0.04f, 46f), BrickFloor, 2f, false);
+        // outer walls, the gate in the north wall, corner towers, the watch tower in the north-west
+        Wall(t, W(-hx, floor, -hz), W(hx, floor, -hz), wallH, 1f, Ashlar);
+        Wall(t, W(-hx, floor, -hz), W(-hx, floor, hz), wallH, 1f, Ashlar);
+        Wall(t, W(hx, floor, -hz), W(hx, floor, hz), wallH, 1f, Ashlar);
+        Wall(t, W(-hx, floor, hz), W(-3f, floor, hz), wallH, 1f, Ashlar);
+        Wall(t, W(3f, floor, hz), W(hx, floor, hz), wallH, 1f, Ashlar);
+        var gate = Node("PalaceGate", t, W(0, floor, hz), 0);
+        Arch(gate, 0, 6f, 3.6f, wallH + 1.5f, 1.8f, 30f, Ashlar);
+        foreach (float s in new[] { -1f, 1f })
+            LBox(t, "GateDoor", new Vector3(s * 2.6f, floor + 2f, hz - 0.95f), new Vector3(2f, 4f, 0.14f), Wood, 1.5f);
+        Sign(t, W(0, floor + wallH + 0.4f, hz + 0.98f), 180f, "قصر الخلافة", "THE CALIPH'S PALACE", 5f, 1.3f);
+        foreach (var (x, z) in new[] { (-hx, -hz), (hx, -hz), (hx, hz) }) Tower(t, W(x, floor, z), 11f, 5f);
+        Minaret(t, new Vector3(-24.3f, floor, 22.3f), 15.6f);
+        // the courtyard: a fountain, four channels, four beds of orange trees edged with myrtle
+        var fc = W(0, floor, 11f);
+        MeshGen.Object("CourtFountain", MeshGen.Cylinder(1.9f, 0.6f, 1f, 8), Cream, t, fc).AddComponent<MeshCollider>();
+        var cw = MeshGen.TexCylinder("CourtFountainWater", fc + Vector3.up * 0.52f, 1.75f, 0.02f, Water, 2f, t, false);
+        cw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        MeshGen.TexCylinder("FountainJet", fc, 0.18f, 1.3f, Cream, 1f, t, false);
+        foreach (var (dx, dz) in new[] { (0f, 1f), (0f, -1f), (1f, 0f), (-1f, 0f) })
+            Channel(t, fc + new Vector3(dx * 2.1f, 0, dz * 2.1f), fc + new Vector3(dx * (dz == 0 ? 15.5f : 0f), 0, dz * (dx == 0 ? 9.5f : 0f)), 0.5f, floor + 0.2f);
+        foreach (float sx in new[] { -1f, 1f })
+            foreach (float sz in new[] { -1f, 1f })
+            {
+                var bc = W(sx * 8.5f, floor, 11f + sz * 5.5f);
+                Box(t, "CourtBed", bc + Vector3.up * 0.06f, new Vector3(12f, 0.1f, 7f), Grass, 2f, false);
+                Hedge(t, bc + new Vector3(-5.6f, 0, -3.2f), bc + new Vector3(5.6f, 0, -3.2f), 0.7f);
+                Hedge(t, bc + new Vector3(-5.6f, 0, 3.2f), bc + new Vector3(5.6f, 0, 3.2f), 0.7f);
+                OrangeTree(t, bc + new Vector3(-2.5f, 0, 0));
+                OrangeTree(t, bc + new Vector3(2.5f, 0, 0));
+            }
+        // galleries on the sides of the courtyard and in front of the gate, the chambers behind them
+        foreach (float s in new[] { -1f, 1f })
+        {
+            Arcade(t, W(s * 17f, floor, 0f), t.TransformDirection(Vector3.forward), 5, 4.4f, 2.8f, 4.6f, 0.5f, 28f, Plaster, true);
+            LBox(t, "GalleryRoof", new Vector3(s * 19f, floor + 4.8f, 11f), new Vector3(4.4f, 0.4f, 22f), RoofTiles, 2f);
+            // the wall of the chambers, a door into each, its leaf standing open inside
+            var bounds = new[] { -24.5f, -16f, -8f, 0f, 6.7f, 13.4f, 20f };
+            for (int i = 0; i + 1 < bounds.Length; i++)
+            {
+                float za = bounds[i], zb = bounds[i + 1];
+                Wall(t, W(s * 21f, floor, za), W(s * 21f, floor, zb), 5.2f, 0.5f, Plaster, (zb - za) / 2f, 1.2f, 2.4f);
+                LBox(t, "ChamberDoor", new Vector3(s * 21.75f, floor + 1.2f, (za + zb) / 2f + 0.62f), new Vector3(1f, 2.3f, 0.08f), Wood, 1f, false);
+            }
+            foreach (float z in new[] { -16f, -8f, 0f, 6.7f, 13.4f })
+                Wall(t, W(s * 21f, floor, z), W(s * 27.5f, floor, z), 5.2f, 0.4f, Plaster, 3.2f, 1.2f, 2.4f);
+            LBox(t, "ChamberRoof", new Vector3(s * 24.3f, floor + 5.4f, -2.25f), new Vector3(7.2f, 0.4f, 45.5f), RoofTiles, 2f);
+        }
+        Arcade(t, W(-17f, floor, 22f), t.TransformDirection(Vector3.right), 5, 6.8f, 3f, 4.6f, 0.5f, 28f, Plaster, true);
+        LBox(t, "VestibuleRoof", new Vector3(0, floor + 4.8f, 23.9f), new Vector3(34.4f, 0.4f, 4.2f), RoofTiles, 2f);
+        // the throne hall: a front of five arches, two arcades, carved arch behind the dais
+        Arcade(t, W(-17f, floor, 0f), t.TransformDirection(Vector3.right), 5, 6.8f, 3.8f, wallH, 1f, 28f, Ashlar, false, true, 0.9f);
+        foreach (float x in new[] { -5.67f, 5.67f })
+            Arcade(t, W(x, floor, -0.5f), t.TransformDirection(Vector3.back), 4, 5.9f, 3.6f, wallH, 0.6f, 25f, Plaster, true);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            Wall(t, W(s * 17f, floor, -25.5f), W(s * 17f, floor, -0.5f), wallH, 0.6f, Plaster);
+            LBox(t, "Dado", new Vector3(s * 16.67f, floor + 0.6f, -13f), new Vector3(0.05f, 1.2f, 24.5f), Almagra, 1.5f, false);
+            foreach (float z in new[] { -6f, -13f, -20f })
+                LBox(t, "Ataurique", new Vector3(s * 16.64f, floor + 3.6f, z), new Vector3(0.04f, 3.2f, 2f), Ataurique, 1f, false);
+            LBox(t, "Divan", new Vector3(s * 15.9f, floor + 0.22f, -12f), new Vector3(1f, 0.44f, 14f), Velvet, 1f);
+        }
+        LBox(t, "HallRoof", new Vector3(0, floor + wallH + 0.2f, -12.75f), new Vector3(35f, 0.4f, 26.5f), RoofTiles, 2.5f);
+        LBox(t, "Ceiling", new Vector3(0, floor + wallH - 0.03f, -12.75f), new Vector3(33.6f, 0.06f, 25f), Wood, 2f, false);
+        for (float z = -24f; z < -1f; z += 2.6f)
+            LBox(t, "Beam", new Vector3(0, floor + wallH - 0.2f, z), new Vector3(33.6f, 0.26f, 0.3f), Wood, 2f, false);
+        // the dais, the throne under its canopy, the carpets
+        LBox(t, "Dais", new Vector3(0, floor + 0.3f, -22.5f), new Vector3(10f, 0.6f, 5.6f), Marble, 2f);
+        LBox(t, "DaisStep", new Vector3(0, floor + 0.15f, -19.4f), new Vector3(6f, 0.3f, 0.6f), Marble, 1f);
+        float dy = floor + 0.6f;
+        LBox(t, "DaisCarpet", new Vector3(0, dy + 0.006f, -22.5f), new Vector3(8.6f, 0.012f, 4.6f), carpet, 4.6f, false);
+        LBox(t, "Runner", new Vector3(0, floor + 0.05f, -9.6f), new Vector3(3f, 0.012f, 19f), carpet, 3f, false);
+        LBox(t, "ThroneBase", new Vector3(0, dy + 0.3f, -23.2f), new Vector3(1.8f, 0.6f, 1.2f), Gold, 1f);
+        LBox(t, "ThroneCushion", new Vector3(0, dy + 0.68f, -23.1f), new Vector3(1.5f, 0.16f, 1f), Velvet, 1f, false);
+        LBox(t, "ThroneBack", new Vector3(0, dy + 1.5f, -23.75f), new Vector3(1.8f, 1.8f, 0.2f), Gold, 1f);
+        LBox(t, "ThroneCarving", new Vector3(0, dy + 1.55f, -23.63f), new Vector3(1.4f, 1.4f, 0.04f), Ataurique, 0.7f, false);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            LBox(t, "ThroneArm", new Vector3(s * 0.85f, dy + 0.95f, -23.2f), new Vector3(0.14f, 0.5f, 1.1f), Gold, 1f, false);
+            foreach (float z in new[] { -21.2f, -24.6f })
+                MeshGen.TexCylinder("CanopyColumn", W(s * 1.9f, dy, z), 0.12f, 3.6f, MarblePink, 1f, t);
+        }
+        LBox(t, "Canopy", new Vector3(0, dy + 3.7f, -22.9f), new Vector3(4.2f, 0.22f, 3.8f), Gold, 1f, false);
+        var cupola = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Object.DestroyImmediate(cupola.GetComponent<Collider>());
+        cupola.name = "CanopyDome";
+        cupola.transform.SetParent(t, false);
+        cupola.transform.position = W(0, dy + 3.8f, -22.9f);
+        cupola.transform.localScale = new Vector3(2.6f, 1.6f, 2.6f);
+        cupola.GetComponent<Renderer>().sharedMaterial = Gold;
+        var niche = Node("ThroneArch", t, W(0, floor, -25.2f), 0);
+        Arch(niche, 0, 6f, 3.4f, 7.4f, 0.4f, 30f, Ataurique);
+        LBox(t, "ThroneArchBack", new Vector3(0, floor + 3.7f, -25.05f), new Vector3(4.4f, 7.4f, 0.05f), Almagra, 1f, false);
+        foreach (float z in new[] { -5f, -12f, -19f })
+            foreach (float x in new[] { -11f, 0f, 11f })
+                HangingLamp(t, W(x, floor + 5.6f, z), wallH - 6f);
+        foreach (var (x, z) in new[] { (-6f, 5f), (6f, 5f), (-6f, 17f), (6f, 17f) }) Lantern(t, W(x, floor, z));
+        foreach (float s in new[] { -1f, 1f }) NightLights.Lamp(t, W(s * 4.2f, floor + 4.6f, hz + 1.2f), new Vector3(0.3f, 0.45f, 0.3f), night, 3.4f);
+        // names of the chambers by the hall
+        foreach (var (s, z, ar, en) in new[] { (1f, -4f, "مجلس السفراء", "HALL OF THE AMBASSADORS"), (1f, -12f, "خزانة الكتب", "THE LIBRARY"), (1f, -20.25f, "بيت المال", "THE TREASURY"),
+                                               (-1f, -4f, "ديوان الرسائل", "THE CHANCERY"), (-1f, -12f, "مجلس الوزراء", "COUNCIL OF THE VIZIERS"), (-1f, -20.25f, "خزانة الكسوة", "THE WARDROBE") })
+            Sign(t, W(s * 20.63f, floor + 3.05f, z), s * 90f, ar, en, 2f, 0.66f);
+        Sign(t, W(0, floor + 8.1f, 0.65f), 180f, "مجلس الخلافة", "THE THRONE HALL", 3.2f, 0.6f);
+        // the approach from the street, a ramp up onto the podium
+        Underground.Wedge(t, "Ramp", W(0, Lower, hz + 4.6f), W(0, floor, hz + 2f), 6f, Paving);
+        Slab(t, "Approach", Rect.MinMaxRect(c.x - 4f, c.z + hz + 2f, c.x + 4f, MidSouth - 4f), Lower + 0.05f, 0.1f, Paving, 2.5f);
     }
 
     /// <summary>
@@ -1107,59 +1530,223 @@ public static class ZahraBuilder
         NightLights.Lamp(t, t.TransformPoint(new Vector3(0, height + 0.6f, inner - 0.3f)), new Vector3(0.2f, 0.3f, 0.2f), night, 3f);
     }
 
+
+    private static int houses;
+
     /// <summary>
-    /// The houses on the west of the lower terrace: Casa de Ya'far (a triple arcade on columns over a
-    /// violet stone courtyard with a marble basin), the service houses behind a narrow alley, the Patio
-    /// de la Pila, the Casa de la Alberca; streets between them, broken walls.
+    /// An Andalusian courtyard house (front, with the door, towards local -Z): whitewashed or ochre lime
+    /// over a stone plinth, a horseshoe-arched door in an alfiz, lattice windows, rooms round a patio
+    /// with a fountain or a pool, an orange tree and pots of flowers, tiled roofs sloping into the patio.
+    /// Grand houses get a gallery on columns, a second storey and a lattice balcony, and a name board.
+    /// </summary>
+    private static void CourtHouse(Vector3 c, float yaw, float w, float d, int floors, int seed, string arabic = null, string english = null, Material patio = null, bool pool = false)
+    {
+        houses++;
+        var t = Node("House", root, c, yaw);
+        var r = new System.Random(seed);
+        float h = floors > 1 ? 7f : 4.6f;
+        const float th = 0.45f;
+        var wall = r.NextDouble() < 0.55 ? Plaster : LimeOchre;
+        float hw = w / 2f, hd = d / 2f;
+        float pw = Mathf.Max(3.6f, w * 0.42f), pd = Mathf.Max(3.6f, d * 0.42f);
+        float inner = h - 0.7f;
+        LBox(t, "HouseFloor", new Vector3(0, 0.05f, 0), new Vector3(w, 0.1f, d), BrickFloor, 2f);
+        LBox(t, "Patio", new Vector3(0, 0.12f, 0), new Vector3(pw, 0.04f, pd), patio ?? (r.NextDouble() < 0.35 ? Violet : r.NextDouble() < 0.5 ? Paving : Marble), 2f, false);
+        // outer walls: the front with the door, the others with lattice windows
+        float door = (float)(r.NextDouble() - 0.5) * Mathf.Max(0f, pw - 2.6f);
+        LBox(t, "Wall", new Vector3((-hw + door - 1.15f) / 2f, h / 2f, -hd + th / 2f), new Vector3(door - 1.15f + hw, h, th), wall);
+        LBox(t, "Wall", new Vector3((hw + door + 1.15f) / 2f, h / 2f, -hd + th / 2f), new Vector3(hw - door - 1.15f, h, th), wall);
+        var front = Node("Door", t, t.TransformPoint(new Vector3(door, 0, -hd + th / 2f)), yaw);
+        Arch(front, 0, 2.3f, 2.2f, h, th, 30f, wall);
+        LBox(t, "DoorLeaf", new Vector3(door - 0.55f, 1.2f, -hd + th + 0.35f), new Vector3(0.08f, 2.3f, 0.9f), Wood, 1f, false);
+        LBox(t, "Wall", new Vector3(0, h / 2f, hd - th / 2f), new Vector3(w, h, th), wall);
+        foreach (float s in new[] { -1f, 1f })
+            LBox(t, "Wall", new Vector3(s * (hw - th / 2f), h / 2f, 0), new Vector3(th, h, d - th * 2f), wall);
+        // the stone plinth outside, a band under the eaves
+        LBox(t, "Plinth", new Vector3(0, 0.4f, hd + 0.03f), new Vector3(w + 0.12f, 0.8f, 0.06f), Ashlar, 1.5f, false);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            LBox(t, "Plinth", new Vector3(s * (hw + 0.03f), 0.4f, 0), new Vector3(0.06f, 0.8f, d), Ashlar, 1.5f, false);
+            float a = s < 0 ? -hw : door + 1.15f, b = s < 0 ? door - 1.15f : hw;
+            LBox(t, "Plinth", new Vector3((a + b) / 2f, 0.4f, -hd - 0.03f), new Vector3(b - a, 0.8f, 0.06f), Ashlar, 1.5f, false);
+        }
+        // lattice windows high up (and on the upper storey)
+        foreach (float wy in floors > 1 ? new[] { 2.4f, 5.2f } : new[] { 2.5f })
+        {
+            for (float u = -hw + 1.6f; u < hw - 1.2f; u += 3.2f)
+                LBox(t, "Lattice", new Vector3(u, wy, hd + 0.04f), new Vector3(0.9f, 1.1f, 0.06f), lattice, 1f, false);
+            foreach (float s in new[] { -1f, 1f })
+                for (float u = -hd + 1.8f; u < hd - 1.2f; u += 3.6f)
+                    LBox(t, "Lattice", new Vector3(s * (hw + 0.04f), wy, u), new Vector3(0.06f, 1.1f, 0.9f), lattice, 1f, false);
+            if (wy > 3f)
+                for (float u = -hw + 1.4f; u < hw - 1f; u += 3f)
+                    if (Mathf.Abs(u - door) > 1.6f) LBox(t, "Lattice", new Vector3(u, wy, -hd - 0.04f), new Vector3(0.9f, 1.1f, 0.06f), lattice, 1f, false);
+        }
+        // the patio walls (lower than the outside walls), a door in each; a gallery on columns at the back
+        bool gallery = floors > 1 || r.NextDouble() < 0.5;
+        foreach (float s in new[] { -1f, 1f })
+        {
+            Wall(t, t.TransformPoint(new Vector3(s * pw / 2f, 0, -pd / 2f)), t.TransformPoint(new Vector3(s * pw / 2f, 0, pd / 2f)), inner, 0.3f, wall, pd / 2f, 1.1f, 2.3f);
+            // partitions: four rooms in the corners
+            Wall(t, t.TransformPoint(new Vector3(s * pw / 2f, 0, -pd / 2f)), t.TransformPoint(new Vector3(s * pw / 2f, 0, -hd + th)), inner, 0.25f, wall, (hd - th - pd / 2f) / 2f, 1f, 2.2f);
+            Wall(t, t.TransformPoint(new Vector3(s * pw / 2f, 0, pd / 2f)), t.TransformPoint(new Vector3(s * pw / 2f, 0, hd - th)), inner, 0.25f, wall);
+        }
+        Wall(t, t.TransformPoint(new Vector3(-pw / 2f, 0, -pd / 2f)), t.TransformPoint(new Vector3(pw / 2f, 0, -pd / 2f)), inner, 0.3f, wall, pw / 2f + door, 1.2f, 2.3f);
+        if (gallery)
+        {
+            int bays = pw > 5.5f ? 3 : 2;
+            Arcade(t, t.TransformPoint(new Vector3(-pw / 2f, 0, pd / 2f)), t.TransformDirection(Vector3.right), bays, pw / bays, 2.2f, inner, 0.36f, 28f, wall, true);
+        }
+        else Wall(t, t.TransformPoint(new Vector3(-pw / 2f, 0, pd / 2f)), t.TransformPoint(new Vector3(pw / 2f, 0, pd / 2f)), inner, 0.3f, wall, pw / 2f, 1.2f, 2.3f);
+        // tiled roofs, each sloping down into the patio
+        void Lean(Vector3 high, Vector3 low, float width)
+        {
+            var wh = t.TransformPoint(high); var wl = t.TransformPoint(low);
+            float len = Vector3.Distance(wh, wl) + 0.5f;
+            var roof = MeshGen.TexBox("Roof", (wh + wl) / 2f + Vector3.up * 0.08f, new Vector3(width, 0.14f, len), RoofTiles, 2f, t);
+            roof.transform.rotation = Quaternion.LookRotation(wh - wl, Vector3.up);
+        }
+        Lean(new Vector3(0, h + 0.2f, hd), new Vector3(0, inner, pd / 2f), w + 0.5f);
+        Lean(new Vector3(0, h + 0.2f, -hd), new Vector3(0, inner, -pd / 2f), w + 0.5f);
+        foreach (float s in new[] { -1f, 1f })
+            Lean(new Vector3(s * hw, h + 0.2f, 0), new Vector3(s * pw / 2f, inner, 0), pd + 0.2f);
+        // a lattice balcony on the front of a grand house
+        if (floors > 1)
+        {
+            float bx = door + (door > 0 ? -3.2f : 3.2f);
+            if (Mathf.Abs(bx) < hw - 1.6f)
+            {
+                LBox(t, "Balcony", new Vector3(bx, 3.6f, -hd - 0.55f), new Vector3(2.4f, 0.14f, 1.1f), Wood, 1f);
+                LBox(t, "BalconyLattice", new Vector3(bx, 4.4f, -hd - 1.08f), new Vector3(2.4f, 1.5f, 0.06f), lattice, 1f, false);
+                foreach (float s in new[] { -1f, 1f })
+                    LBox(t, "BalconyLattice", new Vector3(bx + s * 1.18f, 4.4f, -hd - 0.55f), new Vector3(0.06f, 1.5f, 1.1f), lattice, 1f, false);
+                LBox(t, "BalconyRoof", new Vector3(bx, 5.25f, -hd - 0.6f), new Vector3(2.7f, 0.1f, 1.3f), RoofTiles, 1f, false);
+            }
+        }
+        // the patio: a fountain or a pool, an orange tree, pots of flowers
+        var pc = t.TransformPoint(Vector3.zero);
+        if (pool)
+        {
+            var right = t.TransformDirection(Vector3.right); var fwd = t.TransformDirection(Vector3.forward);
+            var a = pc - right * (pw / 2f - 1.1f) - fwd * (pd / 2f - 1.1f);
+            var b = pc + right * (pw / 2f - 1.1f) + fwd * (pd / 2f - 1.1f);
+            Pool(t, Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.z, b.z), Mathf.Max(a.x, b.x), Mathf.Max(a.z, b.z)), c.y + 0.5f, 0.5f);
+        }
+        else
+        {
+            MeshGen.Object("PatioFountain", MeshGen.Cylinder(0.75f, 0.5f, 1f, 8), Cream, t, pc + Vector3.up * 0.1f).AddComponent<MeshCollider>();
+            var fw = MeshGen.TexCylinder("PatioWater", pc + Vector3.up * 0.55f, 0.65f, 0.02f, Water, 2f, t, false);
+            fw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            OrangeTree(t, t.TransformPoint(new Vector3(pw / 2f - 1f, 0.12f, pd / 2f - 1f)));
+        }
+        foreach (var (px, pz) in new[] { (-pw / 2f + 0.5f, -pd / 2f + 0.5f), (pw / 2f - 0.5f, -pd / 2f + 0.5f) })
+        {
+            var pot = t.TransformPoint(new Vector3(px, 0.12f, pz));
+            MeshGen.TexCylinder("Pot", pot, 0.26f, 0.5f, Terracotta, 1f, t, false);
+            Nature.Place("Bush_Common_Flowers", pot + Vector3.up * 0.45f, R(0, 360), 0.7f, t);
+        }
+        // a lantern by the door, a lit window for the night
+        NightLights.Lamp(t, t.TransformPoint(new Vector3(door + 1.6f, 2.6f, -hd - 0.3f)), new Vector3(0.2f, 0.3f, 0.2f), night, 2.6f);
+        if (r.NextDouble() < 0.6) NightLights.Window(t, t.TransformPoint(new Vector3(-hw + 1.6f, 2.5f, hd + 0.08f)), t.TransformDirection(Vector3.forward), 0.8f, 1f, night);
+        if (arabic != null) Sign(t, t.TransformPoint(new Vector3(door, Mathf.Min(h - 0.35f, 4.25f), -hd - 0.1f)), yaw, arabic, english, 2.8f, 0.8f);
+    }
+
+    /// <summary>
+    /// The famous houses of the lower town, each with its name board: Casa de Ya'far (a triple arcade
+    /// on columns over a violet stone courtyard), its service house, the Patio de la Pila, the House of
+    /// the Pool.
     /// </summary>
     private static void Houses()
     {
         var t = Node("Houses", root, Vector3.zero, 0);
-        const float h = 4.5f, th = 0.6f;
-        Slab(t, "Street", Rect.MinMaxRect(-56f, -90f, -51f, MidSouth - 4f), Lower + 0.05f, 0.1f, Paving, 2.5f);
+        const float h = 5f, th = 0.6f;
         // Casa de Ya'far: x -84..-60, z -56..-36
         float x0 = -84f, x1 = -60f, z0 = -56f, z1 = -36f;
-        Slab(t, "YafarCourt", Rect.MinMaxRect(-78f, -52f, -66f, -42f), Lower + 0.06f, 0.1f, Violet, 2f);
-        MeshGen.TexCylinder("Basin", new Vector3(-72f, Lower, -47f), 0.9f, 0.5f, Cream, 1f, t);
-        Wall(t, new Vector3(x0, Lower, z1), new Vector3(x1, Lower, z1), h, th, Ashlar);
-        Wall(t, new Vector3(x0, Lower, z0), new Vector3(x1, Lower, z0), h, th, Ashlar, 12f, 1.6f, 2.8f);
-        Wall(t, new Vector3(x0, Lower, z0), new Vector3(x0, Lower, z1), h, th, Ashlar);
-        Wall(t, new Vector3(x1, Lower, z0), new Vector3(x1, Lower, z1), h, th, Ashlar, 9f, 1.6f, 2.8f);
+        Slab(t, "YafarFloor", Rect.MinMaxRect(x0, z0, x1, z1), Lower + 0.05f, 0.1f, BrickFloor, 2f);
+        Slab(t, "YafarCourt", Rect.MinMaxRect(-78f, -52f, -66f, -42f), Lower + 0.1f, 0.06f, Violet, 2f);
+        MeshGen.Object("Basin", MeshGen.Cylinder(0.9f, 0.5f, 1f, 8), Marble, t, new Vector3(-72f, Lower + 0.1f, -47f)).AddComponent<MeshCollider>();
+        var bw = MeshGen.TexCylinder("BasinWater", new Vector3(-72f, Lower + 0.56f, -47f), 0.8f, 0.02f, Water, 2f, t, false);
+        bw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        Wall(t, new Vector3(x0, Lower, z1), new Vector3(x1, Lower, z1), h, th, Plaster);
+        Wall(t, new Vector3(x0, Lower, z0), new Vector3(x1, Lower, z0), h, th, Plaster, 12f, 1.6f, 2.8f);
+        Wall(t, new Vector3(x0, Lower, z0), new Vector3(x0, Lower, z1), h, th, Plaster);
+        Wall(t, new Vector3(x1, Lower, z0), new Vector3(x1, Lower, z1), h, th, Plaster, 9f, 1.6f, 2.8f);
         Arcade(t, new Vector3(-77.4f, Lower, -42f), Vector3.right, 3, 3.6f, 2.6f, h, 0.6f, 28f, Plaster, true);
         Wall(t, new Vector3(x0, Lower, -42f), new Vector3(-77.4f, Lower, -42f), h, th, Plaster);
         Wall(t, new Vector3(-66.6f, Lower, -42f), new Vector3(x1, Lower, -42f), h, th, Plaster);
+        Wall(t, new Vector3(-78f, Lower, -52f), new Vector3(-78f, Lower, -42f), h - 0.6f, 0.4f, Plaster, 5f, 1.2f, 2.4f);
+        Wall(t, new Vector3(-66f, Lower, -52f), new Vector3(-66f, Lower, -42f), h - 0.6f, 0.4f, Plaster, 5f, 1.2f, 2.4f);
+        Wall(t, new Vector3(-78f, Lower, -52f), new Vector3(-66f, Lower, -52f), h - 0.6f, 0.4f, Plaster, 6f, 1.4f, 2.4f);
         Box(t, "HallRoof", new Vector3((x0 + x1) / 2f, h + 0.2f, -39f), new Vector3(x1 - x0 + 0.6f, 0.4f, 6.6f), RoofTiles, 2f);
-        Wall(t, new Vector3(-78f, Lower, -52f), new Vector3(-78f, Lower, -42f), h, 0.4f, Plaster, 5f, 1.2f, 2.4f);
-        Wall(t, new Vector3(-66f, Lower, -52f), new Vector3(-66f, Lower, -42f), h, 0.4f, Plaster, 5f, 1.2f, 2.4f);
-        Wall(t, new Vector3(-78f, Lower, -52f), new Vector3(-66f, Lower, -52f), h, 0.4f, Plaster, 6f, 1.4f, 2.4f);
-        // the service houses behind the alley, with a bread oven
-        Ruin(t, new Vector3(-94f, Lower, -56f), new Vector3(-86f, Lower, -56f), 3.2f, th, Ashlar, 1.5f);
-        Ruin(t, new Vector3(-86f, Lower, -56f), new Vector3(-86f, Lower, -36f), 3.4f, th, Ashlar, 1.8f);
-        Ruin(t, new Vector3(-94f, Lower, -46f), new Vector3(-87f, Lower, -46f), 2.6f, th, Ashlar, 1f);
-        MeshGen.TexCylinder("Oven", new Vector3(-90f, Lower, -40f), 1.1f, 1.4f, Earth, 1f, t);
-        // Patio de la Pila: a white marble court with a raised walk round it, a basin
-        Slab(t, "PilaCourt", Rect.MinMaxRect(-79f, -77f, -65f, -65f), Lower + 0.06f, 0.1f, Marble, 2f);
-        foreach (var r in new[] { Rect.MinMaxRect(-82f, -80f, -62f, -77f), Rect.MinMaxRect(-82f, -65f, -62f, -62f), Rect.MinMaxRect(-82f, -77f, -79f, -65f), Rect.MinMaxRect(-65f, -77f, -62f, -65f) })
-            Slab(t, "PilaWalk", r, Lower + 0.35f, 0.35f, Marble, 2f);
-        MeshGen.TexCylinder("Pila", new Vector3(-72f, Lower, -71f), 1.2f, 0.6f, Capital, 1f, t);
-        Ruin(t, new Vector3(-84f, Lower, -82f), new Vector3(-60f, Lower, -82f), 2.8f, th, Ashlar, 0.8f);
-        Ruin(t, new Vector3(-84f, Lower, -82f), new Vector3(-84f, Lower, -60f), 3.2f, th, Ashlar, 1f);
-        Ruin(t, new Vector3(-60f, Lower, -82f), new Vector3(-60f, Lower, -66f), 2.4f, th, Ashlar, 0.8f);
-        // Casa de la Alberca: a small house round a garden with a pool
-        Pool(t, Rect.MinMaxRect(-92f, -78f, -88f, -68f), Lower + 0.3f, 0.5f);
-        Ruin(t, new Vector3(-95f, Lower, -84f), new Vector3(-86f, Lower, -84f), 2.4f, th, Ashlar, 0.8f);
-        Ruin(t, new Vector3(-86f, Lower, -84f), new Vector3(-86f, Lower, -60f), 2.8f, th, Ashlar, 1f);
-        Palm(t, new Vector3(-90.5f, Lower, -64f), 8f);
-        CypressTree(t, new Vector3(-58f, Lower, -60f), 9f);
-        CypressTree(t, new Vector3(-58f, Lower, -86f), 10f);
-        foreach (var (x, z) in new[] { (-58f, -40f), (-58f, -70f), (-72f, -60.5f), (-90f, -50f) }) Lantern(t, new Vector3(x, Lower, z));
-        // the south wall of the city with towers
-        Box(t, "CityWall", new Vector3(0, (Lower - 3f + 7f) / 2f, -91.7f), new Vector3(Half * 2f + 10f, 10f, 2.5f), Ashlar);
-        for (float x = -Half + 6f; x < Half; x += 24f)
-            Box(t, "Tower", new Vector3(x, 3f, -91.7f), new Vector3(5f, 12f, 5f), Ashlar);
+        Box(t, "WingRoof", new Vector3(-81f, h + 0.2f, -47f), new Vector3(6.6f, 0.4f, 10.6f), RoofTiles, 2f);
+        Box(t, "WingRoof", new Vector3(-63f, h + 0.2f, -47f), new Vector3(6.6f, 0.4f, 10.6f), RoofTiles, 2f);
+        Box(t, "WingRoof", new Vector3(-72f, h + 0.2f, -54f), new Vector3(24.6f, 0.4f, 4.6f), RoofTiles, 2f);
+        Box(t, "Dado", new Vector3(-72f, Lower + 0.6f, -36.33f), new Vector3(23f, 1.2f, 0.05f), Almagra, 1.5f, false);
+        OrangeTree(t, new Vector3(-76f, Lower + 0.1f, -50f));
+        OrangeTree(t, new Vector3(-68f, Lower + 0.1f, -44f));
+        HangingLamp(t, new Vector3(-72f, Lower + 3.6f, -39f), 1f);
+        Sign(t, new Vector3(-72f, 4.25f, z0 - 0.4f), 0f, "دار جعفر", "HOUSE OF JA'FAR, CHIEF MINISTER", 3.2f, 0.9f);
+        NightLights.Lamp(t, new Vector3(-70f, 2.7f, z0 - 0.45f), new Vector3(0.22f, 0.32f, 0.22f), night, 2.6f);
+        // the service house behind the alley, with its bread oven; the Patio de la Pila; the House of the Pool
+        CourtHouse(new Vector3(-90.5f, Lower, -46f), 90f, 19f, 9f, 1, 11, "دار الخدمة", "THE SERVICE HOUSE");
+        MeshGen.TexCylinder("Oven", new Vector3(-98.2f, Lower, -40f), 1f, 1.3f, Earth, 1f, t);
+        CourtHouse(new Vector3(-72f, Lower, -71f), 0f, 22f, 20f, 2, 12, "صحن الحوض", "PATIO DE LA PILA - COURT OF THE BASIN", Marble);
+        CourtHouse(new Vector3(-90.5f, Lower, -72f), 90f, 24f, 9.5f, 1, 13, "دار البركة", "HOUSE OF THE POOL", Paving, true);
+        CypressTree(t, new Vector3(-57f, Lower, -60f), 9f);
+        CypressTree(t, new Vector3(-57f, Lower, -86f), 10f);
     }
 
-    /// <summary>Dar al-Mulk, the caliph's house on the highest terrace: three halls behind arcades, a terrace with the view over the city.</summary>
+    /// <summary>
+    /// The town: courtyard houses in their dozens on free plots of all three terraces (never on the
+    /// gardens, halls, streets, stairs or the palace), in rows along the streets.
+    /// </summary>
+    private static void Medina()
+    {
+        var taken = new List<Rect>
+        {
+            // lower terrace
+            Rect.MinMaxRect(-86f, -58f, -58f, -34f), Rect.MinMaxRect(-86f, -84f, -58f, -58f), Rect.MinMaxRect(-97f, -86f, -84f, -34f),
+            Rect.MinMaxRect(-42f, -92f, 32f, -36f), Rect.MinMaxRect(-52f, -80f, -44f, -28f), Rect.MinMaxRect(GateX - 4f, -127f, GateX + 4f, -28f),
+            Rect.MinMaxRect(40f, -98f, 100f, -28f), Rect.MinMaxRect(33f, -40f, 41f, -28f), Rect.MinMaxRect(GateX + 3f, -118f, GateX + 10f, -106f),
+            Rect.MinMaxRect(-127f, -92f, 127f, -88f), Rect.MinMaxRect(-127f, -36f, 127f, -28f), Rect.MinMaxRect(-12f, -40f, 2f, -28f),
+            // middle terrace
+            Rect.MinMaxRect(-44f, -30f, 34f, 40f), Rect.MinMaxRect(-44f, 30f, 12f, 62f), Rect.MinMaxRect(-62f, 46f, -54f, 62f),
+            Rect.MinMaxRect(-52f, -31f, -42f, 32f), Rect.MinMaxRect(30f, -30f, 102f, 46f), Rect.MinMaxRect(46f, 44f, 93f, 62f), Rect.MinMaxRect(12f, 38f, 30f, 62f),
+            // upper terrace
+            Rect.MinMaxRect(-96f, 58f, -34f, 92f), Rect.MinMaxRect(-36f, 58f, 14f, 93f), Rect.MinMaxRect(10f, 62f, 48f, 90f), Rect.MinMaxRect(50f, 62f, 92f, 88f),
+            Rect.MinMaxRect(-44f, 116f, -26f, 127f), Rect.MinMaxRect(38f, 116f, 54f, 127f), Rect.MinMaxRect(16f, 58f, 26f, 68f),
+        };
+        int seed = 100;
+        void Plots(float[] xs, float[] zs, float y)
+        {
+            foreach (float x in xs)
+                foreach (float z in zs)
+                {
+                    float w = R(10.5f, 12.5f), d = R(10.5f, 12.5f);
+                    var area = Rect.MinMaxRect(x - w / 2f - 1f, z - d / 2f - 1f, x + w / 2f + 1f, z + d / 2f + 1f);
+                    if (Mathf.Abs(x) + w / 2f > 122.5f || Mathf.Abs(z) + d / 2f > 122.5f) continue;
+                    if (taken.Any(r => r.Overlaps(area))) continue;
+                    taken.Add(area);
+                    // the door towards the nearest street or the middle of the town
+                    float yaw = Mathf.Abs(x - GateX) < 20f ? (x < GateX ? 90f : -90f) : z < -60f ? 180f : (rng.NextDouble() < 0.5 ? 0f : 90f * (x < 0 ? 1 : -1));
+                    CourtHouse(new Vector3(x, y, z), yaw, w, d, rng.NextDouble() < 0.3 ? 2 : 1, seed++);
+                }
+        }
+        Plots(new[] { -115f, -102f }, new[] { -116f, -102f, -88f, -74f, -60f, -46f }, Lower);
+        Plots(new[] { -88f, -74f }, new[] { -116f, -101f }, Lower);
+        Plots(new[] { -40f, -26f, -12f, 2f, 16f, 30f }, new[] { -115f, -100f }, Lower);
+        Plots(new[] { 46f, 60f, 74f, 88f, 102f, 115f }, new[] { -114f }, Lower);
+        Plots(new[] { 115f }, new[] { -98f, -84f, -70f, -56f, -42f }, Lower);
+        Plots(new[] { -114f, -100f, -86f }, new[] { -20f, -6f, 8f, 22f, 36f, 50f }, Middle);
+        Plots(new[] { 114f }, new[] { -18f, -4f, 10f, 24f, 38f, 52f }, Middle);
+        Plots(new[] { -115f, -102f }, new[] { 70f, 86f, 102f }, Upper);
+        Plots(new[] { 102f, 115f }, new[] { 70f, 86f, 102f }, Upper);
+        Plots(new[] { -20f, -4f, 12f, 28f, 66f, 82f }, new[] { 106f }, Upper);
+        Debug.Log($"[Map] Zahra town: {houses} courtyard houses");
+    }
+
+
+    /// <summary>Dar al-Mulk, the Caliph's house on the highest terrace: three halls behind arcades on a terrace with the view over the city, rooms behind them.</summary>
     private static void DarAlMulk()
     {
         var t = Node("DarAlMulk", root, Vector3.zero, 0);
@@ -1169,53 +1756,60 @@ public static class ZahraBuilder
         {
             float x0 = -92f + i * 18f, x1 = x0 + 16f;
             Arcade(t, new Vector3(x0, y, 70f), Vector3.right, 4, 4f, 2.8f, 5f, 0.6f, 28f, Plaster, true);
-            Wall(t, new Vector3(x0, y, 78f), new Vector3(x1, y, 78f), 5f, 0.6f, Ashlar, 8f, 1.4f, 2.6f);
+            Wall(t, new Vector3(x0, y, 78f), new Vector3(x1, y, 78f), 5f, 0.6f, Plaster, 8f, 1.4f, 2.6f);
             Wall(t, new Vector3(x0, y, 70f), new Vector3(x0, y, 78f), 5f, 0.6f, Ashlar);
             Wall(t, new Vector3(x1, y, 70f), new Vector3(x1, y, 78f), 5f, 0.6f, Ashlar);
             Slab(t, "HallFloor", Rect.MinMaxRect(x0, 70f, x1, 78f), y + 0.06f, 0.1f, Marble, 2f);
             Box(t, "HallRoof", new Vector3((x0 + x1) / 2f, y + 5.2f, 74f), new Vector3(16.6f, 0.4f, 8.6f), RoofTiles, 2f);
             Box(t, "Dado", new Vector3((x0 + x1) / 2f, y + 0.6f, 77.67f), new Vector3(15.4f, 1.2f, 0.05f), Almagra, 1.5f, false);
+            HangingLamp(t, new Vector3((x0 + x1) / 2f, y + 3.4f, 74f), 1.2f);
         }
-        // rooms and courtyards behind: broken walls (cover)
-        for (int i = 0; i < 4; i++)
-        {
-            float x = -92f + i * 13f;
-            Ruin(t, new Vector3(x, y, 82f), new Vector3(x + 10f, y, 82f), 2.6f, 0.6f, Ashlar, 0.8f);
-            Ruin(t, new Vector3(x + 10f, y, 82f), new Vector3(x + 10f, y, 90f), 2.4f, 0.6f, Ashlar, 0.8f);
-        }
+        // the private rooms behind: a block with doors from the halls, roofed
+        Slab(t, "RoomsFloor", Rect.MinMaxRect(-92f, 78f, -38f, 90f), y + 0.06f, 0.1f, BrickFloor, 2f);
+        Wall(t, new Vector3(-92f, y, 90f), new Vector3(-38f, y, 90f), 5f, 0.6f, Ashlar);
+        Wall(t, new Vector3(-92f, y, 78f), new Vector3(-92f, y, 90f), 5f, 0.6f, Ashlar);
+        Wall(t, new Vector3(-38f, y, 78f), new Vector3(-38f, y, 90f), 5f, 0.6f, Ashlar, 6f, 1.4f, 2.6f);
+        for (float x = -83f; x < -40f; x += 9f)
+            Wall(t, new Vector3(x, y, 78f), new Vector3(x, y, 90f), 5f, 0.4f, Plaster, 6f, 1.2f, 2.4f);
+        Box(t, "RoomsRoof", new Vector3(-65f, y + 5.2f, 84f), new Vector3(54.6f, 0.4f, 12.6f), RoofTiles, 2f);
         foreach (float x in new[] { -88f, -70f, -52f, -40f }) Lantern(t, new Vector3(x, y, 64f));
         CypressTree(t, new Vector3(-38f, y, 66f), 10f);
-        CypressTree(t, new Vector3(-38f, y, 74f), 9f);
-        // the stair from the middle terrace, west of the halls
+        CypressTree(t, new Vector3(-94f, y, 66f), 9f);
+        BoardStand(t, new Vector3(-61f, y + 0.1f, 66f), 0f, "دار الملك", "DAR AL-MULK - THE CALIPH'S HOUSE");
         Buildings.Stairs(t, new Vector3(-58f, Middle, UpSouth - 10.8f), Vector3.forward, Upper - Middle, 3f, Ashlar);
     }
 
-    /// <summary>The Edificio Basilical Superior: a portico of five arches over its plaza, three naves on columns, a brick floor, walls broken off.</summary>
+
+    /// <summary>The upper basilical hall (Dar al-Jund, the house of the army): a portico of five arches over its plaza, three naves on columns, a brick floor, a tiled roof.</summary>
     private static void BasilicalHall()
     {
         var t = Node("BasilicalHall", root, Vector3.zero, 0);
         float y = Upper;
-        const float x0 = -26f, x1 = 8f, z0 = 70f, z1 = 91f;
+        const float x0 = -26f, x1 = 8f, z0 = 70f, z1 = 91f, h = 6f;
         Slab(t, "Plaza", Rect.MinMaxRect(-34f, UpSouth + 0.5f, 12f, z0), y + 0.05f, 0.1f, Paving, 2.5f);
         Slab(t, "BrickFloor", Rect.MinMaxRect(x0, z0, x1, z1), y + 0.06f, 0.1f, BrickFloor, 2f);
-        Arcade(t, new Vector3(x0, y, z0), Vector3.right, 5, (x1 - x0) / 5f, 3.4f, 6f, 0.9f, 28f, Ashlar, false, true, 0.8f);
+        Arcade(t, new Vector3(x0, y, z0), Vector3.right, 5, (x1 - x0) / 5f, 3.4f, h, 0.9f, 28f, Ashlar, false, true, 0.8f);
         foreach (float x in new[] { -14.7f, -3.3f })
-            Arcade(t, new Vector3(x, y, z0 + 5f), Vector3.forward, 4, (z1 - z0 - 5f) / 4f, 3f, 5f, 0.5f, 25f, Plaster, true);
-        Ruin(t, new Vector3(x0, y, z0), new Vector3(x0, y, z1), 5.5f, 0.8f, Ashlar, 2.5f);
-        Ruin(t, new Vector3(x1, y, z0), new Vector3(x1, y, z1), 5.5f, 0.8f, Ashlar, 2.5f);
-        Ruin(t, new Vector3(x0, y, z1), new Vector3(x1, y, z1), 6f, 0.8f, Ashlar, 3f);
+            Arcade(t, new Vector3(x, y, z0 + 5f), Vector3.forward, 4, (z1 - z0 - 5f) / 4f, 3f, h, 0.5f, 25f, Plaster, true);
+        Wall(t, new Vector3(x0, y, z0), new Vector3(x0, y, z1), h, 0.8f, Ashlar, 12f, 1.6f, 2.8f);
+        Wall(t, new Vector3(x1, y, z0), new Vector3(x1, y, z1), h, 0.8f, Ashlar, 12f, 1.6f, 2.8f);
+        Wall(t, new Vector3(x0, y, z1), new Vector3(x1, y, z1), h, 0.8f, Ashlar);
+        Box(t, "Roof", new Vector3((x0 + x1) / 2f, y + h + 0.2f, (z0 + z1) / 2f), new Vector3(x1 - x0 + 1f, 0.4f, z1 - z0 + 1f), RoofTiles, 2.5f);
+        Box(t, "Ceiling", new Vector3((x0 + x1) / 2f, y + h - 0.03f, (z0 + z1) / 2f), new Vector3(x1 - x0 - 0.6f, 0.06f, z1 - z0 - 0.6f), Wood, 2f, false);
         var niche = Node("Niche", t, new Vector3((x0 + x1) / 2f, y, z1 - 0.65f), 0);
-        Arch(niche, 0, 3.6f, 2.4f, 5f, 0.4f, 28f, Ashlar);
+        Arch(niche, 0, 3.6f, 2.4f, 5f, 0.4f, 28f, Ataurique);
+        foreach (float z in new[] { 76f, 84f }) HangingLamp(t, new Vector3(-9f, y + 4.3f, z), 1.2f);
         foreach (float x in new[] { -30f, 10f }) Lantern(t, new Vector3(x, y, 66f));
+        BoardStand(t, new Vector3(-17f, y + 0.1f, 65f), 0f, "دار الجند", "DAR AL-JUND - HOUSE OF THE ARMY");
     }
 
-    /// <summary>The North Gate passage: a covered way bent twice, four arched doors in a row: a choke point between the plaza and the north-east.</summary>
+
+    /// <summary>The North Gate passage: a covered way bent twice, four arched doors in a row (a choke point); the House of the Viziers beside it.</summary>
     private static void NorthGate()
     {
         var t = Node("NorthGate", root, Vector3.zero, 0);
         float y = Upper;
         const float h = 4.5f, th = 0.6f;
-        // seg 1: x 31.5..46, z 84.5..87.5;  seg 2: x 28.5..31.5, z 68.5..87.5;  seg 3: x 12..31.5, z 68.5..71.5
         Box(t, "GateWall", new Vector3((28.5f + 46f) / 2f, y + h / 2f, 87.8f), new Vector3(46f - 28.5f + th, h, th), Ashlar);
         Box(t, "GateWall", new Vector3((31.5f + 46f) / 2f, y + h / 2f, 84.2f), new Vector3(46f - 31.5f, h, th), Ashlar);
         Box(t, "GateWall", new Vector3(28.2f, y + h / 2f, (71.5f + 88.1f) / 2f), new Vector3(th, h, 88.1f - 71.5f), Ashlar);
@@ -1225,92 +1819,237 @@ public static class ZahraBuilder
         Box(t, "GateRoof", new Vector3((28f + 46f) / 2f, y + h + 0.2f, 86f), new Vector3(18f, 0.4f, 4.2f), Ashlar);
         Box(t, "GateRoof", new Vector3(30f, y + h + 0.2f, (68f + 84f) / 2f), new Vector3(4.2f, 0.4f, 16f), Ashlar);
         Box(t, "GateRoof", new Vector3((12f + 28f) / 2f, y + h + 0.2f, 70f), new Vector3(16f, 0.4f, 4.2f), Ashlar);
-        // four doors: arched walls across the passage
         void Door(Vector3 at, float yaw) => Arch(Node("Door", t, at, yaw), 0, 3f, 2.3f, h, 0.6f, 28f, Ashlar);
         Door(new Vector3(42f, y, 86f), 90f);
         Door(new Vector3(30f, y, 80f), 0f);
         Door(new Vector3(30f, y, 74f), 0f);
         Door(new Vector3(20f, y, 70f), 90f);
         foreach (var p in new[] { new Vector3(36f, y + h - 0.6f, 86f), new Vector3(30f, y + h - 0.6f, 77f), new Vector3(24f, y + h - 0.6f, 70f) })
-            NightLights.Lamp(t, p, new Vector3(0.18f, 0.26f, 0.18f), night, 2.4f);
-        // the north-east: the army house (Dar al-Yund), broken walls round a courtyard with a pool
-        Ruin(t, new Vector3(52f, y, 66f), new Vector3(88f, y, 66f), 2.6f, 0.7f, Ashlar, 0.8f);
-        Ruin(t, new Vector3(52f, y, 66f), new Vector3(52f, y, 84f), 3f, 0.7f, Ashlar, 1f);
-        Ruin(t, new Vector3(88f, y, 66f), new Vector3(88f, y, 84f), 2.8f, 0.7f, Ashlar, 1f);
-        Ruin(t, new Vector3(60f, y, 84f), new Vector3(88f, y, 84f), 2.4f, 0.7f, Ashlar, 0.8f);
-        Slab(t, "Court", Rect.MinMaxRect(54f, 67f, 86f, 83f), y + 0.06f, 0.1f, Paving, 2.5f);
-        Pool(t, Rect.MinMaxRect(64f, 72f, 76f, 78f), y + 0.4f, 0.5f);
-        foreach (float x in new[] { 58f, 82f }) CypressTree(t, new Vector3(x, y, 75f), 9f);
+            HangingLamp(t, p, 0.4f);
+        Sign(t, new Vector3(46.4f, y + h - 0.7f, 86f), -90f, "باب الجبل", "THE MOUNTAIN GATE", 2.6f, 0.8f);
+        CourtHouse(new Vector3(70f, Upper, 75f), 0f, 36f, 18f, 2, 7, "دار الوزراء", "DAR AL-WUZARA - HOUSE OF THE VIZIERS", Paving, true);
     }
 
-    /// <summary>The north wall of the city, a walk on top reached by two stairs: the longest view of the map.</summary>
+
+    /// <summary>The walk on the north wall, reached by two stairs: the longest view of the map.</summary>
     private static void NorthWall()
     {
         var t = Node("NorthWall", root, Vector3.zero, 0);
         float y = Upper, top = 6f;
-        Box(t, "NorthWall", new Vector3(0, y + top / 2f, 94.5f), new Vector3(Half * 2f + 10f, top, 3f), Ashlar);
-        for (float x = -Half + 1f; x < Half; x += 1.6f)
-            Box(t, "Merlon", new Vector3(x, y + top + 0.55f, 95.7f), new Vector3(0.8f, 1.1f, 0.6f), Ashlar, 1f);
-        for (float x = -Half + 12f; x < Half; x += 30f)
-            Box(t, "Tower", new Vector3(x, y + 4.5f, 95f), new Vector3(5f, 9f, 5f), Ashlar);
+        Box(t, "NorthWall", new Vector3(0, y + top / 2f - 2f, 123.5f), new Vector3(Half * 2f - 4f, top + 4f, 3f), Ashlar, 2.5f);
+        for (float x = -122f; x < 122f; x += 1.6f)
+            Box(t, "Merlon", new Vector3(x, y + top + 0.55f, 124.7f), new Vector3(0.8f, 1.1f, 0.6f), Ashlar, 1f);
+        for (float x = -96f; x < 120f; x += 30f)
+            Tower(t, new Vector3(x, y, 124f), 9f, 5f);
         foreach (float x in new[] { -42f, 40f })
-            Buildings.Stairs(t, new Vector3(x, y, 92f), Vector3.right, top, 2f, Ashlar);
+            Buildings.Stairs(t, new Vector3(x, y, 121f), Vector3.right, top, 2f, Ashlar);
     }
 
-    /// <summary>Ammunition: on every level, one on the Salón Rico roof and one at the top of the minaret's courtyard.</summary>
+
+    /// <summary>Ammunition: on every level, in the streets, the palace courtyard and on the Salón Rico roof.</summary>
     private static void Supplies()
     {
         var t = Node("Supplies", root, Vector3.zero, 0);
-        foreach (var (p, yaw) in new[] { (new Vector3(70f, Middle + 0.1f, 8f), 0f), (new Vector3(-30f, Middle + 0.5f, 28.5f), 90f), (new Vector3(-72f, Lower + 0.1f, -60.5f), 0f),
-                                          (new Vector3(-60f, Upper + 0.1f, 64f), 0f), (new Vector3(76f, Upper + 0.1f, 80f), 90f), (new Vector3(-12f, Middle + 0.5f + 8.9f, 48f), 0f),
-                                          (new Vector3(10f, Lower + 0.5f, -60.5f), 0f), (new Vector3(-44f, Middle + 0.1f, 24f), 0f) })
+        foreach (var (p, yaw) in new[] { (new Vector3(70f, Middle + 0.1f, -4f), 0f), (new Vector3(-30f, Middle + 0.5f, 28.5f), 90f), (new Vector3(GateX, Lower + 0.1f, -60f), 90f),
+                                          (new Vector3(-60f, Upper + 0.1f, 64f), 0f), (new Vector3(50f, Upper + 0.1f, 96f), 90f), (new Vector3(-12f, Middle + 0.5f + 8.9f, 48f), 0f),
+                                          (new Vector3(10f, Lower + 0.5f, -60.5f), 0f), (new Vector3(-44f, Middle + 0.1f, 24f), 0f), (new Vector3(0f, Lower + 0.1f, -90f), 0f),
+                                          (new Vector3(51f, Lower + 0.55f, -65f), 0f), (new Vector3(-90f, Middle + 0.1f, 15f), 0f) })
             Obstacles.AmmoCrate(t, p, yaw);
     }
 
-    /// <summary>Beyond the walls: the Sierra Morena behind (hills of holm oak and pine), the valley in front with its fields and olive groves.</summary>
+
+    /// <summary>A smooth height field over 'area' (nx by nz cells), texture repeating every 'tex' metres.</summary>
+    private static Mesh HillMesh(string key, Rect area, int nx, int nz, System.Func<float, float, float> height, float tex)
+    {
+        if (meshes.TryGetValue(key, out var cached) && cached != null) return cached;
+        var v = new List<Vector3>();
+        var uv = new List<Vector2>();
+        for (int j = 0; j <= nz; j++)
+            for (int i = 0; i <= nx; i++)
+            {
+                float x = Mathf.Lerp(area.xMin, area.xMax, i / (float)nx), z = Mathf.Lerp(area.yMin, area.yMax, j / (float)nz);
+                v.Add(new Vector3(x, height(x, z), z));
+                uv.Add(new Vector2(x, z) / tex);
+            }
+        var tris = new List<int>();
+        for (int j = 0; j < nz; j++)
+            for (int i = 0; i < nx; i++)
+            {
+                int a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1;
+                tris.AddRange(new[] { a, c, b, b, c, d });
+            }
+        var m = new Mesh { name = key };
+        m.SetVertices(v); m.SetUVs(0, uv); m.SetTriangles(tris, 0);
+        m.RecalculateNormals();
+        m.RecalculateBounds();
+        m.RecalculateTangents();
+        AssetSetup.Folder(MeshFolder);
+        AssetDatabase.CreateAsset(m, $"{MeshFolder}/{key}.asset");
+        return meshes[key] = m;
+    }
+
+    private static float Fbm(float x, float z, int seed)
+    {
+        float v = 0, amp = 1, f = 1f / 90f, total = 0;
+        for (int o = 0; o < 4; o++) { v += amp * Mathf.PerlinNoise(x * f + seed * 13.1f, z * f + seed * 7.7f); total += amp; amp *= 0.5f; f *= 2.1f; }
+        return v / total;
+    }
+
+    /// <summary>
+    /// Beyond the walls: the Sierra Morena behind (hills of holm oak and pine), low hills on the sides,
+    /// the valley in front with fields, olive groves and the Guadalquivir between poplars and reeds.
+    /// </summary>
     private static void Surroundings()
     {
         var t = Node("Surroundings", root, Vector3.zero, 0);
-        for (int i = 0; i < 12; i++)
+        var hills = PortBuilder.Pbr("Z_Hills", "Grass004", new Color(0.62f, 0.72f, 0.48f), 0.1f);
+        float North(float x, float z) => Upper - 2f + Mathf.Max(0f, z - 132f) * 0.32f * (0.55f + Fbm(x, z, 1)) + Fbm(x, z, 2) * 18f * Mathf.Clamp01((z - 132f) / 40f);
+        var mesh = HillMesh("hills_north", Rect.MinMaxRect(-420f, 130f, 420f, 420f), 56, 22, North, 10f);
+        var go = MeshObject(t, "SierraMorena", mesh, hills, false);
+        go.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        foreach (float s in new[] { -1f, 1f })
         {
-            float x = -260f + i * 47f + R(-10f, 10f);
-            var hill = MeshGen.RoundBox("Hill", new Vector3(x, R(8f, 22f), R(150f, 230f)), new Vector3(R(70f, 110f), R(40f, 70f), R(70f, 110f)), 14f, Grass, 10f, t, R(0, 90), false);
-            hill.transform.rotation = Quaternion.Euler(0, R(0, 90), 0);
+            float Side(float x, float z) => Level(z) - 1f + Mathf.Max(0f, Mathf.Abs(x) - 132f) * 0.18f * Fbm(x, z, 3) * 2f;
+            var side = HillMesh(s < 0 ? "hills_west" : "hills_east", s < 0 ? Rect.MinMaxRect(-420f, -127f, -130f, 132f) : Rect.MinMaxRect(130f, -127f, 420f, 132f), 18, 16, Side, 10f);
+            var sg = MeshObject(t, "SideHills", side, hills, false);
+            sg.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
-        for (int i = 0; i < 70; i++)
+        // woods on the hills: pines and holm oaks, thicker further up
+        for (int i = 0; i < 130; i++)
         {
-            var p = new Vector3(R(-200f, 200f), Upper, R(104f, 150f));
-            Nature.Tree(rng.NextDouble() < 0.5 ? Nature.Pines : Nature.Trees, rng, p, 6f, 11f, t);
+            float x = R(-300f, 300f), z = R(136f, 280f);
+            Nature.Tree(rng.NextDouble() < 0.55 ? Nature.Pines : Nature.Trees, rng, new Vector3(x, North(x, z) - 0.3f, z), 7f, 13f, t);
         }
-        // fields of the valley: strips of green and of ploughed earth, rows of olive trees
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 44; i++)
         {
-            float z = -110f - i * 18f;
-            for (int j = 0; j < 6; j++)
+            float s = rng.NextDouble() < 0.5 ? -1f : 1f, x = s * R(136f, 260f), z = R(-120f, 125f);
+            Nature.Tree(Nature.Trees, rng, new Vector3(x, Level(z) - 1f + Mathf.Max(0f, Mathf.Abs(x) - 132f) * 0.18f * Fbm(x, z, 3) * 2f - 0.3f, z), 5f, 9f, t);
+        }
+        // the valley: strips of green wheat and of ploughed earth, olive groves in rows
+        for (int i = 0; i < 9; i++)
+        {
+            float z = -142f - i * 17f;
+            for (int j = 0; j < 7; j++)
             {
-                float x = -250f + j * 85f + R(-10f, 10f);
-                Box(t, "Field", new Vector3(x, -2.98f, z), new Vector3(R(55f, 80f), 0.06f, 14f), (i + j) % 3 == 0 ? Earth : Grass, 6f, false);
+                float x = -300f + j * 95f + R(-12f, 12f);
+                Box(t, "Field", new Vector3(x, -2.98f, z), new Vector3(R(60f, 85f), 0.06f, 13f), (i + j) % 3 == 0 ? Earth : Grass, 6f, false);
             }
         }
-        for (int i = 0; i < 60; i++)
-        {
-            var p = new Vector3(R(-220f, 220f), -3f, R(-240f, -106f));
-            Nature.Tree(Nature.Trees, rng, p, 4f, 5.5f, t);
-        }
-        // the Guadalquivir far down the valley
-        var river = MeshGen.TexBox("Guadalquivir", new Vector3(0, -2.9f, -280f), new Vector3(700f, 0.05f, 26f), AssetSetup.WaterMat("Water_River", new Color(0.05f, 0.16f, 0.17f), new Color(0.2f, 0.36f, 0.34f), 1f, 0.25f), 20f, t, 0f, false);
+        for (int row = 0; row < 4; row++)
+            for (float x = -240f; x < 240f; x += R(9f, 14f))
+                if (rng.NextDouble() < 0.55) Nature.Tree(Nature.Trees, rng, new Vector3(x, -3f, -150f - row * 30f + R(-3f, 3f)), 3.5f, 5f, t);
+        // the Guadalquivir: flowing west between banks, poplars and reeds
+        var flow = AssetSetup.WaterMat("Water_River", new Color(0.05f, 0.15f, 0.15f), new Color(0.22f, 0.36f, 0.32f), 1.2f, 0.25f, new Vector3(-1f, 1.2f, 0f));
+        var river = MeshGen.TexBox("Guadalquivir", new Vector3(0, -3.3f, -300f), new Vector3(760f, 0.05f, 46f), flow, 20f, t, 0f, false);
         river.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        // cypresses and palms dotted over the terraces outside the gardens
-        foreach (var (x, z) in new[] { (-30f, -34f), (20f, -34f), (-90f, 40f), (-90f, 0f), (-70f, 20f), (40f, 50f), (94f, 52f), (20f, 64f), (-36f, 92f), (88f, -34f) })
-            CypressTree(t, new Vector3(x, Level(z), z), R(8f, 11f));
-        // the west of the middle terrace: the bath suite next to the hall (broken walls round small rooms)
-        Ruin(t, new Vector3(-40f, Middle, 34f), new Vector3(-24f, Middle, 34f), 2.6f, 0.6f, Ashlar, 1f);
-        Ruin(t, new Vector3(-40f, Middle, 34f), new Vector3(-40f, Middle, 58f), 3f, 0.6f, Ashlar, 1.2f);
-        Ruin(t, new Vector3(-32f, Middle, 34f), new Vector3(-32f, Middle, 52f), 2.2f, 0.5f, Ashlar, 0.8f);
-        Ruin(t, new Vector3(-40f, Middle, 46f), new Vector3(-24f, Middle, 46f), 2.4f, 0.5f, Ashlar, 0.8f);
-        Ruin(t, new Vector3(-90f, Middle, 30f), new Vector3(-66f, Middle, 30f), 1.8f, 0.6f, Ashlar, 0.6f);
-        Ruin(t, new Vector3(-66f, Middle, 10f), new Vector3(-66f, Middle, 30f), 1.6f, 0.6f, Ashlar, 0.6f);
-        Ruin(t, new Vector3(-90f, Middle, -10f), new Vector3(-70f, Middle, -10f), 1.4f, 0.6f, Ashlar, 0.6f);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            Box(t, "RiverBank", new Vector3(0, -2.92f, -300f + s * 24.5f), new Vector3(760f, 0.3f, 3f), Earth, 4f, false);
+            for (float x = -280f; x < 280f; x += R(14f, 24f))
+            {
+                Nature.Tree(Nature.Trees, rng, new Vector3(x, -3f, -300f + s * 29f), 9f, 13f, t);
+                Nature.Place("Grass_Wispy_Tall", new Vector3(x + R(-5f, 5f), -2.8f, -300f + s * 25.2f), R(0, 360), R(1.2f, 1.8f), t);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The water of the city: from a spring pool on the upper terrace a cascade runs down the terrace
+    /// face into a basin and on along a channel to the Salón Rico patio; channels on the axes of the
+    /// Upper Garden run into its pools; twin cascades beside the great stair feed two channels running
+    /// down the Lower Garden to its fountain.
+    /// </summary>
+    private static void Waters()
+    {
+        var t = Node("Waters", root, Vector3.zero, 0);
+        const float x = 21f;
+        Pool(t, Rect.MinMaxRect(x - 2.5f, UpSouth + 1.5f, x + 2.5f, UpSouth + 6f), Upper + 0.5f, 0.6f);
+        Cascade(t, new Vector3(x, Upper + 0.2f, UpSouth + 1.2f), new Vector3(x, Middle + 0.3f, UpSouth - 8f), 1.6f);
+        Pool(t, Rect.MinMaxRect(x - 2.5f, UpSouth - 12.5f, x + 2.5f, UpSouth - 8f), Middle + 0.5f, 0.6f);
+        Channel(t, new Vector3(x, 0, UpSouth - 12.8f), new Vector3(x, 0, 32.3f), 0.7f, Middle + 0.72f, Middle);
+        var bc = new Vector3(x, Middle + 0.5f, 31f);
+        MeshGen.Object("ChannelBasin", MeshGen.Cylinder(1.3f, 0.45f, 1f, 8), Cream, t, bc).AddComponent<MeshCollider>();
+        var bw = MeshGen.TexCylinder("BasinWater", bc + Vector3.up * 0.4f, 1.15f, 0.02f, Water, 2f, t, false);
+        bw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        // the garden axes
+        float walk = Middle + 0.5f;
+        Channel(t, new Vector3(-5f, 0, 27f), new Vector3(-5f, 0, 17.3f), 0.5f, walk + 0.18f);
+        Channel(t, new Vector3(-5f, 0, -25f), new Vector3(-5f, 0, -15.3f), 0.5f, walk + 0.18f);
+        Channel(t, new Vector3(-39f, 0, 1f), new Vector3(-28.3f, 0, 1f), 0.5f, walk + 0.18f);
+        Channel(t, new Vector3(29f, 0, 1f), new Vector3(18.3f, 0, 1f), 0.5f, walk + 0.18f);
+        // the twin cascades beside the great stair and the Lower Garden channels
+        foreach (float cx in new[] { -9.4f, -0.6f })
+        {
+            Cascade(t, new Vector3(cx, Middle + 0.1f, MidSouth + 0.3f), new Vector3(cx, Lower + 0.35f, MidSouth - 6.6f), 0.9f);
+            Channel(t, new Vector3(cx, 0, MidSouth - 6.8f), new Vector3(cx, 0, -59f), 0.6f, Lower + 0.32f);
+        }
+    }
+
+    /// <summary>The royal baths west of the Salón Rico: a cold, a warm and a hot room behind arched doors, domes with star-shaped skylights, a pool.</summary>
+    private static void Hammam()
+    {
+        var t = Node("Hammam", root, Vector3.zero, 0);
+        float y = Middle;
+        const float x0 = -42f, x1 = -22.4f, z0 = 32f, z1 = 58f, h = 5f;
+        Slab(t, "BathFloor", Rect.MinMaxRect(x0, z0, x1, z1), y + 0.1f, 0.1f, Marble, 2f);
+        Wall(t, new Vector3(x0, y, z0), new Vector3(x1, y, z0), h, 0.6f, LimeOchre, 9.8f, 1.6f, 2.8f);
+        Wall(t, new Vector3(x0, y, z1), new Vector3(x1, y, z1), h, 0.6f, LimeOchre);
+        Wall(t, new Vector3(x0, y, z0), new Vector3(x0, y, z1), h, 0.6f, LimeOchre);
+        Wall(t, new Vector3(x1, y, z0), new Vector3(x1, y, z1), h, 0.6f, LimeOchre, 18f, 1.4f, 2.6f);
+        // partitions between the three rooms, an arched door in each
+        foreach (float z in new[] { 40.7f, 49.3f })
+        {
+            var p = Node("BathArch", t, new Vector3((x0 + x1) / 2f, y, z), 0);
+            Arch(p, 0, 2.4f, 2f, h, 0.5f, 30f, Plaster);
+            Box(t, "BathWall", new Vector3((x0 + (x0 + x1) / 2f - 1.2f) / 2f, y + h / 2f, z), new Vector3((x1 - x0) / 2f - 1.2f, h, 0.5f), Plaster);
+            Box(t, "BathWall", new Vector3((x1 + (x0 + x1) / 2f + 1.2f) / 2f, y + h / 2f, z), new Vector3((x1 - x0) / 2f - 1.2f, h, 0.5f), Plaster);
+        }
+        Box(t, "BathRoof", new Vector3((x0 + x1) / 2f, y + h + 0.2f, (z0 + z1) / 2f), new Vector3(x1 - x0 + 0.6f, 0.4f, z1 - z0 + 0.6f), LimeOchre, 2f);
+        foreach (float z in new[] { 36.3f, 45f, 53.7f })
+        {
+            var dome = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Object.DestroyImmediate(dome.GetComponent<Collider>());
+            dome.name = "Dome";
+            dome.transform.SetParent(t, false);
+            dome.transform.position = new Vector3((x0 + x1) / 2f, y + h + 0.4f, z);
+            dome.transform.localScale = new Vector3(6f, 3.4f, 6f);
+            dome.GetComponent<Renderer>().sharedMaterial = Plaster;
+            for (int i = 0; i < 6; i++)
+            {
+                float a = i * Mathf.PI / 3f;
+                var star = Box2(t, "Skylight", new Vector3((x0 + x1) / 2f + Mathf.Cos(a) * 1.7f, y + h + 1.6f, z + Mathf.Sin(a) * 1.7f), new Vector3(0.3f, 0.3f, 0.3f), Cream);
+                star.transform.rotation = Quaternion.Euler(45f, i * 60f, 45f);
+            }
+        }
+        // the hot room: a pool and stone benches; the warm room: benches
+        Pool(t, Rect.MinMaxRect(-36f, 51.5f, -28f, 56f), y + 0.6f, 0.5f);
+        foreach (float z in new[] { 43f, 47f })
+            Box(t, "Bench", new Vector3(x0 + 1.2f, y + 0.25f, z), new Vector3(1.2f, 0.5f, 3f), Marble, 1f);
+        HangingLamp(t, new Vector3((x0 + x1) / 2f, y + 3.6f, 36f), 1f);
+        HangingLamp(t, new Vector3((x0 + x1) / 2f, y + 3.6f, 45f), 1f);
+        Sign(t, new Vector3((x0 + x1) / 2f, y + 4.2f, z0 - 0.38f), 0f, "الحمام الملكي", "THE ROYAL BATHS", 3.4f, 1f);
+    }
+
+    private static GameObject Box2(Transform t, string name, Vector3 center, Vector3 size, Material m) => MeshGen.TexBox(name, center, size, m, 1f, t, 0f, false);
+
+    /// <summary>A name board on two wooden posts (read from the side 'yaw' + 180 looks to).</summary>
+    private static void BoardStand(Transform parent, Vector3 foot, float yaw, string ar, string en)
+    {
+        var s = Node("BoardStand", parent, foot, yaw);
+        foreach (float x in new[] { -1.3f, 1.3f }) LBox(s, "Post", new Vector3(x, 0.9f, 0), new Vector3(0.12f, 1.8f, 0.12f), Signboard, 1f);
+        Sign(s, s.TransformPoint(new Vector3(0, 1.9f, -0.1f)), yaw, ar, en, 3f, 0.9f);
+    }
+
+    /// <summary>Name boards on stands for the gardens and the great buildings that have no wall to carry one.</summary>
+    private static void Boards()
+    {
+        var t = Node("Boards", root, Vector3.zero, 0);
+        void Stand(Vector3 foot, float yaw, string ar, string en) => BoardStand(t, foot, yaw, ar, en);
+        Stand(new Vector3(-12f, Middle + 0.5f, 28.5f), 180f, "الجنة العليا", "THE UPPER GARDEN");
+        Stand(new Vector3(-14f, Lower + 0.5f, -39.5f), 180f, "الجنة السفلى", "THE LOWER GARDEN");
+        Stand(new Vector3(-30f, Middle + 0.5f, 33.5f), 0f, "المجلس الشرقي - قاعة عبد الرحمن الناصر", "SALON RICO - HALL OF ABD AL-RAHMAN III");
+        Stand(new Vector3(42f, Middle, 10f), -90f, "الرواق الكبير وساحة الاستعراض", "THE GREAT PORTICO AND THE PARADE GROUND");
+        Stand(new Vector3(48f, Middle, 47f), 0f, "الشارع المنحدر المقبب", "THE VAULTED RAMP STREET");
     }
 
     /// <summary>Bot waypoints and spawn points on the open ground of the three terraces, the stairs and ramps linking them.</summary>
