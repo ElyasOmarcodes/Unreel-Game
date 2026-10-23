@@ -59,6 +59,7 @@ public static class ZahraBuilder
     private static Material Grass => PortBuilder.Pbr("Z_Grass", "Grass004", new Color(0.92f, 1.02f, 0.8f), 0.15f);
     private static Material Gravel => PortBuilder.Pbr("Z_Gravel", "Gravel036L", new Color(1.02f, 0.95f, 0.84f), 0.15f);
     private static Material HedgeMat => PortBuilder.Pbr("Z_Hedge", "Grass001", new Color(0.32f, 0.5f, 0.26f), 0.1f);
+    private static Material TownGround => PortBuilder.Pbr("Z_TownGround", "Gravel036L", new Color(0.98f, 0.88f, 0.72f), 0.1f);
     private static Material Earth => PortBuilder.Pbr("Z_Earth", "Ground104", new Color(0.82f, 0.68f, 0.5f), 0.08f);
     private static Material RoofTiles => PortBuilder.Pbr("Z_RoofTiles", "RoofingTiles006", new Color(0.9f, 0.52f, 0.36f), 0.3f);
     private static Material Wood => PortBuilder.Pbr("Z_Wood", "Wood049", new Color(0.62f, 0.44f, 0.3f), 0.4f);
@@ -413,6 +414,7 @@ public static class ZahraBuilder
             m.SetVertices(V); m.SetNormals(N); m.SetUVs(0, UV); m.SetTriangles(T, 0);
             m.RecalculateBounds();
             m.RecalculateTangents();
+            MeshUtility.SetMeshCompression(m, ModelImporterMeshCompression.Medium);
             AssetSetup.Folder(MeshFolder);
             AssetDatabase.CreateAsset(m, $"{MeshFolder}/{key}.asset");
             return meshes[key] = m;
@@ -632,7 +634,7 @@ public static class ZahraBuilder
         var pine = Nature.Place(Nature.Pines[rng.Next(Nature.Pines.Length)], p, R(0, 360), height, parent);
         if (pine != null)
         {
-            pine.transform.localScale = Vector3.Scale(pine.transform.localScale, new Vector3(0.34f, 1f, 0.34f));
+            pine.transform.localScale = Vector3.Scale(pine.transform.localScale, new Vector3(0.24f, 1f, 0.24f));
             return;
         }
         if (cypressMesh == null)
@@ -703,7 +705,7 @@ public static class ZahraBuilder
         if (len < 0.3f) return;
         float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
         string key = rng.NextDouble() < 0.5 ? "Bush_Long_1" : "Bush_Long_2";
-        var probe = Nature.Place(key, a, 0, height, parent);
+        var probe = Nature.Place(key, a, 0, 1f, parent);   // measured at 1 m high
         if (probe == null)
         {
             MeshGen.RoundBox("Myrtle", (a + b) / 2f + Vector3.up * height / 2f, new Vector3(0.7f, height, len), 0.2f, HedgeMat, 1.5f, parent, yaw);
@@ -718,16 +720,18 @@ public static class ZahraBuilder
             bushShape[key] = shape;
         }
         Object.DestroyImmediate(probe);
-        float piece = Mathf.Max(shape.alongX ? shape.size.x : shape.size.z, 0.5f);
-        int count = Mathf.Max(1, Mathf.RoundToInt(len / piece));
-        float stretch = len / count / piece;
+        // a clipped core of leaves, the bushes overlapping along it so no gaps show
+        MeshGen.RoundBox("HedgeCore", (a + b) / 2f + Vector3.up * height * 0.42f, new Vector3(0.62f, height * 0.84f, Mathf.Max(0.3f, len - 0.2f)), 0.25f, HedgeMat, 1.2f, parent, yaw, false);
+        float piece = Mathf.Max((shape.alongX ? shape.size.x : shape.size.z) * height, 0.4f) * 0.6f;
+        int count = Mathf.Max(1, Mathf.CeilToInt(len / piece));
         for (int i = 0; i < count; i++)
         {
             var p = a + d / len * ((i + 0.5f) * len / count);
-            var go = Nature.Place(key, p, yaw + (shape.alongX ? 90f : 0f), height, parent);
+            var go = Nature.Place(key, p, yaw + (shape.alongX ? 90f : 0f) + (rng.NextDouble() < 0.5 ? 180f : 0f), height * R(0.95f, 1.08f), parent);
             if (go == null) continue;
             var sc = go.transform.localScale;
-            go.transform.localScale = shape.alongX ? new Vector3(sc.x * stretch, sc.y, sc.z * 0.8f) : new Vector3(sc.x * 0.8f, sc.y, sc.z * stretch);
+            float across = 0.75f / Mathf.Max(0.1f, (shape.alongX ? shape.size.z : shape.size.x) * height);
+            go.transform.localScale = shape.alongX ? new Vector3(sc.x, sc.y, sc.z * Mathf.Min(1.2f, across)) : new Vector3(sc.x * Mathf.Min(1.2f, across), sc.y, sc.z);
         }
         // a box inside the leaves for bullets and feet
         var block = new GameObject("HedgeCollider");
@@ -905,9 +909,9 @@ public static class ZahraBuilder
         const float far = 380f, south = -127f;
         Slabs(t, "Valley", Rect.MinMaxRect(-far, -far, far, south), new[] { Rect.MinMaxRect(-far, -323f, far, -277f) }, -3f, 2f, Grass, 6f);
         Slab(t, "RiverBed", Rect.MinMaxRect(-far, -323f, far, -277f), -4.4f, 1f, Earth, 6f);
-        Slab(t, "LowerTerrace", Rect.MinMaxRect(-far, south, far, MidSouth), Lower, 5f, Earth, 4f);
-        Slab(t, "MiddleTerrace", Rect.MinMaxRect(-far, MidSouth, far, UpSouth), Middle, 8f, Earth, 4f);
-        Slab(t, "UpperTerrace", Rect.MinMaxRect(-far, UpSouth, far, far), Upper, 14f, Earth, 4f);
+        Slab(t, "LowerTerrace", Rect.MinMaxRect(-far, south, far, MidSouth), Lower, 5f, TownGround, 3f);
+        Slab(t, "MiddleTerrace", Rect.MinMaxRect(-far, MidSouth, far, UpSouth), Middle, 8f, TownGround, 3f);
+        Slab(t, "UpperTerrace", Rect.MinMaxRect(-far, UpSouth, far, far), Upper, 14f, TownGround, 3f);
         Box(t, "TerraceFace", new Vector3(0, (Lower + Middle) / 2f - 0.32f, MidSouth - 0.15f), new Vector3(Half * 2f + 8f, Middle - Lower + 0.6f, 0.3f), Ashlar);
         Box(t, "TerraceFace", new Vector3(0, (Middle + Upper) / 2f - 0.32f, UpSouth - 0.15f), new Vector3(Half * 2f + 8f, Upper - Middle + 0.6f, 0.3f), Ashlar);
         void Parapet(float z, float y, params (float a, float b)[] gaps)
@@ -1011,6 +1015,7 @@ public static class ZahraBuilder
         LBox(t, "SteleCrown", new Vector3(0, 0.6f + h + 0.15f, 0), new Vector3(w + 0.3f, 0.3f, 0.55f), Cream, 1f, false);
         foreach (float s in new[] { -1f, 1f })
             LBox(t, "SteleFrame", new Vector3(s * (w / 2f - 0.08f), 0.6f + h / 2f, face), new Vector3(0.1f, h - 0.1f, 0.04f), Gold, 1f, false);
+        LBox(t, "StelePanel", new Vector3(0, 0.6f + h / 2f, face + 0.01f), new Vector3(w - 0.3f, h - 0.3f, 0.02f), Capital, 1f, false);
         LBox(t, "SteleRule", new Vector3(0, 0.6f + h / 2f, face), new Vector3(w - 0.6f, 0.04f, 0.04f), Gold, 1f, false);
         var ink = new Color(0.2f, 0.12f, 0.06f);
         var title = new Color(0.55f, 0.3f, 0.05f);
@@ -1598,18 +1603,9 @@ public static class ZahraBuilder
             Arcade(t, t.TransformPoint(new Vector3(-pw / 2f, 0, pd / 2f)), t.TransformDirection(Vector3.right), bays, pw / bays, 2.2f, inner, 0.36f, 28f, wall, true);
         }
         else Wall(t, t.TransformPoint(new Vector3(-pw / 2f, 0, pd / 2f)), t.TransformPoint(new Vector3(pw / 2f, 0, pd / 2f)), inner, 0.3f, wall, pw / 2f, 1.2f, 2.3f);
-        // tiled roofs, each sloping down into the patio
-        void Lean(Vector3 high, Vector3 low, float width)
-        {
-            var wh = t.TransformPoint(high); var wl = t.TransformPoint(low);
-            float len = Vector3.Distance(wh, wl) + 0.5f;
-            var roof = MeshGen.TexBox("Roof", (wh + wl) / 2f + Vector3.up * 0.08f, new Vector3(width, 0.14f, len), RoofTiles, 2f, t);
-            roof.transform.rotation = Quaternion.LookRotation(wh - wl, Vector3.up);
-        }
-        Lean(new Vector3(0, h + 0.2f, hd), new Vector3(0, inner, pd / 2f), w + 0.5f);
-        Lean(new Vector3(0, h + 0.2f, -hd), new Vector3(0, inner, -pd / 2f), w + 0.5f);
-        foreach (float s in new[] { -1f, 1f })
-            Lean(new Vector3(s * hw, h + 0.2f, 0), new Vector3(s * pw / 2f, inner, 0), pd + 0.2f);
+        // one tiled roof all round, its four slopes running down into the patio
+        var roof = MeshObject(t, "Roof", CourtRoof(hw + 0.35f, hd + 0.35f, pw / 2f, pd / 2f, h + 0.2f, inner), RoofTiles, true);
+        roof.transform.localPosition = Vector3.zero;
         // a lattice balcony on the front of a grand house
         if (floors > 1)
         {
@@ -1649,6 +1645,57 @@ public static class ZahraBuilder
         NightLights.Lamp(t, t.TransformPoint(new Vector3(door + 1.6f, 2.6f, -hd - 0.3f)), new Vector3(0.2f, 0.3f, 0.2f), night, 2.6f);
         if (r.NextDouble() < 0.6) NightLights.Window(t, t.TransformPoint(new Vector3(-hw + 1.6f, 2.5f, hd + 0.08f)), t.TransformDirection(Vector3.forward), 0.8f, 1f, night);
         if (arabic != null) Sign(t, t.TransformPoint(new Vector3(door, Mathf.Min(h - 0.35f, 4.25f), -hd - 0.1f)), yaw, arabic, english, 2.8f, 0.8f);
+    }
+
+    /// <summary>
+    /// The roof of a courtyard house in its own frame: four slopes from the eaves (half sizes ox, oz at
+    /// 'high') down to the patio edge (px, pz at 'low'), the tiles running along the eaves, a fascia at
+    /// the eaves and the underside seen from the rooms.
+    /// </summary>
+    private static Mesh CourtRoof(float ox, float oz, float px, float pz, float high, float low)
+    {
+        string key = $"roof_{K(ox)}_{K(oz)}_{K(px)}_{K(pz)}_{K(high)}_{K(low)}";
+        if (meshes.TryGetValue(key, out var cached) && cached != null) return cached;
+        var v = new List<Vector3>(); var n = new List<Vector3>(); var uv = new List<Vector2>(); var tri = new List<int>();
+        void Quad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, Vector2 u0, Vector2 u1, Vector2 u2, Vector2 u3, Vector3 up)
+        {
+            var normal = Vector3.Cross(p1 - p0, p3 - p0).normalized;
+            bool flip = Vector3.Dot(normal, up) < 0f;
+            if (flip) normal = -normal;
+            int i = v.Count;
+            v.AddRange(new[] { p0, p1, p2, p3 });
+            uv.AddRange(new[] { u0, u1, u2, u3 });
+            for (int k = 0; k < 4; k++) n.Add(normal);
+            // front faces as in Builder.Face: (p0, p1, p2) turning round the normal
+            if (!flip) tri.AddRange(new[] { i, i + 1, i + 2, i, i + 2, i + 3 });
+            else tri.AddRange(new[] { i, i + 2, i + 1, i, i + 3, i + 2 });
+        }
+        const float thick = 0.12f;
+        // the four slopes: x along the eave, the slope from the eave to the patio
+        var corners = new[] { new Vector2(-1, -1), new Vector2(1, -1), new Vector2(1, 1), new Vector2(-1, 1) };
+        for (int side = 0; side < 4; side++)
+        {
+            var c0 = corners[side]; var c1 = corners[(side + 1) % 4];
+            var o0 = new Vector3(c0.x * ox, high, c0.y * oz); var o1 = new Vector3(c1.x * ox, high, c1.y * oz);
+            var i0 = new Vector3(c0.x * px, low, c0.y * pz); var i1 = new Vector3(c1.x * px, low, c1.y * pz);
+            bool alongX = side % 2 == 0;
+            float slope = Vector2.Distance(new Vector2(alongX ? o0.z : o0.x, high), new Vector2(alongX ? i0.z : i0.x, low));
+            Vector2 U(Vector3 p, float across) => new Vector2((alongX ? p.x : p.z) / 2f, across / 2f);
+            Quad(o0, o1, i1, i0, U(o0, 0), U(o1, 0), U(i1, slope), U(i0, slope), Vector3.up);
+            var d = Vector3.down * thick;
+            Quad(o0 + d, o1 + d, i1 + d, i0 + d, U(o0, 0), U(o1, 0), U(i1, slope), U(i0, slope), Vector3.down);
+            // the fascia at the eave
+            var outward = new Vector3(alongX ? 0 : c0.x, 0, alongX ? c0.y : 0);
+            Quad(o0, o1, o1 + d, o0 + d, U(o0, 0), U(o1, 0), U(o1, 0.06f), U(o0, 0.06f), outward);
+        }
+        var m = new Mesh { name = key };
+        m.SetVertices(v); m.SetNormals(n); m.SetUVs(0, uv); m.SetTriangles(tri, 0);
+        m.RecalculateBounds();
+        m.RecalculateTangents();
+        MeshUtility.SetMeshCompression(m, ModelImporterMeshCompression.Medium);
+        AssetSetup.Folder(MeshFolder);
+        AssetDatabase.CreateAsset(m, $"{MeshFolder}/{key}.asset");
+        return meshes[key] = m;
     }
 
     /// <summary>
@@ -1883,6 +1930,7 @@ public static class ZahraBuilder
         m.RecalculateNormals();
         m.RecalculateBounds();
         m.RecalculateTangents();
+        MeshUtility.SetMeshCompression(m, ModelImporterMeshCompression.Medium);
         AssetSetup.Folder(MeshFolder);
         AssetDatabase.CreateAsset(m, $"{MeshFolder}/{key}.asset");
         return meshes[key] = m;

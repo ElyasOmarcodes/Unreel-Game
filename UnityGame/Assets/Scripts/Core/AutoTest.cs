@@ -289,7 +289,7 @@ namespace UA
                 (12, "50-zahra-upper-garden", new Vector3(-36f, 13f, -24f), new Vector3(-5f, 4f, 6f)),
                 (12, "51-zahra-portico", new Vector3(72f, 6.5f, 14f), new Vector3(36f, 8f, 8f)),
                 (12, "52-zahra-ramp-street", new Vector3(47f, 5.8f, 48.5f), new Vector3(86f, 7f, 48.5f)),
-                (12, "53-zahra-palace", new Vector3(70f, 6f, -29f), new Vector3(70f, 5f, -50f)),
+                (12, "53-zahra-palace", new Vector3(70f, 4.5f, -35.5f), new Vector3(70f, 6f, -50f)),
                 (12, "53b-zahra-palace-court", new Vector3(70f, 3.2f, -48.5f), new Vector3(70f, 3.5f, -70f)),
                 (12, "53c-zahra-throne", new Vector3(70f, 2.6f, -74f), new Vector3(70f, 2.2f, -93f)),
                 (12, "53d-zahra-palace-rooms", new Vector3(88f, 2.6f, -78f), new Vector3(91f, 3.4f, -82f)),
@@ -344,7 +344,7 @@ namespace UA
                 cam.transform.SetPositionAndRotation(minaret.position, Quaternion.LookRotation(new Vector3(0f, 4f, 0f) - minaret.position));
                 yield return Wait(0.8f);
                 yield return Shot("61-zahra-minaret-view");
-                var foot = minaret.position - Vector3.up * 13f + minaret.forward * -9f;
+                var foot = minaret.position - Vector3.up * 13f + minaret.forward * 9f;
                 cam.transform.SetPositionAndRotation(foot, Quaternion.LookRotation(minaret.position - Vector3.up * 6f - foot));
                 yield return Wait(0.5f);
                 yield return Shot("62-zahra-minaret");

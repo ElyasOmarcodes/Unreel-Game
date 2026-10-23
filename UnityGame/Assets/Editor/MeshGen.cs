@@ -23,6 +23,7 @@ public static class MeshGen
         mesh.name = key;
         mesh.RecalculateBounds();
         mesh.RecalculateTangents();
+        MeshUtility.SetMeshCompression(mesh, ModelImporterMeshCompression.Medium);
         AssetDatabase.CreateAsset(mesh, $"{Folder}/{key}.asset");
         cache[key] = mesh;
         return mesh;
