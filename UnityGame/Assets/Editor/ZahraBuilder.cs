@@ -734,7 +734,7 @@ public static class ZahraBuilder
         const int n = 9;
         const float len = 2.8f;
         Vector3 Spine(float u) => new Vector3(0, len * (0.32f * u - 0.78f * u * u), len * u);
-        float Width(float u) => 0.04f + 0.38f * Mathf.Pow(Mathf.Sin(Mathf.PI * Mathf.Min(1f, u * 1.1f)), 0.6f) * (1f - 0.55f * u);
+        float Width(float u) => 0.04f + 0.38f * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(Mathf.PI * Mathf.Min(1f, u * 1.1f))), 0.6f) * (1f - 0.55f * u);
         for (int i = 0; i < n; i++)
         {
             float u0 = i / (float)n, u1 = (i + 1) / (float)n;
