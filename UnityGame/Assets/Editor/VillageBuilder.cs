@@ -243,10 +243,13 @@ public static class VillageBuilder
 
     /// <summary>
     /// A wall along local X from x0 to x1 at local z, base y, with openings (centre x, width, bottom,
-    /// top): wooden lintels over doors and windows.
+    /// top): wooden lintels over doors and windows. 'extend' runs both ends on into the walls they meet,
+    /// so the rounded ends are buried and the corners close without a seam.
     /// </summary>
-    private static void Wall(Transform t, float x0, float x1, float z, float y, float height, float thick, List<(float c, float w, float b, float top)> openings, Material m = null, bool alongZ = false, System.Random ruin = null)
+    private static void Wall(Transform t, float x0, float x1, float z, float y, float height, float thick, List<(float c, float w, float b, float top)> openings, Material m = null, bool alongZ = false, System.Random ruin = null, float extend = 0f)
     {
+        x0 -= extend;
+        x1 += extend;
         Vector3 P(float u, float v) => alongZ ? new Vector3(z, v, u) : new Vector3(u, v, z);
         Vector3 S(float len, float h) => alongZ ? new Vector3(thick, h, len) : new Vector3(len, h, thick);
         // a run of solid wall; a ruined one is broken into pieces of different heights with gaps
@@ -271,10 +274,11 @@ public static class VillageBuilder
         {
             float a = o.c - o.w / 2f, b = o.c + o.w / 2f;
             if (a > cursor) Span(cursor, a);
-            if (o.b > 0.01f) Block("Sill", t, P(o.c, y + o.b / 2f), S(o.w + 0.02f, o.b), m);
+            // the pieces under and over an opening reach into the wall beside it: no seam at the joint
+            if (o.b > 0.01f) Block("Sill", t, P(o.c, y + o.b / 2f), S(o.w + 0.3f, o.b), m);
             if (o.top < height - 0.01f && ruin == null)
             {
-                Block("Above", t, P(o.c, y + (o.top + height) / 2f), S(o.w + 0.02f, height - o.top), m);
+                Block("Above", t, P(o.c, y + (o.top + height) / 2f), S(o.w + 0.3f, height - o.top), m);
                 Block("Lintel", t, P(o.c, y + o.top + 0.06f), S(o.w + 0.5f, 0.12f) + (alongZ ? new Vector3(0.06f, 0, 0) : new Vector3(0, 0, 0.06f)), Wood, 0.03f, false);
             }
             cursor = b;
@@ -352,10 +356,10 @@ public static class VillageBuilder
         float wh = h + 0.2f;
         Wall(t, -w / 2f, w / 2f, -l / 2f + thick / 2f, 0, wh, thick, Openings(Door(-w * 0.22f), Door(w * 0.25f), Window(-w * 0.4f), Window(w * 0.02f), Window(w * 0.42f)), null, false, ruin);
         Wall(t, -w / 2f, w / 2f, l / 2f - thick / 2f, 0, wh, thick, Openings(Window(-w * 0.25f), Window(w * 0.25f)), null, false, ruin);
-        Wall(t, -l / 2f + thick, l / 2f - thick, -w / 2f + thick / 2f, 0, wh, thick, Openings(Window(0)), null, true, ruin);
-        Wall(t, -l / 2f + thick, l / 2f - thick, w / 2f - thick / 2f, 0, wh, thick, Openings(Window(0)), null, true, ruin);
+        Wall(t, -l / 2f + thick, l / 2f - thick, -w / 2f + thick / 2f, 0, wh, thick, Openings(Window(0)), null, true, ruin, thick * 0.8f);
+        Wall(t, -l / 2f + thick, l / 2f - thick, w / 2f - thick / 2f, 0, wh, thick, Openings(Window(0)), null, true, ruin, thick * 0.8f);
         // partition between the two rooms with a doorway
-        Wall(t, -l / 2f + thick, l / 2f - thick, 0, 0, wh, 0.3f, Openings((-0.4f, 1f, 0f, 2.1f)), MudDark, true, ruin);
+        Wall(t, -l / 2f + thick, l / 2f - thick, 0, 0, wh, 0.3f, Openings((-0.4f, 1f, 0f, 2.1f)), MudDark, true, ruin, thick * 0.8f);
         if (ruin != null)
         {
             Roof(t, w, l, h, false, 0f, 1f, ruin);
@@ -387,8 +391,8 @@ public static class VillageBuilder
             u.localPosition = new Vector3(-stairSide * (w / 2f - uw / 2f - 0.15f), top, 0.15f);
             Wall(u, -uw / 2f, uw / 2f, -ul / 2f + 0.2f, 0, 3f, 0.4f, Openings(Window(-uw * 0.2f), Window(uw * 0.25f)));
             Wall(u, -uw / 2f, uw / 2f, ul / 2f - 0.2f, 0, 3f, 0.4f, Openings(Window(0)));
-            Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, -stairSide * (uw / 2f - 0.2f), 0, 3f, 0.4f, Openings(Window(0.6f)), null, true);
-            Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, stairSide * (uw / 2f - 0.2f), 0, 3f, 0.4f, Openings(Door(-0.4f)), null, true);
+            Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, -stairSide * (uw / 2f - 0.2f), 0, 3f, 0.4f, Openings(Window(0.6f)), null, true, null, 0.32f);
+            Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, stairSide * (uw / 2f - 0.2f), 0, 3f, 0.4f, Openings(Door(-0.4f)), null, true, null, 0.32f);
             Roof(u, uw, ul, 2.8f, false);
             NightLights.Window(u, u.TransformPoint(new Vector3(uw * 0.25f, 1.5f, -ul / 2f - 0.02f)), u.TransformDirection(Vector3.back), 0.66f, 0.76f, night);
             // wooden balcony on carved posts
@@ -427,7 +431,7 @@ public static class VillageBuilder
         Wall(t, -w / 2f, w / 2f, -l / 2f + thick / 2f, 0, h + 0.2f, thick, Openings(Door(0.2f)), null, false, ruin);
         Wall(t, -w / 2f, w / 2f, l / 2f - thick / 2f, 0, h + 0.2f, thick, Openings(Window(0)), null, false, ruin);
         foreach (float s in new[] { -1f, 1f })
-            Wall(t, -l / 2f + thick, l / 2f - thick, s * (w / 2f - thick / 2f), 0, h + 0.2f, thick, Openings(), null, true, ruin);
+            Wall(t, -l / 2f + thick, l / 2f - thick, s * (w / 2f - thick / 2f), 0, h + 0.2f, thick, Openings(), null, true, ruin, thick * 0.8f);
         if (ruin == null) Roof(t, w, l, h, true, climbSide != 0 ? 1.6f : 0f, climbSide);
         else Rubble(t, new Vector3(0.3f, 0, 0.2f), 1f, ruin);
         if (climbSide == 0 || ruin != null) return;
@@ -455,7 +459,7 @@ public static class VillageBuilder
         const float wallH = 2.9f, thick = 0.6f;
         float gate = (float)(r.NextDouble() - 0.5) * (w - 8f);
         // front wall with the gate, back wall with a breach, solid sides with a low gap
-        Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)), null, false, ruin);
+        Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)), null, false, ruin, thick / 2f);
         Block("GateBeam", t, new Vector3(gate, 2.62f, -l / 2f), new Vector3(3.2f, 0.2f, 0.75f), OldWood, 0.04f, false);
         Lantern(t, t.TransformPoint(new Vector3(gate + 1.3f, 2.2f, -l / 2f - 0.42f)), t.TransformDirection(Vector3.back));
         foreach (float s in new[] { -1f, 1f })
@@ -465,9 +469,14 @@ public static class VillageBuilder
             if (leaf != null) leaf.transform.RotateAround(t.TransformPoint(new Vector3(gate + s * 1.3f, 0, -l / 2f - 0.3f)), Vector3.up, s * 20f);
         }
         float breach = (float)(r.NextDouble() - 0.5) * (w - 6f);
-        Wall(t, -w / 2f, w / 2f, l / 2f, 0, wallH, thick, Openings((breach, 1.5f, 0f, wallH)), null, false, ruin);
+        Wall(t, -w / 2f, w / 2f, l / 2f, 0, wallH, thick, Openings((breach, 1.5f, 0f, wallH)), null, false, ruin, thick / 2f);
         foreach (float s in new[] { -1f, 1f })
-            Wall(t, -l / 2f + thick / 2f, l / 2f - thick / 2f, s * w / 2f, 0, wallH, thick, Openings((s * l * 0.15f, 1.3f, 0.95f, wallH)), null, true, ruin);
+            Wall(t, -l / 2f + thick / 2f, l / 2f - thick / 2f, s * w / 2f, 0, wallH, thick, Openings((s * l * 0.15f, 1.3f, 0.95f, wallH)), null, true, ruin, thick * 0.4f);
+        // square corner posts over the joints of a compound without towers
+        if (!towers && !ruined)
+            foreach (float x in new[] { -1f, 1f })
+                foreach (float zz in new[] { -1f, 1f })
+                    Block("CornerPost", t, new Vector3(x * w / 2f, (wallH + 0.24f) / 2f, zz * l / 2f), new Vector3(thick + 0.18f, wallH + 0.24f, thick + 0.18f), MudPlaster, 0.1f);
         // soft rounded wall tops (a ruin has broken tops instead)
         foreach (float s in ruined ? new float[0] : new[] { -1f, 1f })
         {

@@ -340,7 +340,8 @@ namespace UA
             bool sprint = animMoveY > 1.2f;
             stepTimer = s.Prone ? 0.8f : s.Crouch ? 0.45f : sprint ? 0.26f : move < 0.6f ? 0.42f : 0.3f;
             bool running = !s.Crouch && (sprint || move > 0.8f);
-            float volume = (IsLocal ? 0.3f : 0.6f) * (s.Crouch ? 0.45f : 1f) * (sprint ? 1.15f : 1f);
+            // the same loudness for everyone: Sfx.Step lowers the others' steps with their distance
+            float volume = 0.42f * (s.Crouch ? 0.45f : 1f) * (sprint ? 1.15f : 1f);
             // recorded steps (Fantozzi, CC0): soft ground in the village, stone and concrete elsewhere;
             // the made-up ones only when the recordings are missing
             // the player's own footstep recording first, then the recorded ones by ground
@@ -352,7 +353,7 @@ namespace UA
                 : running ? "step_run_" + (stepIndex++ % 3)
                 : "step_" + (stepIndex++ % 4);
             if (recorded > 0 && !s.Prone) volume *= running ? 0.9f : 0.75f;
-            Sfx.Step(clip, transform.position, s.Prone ? volume * 0.8f : volume);
+            Sfx.Step(clip, transform.position, s.Prone ? volume * 0.8f : volume, IsLocal);
         }
 
         private float lastHealth = 100f, nextPain;

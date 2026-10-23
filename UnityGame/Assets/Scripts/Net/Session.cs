@@ -75,7 +75,12 @@ namespace UA
     }
 
     public struct KillEvent { public ushort Seq; public byte Killer, Victim, Weapon; public bool Headshot; }
-    public struct Shot { public int Seq; public byte Shooter, Weapon; public Vector3 Origin, Dir; public int Seed; }
+    /// <summary>
+    /// A trigger pull. Victim / Head / Pellets: what the shooter saw it hit on their screen (others are drawn
+    /// a little in the past there); the host checks it is believable and counts it even if, on its own
+    /// newer picture, the target has already moved on.
+    /// </summary>
+    public struct Shot { public int Seq; public byte Shooter, Weapon; public Vector3 Origin, Dir; public int Seed; public byte Victim, Pellets; public bool Head; }
     public struct Throw { public int Seq; public byte Thrower; public Vector3 Origin, Velocity; }
     /// <summary>Grenade event in the snapshot: Kind 0 thrown (A origin, B velocity), 1 exploded (A position).</summary>
     public struct NadeEvent { public ushort Seq; public byte Thrower, Kind; public int ThrowSeq; public Vector3 A, B; }
@@ -94,7 +99,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 9;
+        public const byte Version = 10;
         public const byte NoPlayer = 255;
         public const string PasswordNeeded = "This group is locked: type its password";
         public const string WrongPassword = "Wrong password for this group";
@@ -589,6 +594,7 @@ namespace UA
                 var shot = new Shot
                 {
                     Seq = r.ReadInt32(), Weapon = r.ReadByte(), Origin = r.ReadVector3(), Dir = r.ReadVector3(), Seed = r.ReadInt32(), Shooter = id,
+                    Victim = r.ReadByte(), Head = r.ReadBoolean(), Pellets = r.ReadByte(),
                 };
                 if (shot.Seq <= p.LastShotSeq) continue;
                 p.LastShotSeq = shot.Seq;
@@ -621,7 +627,7 @@ namespace UA
             var def = Weapons.Get(shot.Weapon);
             var dirs = Ballistics.Pellets(shot.Dir.normalized, shot.Seed, def);
             shooter.Shots++;
-            bool hitAny = false, headAny = false;
+            bool hitAny = false, headAny = false, claimMet = false;
             var fx = new ShotFx { Shooter = shot.Shooter, Weapon = shot.Weapon, Origin = shot.Origin, HitKind = 2, End = shot.Origin + shot.Dir * def.Range };
             for (int i = 0; i < dirs.Length; i++)
             {
@@ -629,8 +635,26 @@ namespace UA
                 if (i == 0) { fx.End = hit.Point; fx.HitKind = hit.Kind; }
                 if (hit.Victim != NoPlayer && Players.TryGetValue(hit.Victim, out var victim))
                 {
+                    claimMet |= hit.Victim == shot.Victim;
                     float falloff = def.Pellets > 1 || !def.Primary ? Mathf.Lerp(1f, 0.55f, hit.Distance / def.Range) : 1f;
                     if (Damage(shooter, victim, def, hit.Head, def.Damage * falloff) > 0f) { hitAny = true; headAny |= hit.Head; }
+                }
+            }
+            // the shooter saw a hit the host's newer picture misses (the target moved on meanwhile): count it
+            // when the target was really close to the line of fire and nothing solid stood in between
+            if (!claimMet && shot.Victim != NoPlayer && shot.Victim != shot.Shooter && Players.TryGetValue(shot.Victim, out var claimed) && claimed.Alive)
+            {
+                var dir = shot.Dir.normalized;
+                var chest = claimed.Pos + Vector3.up * (claimed.Prone ? 0.3f : claimed.Crouch ? 0.9f : 1.2f);
+                float along = Vector3.Dot(chest - shot.Origin, dir);
+                var closest = shot.Origin + dir * along;
+                if (along > 0f && along < def.Range && Vector3.Distance(closest, chest) < 1.6f && World.I.LineOfSight(shot.Origin, closest))
+                {
+                    float falloff = def.Pellets > 1 || !def.Primary ? Mathf.Lerp(1f, 0.55f, along / def.Range) : 1f;
+                    int pellets = Mathf.Clamp(shot.Pellets, 1, dirs.Length);
+                    for (int i = 0; i < pellets; i++)
+                        if (Damage(shooter, claimed, def, shot.Head, def.Damage * falloff) > 0f) { hitAny = true; headAny |= shot.Head; }
+                    fx.End = closest; fx.HitKind = 1;
                 }
             }
             if (hitAny) shooter.ShotHits++;
@@ -790,6 +814,7 @@ namespace UA
                 {
                     var s = pendingShots[i].shot;
                     w.Write(s.Seq); w.Write(s.Weapon); w.Write(s.Origin); w.Write(s.Dir); w.Write(s.Seed);
+                    w.Write(s.Victim); w.Write(s.Head); w.Write(s.Pellets);
                 }
                 pendingThrows.RemoveAll(t => now - t.time > 1f);
                 w.Write((byte)pendingThrows.Count);

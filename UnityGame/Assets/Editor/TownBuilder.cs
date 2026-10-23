@@ -562,8 +562,28 @@ public static class TownBuilder
     {
         float w = 10f, d = 7f, h = tall ? 6.2f : 4.4f;
         var t = Node(tall ? "Loft" : "Granary", root, c, 0);
-        B(t, "LoftWalls", new Vector3(0, h / 2f, 0), new Vector3(w, h, d), Plaster(k), 2.5f);
-        B(t, "LoftBase", new Vector3(0, 0.45f, 0), new Vector3(w + 0.12f, 0.9f, d + 0.12f), Stone, 2f, false);
+        const float wt = 0.35f;
+        if (tall)
+        {
+            B(t, "LoftWalls", new Vector3(0, h / 2f, 0), new Vector3(w, h, d), Plaster(k), 2.5f);
+            B(t, "LoftBase", new Vector3(0, 0.45f, 0), new Vector3(w + 0.12f, 0.9f, d + 0.12f), Stone, 2f, false);
+        }
+        else
+        {
+            // the granary is hollow: walls round a plank floor, a door on the east side
+            B(t, "LoftWall", new Vector3(0, h / 2f, -d / 2f + wt / 2f), new Vector3(w, h, wt), Plaster(k), 2.5f);
+            B(t, "LoftWall", new Vector3(0, h / 2f, d / 2f - wt / 2f), new Vector3(w, h, wt), Plaster(k), 2.5f);
+            B(t, "LoftWall", new Vector3(-w / 2f + wt / 2f, h / 2f, 0), new Vector3(wt, h, d - 2f * wt), Plaster(k), 2.5f);
+            float dz0 = 0.4f - 0.65f, dz1 = 0.4f + 0.65f, z0 = -d / 2f + wt, z1 = d / 2f - wt;
+            B(t, "LoftWall", new Vector3(w / 2f - wt / 2f, h / 2f, (z0 + dz0) / 2f), new Vector3(wt, h, dz0 - z0), Plaster(k), 2.5f);
+            B(t, "LoftWall", new Vector3(w / 2f - wt / 2f, h / 2f, (dz1 + z1) / 2f), new Vector3(wt, h, z1 - dz1), Plaster(k), 2.5f);
+            B(t, "LoftWall", new Vector3(w / 2f - wt / 2f, (2.3f + h) / 2f, 0.4f), new Vector3(wt, h - 2.3f, 1.3f), Plaster(k), 2.5f);
+            B(t, "LoftFloor", new Vector3(0, 0.05f, 0), new Vector3(w - 2f * wt, 0.1f, d - 2f * wt), Boards, 2f);
+            foreach (float sz in new[] { -1f, 1f })
+                B(t, "LoftBase", new Vector3(0, 0.45f, sz * (d / 2f + 0.03f)), new Vector3(w + 0.12f, 0.9f, 0.06f), Stone, 2f, false);
+            foreach (float sx in new[] { -1f, 1f })
+                B(t, "LoftBase", new Vector3(sx * (w / 2f + 0.03f), 0.45f, 0), new Vector3(0.06f, 0.9f, d), Stone, 2f, false);
+        }
         B(t, "LoftCornice", new Vector3(0, h - 0.1f, 0), new Vector3(w + 0.3f, 0.2f, d + 0.3f), Timber, 1.5f, false);
         // closed shutters on the walls, some lit at night
         for (float y = 1.6f; y < h - 1f; y += 3.1f)
@@ -575,7 +595,8 @@ public static class TownBuilder
                     if (rng.NextDouble() < 0.45)
                         NightLights.Window(t, t.TransformPoint(face + new Vector3(0, 0, sz * 0.06f)), new Vector3(0, 0, sz), 0.8f, 1.1f, night);
                 }
-        B(t, "LoftDoor", new Vector3(w / 2f + 0.05f, 1.15f, 0.4f), new Vector3(0.1f, 2.3f, 1.4f), DoorWood, 1f, false);
+        if (tall) B(t, "LoftDoor", new Vector3(w / 2f + 0.05f, 1.15f, 0.4f), new Vector3(0.1f, 2.3f, 1.4f), DoorWood, 1f, false);
+        else B(t, "LoftDoor", new Vector3(w / 2f + 0.7f, 1.15f, 1.05f + 0.05f), new Vector3(1.3f, 2.3f, 0.08f), DoorWood, 1f, false);   // standing open
         WallLantern(t, new Vector3(w / 2f, 2.6f, -1f), Vector3.right);
         // roof: a waist-high parapet all round (cover), open where the way up arrives
         const float ph = 0.95f, pt = 0.3f;
@@ -601,14 +622,20 @@ public static class TownBuilder
             Buildings.FireEscape(t, t.TransformPoint(new Vector3(-w / 2f + 0.05f, 0, -d / 2f)), Vector3.right, Vector3.back, h, true, Boards, Timber);
             return;
         }
-        // the hidden way: three crates like steps to a lean-to shed (2.7 m), two crates from it to the roof gap
-        const float roof = 2.7f, crate = 0.7f;
-        B(t, "Shed", new Vector3(-0.5f, roof / 2f - 0.05f, d / 2f + 1.3f), new Vector3(5f, roof - 0.1f, 2.6f), Barn, 2f);
-        B(t, "ShedRoof", new Vector3(-0.5f, roof - 0.05f, d / 2f + 1.35f), new Vector3(5.4f, 0.1f, 2.8f), DoorWood, 1.5f);
-        for (int i = 0; i < 3; i++)
-            B(t, "Crate", new Vector3(-5.5f + i * 1f, crate * (i + 1) / 2f, d / 2f + 1.3f), new Vector3(1f, crate * (i + 1), 1f), DoorWood, 1f);
-        B(t, "Crate", new Vector3(-0.5f, roof + crate / 2f, d / 2f + 1.5f), new Vector3(1f, crate, 1f), DoorWood, 1f);
-        B(t, "Crate", new Vector3(-0.5f, roof + crate, d / 2f + 0.5f), new Vector3(1f, crate * 2f, 1f), DoorWood, 1f);
+        // the hidden way, inside: two crates up onto the plinth of a stair that climbs through the roof
+        const float plinth = 1.6f;
+        float rise = h - plinth;
+        int n = Mathf.CeilToInt(rise / 0.2f);
+        float run = n * 0.36f, sx0 = -w / 2f + wt + 0.2f, sz = -d / 2f + wt + 0.7f;
+        B(t, "StairPlinth", new Vector3(sx0 + run / 2f, plinth / 2f, sz), new Vector3(run, plinth, 1.2f), Stone, 1.5f);
+        Buildings.Stairs(t, t.TransformPoint(new Vector3(sx0, plinth, sz)), Vector3.right, rise, 1.2f, Boards);
+        B(t, "Crate", new Vector3(sx0 + 0.6f, 0.8f, sz + 1.25f), new Vector3(1f, 1.6f, 1f), DoorWood, 1f);
+        B(t, "Crate", new Vector3(sx0 + 0.6f, 0.4f, sz + 2.45f), new Vector3(1f, 0.8f, 1f), DoorWood, 1f);
+        // the roof, open over the stair
+        var hole = Rect.MinMaxRect(sx0 - 0.1f, sz - 0.75f, sx0 + run + 0.3f, sz + 0.75f);
+        foreach (var r in Underground.Cover(Rect.MinMaxRect(-w / 2f, -d / 2f, w / 2f, d / 2f), new[] { hole }))
+            B(t, "LoftRoof", new Vector3(r.center.x, h - 0.15f, r.center.y), new Vector3(r.width, 0.3f, r.height), Plaster(k), 2.5f);
+        NightLights.Lamp(t, t.TransformPoint(new Vector3(2f, h - 0.9f, 0f)), new Vector3(0.2f, 0.3f, 0.2f), night, 2.2f);
         Barrel(t, new Vector3(3f, 0, d / 2f + 1f));
     }
 

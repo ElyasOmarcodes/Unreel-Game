@@ -240,18 +240,23 @@ namespace UA
             if (Vector3.Dot(dir, aim.direction) < 0.5f) dir = aim.direction;
             if (Settings.AimAssist && under.Kind != 1 && def.Pellets <= 1) dir = Magnetism(origin, dir, aim, def.Range);
             if (def.Pellets <= 1) dir = Ballistics.Spray(dir, Spread, rng);
-            var shot = new Shot { Weapon = def.Id, Origin = origin, Dir = dir, Seed = rng.Next() };
-            Session.I.FireLocal(shot);
+            var shot = new Shot { Weapon = def.Id, Origin = origin, Dir = dir, Seed = rng.Next(), Victim = Session.NoPlayer };
 
-            // local feedback right away
+            // local feedback right away; what was hit on this screen goes with the shot to the host
             var muzzle = agent.Muzzle.position;
             foreach (var d in Ballistics.Pellets(dir, shot.Seed, def))
             {
                 var hit = world.TraceShot(origin, d, def.Range, agent.Id);
                 Effects.Tracer(muzzle, hit.Point, def.Pellets > 1 ? 0.6f : 1f);
                 if (hit.Kind == 0) Effects.Impact(hit.Point, -d);
-                else if (hit.Kind == 1) Effects.Blood(hit.Point, -d);
+                else if (hit.Kind == 1)
+                {
+                    Effects.Blood(hit.Point, -d);
+                    if (shot.Victim == Session.NoPlayer) { shot.Victim = hit.Victim; shot.Head = hit.Head; }
+                    if (hit.Victim == shot.Victim && shot.Pellets < 255) shot.Pellets++;
+                }
             }
+            Session.I.FireLocal(shot);
             Effects.MuzzleFlash(agent.Muzzle, def);
             Sfx.PlayAt(def.Sound, muzzle, 1f, def.SoundPitch, false);
             agent.PlayFire();

@@ -51,8 +51,9 @@ namespace UA
                 case Button.Reload: return new Vector2(w - 369, 536);
                 case Button.Swap: return new Vector2(w - 214, 907);
                 case Button.Ammo: return new Vector2(w / 2f + 61, 413);
-                case Button.Pause: return new Vector2(80, 1000);
-                default: return new Vector2(199, 1000);
+                // top right, as in Battle of Agents: RANK (the scoreboard) and STOP (pause)
+                case Button.Pause: return new Vector2(w - 75, 1038);
+                default: return new Vector2(w - 312, 1038);
             }
         }
 
@@ -64,7 +65,7 @@ namespace UA
                 case Button.FireLeft: return 90;
                 case Button.Aim: return 68;
                 case Button.Swap: return 62;
-                case Button.Pause:
+                case Button.Pause: return 46;
                 case Button.Score: return 50;
                 default: return 56;
             }

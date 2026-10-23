@@ -74,7 +74,7 @@ namespace UA
             {
                 reloadEnd = Time.time + def.ReloadTime;
                 agent.PlayReload();
-                Sfx.Step(Weapons.ReloadSound(def), transform.position + Vector3.up, 0.8f);
+                Sfx.Step(Weapons.ReloadSound(def), transform.position + Vector3.up, 0.8f, false);
             }
             if (reloadEnd > 0 && Time.time >= reloadEnd) { reloadEnd = 0; mag = def.MagSize; }
 
@@ -228,7 +228,7 @@ namespace UA
             float error = Mathf.Lerp(5.5f, 2f, Skill / 2f) + distance * 0.025f;
             var dir = Ballistics.Spray(toTarget.normalized, error, rng);
             var origin = agent.Eye;
-            s.FireBot(new Shot { Shooter = agent.Id, Weapon = def.Id, Origin = origin, Dir = dir, Seed = rng.Next() });
+            s.FireBot(new Shot { Shooter = agent.Id, Weapon = def.Id, Origin = origin, Dir = dir, Seed = rng.Next(), Victim = Session.NoPlayer });
             agent.PlayFire();
             // effects for the host's own screen come from the ShotSeen event; play the sound here
         }

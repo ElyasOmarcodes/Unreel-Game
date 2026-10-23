@@ -638,14 +638,16 @@ public static class ZahraBuilder
         float len = dir.magnitude;
         if (len < 0.05f) return;
         var t = Node("Wall", parent, a + Vector3.up * y0, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg - 90f);
+        // both ends run on by half the thickness: where two walls meet at a corner they close it
+        float e = thick / 2f;
         if (doorAt < 0f)
         {
-            LBox(t, "Wall", new Vector3(len / 2f, height / 2f, 0), new Vector3(len + thick * 0f, height, thick), m);
+            LBox(t, "Wall", new Vector3(len / 2f, height / 2f, 0), new Vector3(len + 2f * e, height, thick), m);
             return;
         }
         float d0 = doorAt - doorW / 2f, d1 = doorAt + doorW / 2f;
-        LBox(t, "Wall", new Vector3(d0 / 2f, height / 2f, 0), new Vector3(d0, height, thick), m);
-        LBox(t, "Wall", new Vector3((d1 + len) / 2f, height / 2f, 0), new Vector3(len - d1, height, thick), m);
+        LBox(t, "Wall", new Vector3((d0 - e) / 2f, height / 2f, 0), new Vector3(d0 + e, height, thick), m);
+        LBox(t, "Wall", new Vector3((d1 + len + e) / 2f, height / 2f, 0), new Vector3(len + e - d1, height, thick), m);
         LBox(t, "Lintel", new Vector3(doorAt, (doorH + height) / 2f, 0), new Vector3(doorW, height - doorH, thick), m);
     }
 
@@ -667,40 +669,67 @@ public static class ZahraBuilder
 
     // ------------------------------------------------------------------ plants
 
-    private static Mesh cypressMesh;
+    private static Mesh[] cypressMeshes;
+    private static Material cypressLeaf;
 
-    /// <summary>A Mediterranean cypress: a pine of the nature kit drawn in tall and narrow (a spindle if the kit is missing).</summary>
+    /// <summary>
+    /// A crown of Mediterranean cypress (1 m high, 1 m across at its widest, to be scaled): a narrow
+    /// flame of dense foliage, widest a third of the way up, with soft bumps of leaf masses all round
+    /// and a slightly bent tip. Shared corners: smooth light over the bumps.
+    /// </summary>
+    private static Mesh CypressMesh(int variant)
+    {
+        const int seg = 14, rows = 18;
+        var v = new List<Vector3>();
+        var uv = new List<Vector2>();
+        float bend = (variant - 1) * 0.04f;
+        for (int r = 0; r <= rows; r++)
+            for (int i = 0; i <= seg; i++)
+            {
+                float f = r / (float)rows, ang = i * Mathf.PI * 2f / seg;
+                // flame profile: rounded base, widest at a third, a long taper to a pointed tip
+                float profile = f < 0.33f ? Mathf.Sin(Mathf.PI * 0.5f * Mathf.Lerp(0.25f, 1f, f / 0.33f)) : Mathf.Pow(1f - (f - 0.33f) / 0.67f, 0.85f);
+                // leaf masses: bumps around and up the crown (the seam column repeats the first)
+                int ii = i % seg;
+                float bump = 1f + 0.16f * (Hash(ii, r, 50 + variant) - 0.5f) * 2f + 0.08f * Mathf.Sin(ii * 2.1f + r * 1.3f + variant);
+                float rad = 0.5f * profile * (r == rows ? 0f : bump);
+                v.Add(new Vector3(Mathf.Cos(ang) * rad + bend * f * f, f, Mathf.Sin(ang) * rad));
+                uv.Add(new Vector2(i / (float)seg * 2f, f * 6f));
+            }
+        var tris = new List<int>();
+        for (int r = 0; r < rows; r++)
+            for (int i = 0; i < seg; i++)
+            {
+                int a = r * (seg + 1) + i, b = a + 1, c = a + seg + 1, d = c + 1;
+                tris.AddRange(new[] { a, c, b, b, c, d });
+            }
+        string key = "cypress_" + variant;
+        var m = new Mesh { name = key };
+        m.SetVertices(v); m.SetUVs(0, uv); m.SetTriangles(tris, 0);
+        m.RecalculateNormals();
+        m.RecalculateBounds();
+        m.RecalculateTangents();
+        MeshUtility.SetMeshCompression(m, ModelImporterMeshCompression.Medium);
+        AssetSetup.Folder(MeshFolder);
+        AssetDatabase.CreateAsset(m, $"{MeshFolder}/{key}.asset");
+        return meshes[key] = m;
+    }
+
+    /// <summary>A Mediterranean cypress: a short trunk under a tall, narrow flame of dark dense foliage.</summary>
     private static void CypressTree(Transform parent, Vector3 p, float height)
     {
-        var pine = Nature.Place(Nature.Pines[rng.Next(Nature.Pines.Length)], p, R(0, 360), height, parent);
-        if (pine != null)
-        {
-            pine.transform.localScale = Vector3.Scale(pine.transform.localScale, new Vector3(0.24f, 1f, 0.24f));
-            return;
-        }
-        if (cypressMesh == null)
-        {
-            var b = new Builder(1.2f);
-            const int seg = 10, rows = 8;
-            Vector3 P(int around, int row)
-            {
-                float f = row / (float)rows, ang = around * Mathf.PI * 2f / seg;
-                float rad = 0.5f * Mathf.Pow(Mathf.Sin(Mathf.PI * Mathf.Lerp(0.04f, 1f, f)), 0.7f) * (1f - 0.35f * f);
-                return new Vector3(Mathf.Cos(ang) * rad, f, Mathf.Sin(ang) * rad);
-            }
-            for (int r = 0; r < rows; r++)
-                for (int i = 0; i < seg; i++)
-                {
-                    var p0 = P(i, r); var p1 = P(i + 1, r); var p2 = P(i + 1, r + 1); var p3 = P(i, r + 1);
-                    var outward = new Vector3(p0.x + p1.x, 0, p0.z + p1.z);
-                    b.Face(outward.sqrMagnitude > 1e-6f ? outward : Vector3.up, p0, p1, p2, p3);
-                }
-            cypressMesh = b.Save("cypress");
-        }
+        if (cypressMeshes == null) cypressMeshes = new[] { CypressMesh(0), CypressMesh(1), CypressMesh(2) };
+        if (cypressLeaf == null)
+            cypressLeaf = AssetSetup.Mat("Z_CypressLeaf", new Color(0.42f, 0.55f, 0.36f), 0.18f, 0f,
+                AssetDatabase.LoadAssetAtPath<Texture2D>($"{TexFolder}/Myrtle.png"), AssetDatabase.LoadAssetAtPath<Texture2D>($"{TexFolder}/Myrtle_N.png"));
         var t = Node("Cypress", parent, p, R(0, 360));
-        var crown = MeshObject(t, "Crown", cypressMesh, Cypress, false);
-        crown.transform.localPosition = new Vector3(0, 0.5f, 0);
-        crown.transform.localScale = new Vector3(height * 0.15f, height - 0.5f, height * 0.15f);
+        MeshGen.TexCylinder("CypressTrunk", p, 0.13f, 0.9f, PalmTrunk, 1f, t, false);
+        var crown = MeshObject(t, "Crown", cypressMeshes[rng.Next(3)], cypressLeaf, false);
+        float width = height * R(0.16f, 0.2f);
+        crown.transform.localPosition = new Vector3(0, 0.45f, 0);
+        crown.transform.localScale = new Vector3(width, height - 0.45f, width);
+        var col = t.gameObject.AddComponent<CapsuleCollider>();
+        col.radius = width * 0.35f; col.height = height; col.center = new Vector3(0, height / 2f, 0);
     }
 
     /// <summary>A date palm: a slightly leaning trunk and a crown of drooping fronds.</summary>
@@ -901,7 +930,8 @@ public static class ZahraBuilder
         rng = new System.Random(936);   // the year the building of the city began
         night.Clear();
         meshes.Clear();
-        cypressMesh = null;
+        cypressMeshes = null;
+        cypressLeaf = null;
         frondMesh = null;
         houses = 0;
         AssetDatabase.DeleteAsset(MeshFolder);
@@ -1053,6 +1083,34 @@ public static class ZahraBuilder
             Box(t, "Crate", new Vector3(x, y + h / 2f, z), new Vector3(size, h, size), Wood, 1f, true, yaw);
             y += h;
         }
+    }
+
+    /// <summary>
+    /// A hidden way onto a roof from inside a room: a stone stair standing on a 1.6 m plinth (its foot
+    /// is not on the floor), two crates beside the plinth to climb onto it, the stair rising along 'dir'
+    /// to 'roofTop'. Returns the opening (world x, z) to leave in the roof and the ceiling above it.
+    /// </summary>
+    private static Rect HiddenStair(Transform t, Vector3 foot, Vector3 dir, Vector3 side, float roofTop, float underside, float width = 1.2f)
+    {
+        const float plinth = 1.6f;
+        float rise = roofTop - (foot.y + plinth);
+        int n = Mathf.CeilToInt(rise / 0.2f);
+        float stepH = rise / n, run = n * 0.36f;
+        bool alongX = Mathf.Abs(dir.x) > 0.5f;
+        var mid = foot + dir * (run / 2f);
+        Box(t, "StairPlinth", new Vector3(mid.x, foot.y + plinth / 2f, mid.z), alongX ? new Vector3(run, plinth, width) : new Vector3(width, plinth, run), Ashlar, 1.5f);
+        Buildings.Stairs(t, foot + Vector3.up * plinth, dir, rise, width, Ashlar);
+        // the crates: one 1.6 m high beside the plinth, one 0.8 m beside that
+        var b = foot + dir * 0.6f + side * (width / 2f + 0.65f);
+        var a = foot + dir * 0.6f + side * (width / 2f + 1.85f);
+        Crates(t, b.x, b.z, foot.y, foot.y + plinth);
+        Crates(t, a.x, a.z, foot.y, foot.y + 0.8f);
+        // open the roof from where the head would touch it to the top of the stair
+        int first = 0;
+        while (first < n && underside - (foot.y + plinth + (first + 1) * stepH) > 1.9f) first++;
+        var p0 = foot + dir * Mathf.Max(0f, first * 0.36f - 0.4f) - side * (width / 2f + 0.15f);
+        var p1 = foot + dir * (run + 0.25f) + side * (width / 2f + 0.15f);
+        return Rect.MinMaxRect(Mathf.Min(p0.x, p1.x), Mathf.Min(p0.z, p1.z), Mathf.Max(p0.x, p1.x), Mathf.Max(p0.z, p1.z));
     }
 
     /// <summary>A hidden way up: crates (stacks) standing on 'baseY', each 0.8 m higher than the one before.</summary>
@@ -1568,7 +1626,15 @@ public static class ZahraBuilder
             }
             foreach (float z in new[] { -16f, -8f, 0f, 6.7f, 13.4f })
                 Wall(t, W(s * 21f, floor, z), W(s * 27.5f, floor, z), 5.2f, 0.4f, Plaster, 3.2f, 1.2f, 2.4f);
-            LBox(t, "ChamberRoof", new Vector3(s * 24.3f, floor + 5.4f, -2.25f), new Vector3(7.2f, 0.4f, 45.5f), RoofTiles, 2f);
+            if (s < 0) LBox(t, "ChamberRoof", new Vector3(s * 24.3f, floor + 5.4f, -2.25f), new Vector3(7.2f, 0.4f, 45.5f), RoofTiles, 2f);
+            else
+            {
+                // the treasury, the innermost room at the back: crates up onto the plinth of a stair that
+                // climbs through the roof (the hidden way up onto the palace)
+                var hole = HiddenStair(t, W(26.4f, floor, -24.6f), Vector3.forward, Vector3.left, c.y + floor + 5.6f, c.y + floor + 5.2f);
+                var a0 = W(20.7f, 0, -25f); var a1 = W(27.9f, 0, 20.5f);
+                Slabs(t, "ChamberRoof", Rect.MinMaxRect(a0.x, a0.z, a1.x, a1.z), new[] { hole }, c.y + floor + 5.6f, 0.4f, RoofTiles, 2f);
+            }
         }
         Arcade(t, W(-17f, floor, 22f), t.TransformDirection(Vector3.right), 5, 6.8f, 3f, 4.6f, 0.5f, 28f, Plaster, true);
         LBox(t, "VestibuleRoof", new Vector3(0, floor + 4.8f, 23.9f), new Vector3(34.4f, 0.4f, 4.2f), RoofTiles, 2f);
@@ -1625,14 +1691,8 @@ public static class ZahraBuilder
                                                (-1f, -4f, "ديوان الرسائل", "THE CHANCERY"), (-1f, -12f, "مجلس الوزراء", "COUNCIL OF THE VIZIERS"), (-1f, -20.25f, "خزانة الكسوة", "THE WARDROBE") })
             Sign(t, W(s * 20.63f, floor + 3.05f, z), s * 90f, ar, en, 2f, 0.66f);
         Sign(t, W(0, floor + 8.1f, 0.65f), 180f, "مجلس الخلافة", "THE THRONE HALL", 3.2f, 0.6f);
-        // the hidden way onto the throne hall roof: crates left by the craftsmen in the east corridor up to
-        // the chamber roof, two more there and a plank across the corridor to the hall roof
-        float rf = c.y + floor + 0.04f;
-        foreach (var (lx, lz, top) in new[] { (18f, -24.6f, 1.3f), (19.4f, -24.6f, 2.1f), (19.4f, -23.2f, 2.9f), (18f, -23.2f, 3.7f), (18f, -21.8f, 4.5f), (19.6f, -21.8f, 5.3f) })
-        {
-            var p = W(lx, 0, lz);
-            Crates(t, p.x, p.z, rf, c.y + top);
-        }
+        // from the chamber roof on to the throne hall roof: crates left by the craftsmen and a plank across
+        // the corridor
         float chamberTop = c.y + floor + 5.6f;
         foreach (var (lx, lz, top) in new[] { (21.6f, -21.8f, 6.9f), (21.6f, -20.4f, 7.7f), (21.6f, -19f, 8.5f) })
         {
@@ -1991,13 +2051,13 @@ public static class ZahraBuilder
         Wall(t, new Vector3(-38f, y, 78f), new Vector3(-38f, y, 90f), 5f, 0.6f, Ashlar, 6f, 1.4f, 2.6f);
         for (float x = -83f; x < -40f; x += 9f)
             Wall(t, new Vector3(x, y, 78f), new Vector3(x, y, 90f), 5f, 0.4f, Plaster, 6f, 1.2f, 2.4f);
-        Box(t, "RoomsRoof", new Vector3(-65f, y + 5.2f, 84f), new Vector3(54.6f, 0.4f, 12.6f), RoofTiles, 2f);
+        // the westernmost private room: crates, a stair on a plinth up through the roof
+        var roofHole = HiddenStair(t, new Vector3(-90.9f, y + 0.1f, 80.4f), Vector3.forward, Vector3.right, y + 5.4f, y + 5f);
+        Slabs(t, "RoomsRoof", Rect.MinMaxRect(-92.3f, 77.7f, -37.7f, 90.3f), new[] { roofHole }, y + 5.4f, 0.4f, RoofTiles, 2f);
         foreach (float x in new[] { -88f, -70f, -52f, -40f }) Lantern(t, new Vector3(x, y, 64f));
         CypressTree(t, new Vector3(-38f, y, 66f), 10f);
         CypressTree(t, new Vector3(-94f, y, 66f), 9f);
         BoardStand(t, new Vector3(-61f, y + 0.1f, 66f), 0f, "دار الملك", "DAR AL-MULK - THE CALIPH'S HOUSE");
-        // behind the west end, out of sight: crates up to the roof of the private rooms
-        CrateClimb(t, y, (-95.5f, 84f, y + 0.8f), (-95.5f, 85.4f, y + 1.6f), (-94.1f, 85.4f, y + 2.4f), (-94.1f, 86.8f, y + 3.2f), (-95.5f, 86.8f, y + 4.0f), (-93f, 88.2f, y + 4.8f));
         Buildings.Stairs(t, new Vector3(-58f, Middle, UpSouth - 10.8f), Vector3.forward, Upper - Middle, 3f, Ashlar);
     }
 
@@ -2016,15 +2076,15 @@ public static class ZahraBuilder
         Wall(t, new Vector3(x0, y, z0), new Vector3(x0, y, z1), h, 0.8f, Ashlar, 12f, 1.6f, 2.8f);
         Wall(t, new Vector3(x1, y, z0), new Vector3(x1, y, z1), h, 0.8f, Ashlar, 12f, 1.6f, 2.8f);
         Wall(t, new Vector3(x0, y, z1), new Vector3(x1, y, z1), h, 0.8f, Ashlar);
-        Box(t, "Roof", new Vector3((x0 + x1) / 2f, y + h + 0.2f, (z0 + z1) / 2f), new Vector3(x1 - x0 + 1f, 0.4f, z1 - z0 + 1f), RoofTiles, 2.5f);
-        Box(t, "Ceiling", new Vector3((x0 + x1) / 2f, y + h - 0.03f, (z0 + z1) / 2f), new Vector3(x1 - x0 - 0.6f, 0.06f, z1 - z0 - 0.6f), Wood, 2f, false);
+        // in the far corner of the east aisle: crates, a stair on a plinth up through ceiling and roof
+        var hallHole = HiddenStair(t, new Vector3(5.2f, y + 0.06f, 90.2f), Vector3.back, Vector3.left, y + h + 0.4f, y + h - 0.06f);
+        Slabs(t, "Roof", Rect.MinMaxRect(x0 - 0.5f, z0 - 0.5f, x1 + 0.5f, z1 + 0.5f), new[] { hallHole }, y + h + 0.4f, 0.4f, RoofTiles, 2.5f);
+        Slabs(t, "Ceiling", Rect.MinMaxRect(x0 + 0.3f, z0 + 0.3f, x1 - 0.3f, z1 - 0.3f), new[] { hallHole }, y + h, 0.06f, Wood, 2f);
         var niche = Node("Niche", t, new Vector3((x0 + x1) / 2f, y, z1 - 0.65f), 0);
         Arch(niche, 0, 3.6f, 2.4f, 5f, 0.4f, 28f, Ataurique);
         foreach (float z in new[] { 76f, 84f }) HangingLamp(t, new Vector3(-9f, y + 4.3f, z), 1.2f);
         foreach (float x in new[] { -30f, 10f }) Lantern(t, new Vector3(x, y, 66f));
         BoardStand(t, new Vector3(-17f, y + 0.1f, 65f), 0f, "دار الجند", "DAR AL-JUND - HOUSE OF THE ARMY");
-        // behind the hall: crates zigzagging up to its roof
-        CrateClimb(t, y, (-22f, 96f, y + 0.8f), (-20.6f, 96f, y + 1.6f), (-20.6f, 94.6f, y + 2.4f), (-19.2f, 94.6f, y + 3.2f), (-19.2f, 93.2f, y + 4.0f), (-17.8f, 93.2f, y + 4.8f), (-17.8f, 92.1f, y + 5.6f));
     }
 
 

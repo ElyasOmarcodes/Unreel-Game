@@ -40,7 +40,7 @@ namespace UA
             { Controls.Button.Aim, ("center_focus_strong", "AIM") }, { Controls.Button.Jump, ("expand_less", "JUMP") },
             { Controls.Button.Crouch, ("keyboard_double_arrow_down", "CROUCH") }, { Controls.Button.Prone, ("airline_seat_flat", "PRONE") },
             { Controls.Button.Reload, ("autorenew", "RELOAD") }, { Controls.Button.Swap, ("swap_horiz", "SWAP") },
-            { Controls.Button.Pause, ("pause", "PAUSE") }, { Controls.Button.Score, ("leaderboard", "SCORE") },
+            { Controls.Button.Pause, ("pause", "STOP") }, { Controls.Button.Score, ("leaderboard", "RANK") },
             { Controls.Button.Grenade, ("grenade", "GRENADE") }, { Controls.Button.Ammo, ("ammo", "AMMO") },
             { Controls.Button.Heal, ("bloodtype", "BLOOD") },
         };

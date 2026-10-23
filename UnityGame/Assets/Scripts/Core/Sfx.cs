@@ -28,17 +28,29 @@ namespace UA
 
         private static readonly List<AudioSource> steps = new List<AudioSource>();
 
+        /// <summary>Beyond this distance nobody's footsteps are heard.</summary>
+        public const float StepHearing = 26f;
+
         /// <summary>
-        /// Footsteps and other small body sounds: their own few voices that fade out within 30 m, so
-        /// they never take a voice from a gunshot.
+        /// Footsteps and other small body sounds, on their own few voices (they never take one from a
+        /// gunshot). Rules: one's own steps play at their volume; nobody else's is ever louder than that,
+        /// only as loud when standing right at one's feet (within 1 m), then fading the further away they
+        /// are, to nothing at 26 m.
         /// </summary>
-        public static void Step(string name, Vector3 position, float volume)
+        public static void Step(string name, Vector3 position, float volume, bool own)
         {
             var clip = Clip(name);
             if (clip == null) return;
-            // too far to hear a footstep at all
-            var listener = CameraRig.I != null ? CameraRig.I.transform.position : position;
-            if ((listener - position).sqrMagnitude > 36f * 36f) return;
+            if (!own)
+            {
+                // the distance from the player's own feet (not from the camera behind them)
+                var me = LocalPlayer.I != null ? LocalPlayer.I.transform.position : CameraRig.I != null ? CameraRig.I.transform.position : position;
+                float d = Vector3.Distance(me, position);
+                if (d >= StepHearing) return;
+                float k = Mathf.Clamp01(1f - (d - 1f) / (StepHearing - 1f));
+                volume *= k * k;
+                if (volume < 0.01f) return;
+            }
             if (root == null) Next();
             AudioSource source = null;
             foreach (var s in steps)
@@ -50,17 +62,20 @@ namespace UA
                 go.transform.SetParent(root);
                 source = go.AddComponent<AudioSource>();
                 source.playOnAwake = false;
-                source.rolloffMode = AudioRolloffMode.Logarithmic;
-                source.minDistance = 1.8f;
-                source.maxDistance = 38f;
+                // the volume is worked out above: the source itself does not fade with distance, it only
+                // places the sound left or right
+                source.rolloffMode = AudioRolloffMode.Custom;
+                source.SetCustomCurve(AudioSourceCurveType.CustomRolloff, AnimationCurve.Constant(0f, 1f, 1f));
+                source.minDistance = 1f;
+                source.maxDistance = 500f;
                 source.dopplerLevel = 0f;
-                source.spatialBlend = 1f;
                 source.priority = 200;
                 // a little softer: the gritty top of the recordings is taken off
                 go.AddComponent<AudioLowPassFilter>().cutoffFrequency = 5200f;
                 steps.Add(source);
             }
             source.transform.position = position;
+            source.spatialBlend = own ? 0f : 0.75f;
             source.pitch = Random.Range(0.9f, 1.1f);
             source.volume = volume;
             source.clip = clip;
@@ -104,9 +119,9 @@ namespace UA
             var source = go.AddComponent<AudioSource>();
             source.playOnAwake = false;
             // world sounds fade with distance like real ones: loud close by, still heard far away
-            // (a shot 100 m off is quiet but tells where it came from)
+            // (a shot 100 m off is quiet but tells where it came from, a fight between others is heard)
             source.rolloffMode = AudioRolloffMode.Logarithmic;
-            source.minDistance = 5f;
+            source.minDistance = 7f;
             source.maxDistance = 260f;
             source.dopplerLevel = 0f;
             pool.Add(source);

@@ -15,7 +15,7 @@ namespace UA
         private RectTransform root;
         private readonly Dictionary<Controls.Button, Image> buttons = new Dictionary<Controls.Button, Image>();
         private readonly Dictionary<Controls.Button, Text> buttonLabels = new Dictionary<Controls.Button, Text>();
-        private Image stickBase, stickKnob, healthFill, healthBack, damageFlash, scope, reloadRing;
+        private Image stickBase, stickKnob, damageFlash, scope, reloadRing;
         private Image[] cross = new Image[4];
         private Image scopeLine1, scopeLine2;
 
@@ -94,7 +94,9 @@ namespace UA
             }
         }
         private Image hitMarker, crossDot;
-        private Text health, ammo, reserve, weaponName, otherWeapon, timer, scoreBlue, scoreRed, center, centerSmall, killFeed, fps, modeLabel;
+        private Text timer, scoreBlue, scoreRed, center, centerSmall, killFeed, fps, playerName, kills, deaths, weaponLine, healthNumber;
+        private readonly Image[] hpFill = new Image[5];
+        private RectTransform rankBox, stopBox;
         private RectTransform scoreboard;
         private Text scoreboardText;
         private readonly List<Text> names = new List<Text>();
@@ -142,40 +144,49 @@ namespace UA
             reloadRing.fillMethod = Image.FillMethod.Radial360;
             reloadRing.rectTransform.At(0.5f, 0.5f, 0, 0, 84, 84);
 
-            // top: timer and score
-            var top = UIKit.Img(root, new Color(0, 0, 0, 0.45f), UIKit.Rounded);
-            top.rectTransform.At(0.5f, 1f, 0, -14, 520, 96, 0.5f, 1f);
-            timer = UIKit.Txt(top.transform, "5:00", 46).Shadowed();
-            timer.rectTransform.At(0.5f, 0.5f, 0, 10, 200, 60);
-            modeLabel = UIKit.Txt(top.transform, "", 20, TextAnchor.MiddleCenter, UIKit.Muted);
-            modeLabel.rectTransform.At(0.5f, 0f, 0, 16, 500, 26);
-            scoreBlue = UIKit.Txt(top.transform, "0", 50, TextAnchor.MiddleCenter, UIKit.Blue).Shadowed();
-            scoreBlue.rectTransform.At(0f, 0.5f, 80, 4, 140, 70);
-            scoreRed = UIKit.Txt(top.transform, "0", 50, TextAnchor.MiddleCenter, UIKit.Red).Shadowed();
-            scoreRed.rectTransform.At(1f, 0.5f, -80, 4, 140, 70);
+            // as in Battle of Agents: top left the player (name, kills, deaths), the health in five
+            // segments under it, the weapon line under that; top right the time, the rank and STOP
+            var player = UIKit.Img(root, new Color(0, 0, 0, 0.55f));
+            player.rectTransform.At(0f, 1f, 0, 0, 720, 72, 0f, 1f);
+            playerName = UIKit.Txt(player.transform, "", 44, TextAnchor.MiddleLeft).Shadowed();
+            playerName.fontStyle = FontStyle.Bold;
+            playerName.rectTransform.At(0f, 0.5f, 22, 0, 300, 64, 0f, 0.5f);
+            kills = UIKit.Txt(player.transform, "KILLS: 0", 30, TextAnchor.MiddleLeft).Shadowed();
+            kills.rectTransform.At(0f, 0.5f, 340, -4, 180, 50, 0f, 0.5f);
+            deaths = UIKit.Txt(player.transform, "DEATHS: 0", 30, TextAnchor.MiddleLeft).Shadowed();
+            deaths.rectTransform.At(0f, 0.5f, 520, -4, 200, 50, 0f, 0.5f);
+            for (int i = 0; i < 5; i++)
+            {
+                var seg = UIKit.Img(root, new Color(0, 0, 0, 0.45f));
+                seg.rectTransform.At(0f, 1f, 14 + i * 108, -82, 100, 26, 0f, 1f);
+                hpFill[i] = UIKit.Img(seg.transform, Color.white);
+                hpFill[i].rectTransform.Fill();
+                hpFill[i].rectTransform.pivot = new Vector2(0, 0.5f);
+            }
+            healthNumber = UIKit.Txt(root, "100", 26, TextAnchor.MiddleLeft).Shadowed();
+            healthNumber.rectTransform.At(0f, 1f, 560, -80, 100, 30, 0f, 1f);
+            var weaponBox = UIKit.Img(root, new Color(0, 0, 0, 0.55f));
+            weaponBox.rectTransform.At(0f, 1f, 0, -118, 440, 52, 0f, 1f);
+            weaponLine = UIKit.Txt(weaponBox.transform, "", 32, TextAnchor.MiddleLeft).Shadowed();
+            weaponLine.rectTransform.At(0f, 0.5f, 22, 0, 420, 48, 0f, 0.5f);
 
-            // bottom left: health
-            healthBack = UIKit.Img(root, new Color(0, 0, 0, 0.5f), UIKit.Rounded);
-            healthBack.rectTransform.At(0f, 0f, 60, 40, 460, 34, 0f, 0f);
-            healthFill = UIKit.Img(healthBack.transform, UIKit.Green, UIKit.Rounded);
-            healthFill.rectTransform.Fill(4);
-            healthFill.rectTransform.pivot = new Vector2(0, 0.5f);
-            health = UIKit.Txt(root, "100", 40, TextAnchor.LowerLeft).Shadowed();
-            health.rectTransform.At(0f, 0f, 64, 80, 300, 56, 0f, 0f);
-
-            // weapon panel top right (tap to swap)
-            var weaponPanel = UIKit.Img(root, new Color(0, 0, 0, 0.45f), UIKit.Rounded);
-            weaponPanel.rectTransform.At(1f, 1f, -40, -40, 380, 200, 1f, 1f);
-            weaponName = UIKit.Txt(weaponPanel.transform, "AK-47", 36, TextAnchor.UpperLeft, UIKit.Accent).Shadowed();
-            weaponName.rectTransform.At(0f, 1f, 24, -16, 340, 46, 0f, 1f);
-            ammo = UIKit.Txt(weaponPanel.transform, "30", 64, TextAnchor.LowerLeft).Shadowed();
-            ammo.rectTransform.At(0f, 0f, 24, 44, 160, 80, 0f, 0f);
-            reserve = UIKit.Txt(weaponPanel.transform, "/ 120", 30, TextAnchor.LowerLeft, UIKit.Muted);
-            reserve.rectTransform.At(0f, 0f, 140, 52, 160, 50, 0f, 0f);
-            otherWeapon = UIKit.Txt(weaponPanel.transform, "", 22, TextAnchor.LowerLeft, UIKit.Muted);
-            otherWeapon.rectTransform.At(0f, 0f, 24, 14, 340, 30, 0f, 0f);
-            var swapHint = UIKit.Txt(weaponPanel.transform, "TAP TO SWAP", 18, TextAnchor.LowerRight, UIKit.Muted);
-            swapHint.rectTransform.At(1f, 0f, -18, 14, 200, 26, 1f, 0f);
+            var timeBox = UIKit.Img(root, new Color(0, 0, 0, 0.55f));
+            timeBox.rectTransform.At(1f, 1f, -500, -8, 240, 80, 1f, 1f);
+            var ends = UIKit.Txt(timeBox.transform, "MATCH ENDS IN", 22, TextAnchor.MiddleCenter).Shadowed();
+            ends.rectTransform.At(0.5f, 1f, 0, -18, 230, 30);
+            timer = UIKit.Txt(timeBox.transform, "5:00", 34, TextAnchor.MiddleCenter).Shadowed();
+            timer.rectTransform.At(0.5f, 0f, 0, 22, 230, 40);
+            rankBox = UIKit.Img(root, new Color(0, 0, 0, 0.55f)).rectTransform;
+            var rankHead = UIKit.Txt(rankBox, "RANK", 22, TextAnchor.MiddleCenter).Shadowed();
+            rankHead.rectTransform.At(0.5f, 1f, 0, -14, 300, 26);
+            scoreBlue = UIKit.Txt(rankBox, "", 30, TextAnchor.MiddleCenter, UIKit.Blue).Shadowed();
+            scoreBlue.rectTransform.At(0.25f, 0f, 0, 22, 150, 40);
+            scoreRed = UIKit.Txt(rankBox, "", 30, TextAnchor.MiddleCenter, UIKit.Red).Shadowed();
+            scoreRed.rectTransform.At(0.75f, 0f, 0, 22, 150, 40);
+            var divider = UIKit.Img(rankBox, new Color(1, 1, 1, 0.25f));
+            divider.rectTransform.At(0.5f, 0f, 0, 22, 2, 34);
+            stopBox = UIKit.Img(root, new Color(0, 0, 0, 0.55f)).rectTransform;
+            UIKit.Txt(stopBox, "STOP", 32, TextAnchor.MiddleCenter).Shadowed().rectTransform.Fill();
 
             // a short see-through toast for every kill, for everyone: killer in blue-green, victim in red
             killToast = UIKit.Img(root, new Color(0, 0, 0, 0.35f), UIKit.Rounded);
@@ -184,13 +195,13 @@ namespace UA
             killToastText.rectTransform.Fill();
             killToast.gameObject.SetActive(false);
             killFeed = UIKit.Txt(root, "", 28, TextAnchor.UpperRight).Shadowed();
-            killFeed.rectTransform.At(1f, 1f, -40, -260, 820, 300, 1f, 1f);
+            killFeed.rectTransform.At(1f, 1f, -40, -110, 820, 300, 1f, 1f);
             center = UIKit.Txt(root, "", 96, TextAnchor.MiddleCenter, UIKit.TextColor).Shadowed();
             center.rectTransform.At(0.5f, 0.5f, 0, 170, 1600, 130);
             centerSmall = UIKit.Txt(root, "", 38, TextAnchor.MiddleCenter, UIKit.TextColor).Shadowed();
             centerSmall.rectTransform.At(0.5f, 0.5f, 0, 80, 1600, 60);
             fps = UIKit.Txt(root, "", 22, TextAnchor.UpperLeft, UIKit.Green);
-            fps.rectTransform.At(0f, 1f, 280, -20, 200, 30, 0f, 1f);
+            fps.rectTransform.At(0f, 1f, 460, -128, 160, 30, 0f, 1f);
 
             // touch controls
             stickBase = UIKit.Img(root, new Color(1, 1, 1, 0.12f), UIKit.Circle);
@@ -312,24 +323,34 @@ namespace UA
             // timer and scores
             int seconds = Mathf.CeilToInt(s.TimeLeft);
             timer.text = $"{seconds / 60}:{seconds % 60:00}";
-            modeLabel.text = (tdm ? "TEAM DEATHMATCH" : "FREE FOR ALL") + "  -  FIRST TO " + s.Config.KillLimit;
             if (tdm)
             {
-                scoreBlue.text = s.TeamScore[0].ToString();
-                scoreRed.text = s.TeamScore[1].ToString();
+                scoreBlue.text = "BLUE " + s.TeamScore[0];
+                scoreRed.text = "RED " + s.TeamScore[1];
             }
             else
             {
                 var ranked = s.Players.Values.OrderByDescending(p => p.Kills).ToList();
-                scoreBlue.text = me != null ? me.Kills.ToString() : "0";
-                scoreRed.text = ranked.Count > 0 ? ranked[0].Kills.ToString() : "0";
+                int place = me != null ? ranked.IndexOf(me) + 1 : 0;
+                scoreBlue.text = "SOLO #" + Mathf.Max(1, place);
+                scoreRed.text = "TOP " + (ranked.Count > 0 ? ranked[0].Kills : 0);
+            }
+            if (me != null)
+            {
+                playerName.text = Rtl.Shape(me.Name);
+                kills.text = "KILLS: " + me.Kills;
+                deaths.text = "DEATHS: " + me.Deaths;
             }
 
-            // health
+            // health: five segments of 20
             float hp = me != null ? me.Health : 0;
-            health.text = Mathf.CeilToInt(hp).ToString();
-            healthFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(hp / 100f), 1f);
-            healthFill.color = hp > 50 ? UIKit.Green : hp > 25 ? new Color(1f, 0.75f, 0.2f) : UIKit.Red;
+            healthNumber.text = Mathf.CeilToInt(hp).ToString();
+            var segColor = hp > 50 ? Color.white : hp > 25 ? new Color(1f, 0.8f, 0.3f) : new Color(1f, 0.3f, 0.25f);
+            for (int i = 0; i < 5; i++)
+            {
+                hpFill[i].rectTransform.anchorMax = new Vector2(Mathf.Clamp01((hp - i * 20f) / 20f), 1f);
+                hpFill[i].color = segColor;
+            }
             if (me != null && hp < lastHealth - 0.5f && me.Alive)
             {
                 damageAlpha = Mathf.Min(0.75f, damageAlpha + (lastHealth - hp) / 60f);
@@ -352,11 +373,9 @@ namespace UA
             if (lp != null)
             {
                 var def = lp.Current;
-                weaponName.text = def.Name;
-                ammo.text = lp.Mag[lp.Slot].ToString();
-                ammo.color = lp.Mag[lp.Slot] <= def.MagSize / 4 ? UIKit.Red : UIKit.TextColor;
-                reserve.text = "/ " + lp.Reserve[lp.Slot];
-                otherWeapon.text = "NEXT: " + lp.Other.Name;
+                int mags = Mathf.CeilToInt(lp.Reserve[lp.Slot] / (float)def.MagSize);
+                bool low = lp.Mag[lp.Slot] <= def.MagSize / 4;
+                weaponLine.text = $"{def.Name}: {(low ? "<color=#ff5a4a>" : "")}{lp.Mag[lp.Slot]}{(low ? "</color>" : "")}/{lp.Reserve[lp.Slot]} ({mags})";
                 reloadRing.enabled = lp.Reloading;
                 reloadRing.fillAmount = lp.ReloadProgress;
                 float gap = 8f + lp.Spread * 9f;
@@ -418,13 +437,25 @@ namespace UA
             // controls
             bool touchUi = Application.isMobilePlatform || Input.touchSupported || ForceTouchUi;
             float alpha = Settings.ControlsOpacity;
+            // RANK and STOP are drawn as boxes where the score and pause buttons are
+            foreach (var (box, b) in new[] { (rankBox, Controls.Button.Score), (stopBox, Controls.Button.Pause) })
+            {
+                var c = Controls.ButtonCenter(b);
+                float r = Controls.ButtonRadius(b);
+                box.gameObject.SetActive(Controls.ButtonVisible(b));
+                box.anchorMin = box.anchorMax = Vector2.zero;
+                box.pivot = new Vector2(0.5f, 0.5f);
+                box.anchoredPosition = c;
+                box.sizeDelta = b == Controls.Button.Score ? new Vector2(r * 6.2f, r * 1.5f) : new Vector2(r * 2.9f, r * 1.45f);
+                box.GetComponent<Image>().color = new Color(0, 0, 0, Controls.Held.Contains(b) ? 0.75f : 0.55f);
+            }
             foreach (var pair in buttons)
             {
                 var c = Controls.ButtonCenter(pair.Key);
                 float r = Controls.ButtonRadius(pair.Key);
                 pair.Value.rectTransform.anchoredPosition = c;
                 pair.Value.rectTransform.sizeDelta = new Vector2(r * 2, r * 2);
-                bool show = (touchUi || pair.Key == Controls.Button.Pause || pair.Key == Controls.Button.Score || pair.Key == Controls.Button.Ammo) && Controls.ButtonVisible(pair.Key)
+                bool show = (touchUi || pair.Key == Controls.Button.Ammo) && Controls.ButtonVisible(pair.Key) && pair.Key != Controls.Button.Pause && pair.Key != Controls.Button.Score
                             && (pair.Key != Controls.Button.Ammo || Controls.AmmoAvailable) && (pair.Key != Controls.Button.Heal || Controls.HealAvailable);
                 pair.Value.enabled = show;
                 foreach (var g in pair.Value.GetComponentsInChildren<Graphic>()) g.enabled = show;
