@@ -378,7 +378,7 @@ namespace UA
                 weaponLine.text = $"{def.Name}: {(low ? "<color=#ff5a4a>" : "")}{lp.Mag[lp.Slot]}{(low ? "</color>" : "")}/{lp.Reserve[lp.Slot]} ({mags})";
                 reloadRing.enabled = lp.Reloading;
                 reloadRing.fillAmount = lp.ReloadProgress;
-                float gap = 8f + lp.Spread * 9f;
+                float gap = lp.Current.Pellets > 1 ? 8f + lp.Spread * 9f : 7f;   // shots go exactly to the middle: a small fixed cross
                 bool showCross = me != null && me.Alive && !scoped;
                 for (int i = 0; i < 4; i++)
                 {

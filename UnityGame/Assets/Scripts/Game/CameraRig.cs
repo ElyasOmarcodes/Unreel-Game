@@ -39,11 +39,13 @@ namespace UA
         /// <summary>Short random camera shake (explosions), in degrees.</summary>
         public void Shake(float degrees) => shake = Mathf.Max(shake, degrees);
 
+        /// <summary>
+        /// Recoil: the barrel climbs by these degrees and stays there; the player pulls it back down
+        /// (as in Battle of Agents: no drift sideways, no recovery by itself).
+        /// </summary>
         public void Kick(float degrees)
         {
-            Pitch += degrees;
-            kick += degrees * 0.6f;   // part of the recoil recovers by itself
-            Yaw += Random.Range(-0.35f, 0.35f) * degrees;
+            Pitch = Mathf.Clamp(Pitch + degrees, -70f, 75f);
         }
 
         private void LateUpdate()
@@ -102,7 +104,8 @@ namespace UA
             // looking out through the inside of the head scarf (as in the big shooters)
             Close = !dead && (desired - pivot).magnitude < 0.75f;
 
-            float want = Scope ? AimFov : Aim ? Mathf.Max(AimFov, 40f) : 62f;
+            // aiming without a scope only brings the camera to the shoulder (a touch of zoom); scopes zoom
+            float want = Scope ? AimFov : Aim ? 56f : 62f;
             fov = Mathf.Lerp(fov, want, 1f - Mathf.Exp(-14f * dt));
             Cam.fieldOfView = fov;
         }

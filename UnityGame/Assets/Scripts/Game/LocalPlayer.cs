@@ -238,8 +238,7 @@ namespace UA
             var origin = agent.Eye;
             var dir = (under.Point - origin).normalized;
             if (Vector3.Dot(dir, aim.direction) < 0.5f) dir = aim.direction;
-            if (Settings.AimAssist && under.Kind != 1 && def.Pellets <= 1) dir = Magnetism(origin, dir, aim, def.Range);
-            if (def.Pellets <= 1) dir = Ballistics.Spray(dir, Spread, rng);
+            // no spread: the bullet goes exactly where the crosshair is (shotgun pellets keep their pattern)
             var shot = new Shot { Weapon = def.Id, Origin = origin, Dir = dir, Seed = rng.Next(), Victim = Session.NoPlayer };
 
             // local feedback right away; what was hit on this screen goes with the shot to the host
@@ -261,7 +260,8 @@ namespace UA
             Sfx.PlayAt(def.Sound, muzzle, 1f, def.SoundPitch, false);
             agent.PlayFire();
             bloom = Mathf.Min(bloom + def.Recoil * 0.5f, 6f);
-            rig.Kick(def.Recoil * (Aiming ? 0.6f : 1f));
+            // the barrel climbs a fixed amount per shot, half as much with the crosshair on an enemy (aim assist)
+            rig.Kick(def.Climb * (onEnemy && Settings.AimAssist ? 0.5f : 1f));
             if (def.BoltAction)
             {
                 Aiming = false;   // bolt action: re-aim after every shot
@@ -351,105 +351,21 @@ namespace UA
         }
 
         // ---------------------------------------------------------------- aim assist
-        // As in the big mobile shooters: the look slows down over an enemy (friction), follows one that
-        // moves (tracking), aiming down the sights next to one turns onto it (snap), and while shooting
-        // or aiming the crosshair is pulled gently to the body. Far away a shot that just misses the
-        // edge of a body bends onto it (bullet magnetism), so small far targets can be hit.
+        // As in Battle of Agents: while the crosshair is on an enemy (a ray from the camera hits one within
+        // 100 m) the look turns at half speed and the recoil climbs half as much, so the finger can stay on
+        // target. Nothing bends the shots and nothing pulls the crosshair: the bullet goes where it points.
 
-        private Agent assistTarget;
-        private Vector2 assistLast;
-        private bool wasAiming;
-
-        private static Vector2 Angles(Vector3 d) =>
-            new Vector2(Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, Mathf.Asin(Mathf.Clamp(d.normalized.y, -1f, 1f)) * Mathf.Rad2Deg);
+        private bool onEnemy;
 
         private bool Enemy(Agent other) =>
             other != agent && other.State != null && other.State.Alive && World.I.IsEnemy(agent.State, other.State, Session.I);
 
-        private Agent FindAssistTarget(Vector3 eye, Vector3 forward, out float angle, out float radius)
-        {
-            Agent best = null;
-            angle = radius = 0f;
-            float bestScore = 1f;
-            foreach (var other in World.I.Agents.Values)
-            {
-                if (!Enemy(other)) continue;
-                var to = other.Chest - eye;
-                float d = to.magnitude;
-                if (d < 1f || d > Current.Range) continue;
-                // the cone is about the body's own width, between 1 and 5 degrees
-                float r = Mathf.Clamp(Mathf.Atan2(0.6f, d) * Mathf.Rad2Deg, 1f, 5f);
-                float a = Vector3.Angle(forward, to);
-                if (a / r >= bestScore) continue;
-                if (!World.I.LineOfSight(eye, other.Chest)) continue;
-                best = other;
-                bestScore = a / r;
-                angle = a;
-                radius = r;
-            }
-            return best;
-        }
-
         private Vector2 AimAssist(CameraRig rig, Vector2 look, float dt)
         {
-            var cam = rig.transform;
-            var target = FindAssistTarget(cam.position, cam.forward, out float angle, out float radius);
-            wasAiming = Aiming;
-            if (target == null) { assistTarget = null; return look; }
-            var want = Angles(target.Chest - cam.position);
-            bool firing = Time.time - LastShotTime < 0.2f;
-            // as in the big mobile shooters, help that the player feels but does not see: the finger
-            // slows a little over a body (never a snap), and while shooting the crosshair keeps up with
-            // part of the target's own movement and leans very slightly towards it
-            var result = look * Mathf.Lerp(0.72f, 1f, Mathf.Clamp01(angle / radius));
-            if (firing && assistTarget == target)
-            {
-                float limit = 40f * dt;
-                result.x += 0.3f * Mathf.Clamp(Mathf.DeltaAngle(assistLast.x, want.x), -limit, limit);
-                result.y += 0.3f * Mathf.Clamp(want.y - assistLast.y, -limit, limit);
-                float pull = 2f * dt;
-                result.x += Mathf.Clamp(Mathf.DeltaAngle(rig.Yaw + result.x, want.x), -pull, pull);
-                result.y += Mathf.Clamp(want.y - (rig.Pitch + result.y), -pull, pull);
-            }
-            assistTarget = target;
-            assistLast = want;
-            return result;
-        }
-
-        /// <summary>Bends a shot that passes just beside an enemy's body onto it (more allowance further away).</summary>
-        private Vector3 Magnetism(Vector3 origin, Vector3 dir, Ray aim, float range)
-        {
-            var best = dir;
-            float bestMiss = float.MaxValue;
-            foreach (var other in World.I.Agents.Values)
-            {
-                if (!Enemy(other)) continue;
-                var st = other.State;
-                // the body as a line from the hips to the top of the head
-                var bottom = other.transform.position + Vector3.up * (st.Prone ? 0.2f : st.Crouch ? 0.6f : 0.9f);
-                var top = other.Chest + Vector3.up * (st.Prone ? 0.1f : 0.4f);
-                var p = ClosestOnSegment(aim, bottom, top);
-                float along = Vector3.Dot(p - aim.origin, aim.direction);
-                if (along < 2f || along > range) continue;
-                float miss = Vector3.Distance(aim.origin + aim.direction * along, p);
-                float allowance = 0.05f + Mathf.Clamp(along * 0.002f, 0f, 0.2f);
-                if (miss > allowance || miss >= bestMiss) continue;
-                if (!World.I.LineOfSight(origin, p)) continue;
-                bestMiss = miss;
-                best = (p - origin).normalized;
-            }
-            return best;
-        }
-
-        private static Vector3 ClosestOnSegment(Ray ray, Vector3 a, Vector3 b)
-        {
-            var u = b - a;
-            var w = a - ray.origin;
-            float uu = Vector3.Dot(u, u), uv = Vector3.Dot(u, ray.direction), vv = Vector3.Dot(ray.direction, ray.direction);
-            float uw = Vector3.Dot(u, w), vw = Vector3.Dot(ray.direction, w);
-            float den = uu * vv - uv * uv;
-            float t = den > 1e-6f ? (uv * vw - vv * uw) / den : 0f;
-            return a + u * Mathf.Clamp01(t);
+            var ray = rig.AimRay();
+            var hit = World.I.TraceShot(ray.origin, ray.direction, 100f, agent.Id);
+            onEnemy = hit.Kind == 1 && World.I.Agents.TryGetValue(hit.Victim, out var other) && other != null && Enemy(other);
+            return onEnemy ? look * 0.5f : look;
         }
 
         public void Swap()
