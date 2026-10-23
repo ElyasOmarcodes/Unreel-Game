@@ -713,12 +713,44 @@ public static class ZahraBuilder
         var c = trunk.AddComponent<CapsuleCollider>();
         c.radius = 0.22f; c.height = height; c.center = new Vector3(0, height / 2f, 0);
         var top = trunk.transform.TransformPoint(new Vector3(0, height, 0));
-        for (int i = 0; i < 12; i++)
+        if (frondMesh == null) frondMesh = FrondMesh();
+        for (int i = 0; i < 14; i++)
         {
-            var frond = MeshGen.TexBox("Frond", top, new Vector3(0.5f, 0.04f, 2.6f), Leaf, 1f, t, 0f, false);
-            frond.transform.rotation = Quaternion.Euler(0, i * 30f + R(-8, 8), 0) * Quaternion.Euler(R(18f, 38f), 0, 0);
-            frond.transform.position = top + frond.transform.forward * 1.2f;
+            var frond = MeshObject(t, "Frond", frondMesh, Leaf, false);
+            frond.transform.SetPositionAndRotation(top, Quaternion.Euler(0, i * 360f / 14f + R(-10, 10), 0) * Quaternion.Euler(R(-25f, 5f), 0, 0));
+            frond.transform.localScale = Vector3.one * R(0.85f, 1.1f);
         }
+    }
+
+    private static Mesh frondMesh;
+
+    /// <summary>
+    /// A palm frond 2.8 m long from the crown along +Z: it rises, then droops, folded in a V along its
+    /// spine and narrowing to the tip; seen from both sides.
+    /// </summary>
+    private static Mesh FrondMesh()
+    {
+        var b = new Builder(1f);
+        const int n = 9;
+        const float len = 2.8f;
+        Vector3 Spine(float u) => new Vector3(0, len * (0.32f * u - 0.78f * u * u), len * u);
+        float Width(float u) => 0.04f + 0.38f * Mathf.Pow(Mathf.Sin(Mathf.PI * Mathf.Min(1f, u * 1.1f)), 0.6f) * (1f - 0.55f * u);
+        for (int i = 0; i < n; i++)
+        {
+            float u0 = i / (float)n, u1 = (i + 1) / (float)n;
+            var s0 = Spine(u0); var s1 = Spine(u1);
+            foreach (float side in new[] { -1f, 1f })
+            {
+                // the leaflets rise from the spine to the edges (the V fold)
+                var e0 = s0 + new Vector3(side * Width(u0), Width(u0) * 0.35f, 0);
+                var e1 = s1 + new Vector3(side * Width(u1), Width(u1) * 0.35f, 0);
+                var normal = Vector3.Cross(e0 - s0, s1 - s0).normalized * side;
+                if (normal.y < 0) normal = -normal;
+                b.Face(normal, s0, e0, e1, s1);
+                b.Face(-normal, s0, e0, e1, s1);
+            }
+        }
+        return b.Save("palmfrond");
     }
 
     /// <summary>A small orange tree in a round bed, a few fruits in the crown.</summary>
@@ -870,6 +902,7 @@ public static class ZahraBuilder
         night.Clear();
         meshes.Clear();
         cypressMesh = null;
+        frondMesh = null;
         houses = 0;
         AssetDatabase.DeleteAsset(MeshFolder);
         AssetSetup.Folder(MeshFolder);
@@ -933,6 +966,7 @@ public static class ZahraBuilder
         Slab(t, "LowerTerrace", Rect.MinMaxRect(-far, south, far, MidSouth), Lower, 5f, Lawn, 5f);
         Slab(t, "MiddleTerrace", Rect.MinMaxRect(-far, MidSouth, far, UpSouth), Middle, 8f, Lawn, 5f);
         Slab(t, "UpperTerrace", Rect.MinMaxRect(-far, UpSouth, far, far), Upper, 14f, Lawn, 5f);
+        Box(t, "TerraceFace", new Vector3(0, (Lower - 3f) / 2f, south - 0.12f), new Vector3(2f * far, Lower + 3f + 0.02f, 0.25f), Ashlar, 2.5f);
         Box(t, "TerraceFace", new Vector3(0, (Lower + Middle) / 2f - 0.32f, MidSouth - 0.15f), new Vector3(Half * 2f + 8f, Middle - Lower + 0.6f, 0.3f), Ashlar);
         Box(t, "TerraceFace", new Vector3(0, (Middle + Upper) / 2f - 0.32f, UpSouth - 0.15f), new Vector3(Half * 2f + 8f, Upper - Middle + 0.6f, 0.3f), Ashlar);
         void Parapet(float z, float y, params (float a, float b)[] gaps)
