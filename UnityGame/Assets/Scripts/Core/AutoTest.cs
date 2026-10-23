@@ -402,6 +402,42 @@ namespace UA
             cam.transform.SetPositionAndRotation(new Vector3(70f, 45f, 80f), Quaternion.LookRotation(new Vector3(0f, 0f, 0f) - new Vector3(70f, 45f, 80f)));
             yield return Wait(0.6f);
             yield return Shot("93b-port-overview-north");
+            // name boards of the parts of each map (Arabic and English)
+            int named = 0;
+            foreach (int map in new[] { 0, 3, 6, 9 })
+            {
+                World.I.ApplyLighting(map);
+                yield return Until(() => World.I.MapReady, 30);
+                foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Where(x => x.name == "BoardStand").Take(4).ToList())
+                {
+                    var from = t.position - t.forward * 6f + Vector3.up * 1.8f;
+                    cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position + Vector3.up * 1.9f - from));
+                    yield return Wait(0.5f);
+                    yield return Shot($"94{(char)('a' + named++)}-map{map}-board");
+                }
+            }
+            // the CityLord wooden ladders in the Port (no stairs)
+            World.I.ApplyLighting(0);
+            yield return Until(() => World.I.MapReady, 30);
+            int ladders = 0;
+            foreach (var l in UnityEngine.Object.FindObjectsByType<Ladder>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Take(4).ToList())
+            {
+                var from = l.transform.position - l.Into * 5f + Vector3.up * 2f + Vector3.Cross(Vector3.up, l.Into) * 2f;
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(l.transform.position + Vector3.up * 1.5f - from));
+                yield return Wait(0.5f);
+                yield return Shot($"95{(char)('a' + ladders++)}-port-ladder");
+            }
+            // the seven CityLord spawn points: on the streets, nothing under or above
+            World.I.ApplyLighting(12);
+            yield return Until(() => World.I.MapReady, 30);
+            int spawn = 0;
+            foreach (var p in World.I.Spawns.Take(7).ToList())
+            {
+                var from = p + new Vector3(-5f, 3.5f, -5f);
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(p + Vector3.up * 0.8f - from));
+                yield return Wait(0.5f);
+                yield return Shot($"96{(char)('a' + spawn++)}-citylord-spawn");
+            }
             CameraRig.Frozen = false;
         }
 

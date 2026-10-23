@@ -2304,7 +2304,7 @@ public static class ZahraBuilder
     private static GameObject Box2(Transform t, string name, Vector3 center, Vector3 size, Material m) => MeshGen.TexBox(name, center, size, m, 1f, t, 0f, false);
 
     /// <summary>A name board on two wooden posts (read from the side 'yaw' + 180 looks to).</summary>
-    private static void BoardStand(Transform parent, Vector3 foot, float yaw, string ar, string en)
+    internal static void BoardStand(Transform parent, Vector3 foot, float yaw, string ar, string en)
     {
         var s = Node("BoardStand", parent, foot, yaw);
         foreach (float x in new[] { -1.3f, 1.3f }) LBox(s, "Post", new Vector3(x, 0.9f, 0), new Vector3(0.12f, 1.8f, 0.12f), Signboard, 1f);
@@ -2316,8 +2316,8 @@ public static class ZahraBuilder
     {
         var t = Node("Boards", root, Vector3.zero, 0);
         void Stand(Vector3 foot, float yaw, string ar, string en) => BoardStand(t, foot, yaw, ar, en);
-        Stand(new Vector3(-12f, Middle + 0.5f, 28.5f), 180f, "الجنة العليا", "THE UPPER GARDEN");
-        Stand(new Vector3(-14f, Lower + 0.5f, -39.5f), 180f, "الجنة السفلى", "THE LOWER GARDEN");
+        Stand(new Vector3(-12f, Middle + 0.5f, 28.5f), 180f, "الحديقة العليا", "THE UPPER GARDEN");
+        Stand(new Vector3(-14f, Lower + 0.5f, -39.5f), 180f, "الحديقة السفلى", "THE LOWER GARDEN");
         Stand(new Vector3(-30f, Middle + 0.5f, 33.5f), 0f, "المجلس الشرقي - قاعة عبد الرحمن الناصر", "SALON RICO - HALL OF ABD AL-RAHMAN III");
         Stand(new Vector3(42f, Middle, 10f), -90f, "الرواق الكبير وساحة الاستعراض", "THE GREAT PORTICO AND THE PARADE GROUND");
         Stand(new Vector3(48f, Middle, 47f), 0f, "الشارع المنحدر المقبب", "THE VAULTED RAMP STREET");

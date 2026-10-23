@@ -156,6 +156,37 @@ public static partial class CityLordBuilder
     }
 
     /// <summary>
+    /// The CityLord wooden ladder against a wall: its foot at 'foot' (world, on the ground at the wall
+    /// face), the wall facing 'outward', reaching 'height' up, with the zone players and bots climb in.
+    /// </summary>
+    public static GameObject PlaceLadder(Transform parent, Vector3 foot, Vector3 outward, float height)
+    {
+        outward.y = 0;
+        outward.Normalize();
+        var piece = Kit("TallLadder");
+        float yaw = Mathf.Atan2(outward.x, outward.z) * Mathf.Rad2Deg;
+        var go = piece != null ? Place("TallLadder", parent, foot + outward * 0.2f, yaw, false) : null;
+        if (go == null)
+        {
+            go = new GameObject("Ladder");
+            go.transform.SetParent(parent, false);
+            go.transform.SetPositionAndRotation(foot + outward * 0.2f, Quaternion.Euler(0, yaw, 0));
+        }
+        else
+        {
+            // stretched to the height, its rungs a little closer or further apart; narrower on short climbs
+            float sy = (height + 0.9f) / Mathf.Max(0.5f, piece.Bounds.size.y);
+            go.transform.localScale = new Vector3(Mathf.Clamp(sy * 1.4f, 0.7f, 1f), sy, 1f);
+        }
+        var ladder = go.AddComponent<UA.Ladder>();
+        ladder.Into = -outward;
+        ladder.Top = foot.y + height;
+        ladder.Zone = new Bounds(foot + outward * 0.55f + Vector3.up * ((height + 1.4f) / 2f),
+            new Vector3(Mathf.Abs(outward.z) * 1.4f + Mathf.Abs(outward.x) * 1.2f, height + 1.4f, Mathf.Abs(outward.x) * 1.4f + Mathf.Abs(outward.z) * 1.2f));
+        return go;
+    }
+
+    /// <summary>
     /// Places a piece of the town: its foot at 'position' (world), turned by yaw, scaled; with its
     /// collider unless told not to. Returns null when the piece is missing.
     /// </summary>

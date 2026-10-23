@@ -882,6 +882,17 @@ public static class TownBuilder
 
         Buildings.Night = null;
         var layout = new MapLayout { Name = "OLD TOWN", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
+        // the parts of the town named on boards (Arabic and English), as in Al-Zahra
+        var boards = new GameObject("Boards").transform;
+        boards.SetParent(root, false);
+        foreach (var (x, z, ar, en) in new[]
+                 {
+                     (12f, -16f, "ساحة السوق والبئر", "THE MARKET SQUARE AND THE WELL"), (9f, 28f, "الكنيسة وبرجها", "THE CHURCH AND ITS TOWER"),
+                     (50f, -10f, "القناة والجسور", "THE CANAL AND THE BRIDGES"), (-50f, 50f, "الطاحونة الهوائية", "THE WINDMILL"),
+                     (-46f, -48f, "الحظيرة والحقول", "THE BARN AND THE FIELDS"), (-19f, 19f, "الخان", "THE INN"),
+                     (42f, 44f, "الحديقة المدرجة", "THE GARDEN TERRACE"),
+                 })
+            Signboards.Stand(boards, new Vector3(x, 0, z), Vector3.zero, ar, en);
         BuildNavigation(layout);
         root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "OldTown", null, night).ToArray();
         Debug.Log($"[Town] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {index} houses, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");

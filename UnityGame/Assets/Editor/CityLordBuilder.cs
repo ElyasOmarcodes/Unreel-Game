@@ -425,8 +425,8 @@ public static partial class CityLordBuilder
     /// <summary>
     /// Bot waypoints on a 3 m grid over every floor of the map (streets, yards, inside the hangars, on
     /// walkways), linked where a player can walk between them; only the ones that can be walked to from
-    /// the map's own spawn points are kept (no roofs nobody can reach). The spawn points are the map's
-    /// seven and the waypoints.
+    /// the map's own spawn points are kept (no roofs nobody can reach, nothing under the roads). Players
+    /// come in at the map's seven spawn points only.
     /// </summary>
     private static void BuildNavigation(MapLayout layout, Bounds play, List<Vector3> spawns)
     {
@@ -446,6 +446,8 @@ public static partial class CityLordBuilder
                     if (h.normal.y < 0.7f) continue;
                     var p = h.point;
                     if (Physics.CheckCapsule(p + Vector3.up * 0.6f, p + Vector3.up * 1.6f, 0.45f, mask, QueryTriggerInteraction.Ignore)) continue;
+                    // a floor just above (the big ground plane runs 3 m under the roads): not a place to stand
+                    if (Physics.Raycast(p + Vector3.up * 3.4f, Vector3.down, 3.1f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
                     var key = new Vector2Int(gx, gz);
                     if (!columns.TryGetValue(key, out var list)) columns[key] = list = new List<int>();
                     list.Add(points.Count);
@@ -507,11 +509,15 @@ public static partial class CityLordBuilder
         }
         layout.Waypoints = kept.ToArray();
         layout.Links = links.Where(l => reached[l.x] && reached[l.y]).Select(l => new Vector2Int(index[l.x], index[l.y])).ToArray();
-        // the map's own spawn points, on the ground below them, then every waypoint
+        // players come in only at the map's own seven spawn points (spread over the yards, on the streets),
+        // set on the street surface below each one: never under the roads, on a roof or out in the air
         var spawnList = new List<Vector3>();
         foreach (var s in spawns)
-            spawnList.Add(Physics.Raycast(s + Vector3.up * 1.5f, Vector3.down, out var hit, 4f, World.EnvMask, QueryTriggerInteraction.Ignore) ? hit.point : s);
-        spawnList.AddRange(kept);
+        {
+            var top = s + Vector3.up * 1.5f;
+            var hits = Physics.RaycastAll(top, Vector3.down, 4f, World.EnvMask, QueryTriggerInteraction.Ignore);
+            spawnList.Add(hits.Length > 0 ? hits.OrderBy(h => h.distance).First().point : s);
+        }
         layout.Spawns = spawnList.ToArray();
     }
 

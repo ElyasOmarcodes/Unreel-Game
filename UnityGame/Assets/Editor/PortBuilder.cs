@@ -279,9 +279,9 @@ public static class PortBuilder
         Vector3 Out(char side) => side == 'S' ? Vector3.back : side == 'N' ? Vector3.forward : side == 'W' ? Vector3.left : Vector3.right;
         foreach (var (side, at) in stairs)
         {
+            // the CityLord wooden ladder up the terrace face
             var e = Edge(side, at);
-            int steps = Mathf.CeilToInt(top / 0.2f);
-            Buildings.Stairs(t, e + Out(side) * (steps * 0.36f), -Out(side), top, 2.6f, Concrete);
+            CityLordBuilder.PlaceLadder(t, e, Out(side), top);
         }
         foreach (var (side, at) in ramps)
         {
@@ -445,9 +445,12 @@ public static class PortBuilder
         var t = new GameObject("Containers").transform;
         t.SetParent(root, false);
         var right = Quaternion.Euler(0, yaw, 0) * Vector3.right;
+        var along = Quaternion.Euler(0, yaw, 0) * Vector3.forward;
         for (int i = 0; i < columns; i++)
         {
             int height = 1 + rng.Next(maxHeight);
+            // a wooden ladder up the end of the first column: the container roofs are a place to fight from
+            if (i == 0 && c.y < 0.5f) CityLordBuilder.PlaceLadder(t, c + along * 3.03f, along, height * (ContainerH + 0.02f));
             for (int k = 0; k < height; k++)
                 Container(c + right * (i * 2.6f) + Vector3.up * (k * (ContainerH + 0.02f)), yaw + (k > 0 ? R(-3, 3) : 0), rng.Next(7), t);
         }
@@ -497,29 +500,18 @@ public static class PortBuilder
         Box("Deck", c + Vector3.up * (h / 2f), new Vector3(w, h, l), OldConcrete, 3f, t);
         Box("Rim", c + Vector3.up * (h + 0.45f), new Vector3(w, 0.9f, 0.3f), Concrete, 2f, t, 0, true).transform.position += new Vector3(0, 0, l / 2f - 0.15f);
         var dir = stairsSide == 0 ? Vector3.back : stairsSide == 1 ? Vector3.right : Vector3.left;
-        float steps = Mathf.Ceil(h / 0.25f);
-        float run = 0.38f;
-        var start = c + Vector3.Scale(dir, new Vector3(w / 2f, 0, l / 2f));
-        var across = Vector3.Cross(Vector3.up, dir);
-        for (int i = 0; i < steps; i++)
-        {
-            float stepH = h - i * 0.25f;
-            var p = start + dir * (run * (i + 0.5f)) + Vector3.up * (stepH / 2f);
-            float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
-            Box("Step", p, new Vector3(3f, stepH, run), Concrete, 1.5f, t, yaw);
-        }
-        foreach (float s in new[] { -1f, 1f })
-        {
-            var p = start + dir * (run * steps / 2f) + across * (s * 1.65f) + Vector3.up * (h / 2f + 0.3f);
-            float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
-            Box("StairWall", p, new Vector3(0.3f, h + 0.6f, run * steps), Concrete, 2f, t, yaw);
-        }
+        // up by the CityLord wooden ladder (no stairs), a route for the bots too
+        var edge = c + Vector3.Scale(dir, new Vector3(w / 2f, 0, l / 2f));
+        CityLordBuilder.PlaceLadder(t, edge, dir, h);
+        ladderChains.Add(new[] { edge + dir * 1.4f, edge - dir * 1.6f + Vector3.up * h });
     }
 
     // ------------------------------------------------------------------ raised yards (CityLord style)
 
     /// <summary>Bot routes up and down the ramps of the raised yards (joined to the grid like the pit's).</summary>
     private static readonly List<Vector3[]> rampChains = new List<Vector3[]>();
+    /// <summary>Bot routes up the ladders of the platforms.</summary>
+    private static readonly List<Vector3[]> ladderChains = new List<Vector3[]>();
     private static Material RaisedWall => CityLordBuilder.MaterialNamed("UNIConcrete_wall_v1") ?? OldConcrete;
 
     /// <summary>
@@ -601,6 +593,30 @@ public static class PortBuilder
             foreach (float side in new[] { -1f, 1f })
                 CityLordBuilder.Place("Road_block_v1", t, L(3f, side * (wide / 2f - 0.8f), 4f), yaw + 90f);
         }
+    }
+
+    /// <summary>A CityLord piece on free ground of the yard (turned square to it), with room to walk around it.</summary>
+    private static bool PlaceFree(string piece, Transform parent, float clearance = 1.6f)
+    {
+        var kit = CityLordBuilder.Kit(piece);
+        if (kit == null) return false;
+        int mask = World.EnvMask | (1 << World.FenceLayer);
+        var size = kit.Bounds.size;
+        Physics.SyncTransforms();
+        for (int attempt = 0; attempt < 400; attempt++)
+        {
+            float yaw = 90f * rng.Next(4);
+            var rot = Quaternion.Euler(0, yaw, 0);
+            var p = new Vector3(R(-HalfX + 8f, HalfX - 8f), 0, R(-HalfZ + 8f, HalfZ - 8f));
+            if (InPit(p, Mathf.Max(size.x, size.z) / 2f + 2f)) continue;
+            var center = p + rot * new Vector3(kit.Bounds.center.x, 0, kit.Bounds.center.z) + Vector3.up * (size.y / 2f + 0.15f);
+            var half = new Vector3(size.x / 2f + clearance, size.y / 2f, size.z / 2f + clearance);
+            if (Physics.CheckBox(center, half, rot, mask, QueryTriggerInteraction.Ignore)) continue;
+            CityLordBuilder.Place(piece, parent, p, yaw);
+            Physics.SyncTransforms();
+            return true;
+        }
+        return false;
     }
 
     /// <summary>The CityLord road ramp from 'top' (its high edge, on the ground line) going down along d, from baseY + rise to baseY.</summary>
@@ -908,6 +924,7 @@ public static class PortBuilder
     {
         rng = new System.Random(11);
         mats.Clear();
+        ladderChains.Clear();
         root = new GameObject("Map_Port").transform;
         root.SetParent(parent, false);
         var night = new List<Renderer>();
@@ -1022,12 +1039,23 @@ public static class PortBuilder
         // a long loading terrace and a higher one beside it in the south (stairs between them)
         Terrace(Rect.MinMaxRect(-60f, -63f, -30f, -50f), 2.4f, new[] { ('N', 26f) }, new (char, float)[0], ('E', 6f));
         Terrace(Rect.MinMaxRect(-30f, -63f, -8f, -52f), 4.2f, new[] { ('N', 15f) }, new[] { ('N', 6f) }, ('W', 6f));
-        Buildings.Stairs(root, new Vector3(-30f - 9 * 0.36f, 2.4f, -57f), Vector3.right, 1.8f, 2.4f, Concrete);
+        // from the lower terrace up to the higher one: a wooden ladder on its west face
+        CityLordBuilder.PlaceLadder(root, new Vector3(-30f, 2.4f, -57f), Vector3.left, 1.8f);
         Container(new Vector3(-19f, 4.2f, -58.5f), 90f, 2, root);
         Obstacles.SandbagWall(root, new Vector3(-12f, 4.2f, -53f), 0f, 4f);
 
         // high and low ground as in CityLord: raised yards with road ramps on the free ground
         RaisedYards();
+        // more to fight around, CityLord pieces on free ground: long concrete walls that make lanes, shorter
+        // walls with lattice tops, containers open at both ends to run through, industrial pipe works
+        var works = new GameObject("CityLordWorks").transform;
+        works.SetParent(root, false);
+        int works0 = 0;
+        foreach (var (piece, count) in new[] { ("Concrete_fence_v1_wall_set_v2", 3), ("Cargo_container_v1_LD2through", 3), ("Concrete_fence_v2_S", 5),
+                                               ("Industrial_pipe_v1", 2), ("Pipes_set_v1_V_set_v2", 2), ("Pipes_set_v1_H_set_v2", 2), ("Generator_v1", 2) })
+            for (int i = 0; i < count; i++)
+                if (PlaceFree(piece, works)) works0++;
+        Debug.Log($"[Map] Port: {works0} CityLord works pieces placed");
 
         // ammunition crates, one in each part of the yard
         var supply = new GameObject("AmmoCrates").transform;
@@ -1112,6 +1140,18 @@ public static class PortBuilder
             if (t.gameObject.layer != World.FenceLayer)
                 GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
 
+        // the parts of the yard named on boards (Arabic and English), as in Al-Zahra
+        var boards = new GameObject("Boards").transform;
+        boards.SetParent(root, false);
+        foreach (var (x, z, ar, en) in new[]
+                 {
+                     (50f, 12f, "مبنى الإدارة", "THE OFFICE BUILDING"), (-72f, 22f, "دار الجمارك", "THE CUSTOMS HOUSE"),
+                     (29f, -1f, "خزانات النفط", "THE OIL TANKS"), (-9f, 22f, "صوامع الحبوب", "THE GRAIN SILOS"),
+                     (67f, -22f, "حفرة التحميل والنفق", "THE LOADING PIT AND THE TUNNEL"), (14f, 56f, "الرصيف والسفينة", "THE QUAY AND THE SHIP"),
+                     (-2f, -8f, "ساحة الحاويات", "THE CONTAINER YARD"), (-34f, -46f, "المصاطب الجنوبية", "THE SOUTH TERRACES"),
+                 })
+            Signboards.Stand(boards, new Vector3(x, 0, z), Vector3.zero, ar, en);
+
         var layout = new MapLayout { Name = "PORT", Root = root.gameObject, Center = Vector3.zero, Radius = 90f };
         BuildNavigation(layout);
         Buildings.Night = null;
@@ -1162,7 +1202,7 @@ public static class PortBuilder
             new[] { new Vector3(79f, f, -10f), new Vector3(79f, f, 9f), new Vector3(79f, f, 23.2f), new Vector3(79f, 0, 33f) },
             new[] { new Vector3(79f, f, 9f), new Vector3(86f, f, 9f) },
         };
-        foreach (var chain in chains.Concat(rampChains))
+        foreach (var chain in chains.Concat(rampChains).Concat(ladderChains))
         {
             int a = points.Count, b = points.Count + chain.Length - 1;
             for (int i = 0; i < chain.Length; i++)

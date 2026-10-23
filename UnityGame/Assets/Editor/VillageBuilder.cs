@@ -842,6 +842,16 @@ public static class VillageBuilder
                 GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
 
         var layout = new MapLayout { Name = "VILLAGE", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
+        // the parts of the village named on boards (Arabic and English), as in Al-Zahra
+        var boards = new GameObject("Boards").transform;
+        boards.SetParent(root, false);
+        foreach (var (x, z, ar, en) in new[]
+                 {
+                     (18f, -14f, "السوق وشجرة الدلب", "THE BAZAAR AND THE PLANE TREE"), (46f, 44f, "تل برج المراقبة", "THE WATCHTOWER HILL"),
+                     (12f, -30f, "مجرى النهر والجسر", "THE RIVER BED AND THE BRIDGE"), (-60f, 16f, "البساتين", "THE ORCHARDS"),
+                     (-52f, 42f, "الحقول المدرجة", "THE TERRACED FIELDS"), (-34f, -4f, "قلعة الغرب", "THE WEST FORT"),
+                 })
+            Signboards.Stand(boards, new Vector3(x, 0, z), Vector3.zero, ar, en);
         BuildNavigation(layout);
         root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "Village", null, night).ToArray();
         Debug.Log($"[Village] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");

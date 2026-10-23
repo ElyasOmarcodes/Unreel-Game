@@ -167,7 +167,19 @@ namespace UA
                         else verticalSpeed = 6.4f + 0.8f * Mathf.Clamp01(new Vector2(velocity.x, velocity.z).magnitude / SprintSpeed);
                     }
                 }
-                verticalSpeed -= 20f * dt;
+                // ladders: push towards the ladder to climb, pull back to climb down, let go to hold on
+                var ladder = alive && canMove ? Ladder.At(transform.position + Vector3.up * 0.9f) : null;
+                bool climbing = false;
+                if (ladder != null)
+                {
+                    var look = Quaternion.Euler(0, rig.Yaw, 0) * Vector3.forward;
+                    bool towards = input.y > 0.2f && Vector3.Dot(look, ladder.Into) > 0.2f;
+                    if (towards) { verticalSpeed = Ladder.ClimbSpeed; climbing = true; }
+                    else if (!cc.isGrounded) { verticalSpeed = input.y < -0.2f ? -Ladder.ClimbSpeed : 0f; climbing = true; }
+                    // on the ladder the body stays at it; over the top the push carries it onto the landing
+                    if (climbing && transform.position.y < ladder.Top - 0.1f) velocity = ladder.Into * (towards ? 1.2f : 0.3f);
+                }
+                if (!climbing) verticalSpeed -= 20f * dt;
                 var before = transform.position;
                 cc.Move((velocity + Vector3.up * verticalSpeed) * dt);
                 // walking into a wall: do not keep pushing (keeps the animation honest)

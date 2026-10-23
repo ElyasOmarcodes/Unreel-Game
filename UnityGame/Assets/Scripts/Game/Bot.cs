@@ -166,7 +166,14 @@ namespace UA
 
             float speed = 4.8f * def.MoveSpeed;
             if (cc.isGrounded) verticalSpeed = -2f;
-            verticalSpeed -= 20f * dt;
+            // up a ladder towards a waypoint above (the ladder routes of the map)
+            var ladder = Ladder.At(transform.position + Vector3.up * 0.9f);
+            if (ladder != null && waypoint >= 0 && waypoint < world.Waypoints.Length && world.Waypoints[waypoint].y > transform.position.y + 0.4f)
+            {
+                verticalSpeed = Ladder.ClimbSpeed;
+                if (transform.position.y < ladder.Top - 0.1f) move = ladder.Into * 0.3f;
+            }
+            else verticalSpeed -= 20f * dt;
             cc.Move((Vector3.ClampMagnitude(move, 1f) * speed + Vector3.up * verticalSpeed) * dt);
             transform.rotation = Quaternion.Euler(0, yaw, 0);
 
