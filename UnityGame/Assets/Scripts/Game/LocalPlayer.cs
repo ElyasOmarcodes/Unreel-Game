@@ -12,12 +12,11 @@ namespace UA
         public readonly int[] Reserve = new int[2];
         public bool Aiming;
         public int Grenades = Grenade.PerLife;
-        /// <summary>Syringes: 50 health for oneself or a team mate; refilled at an ammo box.</summary>
-        public int Syringes = SyringesPerLife;
-        public const int SyringesPerLife = 2, MaxSyringes = 3;
+        /// <summary>Giving blood to a badly wounded team mate close by (the button shows only then).</summary>
         public bool Healing => healEnd > 0;
-        private float healEnd;
-        private byte healTarget, healKind;
+        private float healEnd, nextGive;
+        private byte healTarget;
+        private Agent bloodMate;
         private float nextThrow;
         public bool Reloading => reloadEnd > 0;
         public float ReloadProgress => Reloading ? 1f - (reloadEnd - Time.time) / Current.ReloadTime : 0f;
@@ -54,6 +53,7 @@ namespace UA
         private void OnDestroy()
         {
             Controls.AmmoAvailable = false;
+            Controls.HealAvailable = false;
             if (I == this) I = null;
         }
 
@@ -61,8 +61,8 @@ namespace UA
         {
             Refill();
             Grenades = Grenade.PerLife;
-            Syringes = SyringesPerLife;
             healEnd = 0;
+            nextGive = 0;
             Slot = 0;
             Aiming = false;
             crouch = false;
@@ -119,7 +119,7 @@ namespace UA
                 if (Controls.CrouchPressed) { crouch = !crouch; prone = false; }
                 if (Controls.PronePressed) { prone = !prone; crouch = false; Aiming = false; }
                 if (Controls.GrenadePressed && Grenades > 0 && Time.time >= nextThrow) ThrowGrenade();
-                if (Controls.HealPressed && !Healing) StartHeal(s);
+                if (Controls.HealPressed && !Healing && bloodMate != null) StartHeal();
             }
             if (!alive) { Aiming = false; reloadEnd = 0; healEnd = 0; }
             if (Healing && Time.time >= healEnd) FinishHeal(s);
@@ -163,7 +163,8 @@ namespace UA
                     if (canMove && Controls.JumpPressed && s.Phase == Phase.Playing)
                     {
                         if (crouch || prone) { crouch = false; prone = false; }
-                        else verticalSpeed = 6.4f;
+                        // a running jump goes a little higher and further than one from standing
+                        else verticalSpeed = 6.4f + 0.8f * Mathf.Clamp01(new Vector2(velocity.x, velocity.z).magnitude / SprintSpeed);
                     }
                 }
                 verticalSpeed -= 20f * dt;
@@ -176,6 +177,10 @@ namespace UA
                 if (alive) transform.rotation = Quaternion.Euler(0, rig.Yaw, 0);
                 if (transform.position.y < -15f && World.I != null) agent.Teleport(World.I.Spawns.Length > 0 ? World.I.Spawns[0] : Vector3.up, rig.Yaw);
             }
+
+            // a team mate close by below the blood threshold: the blood button shows
+            bloodMate = alive && !Healing && Time.time >= nextGive ? WoundedMate(s) : null;
+            Controls.HealAvailable = bloodMate != null;
 
             // ammo crates: the button shows while standing next to one and something is missing
             bool atBox = alive && AmmoBox.Nearest(transform.position) != null;
@@ -282,41 +287,31 @@ namespace UA
             cc.center = new Vector3(0, want / 2f + 0.02f, 0);
         }
 
-        /// <summary>
-        /// The heal button: a wounded team mate close by gets a syringe (or, with none left, some of
-        /// this player's own blood); otherwise the player injects themselves.
-        /// </summary>
-        private void StartHeal(Session s)
+        /// <summary>The nearest living team mate within reach whose health is below the blood threshold.</summary>
+        private Agent WoundedMate(Session s)
         {
+            if (s == null || s.Config.Mode != Mode.TeamDeathmatch || World.I == null) return null;
             var me = agent.State;
             Agent mate = null;
             float best = Session.HealRange;
-            if (s.Config.Mode == Mode.TeamDeathmatch && World.I != null)
-                foreach (var a in World.I.Agents.Values)
-                {
-                    if (a == null || a == agent || a.State == null || !a.State.Alive || a.State.Team != me.Team || a.State.Health >= 99.5f) continue;
-                    float d = Vector3.Distance(a.transform.position, transform.position);
-                    if (d < best) { best = d; mate = a; }
-                }
-            if (mate != null)
+            foreach (var a in World.I.Agents.Values)
             {
-                if (Syringes > 0) healKind = 0;
-                else if (me.Health > 35f) healKind = 1;
-                else { App.I?.Toast("NO SYRINGES - AND TOO WEAK TO GIVE BLOOD"); return; }
-                healTarget = mate.Id;
+                if (a == null || a == agent || a.State == null || !a.State.Alive || a.State.Team != me.Team || a.State.Health >= Session.BloodThreshold) continue;
+                float d = Vector3.Distance(a.transform.position, transform.position);
+                if (d < best) { best = d; mate = a; }
             }
-            else
-            {
-                if (me.Health >= 99.5f) { App.I?.Toast("HEALTH IS FULL - NO WOUNDED TEAM MATE CLOSE BY"); return; }
-                if (Syringes <= 0) { App.I?.Toast("NO SYRINGES LEFT - FIND AN AMMO BOX"); return; }
-                healKind = 0;
-                healTarget = me.Id;
-            }
-            healEnd = Time.time + (healKind == 1 ? 2f : 1.3f);
+            return mate;
+        }
+
+        /// <summary>The blood button: a transfusion to the wounded team mate close by (40 health).</summary>
+        private void StartHeal()
+        {
+            healTarget = bloodMate.Id;
+            healEnd = Time.time + 2f;
             Aiming = false;
             reloadEnd = 0;
             agent.PlayReload();
-            agent.ShowSyringe(healKind, healKind == 1 ? 2f : 1.3f);
+            agent.ShowSyringe(1, 2f);
             Sfx.Play(Sfx.Has("dry_1") ? "dry_1" : "click", 0.7f, 1.3f);
         }
 
@@ -324,18 +319,15 @@ namespace UA
         {
             healEnd = 0;
             if (!agent.State.Alive) return;
-            if (healTarget != agent.Id)
+            // the team mate must still be close and alive
+            if (World.I == null || !World.I.Agents.TryGetValue(healTarget, out var mate) || mate == null || mate.State == null || !mate.State.Alive
+                || Vector3.Distance(mate.transform.position, transform.position) > Session.HealRange + 0.5f)
             {
-                // the team mate must still be close and alive
-                if (World.I == null || !World.I.Agents.TryGetValue(healTarget, out var mate) || mate == null || mate.State == null || !mate.State.Alive
-                    || Vector3.Distance(mate.transform.position, transform.position) > Session.HealRange + 0.5f)
-                {
-                    App.I?.Toast("TOO FAR AWAY");
-                    return;
-                }
+                App.I?.Toast("TOO FAR AWAY");
+                return;
             }
-            if (healKind == 0) Syringes--;
-            s.HealLocal(healTarget, healKind);
+            nextGive = Time.time + Session.BloodCooldown;
+            s.HealLocal(healTarget, 1);
         }
 
         /// <summary>Throw a frag grenade along the crosshair, a little upwards, from the right shoulder.</summary>
@@ -487,7 +479,7 @@ namespace UA
         {
             get
             {
-                if (Grenades < Grenade.Max || Syringes < MaxSyringes) return true;
+                if (Grenades < Grenade.Max) return true;
                 for (int i = 0; i < 2; i++)
                 {
                     var def = Weapons.Get(i == 0 ? agent.State.Primary : agent.State.Secondary);
@@ -503,7 +495,6 @@ namespace UA
             reloadEnd = 0;
             Refill();
             Grenades = Grenade.Max;
-            Syringes = MaxSyringes;
             Sfx.Play(Weapons.ReloadSound(Current), 0.9f, 1.1f);
             App.I?.Toast("AMMO AND GRENADES REFILLED");
         }

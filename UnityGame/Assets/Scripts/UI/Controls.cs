@@ -14,7 +14,7 @@ namespace UA
 
         public static bool Enabled;
         /// <summary>The ammo button only exists while the player stands at an ammo box.</summary>
-        public static bool AmmoAvailable;
+        public static bool AmmoAvailable, HealAvailable;
         public static Vector2 Move;
         public static Vector2 Look;
         public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, PronePressed, GrenadePressed, AmmoPressed, HealPressed;
@@ -112,7 +112,7 @@ namespace UA
                     var f = new Finger { Last = p };
                     foreach (var b in AllButtons)
                     {
-                        if (ButtonVisible(b) && (b != Button.Ammo || AmmoAvailable) && Vector2.Distance(p, ButtonCenter(b)) <= ButtonRadius(b) * 1.1f) { f.Button = b; break; }
+                        if (ButtonVisible(b) && (b != Button.Ammo || AmmoAvailable) && (b != Button.Heal || HealAvailable) && Vector2.Distance(p, ButtonCenter(b)) <= ButtonRadius(b) * 1.1f) { f.Button = b; break; }
                     }
                     if (f.Button == null)
                     {

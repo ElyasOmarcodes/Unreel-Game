@@ -387,7 +387,7 @@ public static class PortBuilder
         // the last crate reaches 0.6 m under the hall roof (a jump), whatever the hall's height
         float lastTop = hallH + 0.24f - 0.6f, lastH = lastTop - (blockH + 0.16f);
         B("Crate", new Vector3(axc - 0.6f, blockH + 0.16f + lastH / 2f, gapZ - 0.3f), new Vector3(1f, lastH, 1f), Planks, 1f);
-        Obstacles.AmmoCrate(t, t.TransformPoint(new Vector3(-hw + 3f, hallH + 0.24f, 0)), yaw);
+        // no ammunition on the roof: holding it means coming down for more
     }
 
     private static void Tank(Vector3 c, float radius, float height)
@@ -623,7 +623,6 @@ public static class PortBuilder
         Pallet(new Vector3(84f, f, 12.8f), 0, 2, t);
         Obstacles.CrateStack(t, new Vector3(79f, f, -2f), 0f, rng);
         Obstacles.Blocks(t, new Vector3(79f, f, 14f), 0f, 1);
-        Obstacles.AmmoCrate(t, new Vector3(84.5f, f, 6f), 90f);
         Underground.Lamp(t, new Vector3(79f, -1.8f, 4f), 13f, 1.1f);
         Underground.Lamp(t, new Vector3(79f, -1.8f, 20f), 13f, 1.1f);
         Underground.Lamp(t, new Vector3(86f, -1.8f, 9f), 9f, 1.1f);

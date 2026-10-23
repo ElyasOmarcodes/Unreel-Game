@@ -15,7 +15,7 @@ namespace UA
         private float verticalSpeed, nextThink, nextFire, reloadEnd, strafeUntil, strafeDir = 1f, stuckTime, reactionAt;
         private float pauseUntil, lookAround, burstLeft;
         private bool repositioning;
-        private int mag, grenades, syringes = 1;
+        private int mag, grenades;
         private float nextHeal;
         private float nextGrenade;
         private Agent target;
@@ -41,7 +41,6 @@ namespace UA
             mag = Weapons.Get(agent.State.Primary).MagSize;
             grenades = Grenade.PerLife;
             nextGrenade = Time.time + Random.Range(4f, 10f);
-            syringes = 1;
             yaw = agent.State.Yaw;
             pitch = 0;
         }
@@ -56,13 +55,20 @@ namespace UA
             bool playing = s.Phase == Phase.Playing;
             var def = Weapons.Get(st.Primary);
             st.Weapon = def.Id;
-            // badly hurt and nobody in the sights: a syringe
-            if (playing && syringes > 0 && st.Health < 45f && target == null && Time.time >= nextHeal)
+            // nobody in the sights and a badly wounded team mate next to it: blood for the team mate
+            if (playing && target == null && Time.time >= nextHeal && s.Config.Mode == Mode.TeamDeathmatch)
             {
-                syringes--;
-                nextHeal = Time.time + 8f;
-                agent.PlayReload();
-                s.BotHeal(agent.Id);
+                nextHeal = Time.time + 1f;
+                foreach (var a in world.Agents.Values)
+                {
+                    if (a == null || a == agent || a.State == null || !a.State.Alive || a.State.Team != st.Team || a.State.Health >= Session.BloodThreshold) continue;
+                    if ((a.transform.position - transform.position).sqrMagnitude > Session.HealRange * Session.HealRange) continue;
+                    nextHeal = Time.time + Session.BloodCooldown;
+                    agent.PlayReload();
+                    agent.ShowSyringe(1, 2f);
+                    s.BotGiveBlood(agent.Id, a.Id);
+                    break;
+                }
             }
             if (mag <= 0 && reloadEnd <= 0)
             {

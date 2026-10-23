@@ -24,7 +24,7 @@ namespace UA
 
         public static readonly string[] MapNames =
         {
-            "DOWNTOWN - DAY", "DOWNTOWN - SUNSET", "DOWNTOWN - NIGHT", "PORT - DAY", "PORT - SUNSET", "PORT - NIGHT",
+            "PORT - DAY", "PORT - SUNSET", "PORT - NIGHT",
             "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT", "OLD TOWN - DAY", "OLD TOWN - SUNSET", "OLD TOWN - NIGHT",
             "AL-ZAHRA - DAY", "AL-ZAHRA - SUNSET", "AL-ZAHRA - NIGHT",
         };
@@ -79,7 +79,7 @@ namespace UA
     public struct Throw { public int Seq; public byte Thrower; public Vector3 Origin, Velocity; }
     /// <summary>Grenade event in the snapshot: Kind 0 thrown (A origin, B velocity), 1 exploded (A position).</summary>
     public struct NadeEvent { public ushort Seq; public byte Thrower, Kind; public int ThrowSeq; public Vector3 A, B; }
-    /// <summary>A syringe (Kind 0, also on oneself) or blood given to a team mate (Kind 1).</summary>
+    /// <summary>Blood given to a badly wounded team mate (Kind 1).</summary>
     public struct HealEvent { public ushort Seq; public byte Giver, Target, Kind, Amount; }
     public struct HealRequest { public int Seq; public byte Target, Kind; }
     public struct ShotFx { public ushort Seq; public byte Shooter, Weapon; public Vector3 Origin, End; public byte HitKind; } // 0 wall, 1 player, 2 nothing
@@ -94,7 +94,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 8;
+        public const byte Version = 9;
         public const byte NoPlayer = 255;
         public const string PasswordNeeded = "This group is locked: type its password";
         public const string WrongPassword = "Wrong password for this group";
@@ -143,7 +143,8 @@ namespace UA
         private bool healInit;
 
         public event Action<HealEvent> Healed;
-        public const float HealRange = 3f, SyringeHeal = 50f, BloodGift = 25f;
+        /// <summary>Blood: a team mate below the threshold, close by, gets 40 health; then the giver waits a little.</summary>
+        public const float HealRange = 3f, BloodThreshold = 50f, BloodGift = 40f, BloodCooldown = 10f;
 
         private static readonly string[] BotNames = { "Viper", "Ghost", "Falcon", "Rook", "Blaze", "Shadow", "Hunter", "Nova", "Raven", "Titan" };
 
@@ -931,27 +932,16 @@ namespace UA
             else pendingHeals.Add((new HealRequest { Seq = ++healReqSeq, Target = target, Kind = kind }, Time.unscaledTime));
         }
 
-        /// <summary>Host: a bot uses a syringe on itself.</summary>
-        public void BotHeal(byte bot) { if (IsHost) HostHeal(bot, bot, 0); }
+        /// <summary>Host: a bot gives blood to a wounded team mate next to it.</summary>
+        public void BotGiveBlood(byte bot, byte mate) { if (IsHost) HostHeal(bot, mate, 1); }
 
         private void HostHeal(byte giverId, byte targetId, byte kind)
         {
             if (Phase != Phase.Playing || !Players.TryGetValue(giverId, out var giver) || !Players.TryGetValue(targetId, out var target) || !giver.Alive || !target.Alive) return;
-            if (giver != target)
-            {
-                // only a team mate standing close by (a little slack for the network)
-                if (Config.Mode != Mode.TeamDeathmatch || giver.Team != target.Team) return;
-                if ((giver.Pos - target.Pos).sqrMagnitude > HealRange * HealRange * 2f) return;
-            }
-            float amount;
-            if (kind == 0) amount = Mathf.Min(SyringeHeal, 100f - target.Health);
-            else
-            {
-                if (giver == target) return;
-                // blood: the giver keeps at least 10
-                amount = Mathf.Min(BloodGift, giver.Health - 10f, 100f - target.Health);
-                if (amount > 0f) giver.Health -= amount;
-            }
+            // only blood, only for a badly wounded team mate standing close by (a little slack for the network)
+            if (kind != 1 || giver == target || Config.Mode != Mode.TeamDeathmatch || giver.Team != target.Team) return;
+            if ((giver.Pos - target.Pos).sqrMagnitude > HealRange * HealRange * 2f || target.Health >= BloodThreshold + 2f) return;
+            float amount = Mathf.Min(BloodGift, 100f - target.Health);
             if (amount <= 0f) return;
             target.Health += amount;
             var e = new HealEvent { Seq = ++healSeq, Giver = giverId, Target = targetId, Kind = kind, Amount = (byte)Mathf.RoundToInt(amount) };

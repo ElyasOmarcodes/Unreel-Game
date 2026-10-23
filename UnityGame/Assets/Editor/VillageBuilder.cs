@@ -808,10 +808,11 @@ public static class VillageBuilder
             Physics.SyncTransforms();
             placed++;
         }
-        // ammunition crates: in the bazaar, by the bridge, at the tower hill and in three compounds
+        // ammunition crates: in the bazaar, by the bridge and in the compounds, never at the strong points
+        // (tower, hill tops): whoever holds one has to leave it for more
         var supply = new GameObject("AmmoCrates").transform;
         supply.SetParent(root, false);
-        foreach (var (x, z) in new[] { (6f, 7f), (16f, RiverZ(16f) + 13f), (50f, 46f), (-34f, 6f), (32f, 10f), (-30f, -26f), (-50f, 40f), (-98f, -62f), (100f, 52f), (-28f, 90f), (44f, -92f) })
+        foreach (var (x, z) in new[] { (6f, 7f), (16f, RiverZ(16f) + 13f), (-34f, 6f), (32f, 10f), (-30f, -26f), (-50f, 40f), (-98f, -62f), (100f, 52f), (-28f, 90f), (44f, -92f) })
             Obstacles.AmmoCrate(supply, new Vector3(x, Y(x, z), z), R(0, 360));
         // invisible walls just outside the playable area
         foreach (var (c, s) in new[]

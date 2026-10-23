@@ -594,8 +594,7 @@ public static class TownBuilder
         foreach (float sx in new[] { -1f, 1f })
             B(t, "Parapet", new Vector3(sx * (w / 2f - pt / 2f), h + ph / 2f, 0), new Vector3(pt, ph, d - 2f * pt), Stone, 1.5f);
         B(t, "Chimney", new Vector3(2.8f, h + 0.9f, 1.2f), new Vector3(0.9f, 1.8f, 0.9f), Stone, 1f);
-        // a reason to go up: ammunition on the roof, and a lantern by the way up
-        Obstacles.AmmoCrate(t, t.TransformPoint(new Vector3(-1.5f, h, 1.4f)), 0f);
+        // no ammunition up here: whoever holds the roof has to come down for more
         if (tall)
         {
             // timber stair in two flights up the front, a plank over the gap onto the roof

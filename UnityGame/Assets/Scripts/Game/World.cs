@@ -59,7 +59,7 @@ namespace UA
         public Vector3 Center => layout.Center;
         public float Radius => layout.Radius;
 
-        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for downtown, port, village, the old town and Al-Zahra.</summary>
+        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for the port, the village, the old town and Al-Zahra.</summary>
         public static int LayoutOf(int map) => map / 3;
 
         private void Awake()
@@ -312,7 +312,7 @@ namespace UA
                     RenderSettings.ambientGroundColor = new Color(0.2f, 0.19f, 0.17f);
                     RenderSettings.fogColor = new Color(0.7f, 0.76f, 0.84f);
                     RenderSettings.fogDensity = 0.006f;
-                    if (LayoutOf(map) == 4)
+                    if (LayoutOf(map) == 3)
                     {
                         // Al-Zahra in spring: warm, soft Andalusian light, a clear sky and a light haze over the valley
                         Sun.transform.rotation = Quaternion.Euler(52f, -150f, 0f);

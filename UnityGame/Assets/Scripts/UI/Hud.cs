@@ -207,7 +207,7 @@ namespace UA
             AddButton(Controls.Button.Prone, "airline_seat_flat", "PRONE");
             AddButton(Controls.Button.Grenade, "grenade", "x2");
             AddButton(Controls.Button.Ammo, "ammo", "AMMO");
-            AddButton(Controls.Button.Heal, "vaccines", "x2");
+            AddButton(Controls.Button.Heal, "bloodtype", "BLOOD");
             AddButton(Controls.Button.Pause, "pause", "");
             AddButton(Controls.Button.Score, "leaderboard", "");
 
@@ -425,7 +425,7 @@ namespace UA
                 pair.Value.rectTransform.anchoredPosition = c;
                 pair.Value.rectTransform.sizeDelta = new Vector2(r * 2, r * 2);
                 bool show = (touchUi || pair.Key == Controls.Button.Pause || pair.Key == Controls.Button.Score || pair.Key == Controls.Button.Ammo) && Controls.ButtonVisible(pair.Key)
-                            && (pair.Key != Controls.Button.Ammo || Controls.AmmoAvailable);
+                            && (pair.Key != Controls.Button.Ammo || Controls.AmmoAvailable) && (pair.Key != Controls.Button.Heal || Controls.HealAvailable);
                 pair.Value.enabled = show;
                 foreach (var g in pair.Value.GetComponentsInChildren<Graphic>()) g.enabled = show;
                 bool held = Controls.Held.Contains(pair.Key);
@@ -436,8 +436,6 @@ namespace UA
             }
             if (buttonLabels.TryGetValue(Controls.Button.Grenade, out var grenadeLabel))
                 grenadeLabel.text = "x" + (lp != null ? lp.Grenades : 0);
-            if (buttonLabels.TryGetValue(Controls.Button.Heal, out var healLabel))
-                healLabel.text = "x" + (lp != null ? lp.Syringes : 0);
             stickBase.enabled = stickKnob.enabled = touchUi;
             var stickCenter = Controls.StickActive ? Controls.StickCenter : new Vector2(260, 250);
             stickBase.rectTransform.At(0f, 0f, stickCenter.x, stickCenter.y, Controls.StickRadius * 2, Controls.StickRadius * 2);

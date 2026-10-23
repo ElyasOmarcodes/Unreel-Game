@@ -311,8 +311,8 @@ namespace UA
             Anim.SetFloat(MoveYId, animMoveY);
             // shorter, quicker steps when running (same speed over the ground)
             float move = new Vector2(animMoveX, Mathf.Min(1f, animMoveY)).magnitude;
-            // a real walk at half the stick (eight directions), the jog when running: firm full strides
-            Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 1.05f : move < 0.7f ? 1.05f : 1.1f);
+            // a real walk at half the stick (eight directions); running and sprinting take a little longer strides
+            Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 0.96f : move < 0.7f ? 1.05f : 1.0f);
             Steps(s, move);
             Anim.SetBool(CrouchId, s.Crouch);
             Anim.SetBool(ProneId, s.Prone);

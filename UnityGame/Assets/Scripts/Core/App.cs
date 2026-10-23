@@ -864,17 +864,15 @@ namespace UA
             resultsLobby.gameObject.SetActive(s.IsHost);
         }
 
-        /// <summary>A syringe or blood was given: a message for the two players, the syringe in the giver's hand for everyone.</summary>
+        /// <summary>Blood was given: a message for the two players, the transfusion in the giver's hand for everyone.</summary>
         private void OnHealed(HealEvent e)
         {
             var s = Session.I;
             string Name(byte id) => s.Players.TryGetValue(id, out var p) ? Rtl.Shape(p.Name) : "?";
             if (e.Target == s.LocalId && e.Giver != s.LocalId)
-                Toast(e.Kind == 1 ? $"{Name(e.Giver)} GAVE YOU BLOOD  +{e.Amount}" : $"{Name(e.Giver)} HEALED YOU  +{e.Amount}");
+                Toast($"{Name(e.Giver)} GAVE YOU BLOOD  +{e.Amount}");
             else if (e.Giver == s.LocalId && e.Target != s.LocalId)
-                Toast(e.Kind == 1 ? $"YOU GAVE {Name(e.Target)} BLOOD  +{e.Amount}" : $"YOU HEALED {Name(e.Target)}  +{e.Amount}");
-            else if (e.Giver == s.LocalId)
-                Toast($"SYRINGE  +{e.Amount} HEALTH");
+                Toast($"YOU GAVE {Name(e.Target)} BLOOD  +{e.Amount}");
             if (e.Target == s.LocalId) Sfx.Play(Sfx.Has("dry_0") ? "dry_0" : "click", 0.6f, 1.4f);
             if (e.Giver != s.LocalId && World.I != null && World.I.Agents.TryGetValue(e.Giver, out var giver) && giver != null)
             {

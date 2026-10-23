@@ -60,6 +60,8 @@ public static class ZahraBuilder
     private static Material Gravel => PortBuilder.Pbr("Z_Gravel", "Gravel036L", new Color(1.02f, 0.95f, 0.84f), 0.15f);
     private static Material hedge;
     private static Material HedgeMat => hedge;
+    private static Material Lawn => PortBuilder.Pbr("Z_Lawn", "Grass004", new Color(0.8f, 0.98f, 0.62f), 0.12f);
+    private static Material Wheat => PortBuilder.Pbr("Z_Wheat", "Grass004", new Color(1.1f, 1.05f, 0.5f), 0.1f);
     private static Material TownGround => PortBuilder.Pbr("Z_TownGround", "Gravel036L", new Color(0.98f, 0.88f, 0.72f), 0.1f);
     private static Material Earth => PortBuilder.Pbr("Z_Earth", "Ground104", new Color(0.82f, 0.68f, 0.5f), 0.08f);
     private static Material RoofTiles => PortBuilder.Pbr("Z_RoofTiles", "RoofingTiles006", new Color(0.9f, 0.52f, 0.36f), 0.3f);
@@ -357,16 +359,19 @@ public static class ZahraBuilder
     /// </summary>
     private static void Writing(Transform board, Vector3 local, Vector2 size, string text, float maxSize, Color color, TextAnchor anchor = TextAnchor.MiddleCenter, FontStyle style = FontStyle.Normal)
     {
-        const float scale = 0.0025f;   // metres per canvas unit: big font sizes, sharp letters
+        // every board draws its letters at one size from the font (a small font texture, made once);
+        // the canvas is scaled so the letters come out at the size that fits
+        const int fs = 40;
         if (font == null) font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/UAFont.ttf");
-        float w = size.x / scale, h = size.y / scale;
-        int fs = Mathf.Max(8, Mathf.RoundToInt(maxSize * 0.01f / scale));
-        var lines = Wrap(text, w / fs);
-        while (fs > 8 && (lines.Count * 1.62f * fs > h || lines.Any(l => l.Sum(Advance) * fs > w)))
+        float em = maxSize * 0.01f;   // letter size in metres
+        var lines = Wrap(text, size.x / em);
+        while (em > 0.02f && (lines.Count * 1.62f * em > size.y || lines.Any(l => l.Sum(Advance) * em > size.x)))
         {
-            fs = Mathf.Max(8, Mathf.FloorToInt(fs * 0.94f));
-            lines = Wrap(text, w / fs);
+            em *= 0.94f;
+            lines = Wrap(text, size.x / em);
         }
+        float scale = em / fs;
+        float w = size.x / scale, h = size.y / scale;
         var go = new GameObject("Writing");
         go.transform.SetParent(board, false);
         go.transform.localPosition = local;
@@ -743,13 +748,29 @@ public static class ZahraBuilder
 
     private static void Flowers(Transform parent, Vector3 c, float rx, float rz, int count, float y)
     {
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < (count + 1) / 2; i++)
         {
             var p = c + new Vector3(R(-rx, rx), 0, R(-rz, rz));
             p.y = y;
-            if (rng.NextDouble() < 0.5) Nature.Place("Bush_Common_Flowers", p, R(0, 360), R(0.6f, 1.1f), parent);
-            else Nature.Place(Nature.Ground[rng.Next(Nature.Ground.Length)], p, R(0, 360), R(0.4f, 0.8f), parent);
+            Small(rng.NextDouble() < 0.6 ? Nature.Place("Bush_Common_Flowers", p, R(0, 360), R(0.7f, 1.2f), parent)
+                                         : Nature.Place(Nature.Ground[rng.Next(Nature.Ground.Length)], p, R(0, 360), R(0.5f, 0.9f), parent));
         }
+    }
+
+    /// <summary>Small plants cast no shadows (half the drawing for nothing to see).</summary>
+    private static GameObject Small(GameObject go)
+    {
+        if (go != null)
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        return go;
+    }
+
+    /// <summary>Scenery outside the walls: no shadows, on the layer the camera stops drawing far away on weaker phones.</summary>
+    private static GameObject Scenery(GameObject go)
+    {
+        if (go == null) return null;
+        foreach (var tr in go.GetComponentsInChildren<Transform>(true)) tr.gameObject.layer = Settings.SceneryLayer;
+        return Small(go);
     }
 
     /// <summary>A bronze lantern on a post: a pierced dome lamp on an arm, seen by day, lit at night.</summary>
@@ -875,15 +896,14 @@ public static class ZahraBuilder
         DarAlMulk();
         BasilicalHall();
         NorthGate();
-        NorthWall();
         Medina();
         Supplies();
         Boards();
         Surroundings();
 
-        float edge = Half + 4f;
-        foreach (var (c, sz) in new[] { (new Vector3(0, 30, edge), new Vector3(edge * 2 + 4, 60, 1)), (new Vector3(0, 30, -edge), new Vector3(edge * 2 + 4, 60, 1)),
-                                        (new Vector3(edge, 30, 0), new Vector3(1, 60, edge * 2 + 4)), (new Vector3(-edge, 30, 0), new Vector3(1, 60, edge * 2 + 4)) })
+        // invisible fences just outside the walls (in the south beyond the road down from the gate)
+        foreach (var (c, sz) in new[] { (new Vector3(0, 30, 127.2f), new Vector3(260f, 60, 1)), (new Vector3(0, 30, -132f), new Vector3(260f, 60, 1)),
+                                        (new Vector3(127.2f, 30, 0), new Vector3(1, 60, 264f)), (new Vector3(-127.2f, 30, 0), new Vector3(1, 60, 264f)) })
         {
             var wall = new GameObject("Edge");
             wall.layer = World.FenceLayer;
@@ -910,9 +930,9 @@ public static class ZahraBuilder
         const float far = 380f, south = -127f;
         Slabs(t, "Valley", Rect.MinMaxRect(-far, -far, far, south), new[] { Rect.MinMaxRect(-far, -323f, far, -277f) }, -3f, 2f, Grass, 6f);
         Slab(t, "RiverBed", Rect.MinMaxRect(-far, -323f, far, -277f), -4.4f, 1f, Earth, 6f);
-        Slab(t, "LowerTerrace", Rect.MinMaxRect(-far, south, far, MidSouth), Lower, 5f, TownGround, 3f);
-        Slab(t, "MiddleTerrace", Rect.MinMaxRect(-far, MidSouth, far, UpSouth), Middle, 8f, TownGround, 3f);
-        Slab(t, "UpperTerrace", Rect.MinMaxRect(-far, UpSouth, far, far), Upper, 14f, TownGround, 3f);
+        Slab(t, "LowerTerrace", Rect.MinMaxRect(-far, south, far, MidSouth), Lower, 5f, Lawn, 5f);
+        Slab(t, "MiddleTerrace", Rect.MinMaxRect(-far, MidSouth, far, UpSouth), Middle, 8f, Lawn, 5f);
+        Slab(t, "UpperTerrace", Rect.MinMaxRect(-far, UpSouth, far, far), Upper, 14f, Lawn, 5f);
         Box(t, "TerraceFace", new Vector3(0, (Lower + Middle) / 2f - 0.32f, MidSouth - 0.15f), new Vector3(Half * 2f + 8f, Middle - Lower + 0.6f, 0.3f), Ashlar);
         Box(t, "TerraceFace", new Vector3(0, (Middle + Upper) / 2f - 0.32f, UpSouth - 0.15f), new Vector3(Half * 2f + 8f, Upper - Middle + 0.6f, 0.3f), Ashlar);
         void Parapet(float z, float y, params (float a, float b)[] gaps)
@@ -950,6 +970,95 @@ public static class ZahraBuilder
             }
     }
 
+    private const float WallTop = 8f;   // the walk on the city walls, above the terrace at their foot
+
+    /// <summary>
+    /// A stretch of the city wall along its axis from a to b (a.y the terrace at its foot): 3 m of ashlar
+    /// with a walk on top, merlons along the outer side, a cream band under them.
+    /// </summary>
+    private static void WallStretch(Transform t, Vector3 a, Vector3 b, Vector3 outward)
+    {
+        var d = b - a; d.y = 0;
+        float len = d.magnitude;
+        if (len < 0.5f) return;
+        var dir = d / len;
+        bool alongX = Mathf.Abs(dir.x) > 0.5f;
+        float top = a.y + WallTop;
+        var c = (a + b) / 2f;
+        Box(t, "CityWall", new Vector3(c.x, (a.y - 4f + top) / 2f, c.z), alongX ? new Vector3(len, WallTop + 4f, 3f) : new Vector3(3f, WallTop + 4f, len), Ashlar, 2.5f);
+        Box(t, "WallBand", new Vector3(c.x, top - 0.6f, c.z) + outward * 1.52f, alongX ? new Vector3(len, 0.2f, 0.06f) : new Vector3(0.06f, 0.2f, len), Cream, 1.5f, false);
+        for (float u = 0.7f; u < len - 0.4f; u += 1.5f)
+        {
+            var p = a + dir * u + outward * 1.25f;
+            Box(t, "Merlon", new Vector3(p.x, top + 0.55f, p.z), alongX ? new Vector3(0.8f, 1.1f, 0.5f) : new Vector3(0.5f, 1.1f, 0.8f), Ashlar, 1f);
+        }
+    }
+
+    /// <summary>A square bastion on the wall: solid up to the walk, merlons round its top, open in the middle of each side for the walk.</summary>
+    private static void Bastion(Transform t, Vector3 foot, float size = 6f)
+    {
+        float top = foot.y + WallTop;
+        Box(t, "Bastion", new Vector3(foot.x, (foot.y - 4f + top) / 2f, foot.z), new Vector3(size, WallTop + 4f, size), Ashlar, 2.5f);
+        Box(t, "BastionBand", new Vector3(foot.x, top - 0.6f, foot.z), new Vector3(size + 0.12f, 0.2f, size + 0.12f), Cream, 1.5f, false);
+        float h = size / 2f - 0.3f;
+        for (int side = 0; side < 4; side++)
+            for (float u = -h + 0.35f; u <= h - 0.3f; u += 1.3f)
+            {
+                if (Mathf.Abs(u) < 1.4f) continue;
+                var off = side == 0 ? new Vector3(u, 0, h) : side == 1 ? new Vector3(u, 0, -h) : side == 2 ? new Vector3(h, 0, u) : new Vector3(-h, 0, u);
+                Box(t, "Merlon", new Vector3(foot.x, top + 0.55f, foot.z) + off, side < 2 ? new Vector3(0.7f, 1.1f, 0.6f) : new Vector3(0.6f, 1.1f, 0.7f), Ashlar, 1f);
+            }
+    }
+
+    /// <summary>A wooden crate (or a stack of them) from 'baseY' up to 'topY'.</summary>
+    private static void Crates(Transform t, float x, float z, float baseY, float topY, float size = 1.1f, float yaw = 0f)
+    {
+        for (float y = baseY; y < topY - 0.05f;)
+        {
+            float h = Mathf.Min(0.8f, topY - y);
+            Box(t, "Crate", new Vector3(x, y + h / 2f, z), new Vector3(size, h, size), Wood, 1f, true, yaw);
+            y += h;
+        }
+    }
+
+    /// <summary>A hidden way up: crates (stacks) standing on 'baseY', each 0.8 m higher than the one before.</summary>
+    private static void CrateClimb(Transform t, float baseY, params (float x, float z, float top)[] steps)
+    {
+        foreach (var (x, z, top) in steps) Crates(t, x, z, baseY, top);
+    }
+
+    /// <summary>
+    /// A row of four store rooms against the inside of the city wall, each a step higher (2.4, 4.0,
+    /// 5.6, 7.2 m), with crates on the roofs between them: the hidden way up onto the wall walk (8 m).
+    /// 'start' is on the inner face of the wall, the row runs along 'along', 'inward' into the city.
+    /// </summary>
+    private static void StoreRow(Transform t, Vector3 start, Vector3 along, Vector3 inward)
+    {
+        float y = start.y;
+        float yaw = Mathf.Atan2(inward.x, inward.z) * Mathf.Rad2Deg;
+        Vector3 P(float u, float v) => start + along * u + inward * v;
+        // two crates in the street up to the first roof
+        var c1 = P(-2.4f, 1.6f); Crates(t, c1.x, c1.z, y, y + 0.8f);
+        var c2 = P(-1.2f, 1.6f); Crates(t, c2.x, c2.z, y, y + 1.6f);
+        float[] tops = { 2.4f, 4.0f, 5.6f, 7.2f };
+        for (int i = 0; i < 4; i++)
+        {
+            var c = P(i * 3.2f + 1.6f, 1.5f);
+            float h = tops[i];
+            Box(t, "StoreRoom", new Vector3(c.x, y + h / 2f, c.z), Mathf.Abs(along.x) > 0.5f ? new Vector3(3.2f, h, 3f) : new Vector3(3f, h, 3.2f), i % 2 == 0 ? LimeOchre : Plaster, 2f);
+            Box(t, "StoreRoof", new Vector3(c.x, y + h + 0.04f, c.z), Mathf.Abs(along.x) > 0.5f ? new Vector3(3.3f, 0.08f, 3.1f) : new Vector3(3.1f, 0.08f, 3.3f), Wood, 2f);
+            var door = P(i * 3.2f + 1.6f, 3.03f);
+            Box(t, "StoreDoor", new Vector3(door.x, y + 1.05f, door.z), Mathf.Abs(along.x) > 0.5f ? new Vector3(1f, 2.1f, 0.06f) : new Vector3(0.06f, 2.1f, 1f), Wood, 1f, false);
+            if (i < 3)
+            {
+                // a crate on this roof at the foot of the next room: 0.8 m under its roof
+                var k = P(i * 3.2f + 2.6f, 1.5f);
+                Crates(t, k.x, k.z, y + h + 0.08f, y + tops[i + 1] - 0.8f, 1f, yaw);
+            }
+        }
+        NightLights.Lamp(t, P(-0.3f, 3.2f) + Vector3.up * (y + 2.4f), new Vector3(0.22f, 0.32f, 0.22f), night, 2.6f);
+    }
+
     /// <summary>
     /// The walls round the whole city with towers, and the main gate in the south wall: a tall horseshoe
     /// arch between two towers, its name over it on both faces, and inside it a board with the story of
@@ -958,24 +1067,35 @@ public static class ZahraBuilder
     private static void CityWalls()
     {
         var t = Node("CityWalls", root, Vector3.zero, 0);
-        const float x = 125f, th = 3f;
+        const float x = 125f;
         foreach (float s in new[] { -1f, 1f })
-            foreach (var (z0, z1, y) in new[] { (-126.5f, MidSouth, Lower), (MidSouth, UpSouth, Middle), (UpSouth, 126.5f, Upper) })
-            {
-                Box(t, "CityWall", new Vector3(s * x, y + 2f, (z0 + z1) / 2f), new Vector3(th, 12f, z1 - z0), Ashlar, 2.5f);
-                Box(t, "WallBand", new Vector3(s * x, y + 8.1f, (z0 + z1) / 2f), new Vector3(th + 0.2f, 0.2f, z1 - z0), Cream, 1.5f, false);
-                for (float z = z0 + 14f; z < z1 - 6f; z += 24f) Tower(t, new Vector3(s * x, y, z), 10f);
-            }
-        // the south wall, open for the gate
-        foreach (var (a, b) in new[] { (-126.5f, GateX - 4f), (GateX + 4f, 126.5f) })
         {
-            Box(t, "CityWall", new Vector3((a + b) / 2f, 2.5f, -125f), new Vector3(b - a, 11f, th), Ashlar, 2.5f);
-            Box(t, "WallBand", new Vector3((a + b) / 2f, 8.1f, -125f), new Vector3(b - a, 0.2f, th + 0.2f), Cream, 1.5f, false);
+            var outward = new Vector3(s, 0, 0);
+            foreach (var (z0, z1, y) in new[] { (-123.5f, MidSouth, Lower), (MidSouth, UpSouth, Middle), (UpSouth, 123f, Upper) })
+            {
+                WallStretch(t, new Vector3(s * x, y, z0), new Vector3(s * x, y, z1), outward);
+                for (float z = z0 + 14f; z < z1 - 12f; z += 24f) Bastion(t, new Vector3(s * x, y, z));
+            }
+            // on the walk, stairs up where the wall climbs to the next terrace
+            Buildings.Stairs(t, new Vector3(s * (x - 0.25f), Lower + WallTop, MidSouth - 7.2f), Vector3.forward, Middle - Lower, 2f, Ashlar);
+            Buildings.Stairs(t, new Vector3(s * (x - 0.25f), Middle + WallTop, UpSouth - 10.8f), Vector3.forward, Upper - Middle, 2f, Ashlar);
         }
-        for (float xx = -110f; xx < 125f; xx += 26f)
-            if (Mathf.Abs(xx - GateX) > 12f) Tower(t, new Vector3(xx, Lower, -125f), 10f);
-        foreach (var c in new[] { new Vector3(-x, Lower, -125f), new Vector3(x, Lower, -125f), new Vector3(-x, Upper, 124f), new Vector3(x, Upper, 124f) })
-            Tower(t, c, 12f, 8f);
+        // the south wall, open for the gate
+        foreach (var (a, b) in new[] { (-123.5f, GateX - 4f), (GateX + 4f, 123.5f) })
+            WallStretch(t, new Vector3(a, Lower, -125f), new Vector3(b, Lower, -125f), Vector3.back);
+        for (float xx = -110f; xx < 120f; xx += 26f)
+            if (Mathf.Abs(xx - GateX) > 12f) Bastion(t, new Vector3(xx, Lower, -125f));
+        // the north wall above the upper terrace, two stairs up to its walk
+        WallStretch(t, new Vector3(-123.5f, Upper, 124.5f), new Vector3(123.5f, Upper, 124.5f), Vector3.forward);
+        for (float xx = -100f; xx < 120f; xx += 30f) Bastion(t, new Vector3(xx, Upper, 124.5f));
+        foreach (float xx in new[] { -36f, 54f })
+            Buildings.Stairs(t, new Vector3(xx, Upper, 121.8f), Vector3.right, WallTop, 2f, Ashlar);
+        foreach (var c in new[] { new Vector3(-x, Lower, -125f), new Vector3(x, Lower, -125f), new Vector3(-x, Upper, 124.5f), new Vector3(x, Upper, 124.5f) })
+            Bastion(t, c, 8f);
+        // no stairs on the other walls: the way up is over the roofs of the store rows built against them
+        StoreRow(t, new Vector3(-123.5f, Lower, -55f), Vector3.forward, Vector3.right);
+        StoreRow(t, new Vector3(123.5f, Middle, 1f), Vector3.back, Vector3.left);
+        StoreRow(t, new Vector3(52f, Lower, -123.5f), Vector3.right, Vector3.forward);
         // the gate: two towers and a great horseshoe arch, wooden doors open against the inside
         foreach (float s in new[] { -1f, 1f }) Tower(t, new Vector3(GateX + s * 7f, Lower, -125f), 14f, 6f);
         var gate = Node("MainGate", t, new Vector3(GateX, Lower, -125f), 0);
@@ -1156,7 +1276,7 @@ public static class ZahraBuilder
         Box(t, "RoofParapet", new Vector3(x1 + 0.3f, py, (z0 + z1) / 2f), new Vector3(0.4f, 0.8f, z1 - z0), Ashlar);
         Box(t, "RoofParapet", new Vector3((x0 - 2.5f) / 2f - 0.25f, py, z1 - 0.2f), new Vector3(-2.5f - x0 + 0.5f, 0.8f, 0.4f), Ashlar);
         Box(t, "RoofParapet", new Vector3((1.5f + x1) / 2f + 0.25f, py, z1 - 0.2f), new Vector3(x1 - 1.5f + 0.5f, 0.8f, 0.4f), Ashlar);
-        // fallen ashlars on the upper terrace behind it: three steps of 0.9 m up to the roof
+        // building stones left over from the works on the upper terrace behind it: three steps up to the roof
         for (int i = 0; i < 3; i++)
         {
             float h = 0.9f * (i + 1);
@@ -1471,6 +1591,22 @@ public static class ZahraBuilder
                                                (-1f, -4f, "ديوان الرسائل", "THE CHANCERY"), (-1f, -12f, "مجلس الوزراء", "COUNCIL OF THE VIZIERS"), (-1f, -20.25f, "خزانة الكسوة", "THE WARDROBE") })
             Sign(t, W(s * 20.63f, floor + 3.05f, z), s * 90f, ar, en, 2f, 0.66f);
         Sign(t, W(0, floor + 8.1f, 0.65f), 180f, "مجلس الخلافة", "THE THRONE HALL", 3.2f, 0.6f);
+        // the hidden way onto the throne hall roof: crates left by the craftsmen in the east corridor up to
+        // the chamber roof, two more there and a plank across the corridor to the hall roof
+        float rf = c.y + floor + 0.04f;
+        foreach (var (lx, lz, top) in new[] { (18f, -24.6f, 1.3f), (19.4f, -24.6f, 2.1f), (19.4f, -23.2f, 2.9f), (18f, -23.2f, 3.7f), (18f, -21.8f, 4.5f), (19.6f, -21.8f, 5.3f) })
+        {
+            var p = W(lx, 0, lz);
+            Crates(t, p.x, p.z, rf, c.y + top);
+        }
+        float chamberTop = c.y + floor + 5.6f;
+        foreach (var (lx, lz, top) in new[] { (21.6f, -21.8f, 6.9f), (21.6f, -20.4f, 7.7f), (21.6f, -19f, 8.5f) })
+        {
+            var p = W(lx, 0, lz);
+            Crates(t, p.x, p.z, chamberTop, c.y + top);
+        }
+        var plank = W(19.2f, 8.5f, -19f);
+        Box(t, "Plank", plank, new Vector3(4f, 0.1f, 0.6f), Wood, 1f);
         // the approach from the street, a ramp up onto the podium
         Underground.Wedge(t, "Ramp", W(0, Lower, hz + 4.6f), W(0, floor, hz + 2f), 6f, Paving);
         Slab(t, "Approach", Rect.MinMaxRect(c.x - 4f, c.z + hz + 2f, c.x + 4f, MidSouth - 4f), Lower + 0.05f, 0.1f, Paving, 2.5f);
@@ -1640,10 +1776,10 @@ public static class ZahraBuilder
         {
             var pot = t.TransformPoint(new Vector3(px, 0.12f, pz));
             MeshGen.TexCylinder("Pot", pot, 0.26f, 0.5f, Terracotta, 1f, t, false);
-            Nature.Place("Bush_Common_Flowers", pot + Vector3.up * 0.45f, R(0, 360), 0.7f, t);
+            if (px < 0f) Small(Nature.Place("Bush_Common_Flowers", pot + Vector3.up * 0.45f, R(0, 360), 0.7f, t));
         }
-        // a lantern by the door, a lit window for the night
-        NightLights.Lamp(t, t.TransformPoint(new Vector3(door + 1.6f, 2.6f, -hd - 0.3f)), new Vector3(0.2f, 0.3f, 0.2f), night, 2.6f);
+        // a lantern by the door (its glow on the street at the grand houses and every third one), a lit window
+        NightLights.Lamp(t, t.TransformPoint(new Vector3(door + 1.6f, 2.6f, -hd - 0.3f)), new Vector3(0.2f, 0.3f, 0.2f), night, arabic != null || houses % 3 == 0 ? 2.6f : 0f);
         if (r.NextDouble() < 0.6) NightLights.Window(t, t.TransformPoint(new Vector3(-hw + 1.6f, 2.5f, hd + 0.08f)), t.TransformDirection(Vector3.forward), 0.8f, 1f, night);
         if (arabic != null) Sign(t, t.TransformPoint(new Vector3(door, Mathf.Min(h - 0.35f, 4.25f), -hd - 0.1f)), yaw, arabic, english, 2.8f, 0.8f);
     }
@@ -1762,7 +1898,9 @@ public static class ZahraBuilder
             Rect.MinMaxRect(-52f, -31f, -42f, 32f), Rect.MinMaxRect(30f, -30f, 102f, 46f), Rect.MinMaxRect(46f, 44f, 93f, 62f), Rect.MinMaxRect(12f, 38f, 30f, 62f),
             // upper terrace
             Rect.MinMaxRect(-96f, 58f, -34f, 92f), Rect.MinMaxRect(-36f, 58f, 14f, 93f), Rect.MinMaxRect(10f, 62f, 48f, 90f), Rect.MinMaxRect(50f, 62f, 92f, 88f),
-            Rect.MinMaxRect(-44f, 116f, -26f, 127f), Rect.MinMaxRect(38f, 116f, 54f, 127f), Rect.MinMaxRect(16f, 58f, 26f, 68f),
+            Rect.MinMaxRect(-38f, 116f, -20f, 127f), Rect.MinMaxRect(52f, 116f, 70f, 127f), Rect.MinMaxRect(16f, 58f, 26f, 68f),
+            // the store rows against the walls (the hidden ways up)
+            Rect.MinMaxRect(-124f, -59f, -118.5f, -40f), Rect.MinMaxRect(118.5f, -13f, 124f, 5f), Rect.MinMaxRect(48f, -124f, 66f, -118.5f),
         };
         int seed = 100;
         void Plots(float[] xs, float[] zs, float y)
@@ -1824,6 +1962,8 @@ public static class ZahraBuilder
         CypressTree(t, new Vector3(-38f, y, 66f), 10f);
         CypressTree(t, new Vector3(-94f, y, 66f), 9f);
         BoardStand(t, new Vector3(-61f, y + 0.1f, 66f), 0f, "دار الملك", "DAR AL-MULK - THE CALIPH'S HOUSE");
+        // behind the west end, out of sight: crates up to the roof of the private rooms
+        CrateClimb(t, y, (-95.5f, 84f, y + 0.8f), (-95.5f, 85.4f, y + 1.6f), (-94.1f, 85.4f, y + 2.4f), (-94.1f, 86.8f, y + 3.2f), (-95.5f, 86.8f, y + 4.0f), (-93f, 88.2f, y + 4.8f));
         Buildings.Stairs(t, new Vector3(-58f, Middle, UpSouth - 10.8f), Vector3.forward, Upper - Middle, 3f, Ashlar);
     }
 
@@ -1849,6 +1989,8 @@ public static class ZahraBuilder
         foreach (float z in new[] { 76f, 84f }) HangingLamp(t, new Vector3(-9f, y + 4.3f, z), 1.2f);
         foreach (float x in new[] { -30f, 10f }) Lantern(t, new Vector3(x, y, 66f));
         BoardStand(t, new Vector3(-17f, y + 0.1f, 65f), 0f, "دار الجند", "DAR AL-JUND - HOUSE OF THE ARMY");
+        // behind the hall: crates zigzagging up to its roof
+        CrateClimb(t, y, (-22f, 96f, y + 0.8f), (-20.6f, 96f, y + 1.6f), (-20.6f, 94.6f, y + 2.4f), (-19.2f, 94.6f, y + 3.2f), (-19.2f, 93.2f, y + 4.0f), (-17.8f, 93.2f, y + 4.8f), (-17.8f, 92.1f, y + 5.6f));
     }
 
 
@@ -1879,27 +2021,15 @@ public static class ZahraBuilder
     }
 
 
-    /// <summary>The walk on the north wall, reached by two stairs: the longest view of the map.</summary>
-    private static void NorthWall()
-    {
-        var t = Node("NorthWall", root, Vector3.zero, 0);
-        float y = Upper, top = 6f;
-        Box(t, "NorthWall", new Vector3(0, y + top / 2f - 2f, 123.5f), new Vector3(Half * 2f - 4f, top + 4f, 3f), Ashlar, 2.5f);
-        for (float x = -122f; x < 122f; x += 1.6f)
-            Box(t, "Merlon", new Vector3(x, y + top + 0.55f, 124.7f), new Vector3(0.8f, 1.1f, 0.6f), Ashlar, 1f);
-        for (float x = -96f; x < 120f; x += 30f)
-            Tower(t, new Vector3(x, y, 124f), 9f, 5f);
-        foreach (float x in new[] { -42f, 40f })
-            Buildings.Stairs(t, new Vector3(x, y, 121f), Vector3.right, top, 2f, Ashlar);
-    }
-
-
-    /// <summary>Ammunition: on every level, in the streets, the palace courtyard and on the Salón Rico roof.</summary>
+    /// <summary>
+    /// Ammunition: in the streets, the gardens and the palace gallery, never at the strong points (roofs,
+    /// walls, towers, the high terrace): whoever holds one has to leave it for more.
+    /// </summary>
     private static void Supplies()
     {
         var t = Node("Supplies", root, Vector3.zero, 0);
         foreach (var (p, yaw) in new[] { (new Vector3(70f, Middle + 0.1f, -4f), 0f), (new Vector3(-30f, Middle + 0.5f, 28.5f), 90f), (new Vector3(GateX, Lower + 0.1f, -60f), 90f),
-                                          (new Vector3(-60f, Upper + 0.1f, 64f), 0f), (new Vector3(50f, Upper + 0.1f, 96f), 90f), (new Vector3(-12f, Middle + 0.5f + 8.9f, 48f), 0f),
+                                          (new Vector3(-10f, Upper + 0.1f, 96f), 0f), (new Vector3(92f, Upper + 0.1f, 96f), 90f),
                                           (new Vector3(10f, Lower + 0.5f, -60.5f), 0f), (new Vector3(-44f, Middle + 0.1f, 24f), 0f), (new Vector3(0f, Lower + 0.1f, -90f), 0f),
                                           (new Vector3(51f, Lower + 0.55f, -65f), 0f), (new Vector3(-90f, Middle + 0.1f, 15f), 0f) })
             Obstacles.AmmoCrate(t, p, yaw);
@@ -1964,15 +2094,15 @@ public static class ZahraBuilder
             sg.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
         // woods on the hills: pines and holm oaks, thicker further up
-        for (int i = 0; i < 130; i++)
+        for (int i = 0; i < 80; i++)
         {
             float x = R(-300f, 300f), z = R(136f, 280f);
-            Nature.Tree(rng.NextDouble() < 0.55 ? Nature.Pines : Nature.Trees, rng, new Vector3(x, North(x, z) - 0.3f, z), 7f, 13f, t);
+            Scenery(Nature.Tree(rng.NextDouble() < 0.55 ? Nature.Pines : Nature.Trees, rng, new Vector3(x, North(x, z) - 0.3f, z), 9f, 15f, t));
         }
-        for (int i = 0; i < 44; i++)
+        for (int i = 0; i < 28; i++)
         {
             float s = rng.NextDouble() < 0.5 ? -1f : 1f, x = s * R(136f, 260f), z = R(-120f, 125f);
-            Nature.Tree(Nature.Trees, rng, new Vector3(x, Level(z) - 1f + Mathf.Max(0f, Mathf.Abs(x) - 132f) * 0.18f * Fbm(x, z, 3) * 2f - 0.3f, z), 5f, 9f, t);
+            Scenery(Nature.Tree(Nature.Trees, rng, new Vector3(x, Level(z) - 1f + Mathf.Max(0f, Mathf.Abs(x) - 132f) * 0.18f * Fbm(x, z, 3) * 2f - 0.3f, z), 6f, 10f, t));
         }
         // the valley: strips of green wheat and of ploughed earth, olive groves in rows
         for (int i = 0; i < 9; i++)
@@ -1981,12 +2111,13 @@ public static class ZahraBuilder
             for (int j = 0; j < 7; j++)
             {
                 float x = -300f + j * 95f + R(-12f, 12f);
-                Box(t, "Field", new Vector3(x, -2.98f, z), new Vector3(R(60f, 85f), 0.06f, 13f), (i + j) % 3 == 0 ? Earth : Grass, 6f, false);
+                // thin as paint on the valley floor: no edges to see
+                Box(t, "Field", new Vector3(x, -2.985f, z), new Vector3(R(60f, 85f), 0.012f, 13f), (i + j) % 3 == 0 ? Earth : Wheat, 6f, false);
             }
         }
         for (int row = 0; row < 4; row++)
             for (float x = -240f; x < 240f; x += R(9f, 14f))
-                if (rng.NextDouble() < 0.55) Nature.Tree(Nature.Trees, rng, new Vector3(x, -3f, -150f - row * 30f + R(-3f, 3f)), 3.5f, 5f, t);
+                if (rng.NextDouble() < 0.35) Scenery(Nature.Tree(Nature.Trees, rng, new Vector3(x, -3f, -150f - row * 30f + R(-3f, 3f)), 3.5f, 5f, t));
         // the Guadalquivir: flowing west between banks, poplars and reeds
         var flow = AssetSetup.WaterMat("Water_River", new Color(0.05f, 0.15f, 0.15f), new Color(0.22f, 0.36f, 0.32f), 1.2f, 0.25f, new Vector3(-1f, 1.2f, 0f));
         var river = MeshGen.TexBox("Guadalquivir", new Vector3(0, -3.3f, -300f), new Vector3(760f, 0.05f, 46f), flow, 20f, t, 0f, false);
@@ -1994,11 +2125,8 @@ public static class ZahraBuilder
         foreach (float s in new[] { -1f, 1f })
         {
             Box(t, "RiverBank", new Vector3(0, -2.92f, -300f + s * 24.5f), new Vector3(760f, 0.3f, 3f), Earth, 4f, false);
-            for (float x = -280f; x < 280f; x += R(14f, 24f))
-            {
-                Nature.Tree(Nature.Trees, rng, new Vector3(x, -3f, -300f + s * 29f), 9f, 13f, t);
-                Nature.Place("Grass_Wispy_Tall", new Vector3(x + R(-5f, 5f), -2.8f, -300f + s * 25.2f), R(0, 360), R(1.2f, 1.8f), t);
-            }
+            for (float x = -280f; x < 280f; x += R(22f, 34f))
+                Scenery(Nature.Tree(Nature.Trees, rng, new Vector3(x, -3f, -300f + s * 29f), 10f, 14f, t));
         }
     }
 

@@ -145,12 +145,16 @@ namespace UA
             cam.allowMSAA = Quality > 0;
             var distances = new float[32];
             distances[DetailLayer] = Quality == 0 ? 70f : Quality == 1 ? 100f : 140f;
+            distances[SceneryLayer] = Quality == 0 ? 150f : Quality == 1 ? 210f : 0f;   // 0: as far as the camera sees
             cam.layerCullDistances = distances;
             cam.layerCullSpherical = true;
         }
 
         /// <summary>Layer of small merged props (see MapOptimizer): render only, no colliders.</summary>
         public const int DetailLayer = 12;
+
+        /// <summary>Layer of the scenery outside a map (trees on the hills): drawn less far on weaker phones.</summary>
+        public const int SceneryLayer = 13;
 
         private static int nativeWidth, nativeHeight, appliedScale;
 
