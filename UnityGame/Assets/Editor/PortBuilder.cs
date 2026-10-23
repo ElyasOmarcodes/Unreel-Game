@@ -534,49 +534,73 @@ public static class PortBuilder
         var ramp = CityLordBuilder.Kit("Road_set_v1_road_up_2m_HD");
         if (ramp == null) return;
         int built = 0;
-        foreach (bool big in new[] { true, false, false })
+        // every free place on a 3 m grid, in all four directions, the big yard first; smaller sizes where it does not fit
+        var sizes = new List<(float lower, float wide, bool big)> { (34f, 22f, true), (20f, 16f, false), (20f, 16f, false), (14f, 12f, false) };
+        var used = new List<Bounds>();
+        foreach (var (lower, wide, big) in sizes)
         {
-            float lower = big ? 34f : 20f, wide = big ? 22f : 16f, total = lower + 20f;
-            for (int attempt = 0; attempt < 500; attempt++)
-            {
-                Physics.SyncTransforms();
-                var c = new Vector3(R(-HalfX + total / 2f + 5f, HalfX - total / 2f - 5f), 0, R(-HalfZ + total / 2f + 5f, HalfZ - total / 2f - 5f));
-                var d = new[] { Vector3.forward, Vector3.back, Vector3.right, Vector3.left }[rng.Next(4)];
-                var rot = Quaternion.LookRotation(d);
-                var right = rot * Vector3.right;
-                var back = c - d * (total / 2f);
-                Vector3 L(float along, float side, float y) => back + d * along + right * side + Vector3.up * y;
-                if (Physics.CheckBox(c + Vector3.up * 3.2f, new Vector3(wide / 2f + 1.5f, 3f, total / 2f + 1.5f), rot, mask, QueryTriggerInteraction.Ignore)) continue;
-                if (InPit(c, total / 2f + 3f)) continue;
-                var t = new GameObject("RaisedYard").transform;
-                t.SetParent(root, false);
-                float yaw = rot.eulerAngles.y;
-                Box("RaisedYard", L(lower / 2f, 0, 1f), new Vector3(wide, 2f, lower), RaisedWall, 3f, t, yaw);
-                Box("RaisedTop", L(lower / 2f, 0, 2.02f), new Vector3(wide, 0.04f, lower), Asphalt, 5f, t, yaw, false);
-                float rampSide = big ? 5.5f : 0f;
-                Ramp(t, ramp, L(lower, rampSide, 0f), d, 0f, 2f);
-                rampChains.Add(new[] { L(total + 1.5f, rampSide, 0f), L(lower + 10f, rampSide, 1f), L(lower - 2f, rampSide, 2f) });
-                // road blocks along the sides of the deck
-                for (float along = big ? 17f : 3f; along < lower - 2f; along += 6f)
-                    foreach (float side in new[] { -1f, 1f })
-                        CityLordBuilder.Place("Road_block_v1", t, L(along, side * (wide / 2f - 0.8f), 2f), yaw + 90f);
-                if (big)
-                {
-                    Box("RaisedYardUpper", L(7f, 0, 3f), new Vector3(wide, 2f, 14f), RaisedWall, 3f, t, yaw);
-                    Box("RaisedTop", L(7f, 0, 4.02f), new Vector3(wide, 0.04f, 14f), Asphalt, 5f, t, yaw, false);
-                    Ramp(t, ramp, L(14f, -5.5f, 0f), d, 2f, 2f);
-                    rampChains.Add(new[] { L(35.5f, -5.5f, 2f), L(24f, -5.5f, 3f), L(12f, -5.5f, 4f) });
-                    for (float side = 1f; side < wide / 2f - 1f; side += 3f)
-                        CityLordBuilder.Place("Road_block_v1", t, L(13.2f, side, 4f), yaw);
-                    foreach (float side in new[] { -1f, 1f })
-                        CityLordBuilder.Place("Road_block_v1", t, L(3f, side * (wide / 2f - 0.8f), 4f), yaw + 90f);
-                }
-                built++;
-                break;
-            }
+            if (built >= 3) break;
+            float total = lower + 20f;
+            var places = new List<(Vector3 c, Vector3 d)>();
+            Physics.SyncTransforms();
+            for (float x = -HalfX + 6f; x <= HalfX - 6f; x += 3f)
+                for (float z = -HalfZ + 6f; z <= HalfZ - 6f; z += 3f)
+                    foreach (var d in new[] { Vector3.forward, Vector3.back, Vector3.right, Vector3.left })
+                    {
+                        var c = new Vector3(x, 0, z);
+                        var rot = Quaternion.LookRotation(d);
+                        var half = new Vector3(wide / 2f + 1.5f, 3f, total / 2f + 1.5f);
+                        var reach = rot * half;
+                        if (Mathf.Abs(c.x) + Mathf.Abs(reach.x) > HalfX - 3f || Mathf.Abs(c.z) + Mathf.Abs(reach.z) > HalfZ - 3f) continue;
+                        if (InPit(c, total / 2f + 3f)) continue;
+                        if (used.Any(u => u.Intersects(new Bounds(c, new Vector3(Mathf.Abs(reach.x), 6f, Mathf.Abs(reach.z)) * 2f + new Vector3(8f, 0, 8f))))) continue;
+                        if (Physics.CheckBox(c + Vector3.up * 3.2f, half, rot, mask, QueryTriggerInteraction.Ignore)) continue;
+                        places.Add((c, d));
+                    }
+            Debug.Log($"[Map] Port raised yard {lower}x{wide}: {places.Count} free places");
+            if (places.Count == 0) continue;
+            var (center, dir) = places[rng.Next(places.Count)];
+            BuildRaisedYard(center, dir, lower, wide, big);
+            var r2 = Quaternion.LookRotation(dir) * new Vector3(wide / 2f, 3f, total / 2f);
+            used.Add(new Bounds(center, new Vector3(Mathf.Abs(r2.x), 6f, Mathf.Abs(r2.z)) * 2f));
+            built++;
         }
         Physics.SyncTransforms();
-        Debug.Log($"[Port] {built} raised yards");
+        Debug.Log($"[Map] Port: {built} raised yards");
+    }
+
+    private static void BuildRaisedYard(Vector3 c, Vector3 d, float lower, float wide, bool big)
+    {
+        var ramp = CityLordBuilder.Kit("Road_set_v1_road_up_2m_HD");
+        float total = lower + 20f;
+        var rot = Quaternion.LookRotation(d);
+        var right = rot * Vector3.right;
+        var back = c - d * (total / 2f);
+        Vector3 L(float along, float side, float y) => back + d * along + right * side + Vector3.up * y;
+        var t = new GameObject("RaisedYard").transform;
+        t.SetParent(root, false);
+        t.position = c;
+        float yaw = rot.eulerAngles.y;
+        Box("RaisedYard", L(lower / 2f, 0, 1f), new Vector3(wide, 2f, lower), RaisedWall, 3f, t, yaw);
+        Box("RaisedTop", L(lower / 2f, 0, 2.02f), new Vector3(wide, 0.04f, lower), Asphalt, 5f, t, yaw, false);
+        float rampSide = big ? 5.5f : 0f;
+        Ramp(t, ramp, L(lower, rampSide, 0f), d, 0f, 2f);
+        rampChains.Add(new[] { L(total + 1.5f, rampSide, 0f), L(lower + 10f, rampSide, 1f), L(lower - 2f, rampSide, 2f) });
+        // road blocks along the sides of the deck
+        for (float along = big ? 17f : 3f; along < lower - 2f; along += 6f)
+            foreach (float side in new[] { -1f, 1f })
+                CityLordBuilder.Place("Road_block_v1", t, L(along, side * (wide / 2f - 0.8f), 2f), yaw + 90f);
+        if (big)
+        {
+            Box("RaisedYardUpper", L(7f, 0, 3f), new Vector3(wide, 2f, 14f), RaisedWall, 3f, t, yaw);
+            Box("RaisedTop", L(7f, 0, 4.02f), new Vector3(wide, 0.04f, 14f), Asphalt, 5f, t, yaw, false);
+            Ramp(t, ramp, L(14f, -5.5f, 0f), d, 2f, 2f);
+            rampChains.Add(new[] { L(35.5f, -5.5f, 2f), L(24f, -5.5f, 3f), L(12f, -5.5f, 4f) });
+            for (float side = 1f; side < wide / 2f - 1f; side += 3f)
+                CityLordBuilder.Place("Road_block_v1", t, L(13.2f, side, 4f), yaw);
+            foreach (float side in new[] { -1f, 1f })
+                CityLordBuilder.Place("Road_block_v1", t, L(3f, side * (wide / 2f - 0.8f), 4f), yaw + 90f);
+        }
     }
 
     /// <summary>The CityLord road ramp from 'top' (its high edge, on the ground line) going down along d, from baseY + rise to baseY.</summary>

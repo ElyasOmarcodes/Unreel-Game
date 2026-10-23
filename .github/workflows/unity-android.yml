@@ -22,6 +22,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 150
+    permissions:
+      contents: write   # the screenshot copies go to a branch of their own
     steps:
       - name: Free disk space (the Unity editor with Android tools needs ~15 GB)
         uses: endersonmenezes/free-disk-space@7901478139cff6e9d44df5972fd8ab8fcade4db1 # v3.2.2
@@ -108,6 +110,26 @@ jobs:
 
       - name: Play a LAN match on the runner (host + client) and take screenshots
         run: bash .github/scripts/lan-test.sh UnityGame/Builds/Linux shots
+
+      # small copies of the screenshots on a branch of their own (ci-shots/<branch>), so they can be seen
+      # with git alone, also where the artifact store cannot be reached
+      - name: Push the screenshots to a branch
+        if: always()
+        run: |
+          [ -d shots ] && ls shots/*.png >/dev/null 2>&1 || exit 0
+          out=$(mktemp -d)
+          for f in shots/*.png; do
+            n=$(basename "$f" .png)
+            convert "$f" -resize 1280x720 -quality 82 "$out/$n.jpg" 2>/dev/null || cp "$f" "$out/"
+          done
+          grep -hE "\[UA\]|Exception" shots/*.log > "$out/log.txt" 2>/dev/null || true
+          cd "$out"
+          git init -q -b shots
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Screenshots of ${{ github.sha }} (run ${{ github.run_number }})"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:refs/heads/ci-shots/${{ github.ref_name }}"
 
       - uses: actions/upload-artifact@v4
         with:

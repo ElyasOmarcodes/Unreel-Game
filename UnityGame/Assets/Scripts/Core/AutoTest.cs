@@ -377,6 +377,31 @@ namespace UA
                 yield return Wait(0.6f);
                 yield return Shot($"91{(char)('a' + raised++)}-port-raised-yard");
             }
+            // the CityLord ammo box and wooden crates in the other maps
+            int box = 0;
+            foreach (int map in new[] { 0, 3, 6, 9 })
+            {
+                World.I.ApplyLighting(map);
+                yield return Until(() => World.I.MapReady, 30);
+                var all = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+                foreach (var t in new[] { all.FirstOrDefault(x => x.name == "AmmoCrate"), all.FirstOrDefault(x => x.name == "CrateStack") })
+                {
+                    if (t == null) continue;
+                    var from = t.position + new Vector3(3.2f, 2.2f, -3.2f);
+                    cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position + Vector3.up * 0.6f - from));
+                    yield return Wait(0.6f);
+                    yield return Shot($"92{(char)('a' + box++)}-map{map}-{t.name.ToLowerInvariant()}");
+                }
+            }
+            // the Port from above: the CityLord asphalt, containers, tanks and hangars
+            World.I.ApplyLighting(0);
+            yield return Until(() => World.I.MapReady, 30);
+            cam.transform.SetPositionAndRotation(new Vector3(-70f, 45f, -80f), Quaternion.LookRotation(new Vector3(0f, 0f, 0f) - new Vector3(-70f, 45f, -80f)));
+            yield return Wait(0.6f);
+            yield return Shot("93a-port-overview");
+            cam.transform.SetPositionAndRotation(new Vector3(70f, 45f, 80f), Quaternion.LookRotation(new Vector3(0f, 0f, 0f) - new Vector3(70f, 45f, 80f)));
+            yield return Wait(0.6f);
+            yield return Shot("93b-port-overview-north");
             CameraRig.Frozen = false;
         }
 
