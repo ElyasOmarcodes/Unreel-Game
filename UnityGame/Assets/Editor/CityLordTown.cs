@@ -39,6 +39,9 @@ public static partial class CityLordBuilder
     /// <summary>The middle of the yards (scene coordinates): boards and plates face it.</summary>
     private static readonly Vector3 TownMiddle = new Vector3(30f, -11f, -6f);
 
+    /// <summary>The highest street of the town (scene y): container tops, decks and roofs are above it.</summary>
+    private const float StreetTop = -9.6f;
+
     private static char DistrictOf(Vector3 c) => c.z < -30f && c.x < 92f ? 'D' : c.x < 18f ? 'A' : c.x < 62f ? 'B' : 'C';
 
     private static Vector3 Outward(char side) => side == 'N' ? Vector3.forward : side == 'S' ? Vector3.back : side == 'E' ? Vector3.right : Vector3.left;
@@ -363,6 +366,8 @@ public static partial class CityLordBuilder
                 {
                     // not the big plane under the roads either: something must not lie just above it
                     if (h.normal.y < 0.85f || Physics.Raycast(h.point + Vector3.up * 3.4f, Vector3.down, 3.1f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
+                    // street level only (the streets lie 10.9 to 12.9 m below the scene's zero): not a container top
+                    if (root.InverseTransformPoint(h.point).y > StreetTop) continue;
                     if (!any || h.point.y < hit.point.y) { hit = h; any = true; }
                 }
                 if (!any) continue;
