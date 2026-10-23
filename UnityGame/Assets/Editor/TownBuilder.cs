@@ -626,13 +626,13 @@ public static class TownBuilder
         const float plinth = 1.6f;
         float rise = h - plinth;
         int n = Mathf.CeilToInt(rise / 0.2f);
-        float run = n * 0.36f, sx0 = -w / 2f + wt + 0.2f, sz = -d / 2f + wt + 0.7f;
-        B(t, "StairPlinth", new Vector3(sx0 + run / 2f, plinth / 2f, sz), new Vector3(run, plinth, 1.2f), Stone, 1.5f);
-        Buildings.Stairs(t, t.TransformPoint(new Vector3(sx0, plinth, sz)), Vector3.right, rise, 1.2f, Boards);
-        B(t, "Crate", new Vector3(sx0 + 0.6f, 0.8f, sz + 1.25f), new Vector3(1f, 1.6f, 1f), DoorWood, 1f);
-        B(t, "Crate", new Vector3(sx0 + 0.6f, 0.4f, sz + 2.45f), new Vector3(1f, 0.8f, 1f), DoorWood, 1f);
+        float run = n * 0.36f, sx0 = -w / 2f + wt + 0.2f, stairZ = -d / 2f + wt + 0.7f;
+        B(t, "StairPlinth", new Vector3(sx0 + run / 2f, plinth / 2f, stairZ), new Vector3(run, plinth, 1.2f), Stone, 1.5f);
+        Buildings.Stairs(t, t.TransformPoint(new Vector3(sx0, plinth, stairZ)), Vector3.right, rise, 1.2f, Boards);
+        B(t, "Crate", new Vector3(sx0 + 0.6f, 0.8f, stairZ + 1.25f), new Vector3(1f, 1.6f, 1f), DoorWood, 1f);
+        B(t, "Crate", new Vector3(sx0 + 0.6f, 0.4f, stairZ + 2.45f), new Vector3(1f, 0.8f, 1f), DoorWood, 1f);
         // the roof, open over the stair
-        var hole = Rect.MinMaxRect(sx0 - 0.1f, sz - 0.75f, sx0 + run + 0.3f, sz + 0.75f);
+        var hole = Rect.MinMaxRect(sx0 - 0.1f, stairZ - 0.75f, sx0 + run + 0.3f, stairZ + 0.75f);
         foreach (var r in Underground.Cover(Rect.MinMaxRect(-w / 2f, -d / 2f, w / 2f, d / 2f), new[] { hole }))
             B(t, "LoftRoof", new Vector3(r.center.x, h - 0.15f, r.center.y), new Vector3(r.width, 0.3f, r.height), Plaster(k), 2.5f);
         NightLights.Lamp(t, t.TransformPoint(new Vector3(2f, h - 0.9f, 0f)), new Vector3(0.2f, 0.3f, 0.2f), night, 2.2f);
