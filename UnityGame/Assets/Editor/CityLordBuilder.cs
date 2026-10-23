@@ -23,7 +23,7 @@ using UnityEngine.Rendering;
 /// values. The only change: the whole map is lifted by <see cref="Lift"/> so its streets lie at the height
 /// 0 of the other maps (the game takes players who fall below -15 back to a spawn point).
 /// </summary>
-public static class CityLordBuilder
+public static partial class CityLordBuilder
 {
     /// <summary>Spawn point spwan1 stands at y -12.922: it comes to 0.</summary>
     public const float Lift = 12.922f;
@@ -42,33 +42,14 @@ public static class CityLordBuilder
 
     public static MapLayout Build()
     {
-        raw.Clear();
-        materials.Clear();
-        textures.Clear();
-        string file = Path.Combine(DataFolder, "scene.json");
-        if (!File.Exists(file)) throw new FileNotFoundException("[Map] CityLord data missing", file);
-        scene = D(Json.Parse(File.ReadAllText(file)));
-        AssetDatabase.DeleteAsset(MeshFolder);
-        AssetDatabase.DeleteAsset(MatFolder);
-        AssetSetup.Folder(MeshFolder);
-        AssetSetup.Folder(TexFolder);
-        AssetSetup.Folder(MatFolder);
+        Load(false);
         root = new GameObject("Map_CityLord").transform;
         root.position = new Vector3(0, Lift, 0);
         var geometry = Node("Geometry");
         var colliders = Node("Colliders");
-
-        var objects = L(scene["objects"]).Select(D).ToList();
-        // paths are not unique (siblings with the same name); every object of the map with a switched-off path is off itself
-        var inactive = new HashSet<string>(objects.Where(o => !B(o["active"])).Select(o => S(o["path"])));
-        bool ActiveInHierarchy(string path)
-        {
-            for (string p = path; ; p = p.Substring(0, p.LastIndexOf('/')))
-            {
-                if (inactive.Contains(p)) return false;
-                if (p.IndexOf('/') < 0) return true;
-            }
-        }
+        var parts = new Dictionary<string, List<GameObject>>();   // renderers made for each object path
+        var outlines = new Dictionary<string, Bounds>();           // collider bounds of each object path
+        var shells = new Dictionary<string, (List<Vector3> v, List<int> t)>();   // collider triangles of the buildings opened
 
         var collision = new Dictionary<Vector2Int, (List<Vector3> v, List<int> t)>();
         var play = new Bounds();
@@ -78,6 +59,14 @@ public static class CityLordBuilder
             if (Mathf.Max(b.size.x, b.size.z) > 150f) return;   // the ground reaching far beyond the fences
             if (playSet) play.Encapsulate(b);
             else { play = b; playSet = true; }
+        }
+        void Outline(string path, IEnumerable<Vector3> v)
+        {
+            foreach (var p in v)
+            {
+                if (outlines.TryGetValue(path, out var b)) { b.Encapsulate(p); outlines[path] = b; }
+                else outlines[path] = new Bounds(p, Vector3.zero);
+            }
         }
         void Collide(Vector3[] v, int[] t, Vector3 at)
         {
@@ -123,6 +112,8 @@ public static class CityLordBuilder
                     r.shadowCastingMode = (ShadowCastingMode)I(c["cast_shadows"]);
                     r.receiveShadows = I(c["receive_shadows"]) != 0;
                     r.lightProbeUsage = LightProbeUsage.Off;
+                    if (!parts.TryGetValue(path, out var list)) parts[path] = list = new List<GameObject>();
+                    list.Add(go);
                     renderers++;
                 }
                 else if (type == "MeshCollider")
@@ -130,7 +121,10 @@ public static class CityLordBuilder
                     var src = LoadMesh(S(c["mesh"]));
                     if (src == null) continue;
                     var v = src.P.Select(p => world.MultiplyPoint3x4(p)).ToArray();
-                    Collide(v, src.Sub.SelectMany(s => s).ToArray(), world.GetColumn(3));
+                    var t = src.Sub.SelectMany(s => s).ToArray();
+                    Collide(v, t, world.GetColumn(3));
+                    Outline(path, v);
+                    if (Opened.Any(d => d.path == path)) shells[path] = (v.ToList(), t.ToList());
                     meshColliders++;
                 }
                 else if (type == "BoxCollider")
@@ -148,7 +142,9 @@ public static class CityLordBuilder
                         var box = go.AddComponent<BoxCollider>();
                         box.center = center;
                         box.size = size;
-                        Play(new Bounds(world.MultiplyPoint3x4(center), Vector3.Scale(size, Abs(world.lossyScale))));
+                        var bounds = new Bounds(world.MultiplyPoint3x4(center), Vector3.Scale(size, Abs(world.lossyScale)));
+                        Play(bounds);
+                        Outline(path, new[] { bounds.min, bounds.max });
                     }
                     else
                     {
@@ -156,6 +152,7 @@ public static class CityLordBuilder
                         for (int i = 0; i < 8; i++)
                             v[i] = world.MultiplyPoint3x4(center + Vector3.Scale(size / 2f, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1)));
                         Collide(v, BoxTriangles, world.GetColumn(3));
+                        Outline(path, v);
                     }
                     boxes++;
                 }
@@ -171,7 +168,7 @@ public static class CityLordBuilder
         }
 
         // the mesh colliders, one mesh for each 40 m square of the map
-        var pieces = new List<Mesh>();
+        var cells = new List<MeshCollider>();
         foreach (var c in collision)
         {
             var mesh = new Mesh { name = $"CityLord_Collision_{c.Key.x}_{c.Key.y}" };
@@ -181,8 +178,13 @@ public static class CityLordBuilder
             mesh.RecalculateBounds();
             var go = new GameObject("Collision");
             go.transform.SetParent(colliders, false);
-            go.AddComponent<MeshCollider>().sharedMesh = mesh;
+            cells.Add(go.AddComponent<MeshCollider>());
+            cells[cells.Count - 1].sharedMesh = mesh;
         }
+
+        // doors opened into some of the buildings, with their insides
+        Physics.SyncTransforms();
+        int doors = OpenBuildings(geometry, colliders, parts, outlines, shells, cells);
 
         // invisible fences just outside the fenced yards
         var lift = Vector3.up * Lift;
@@ -201,6 +203,9 @@ public static class CityLordBuilder
             wall.transform.position = c;
             wall.AddComponent<BoxCollider>().size = sz;
         }
+        // the four parts of the town: a name board in each, a number on every building
+        Physics.SyncTransforms();
+        int numbered = NameTown(outlines);
         foreach (var tr in root.GetComponentsInChildren<Transform>(true))
             if (tr.gameObject.layer != World.FenceLayer)
                 GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
@@ -218,7 +223,7 @@ public static class CityLordBuilder
         root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "CityLord").ToArray();
         SaveMeshes();
         Debug.Log($"[Map] CityLord built: {renderers} renderers ({root.GetComponentsInChildren<Renderer>().Length} after merging), {meshColliders} mesh and {boxes} box colliders, " +
-                  $"{ammo} ammo boxes, {materials.Count} materials, {textures.Count} textures, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns, play area {play.size}");
+                  $"{ammo} ammo boxes, {doors} doors opened, {numbered} buildings numbered, {materials.Count} materials, {textures.Count} textures, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns, play area {play.size}");
         return layout;
     }
 

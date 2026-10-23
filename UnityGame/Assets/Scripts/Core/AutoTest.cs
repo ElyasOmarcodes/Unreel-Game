@@ -314,6 +314,9 @@ namespace UA
                 (12, "84-citylord-from-above", new Vector3(31f, 60f, -60f), new Vector3(31f, 0f, -4f)),
                 (13, "85-citylord-sunset", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
                 (14, "86-citylord-night", new Vector3(17.3f, 1.7f, 14.3f), new Vector3(39f, 2f, -2f)),
+                (12, "87-citylord-hangar-door", new Vector3(55f, 3.6f, -9.5f), new Vector3(66f, 3f, -9.5f)),
+                (12, "88-citylord-hangar-inside", new Vector3(63.5f, 3.4f, -9.5f), new Vector3(72f, 2.6f, -15f)),
+                (12, "89-citylord-north-door", new Vector3(48.8f, 3.6f, 14f), new Vector3(48.8f, 3.2f, 25f)),
             };
             foreach (var v in views)
             {
@@ -350,6 +353,29 @@ namespace UA
                 cam.transform.SetPositionAndRotation(foot, Quaternion.LookRotation(minaret.position - Vector3.up * 6f - foot));
                 yield return Wait(0.5f);
                 yield return Shot("62-zahra-minaret");
+            }
+            // CityLord: its name boards (placed on free ground near their spot) and number plates
+            World.I.ApplyLighting(12);
+            yield return Until(() => World.I.MapReady, 30);
+            int sign = 0;
+            foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                         .Where(x => x.name.StartsWith("Board ") || x.name == "Plate C-1" || x.name == "Plate A-2").OrderBy(x => x.name).ToList())
+            {
+                var from = t.position - t.forward * 7f + Vector3.up * 1.2f;
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position + Vector3.up * (t.name.StartsWith("Board") ? 2f : 0f) - from));
+                yield return Wait(0.6f);
+                yield return Shot($"90{(char)('a' + sign++)}-citylord-{t.name.Replace(' ', '-').ToLowerInvariant()}");
+            }
+            // the Port's raised yards (put on free ground when the map is built)
+            World.I.ApplyLighting(0);
+            yield return Until(() => World.I.MapReady, 30);
+            int raised = 0;
+            foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Where(x => x.name == "RaisedYardUpper" || x.name == "RaisedYard").Take(3).ToList())
+            {
+                var from = t.position + new Vector3(-24f, 14f, -24f);
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position - from));
+                yield return Wait(0.6f);
+                yield return Shot($"91{(char)('a' + raised++)}-port-raised-yard");
             }
             CameraRig.Frozen = false;
         }

@@ -53,7 +53,8 @@ public static class PortBuilder
     private static Material RoofRust => Pbr("RoofRust", "CorrugatedSteel007A", new Color(0.95f, 0.85f, 0.8f));
     private static Material Concrete => Pbr("Concrete", "Concrete034", Color.white, 0.6f);
     private static Material OldConcrete => Pbr("OldConcrete", "Concrete042A", Color.white, 0.6f);
-    private static Material Asphalt => Pbr("Asphalt", "Asphalt025C", new Color(0.85f, 0.85f, 0.88f), 0.6f);
+    // the yard is laid with the CityLord asphalt (its own seamless texture), like the streets of that town
+    private static Material Asphalt => CityLordBuilder.MaterialNamed("Seamless_asphalt_v1") ?? Pbr("Asphalt", "Asphalt025C", new Color(0.85f, 0.85f, 0.88f), 0.6f);
     private static Material TankPaint => Pbr("TankPaint", "Metal032", new Color(0.9f, 0.92f, 0.93f), 0.7f);
     private static Material RustPlates => Pbr("RustPlates", "MetalPlates013", Color.white, 0.7f);
     private static Material Bricks => Pbr("Bricks", "Bricks076A", Color.white, 0.6f);
@@ -390,8 +391,15 @@ public static class PortBuilder
         // no ammunition on the roof: holding it means coming down for more
     }
 
+    /// <summary>A CityLord oil tank (its own model) of the given radius, or a painted cylinder where it is missing.</summary>
     private static void Tank(Vector3 c, float radius, float height)
     {
+        var oil = CityLordBuilder.Kit("Oil_tank_v1");
+        if (oil != null)
+        {
+            CityLordBuilder.Place("Oil_tank_v1", root, c, R(0, 360), true, radius / Mathf.Max(0.5f, oil.Bounds.extents.x));
+            return;
+        }
         var t = new GameObject("Tank").transform;
         t.SetParent(root, false);
         t.position = c;
@@ -412,8 +420,19 @@ public static class PortBuilder
         go.transform.rotation = Quaternion.FromToRotation(Vector3.up, dir.normalized);
     }
 
+    /// <summary>Height of a container (the CityLord container brought to the size of the old one).</summary>
+    private static float ContainerH => CityLordBuilder.Kit("Cargo_container_v1_LD2close") is CityLordBuilder.KitPiece k ? k.Bounds.size.y * ContainerScale(k) : 2.59f;
+    private static float ContainerScale(CityLordBuilder.KitPiece k) => 6.06f / Mathf.Max(1f, k.Bounds.size.x);
+
     private static void Container(Vector3 bottomCenter, float yaw, int color, Transform parent)
     {
+        // the CityLord shipping container, long side along the yaw like the old one
+        var kit = CityLordBuilder.Kit("Cargo_container_v1_LD2close");
+        if (kit != null)
+        {
+            CityLordBuilder.Place("Cargo_container_v1_LD2close", parent, bottomCenter, yaw + 90f, true, ContainerScale(kit));
+            return;
+        }
         var go = MeshGen.Object("Container", MeshGen.Container(), ContainerMat(color), parent, bottomCenter, yaw);
         go.GetComponent<MeshRenderer>().sharedMaterials = new[] { ContainerMat(color), DarkMetal };
         var box = go.AddComponent<BoxCollider>();
@@ -430,7 +449,7 @@ public static class PortBuilder
         {
             int height = 1 + rng.Next(maxHeight);
             for (int k = 0; k < height; k++)
-                Container(c + right * (i * 2.6f) + Vector3.up * (k * 2.6f), yaw + (k > 0 ? R(-3, 3) : 0), rng.Next(7), t);
+                Container(c + right * (i * 2.6f) + Vector3.up * (k * (ContainerH + 0.02f)), yaw + (k > 0 ? R(-3, 3) : 0), rng.Next(7), t);
         }
     }
 
@@ -497,8 +516,95 @@ public static class PortBuilder
         }
     }
 
+    // ------------------------------------------------------------------ raised yards (CityLord style)
+
+    /// <summary>Bot routes up and down the ramps of the raised yards (joined to the grid like the pit's).</summary>
+    private static readonly List<Vector3[]> rampChains = new List<Vector3[]>();
+    private static Material RaisedWall => CityLordBuilder.MaterialNamed("UNIConcrete_wall_v1") ?? OldConcrete;
+
+    /// <summary>
+    /// High ground as CityLord has it: one yard raised 2 m with a higher deck 4 m up on its back, and two
+    /// smaller 2 m yards, each reached by the CityLord road ramp (20 m long, its own road texture), with
+    /// concrete road blocks along the edges as cover. Each is put where the yard is free.
+    /// </summary>
+    private static void RaisedYards()
+    {
+        rampChains.Clear();
+        int mask = World.EnvMask | (1 << World.FenceLayer);
+        var ramp = CityLordBuilder.Kit("Road_set_v1_road_up_2m_HD");
+        if (ramp == null) return;
+        int built = 0;
+        foreach (bool big in new[] { true, false, false })
+        {
+            float lower = big ? 34f : 20f, wide = big ? 22f : 16f, total = lower + 20f;
+            for (int attempt = 0; attempt < 500; attempt++)
+            {
+                Physics.SyncTransforms();
+                var c = new Vector3(R(-HalfX + total / 2f + 5f, HalfX - total / 2f - 5f), 0, R(-HalfZ + total / 2f + 5f, HalfZ - total / 2f - 5f));
+                var d = new[] { Vector3.forward, Vector3.back, Vector3.right, Vector3.left }[rng.Next(4)];
+                var rot = Quaternion.LookRotation(d);
+                var right = rot * Vector3.right;
+                var back = c - d * (total / 2f);
+                Vector3 L(float along, float side, float y) => back + d * along + right * side + Vector3.up * y;
+                if (Physics.CheckBox(c + Vector3.up * 3.2f, new Vector3(wide / 2f + 1.5f, 3f, total / 2f + 1.5f), rot, mask, QueryTriggerInteraction.Ignore)) continue;
+                if (InPit(c, total / 2f + 3f)) continue;
+                var t = new GameObject("RaisedYard").transform;
+                t.SetParent(root, false);
+                float yaw = rot.eulerAngles.y;
+                Box("RaisedYard", L(lower / 2f, 0, 1f), new Vector3(wide, 2f, lower), RaisedWall, 3f, t, yaw);
+                Box("RaisedTop", L(lower / 2f, 0, 2.02f), new Vector3(wide, 0.04f, lower), Asphalt, 5f, t, yaw, false);
+                float rampSide = big ? 5.5f : 0f;
+                Ramp(t, ramp, L(lower, rampSide, 0f), d, 0f, 2f);
+                rampChains.Add(new[] { L(total + 1.5f, rampSide, 0f), L(lower + 10f, rampSide, 1f), L(lower - 2f, rampSide, 2f) });
+                // road blocks along the sides of the deck
+                for (float along = big ? 17f : 3f; along < lower - 2f; along += 6f)
+                    foreach (float side in new[] { -1f, 1f })
+                        CityLordBuilder.Place("Road_block_v1", t, L(along, side * (wide / 2f - 0.8f), 2f), yaw + 90f);
+                if (big)
+                {
+                    Box("RaisedYardUpper", L(7f, 0, 3f), new Vector3(wide, 2f, 14f), RaisedWall, 3f, t, yaw);
+                    Box("RaisedTop", L(7f, 0, 4.02f), new Vector3(wide, 0.04f, 14f), Asphalt, 5f, t, yaw, false);
+                    Ramp(t, ramp, L(14f, -5.5f, 0f), d, 2f, 2f);
+                    rampChains.Add(new[] { L(35.5f, -5.5f, 2f), L(24f, -5.5f, 3f), L(12f, -5.5f, 4f) });
+                    for (float side = 1f; side < wide / 2f - 1f; side += 3f)
+                        CityLordBuilder.Place("Road_block_v1", t, L(13.2f, side, 4f), yaw);
+                    foreach (float side in new[] { -1f, 1f })
+                        CityLordBuilder.Place("Road_block_v1", t, L(3f, side * (wide / 2f - 0.8f), 4f), yaw + 90f);
+                }
+                built++;
+                break;
+            }
+        }
+        Physics.SyncTransforms();
+        Debug.Log($"[Port] {built} raised yards");
+    }
+
+    /// <summary>The CityLord road ramp from 'top' (its high edge, on the ground line) going down along d, from baseY + rise to baseY.</summary>
+    private static void Ramp(Transform parent, CityLordBuilder.KitPiece kit, Vector3 top, Vector3 d, float baseY, float rise)
+    {
+        float scaleY = rise / Mathf.Max(0.1f, kit.ColliderBounds.size.y);
+        float yaw = Mathf.Atan2(-d.z, d.x) * Mathf.Rad2Deg;   // the ramp climbs towards its local -X
+        var go = CityLordBuilder.Place("Road_set_v1_road_up_2m_HD", parent, top + d * kit.Bounds.extents.x, yaw);
+        if (go == null) return;
+        go.transform.localScale = new Vector3(1f, scaleY, 1f);
+        var p = go.transform.position;
+        p.y = baseY + rise - kit.ColliderBounds.max.y * scaleY;
+        go.transform.position = p;
+    }
+
     private static void Pallet(Vector3 p, float yaw, int stack, Transform parent)
     {
+        // CityLord pallets
+        if (CityLordBuilder.Kit("Palet_v1_single") is CityLordBuilder.KitPiece kit)
+        {
+            for (int k = 0; k < stack; k++)
+                CityLordBuilder.Place("Palet_v1_single", parent, p + Vector3.up * (k * kit.Bounds.size.y), yaw + R(-4, 4), k == stack - 1);
+            var box = new GameObject("PalletCollider");
+            box.transform.SetParent(parent, false);
+            box.transform.SetPositionAndRotation(p + Vector3.up * (stack * kit.Bounds.size.y / 2f), Quaternion.Euler(0, yaw, 0));
+            box.AddComponent<BoxCollider>().size = new Vector3(kit.Bounds.size.x, stack * kit.Bounds.size.y, kit.Bounds.size.z);
+            return;
+        }
         for (int k = 0; k < stack; k++)
         {
             var c = p + Vector3.up * (k * 0.15f);
@@ -515,6 +621,13 @@ public static class PortBuilder
 
     private static void Drums(Vector3 p, int count, Transform parent)
     {
+        // CityLord barrels, two kinds of paint
+        if (CityLordBuilder.Kit("Barrel_v3_single") != null && CityLordBuilder.Kit("Barrel_v1_LD1") != null)
+        {
+            for (int i = 0; i < count; i++)
+                CityLordBuilder.Place(i % 3 == 1 ? "Barrel_v1_LD1" : "Barrel_v3_single", parent, p + new Vector3((i % 3) * 0.62f, 0, (i / 3) * 0.62f), R(0, 360));
+            return;
+        }
         for (int i = 0; i < count; i++)
         {
             var q = p + new Vector3((i % 3) * 0.62f, 0, (i / 3) * 0.62f);
@@ -809,8 +922,9 @@ public static class PortBuilder
         Factory(new Vector3(-48, 0, 30), 0f, 20f, 26f, 7f, WallWhite, WallRed);
         Warehouse(new Vector3(18, 0, 42), 14, 40, 8, WallRed, WallWhite, RoofRust, 90);
         Factory(new Vector3(52, 0, -36), 0f, 15f, 18f, 6.6f, WallTeal, WallWhite);
-        Warehouse(new Vector3(-58, 0, -38), 9, 12, 5, WallRust, null, RoofRust, 90);
-        Warehouse(new Vector3(6, 0, -42), 10, 14, 5.5f, WallTeal, WallRed, RoofRust, 90);
+        // small stores: CityLord hangars where the plain sheds stood
+        if (CityLordBuilder.Place("Hangar_v1_full", root, new Vector3(-58, 0, -38), 0f) == null) Warehouse(new Vector3(-58, 0, -38), 9, 12, 5, WallRust, null, RoofRust, 90);
+        if (CityLordBuilder.Place("Hangar_v3_basic", root, new Vector3(6, 0, -42), 90f) == null) Warehouse(new Vector3(6, 0, -42), 10, 14, 5.5f, WallTeal, WallRed, RoofRust, 90);
         // three-floor office players can enter, with stairs inside up to the roof
         var office = Buildings.Build(root, "Office", new Vector3(58, 0, 24), 0, 14, 18, 3, new Buildings.Style
         {
@@ -827,7 +941,7 @@ public static class PortBuilder
             Floor = Pbr("Tiles", "Tiles101", Color.white, 0.6f), Stairs = Concrete, Trim = Concrete, Furniture = Wood,
         });
         Platform(new Vector3(-80f, 0, -30f), 16f, 12f, 1.4f, 1);
-        Warehouse(new Vector3(82f, 0, 44f), 10f, 12f, 5f, WallWhite, WallTeal, RoofRust, 0f);
+        if (CityLordBuilder.Place("Hangar_v1_full", root, new Vector3(82f, 0, 44f), 90f) == null) Warehouse(new Vector3(82f, 0, 44f), 10f, 12f, 5f, WallWhite, WallTeal, RoofRust, 0f);
         GantryCrane(new Vector3(-21f, 0, 57f));
         Ship(new Vector3(14f, 0, HalfZ + 24f));
 
@@ -888,6 +1002,9 @@ public static class PortBuilder
         Container(new Vector3(-19f, 4.2f, -58.5f), 90f, 2, root);
         Obstacles.SandbagWall(root, new Vector3(-12f, 4.2f, -53f), 0f, 4f);
 
+        // high and low ground as in CityLord: raised yards with road ramps on the free ground
+        RaisedYards();
+
         // ammunition crates, one in each part of the yard
         var supply = new GameObject("AmmoCrates").transform;
         supply.SetParent(root, false);
@@ -934,6 +1051,17 @@ public static class PortBuilder
             if (InPit(p)) continue;
             if (Physics.CheckSphere(p + Vector3.up * 0.8f, 1.2f)) continue;
             Prop(crates[rng.Next(crates.Length)], p, R(0, 360), small);
+        }
+        // CityLord yard furniture: generators, electric boxes, dumpsters, road blocks, barrel sets
+        string[] kitProps = { "Generator_v1", "Electric_box_v1", "Dumpsters_v1_garbadge", "Road_block_v1", "Barrel_v3_quadro", "Barrel_v2_quadro", "Palet_v1_set", "Conditioner_v1" };
+        for (int i = 0, kitPlaced = 0; i < 80 && kitPlaced < 16; i++)
+        {
+            var p = new Vector3(R(-HalfX + 6, HalfX - 6), 0, R(-HalfZ + 6, HalfZ - 6));
+            if (InPit(p, 3f)) continue;
+            if (Physics.CheckBox(p + Vector3.up * 1.1f, new Vector3(2.8f, 0.9f, 2.8f), Quaternion.identity, World.EnvMask | (1 << World.FenceLayer))) continue;
+            if (CityLordBuilder.Place(kitProps[kitPlaced % kitProps.Length], small, p, R(0, 360)) == null) break;
+            Physics.SyncTransforms();
+            kitPlaced++;
         }
         foreach (var (x, z, yaw) in new[] { (-4f, 12f, 90f), (2f, 12f, 90f), (-26f, -36f, 0f), (20f, 26f, 0f), (46f, 4f, 90f), (-50f, 14f, 0f) })
             Prop(rng.NextDouble() < 0.5 ? "concrete_road_barrier" : "concrete_road_barrier_02", new Vector3(x, 0, z), yaw, small);
@@ -983,7 +1111,7 @@ public static class PortBuilder
                 if (Mathf.Abs(p.x) > HalfX - 3 || Mathf.Abs(p.z) > HalfZ - 3) continue;
                 if (!Physics.Raycast(p + Vector3.up * 30f, Vector3.down, out var hit, 40f, World.EnvMask)) continue;
                 p.y = hit.point.y;
-                if (p.y > 2f) continue; // on a roof or container
+                if (p.y > 2f && !hit.collider.name.StartsWith("Raised")) continue; // on a roof or container (the raised yards are walked on)
                 if (Physics.CheckCapsule(p + Vector3.up * 0.5f, p + Vector3.up * 1.6f, 0.6f, World.EnvMask | (1 << World.FenceLayer))) continue;
                 index[new Vector2Int(gx, gz)] = points.Count;
                 points.Add(p);
@@ -1010,7 +1138,7 @@ public static class PortBuilder
             new[] { new Vector3(79f, f, -10f), new Vector3(79f, f, 9f), new Vector3(79f, f, 23.2f), new Vector3(79f, 0, 33f) },
             new[] { new Vector3(79f, f, 9f), new Vector3(86f, f, 9f) },
         };
-        foreach (var chain in chains)
+        foreach (var chain in chains.Concat(rampChains))
         {
             int a = points.Count, b = points.Count + chain.Length - 1;
             for (int i = 0; i < chain.Length; i++)

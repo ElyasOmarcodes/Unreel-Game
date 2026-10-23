@@ -94,6 +94,20 @@ namespace UA
             AimArms();
             ThrowArm();
             HoldSyringe();
+            FitBodyHitbox();
+        }
+
+        /// <summary>
+        /// The body hitbox ends just under the head as the animation holds it (standing, crouched, leaning
+        /// over the gun): a crouched player's head is a head shot, and a shot passing over it misses.
+        /// </summary>
+        private void FitBodyHitbox()
+        {
+            if (proneBox || Head == null || Hitboxes.Length == 0 || !(Hitboxes[0].GetComponent<CapsuleCollider>() is CapsuleCollider body)) return;
+            var head = transform.InverseTransformPoint(Head.position);
+            float top = Mathf.Clamp(head.y - 0.1f, 0.7f, 1.5f);
+            body.height = top;
+            body.center = new Vector3(head.x * 0.5f, top / 2f, head.z * 0.5f);
         }
 
         /// <summary>

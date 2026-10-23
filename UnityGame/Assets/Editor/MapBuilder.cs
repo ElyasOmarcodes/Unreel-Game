@@ -48,6 +48,8 @@ public static class MapBuilder
         RenderSettings.sun = sun;
 
         MeshGen.Reset();
+        // the CityLord pieces (ammo box, wooden boxes, containers, tanks, the asphalt...) are used in every map
+        CityLordBuilder.Load(true);
         // each map is built while the others are switched off so their colliders do not mix
         var port = PortBuilder.Build(null);
         port.Root.SetActive(false);

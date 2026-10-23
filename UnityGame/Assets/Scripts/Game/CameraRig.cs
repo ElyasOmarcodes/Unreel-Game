@@ -31,6 +31,8 @@ namespace UA
         public Ray AimRay() => new Ray(transform.position + transform.forward * 0.3f, transform.forward);
 
         private float shake;
+        private Quaternion smoothRotation = Quaternion.identity;
+        private bool rotationSet;
         // smoothed parts of the follow camera: body height (crouch / prone), shoulder offset (aim) and the
         // distance the walls allow (moves in at once, back out gently): no jumps
         private float height = 1.62f, distance = -1f;
@@ -55,6 +57,7 @@ namespace UA
             var world = World.I;
             if (Target == null)
             {
+                rotationSet = false;
                 // menu: slow orbit around the middle of the city
                 orbit += dt * 3.5f;
                 var center = world != null ? world.Center : Vector3.zero;
@@ -71,14 +74,22 @@ namespace UA
             Pitch -= recover;
             kick -= recover;
 
-            var rotation = Quaternion.Euler(-Pitch, Yaw, 0);
+            // as in Battle of Agents (CameraController.Update): the camera turns towards the aim at 30 per
+            // second, which steadies the small shakes of the finger; the shot leaves along the camera's own
+            // forward axis, so it always goes exactly through the crosshair
+            var wanted = Quaternion.Euler(-Pitch, Yaw, 0);
+            smoothRotation = rotationSet && Quaternion.Angle(smoothRotation, wanted) < 45f ? Quaternion.Slerp(smoothRotation, wanted, 1f - Mathf.Exp(-30f * dt)) : wanted;
+            rotationSet = true;
+            var rotation = smoothRotation;
             bool dead = Target.State != null && !Target.State.Alive;
             float wantHeight = dead ? 0.8f : Prone ? 0.75f : Crouch ? 1.25f : 1.62f;
             height = Mathf.Lerp(height, wantHeight, 1f - Mathf.Exp(-10f * dt));
             var pivot = Target.transform.position + Vector3.up * height;
             Vector3 offset;
             if (Scope) offset = new Vector3(0f, 0f, 0.25f);
-            else if (Aim) offset = new Vector3(0.55f * shoulder, 0.05f, -1.35f);
+            // aiming puts the camera close over the right shoulder (Battle of Agents: aimdis 0, the camera on
+            // the shoulder point): what the crosshair sees is what the gun can hit, no wall edge in between
+            else if (Aim) offset = new Vector3(0.45f * shoulder, 0.02f, -0.62f);
             // as in Battle of Agents: while shooting the camera comes right up beside the head, over
             // the right shoulder; otherwise it sits behind the back, centred and a little higher, with
             // the crosshair just above the head

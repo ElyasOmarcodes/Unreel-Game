@@ -104,10 +104,26 @@ public static class Obstacles
         c.AddComponent<BoxCollider>().size = new Vector3(1.4f, 1.2f, 1.4f);
     }
 
-    /// <summary>Wooden crates stacked two or three high, with a step to climb on.</summary>
+    /// <summary>
+    /// Wooden crates stacked two or three high, with a step to climb on: the CityLord crates (its own
+    /// wooden box texture), or plain boxes where those are missing.
+    /// </summary>
     public static void CrateStack(Transform parent, Vector3 pos, float yaw, System.Random rng)
     {
         var t = Root(parent, "CrateStack", pos, yaw);
+        float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+        var big = CityLordBuilder.Kit("Wooden_box_v1_LD2");
+        var cube = CityLordBuilder.Kit("Wooden_box_v1_LD2square");
+        if (big != null && cube != null)
+        {
+            float h = big.Bounds.size.y, c = cube.Bounds.size.y;
+            CityLordBuilder.Place("Wooden_box_v1_LD2", t, t.TransformPoint(Vector3.zero), yaw);
+            CityLordBuilder.Place("Wooden_box_v1_LD2square", t, t.TransformPoint(new Vector3(0.05f, h, R(-0.4f, 0.4f))), yaw + R(-12f, 12f));
+            CityLordBuilder.Place("Wooden_box_v1_LD2square", t, t.TransformPoint(new Vector3(1.05f, 0, 0.2f)), yaw + R(-8f, 8f));
+            if (rng.NextDouble() < 0.6) CityLordBuilder.Place("Wooden_box_v1_LD2square", t, t.TransformPoint(new Vector3(0.05f, h + c, 0f)), yaw + R(-15f, 15f));
+            if (rng.NextDouble() < 0.5) CityLordBuilder.Place("Wooden_box_v1_LD2", t, t.TransformPoint(new Vector3(-1.2f, 0, -0.1f)), yaw + 90f + R(-6f, 6f));
+            return;
+        }
         Box("Crate", t, new Vector3(0, 0.6f, 0), Vector3.one * 1.2f, Crate, 1.2f);
         Box("Crate", t, new Vector3(1.25f, 0.5f, 0.1f), Vector3.one * 1f, Crate, 1.2f, 6f);
         Box("Crate", t, new Vector3(0.2f, 1.75f, 0.05f), Vector3.one * 1.1f, Crate, 1.2f, (float)rng.NextDouble() * 20f - 10f);
@@ -123,22 +139,17 @@ public static class Obstacles
     }
 
     /// <summary>
-    /// Olive ammunition crate with a yellow stripe and a small lamp, so it can be seen from afar.
-    /// Players standing next to it can refill their ammunition and grenades.
+    /// The CityLord ammunition box (its own model, green paint and stencils). Players standing next to
+    /// it can refill their ammunition and grenades.
     /// </summary>
     public static void AmmoCrate(Transform parent, Vector3 pos, float yaw)
     {
         var t = Root(parent, "AmmoCrate", pos, yaw);
-        var olive = PortBuilder.Pbr("AmmoOlive", "Wood049", new Color(0.36f, 0.42f, 0.26f), 0.4f);
-        var stripe = AssetSetup.Mat("AmmoStripe", new Color(0.95f, 0.75f, 0.1f), 0.4f, 0f, null, null, null, null, new Color(0.5f, 0.38f, 0.05f));
-        Box("Crate", t, new Vector3(0, 0.35f, 0), new Vector3(1.2f, 0.7f, 0.7f), olive, 0.8f);
-        Box("Lid", t, new Vector3(0, 0.73f, 0), new Vector3(1.26f, 0.08f, 0.76f), olive, 0.8f, 0f, false);
-        Box("Stripe", t, new Vector3(0, 0.45f, 0.356f), new Vector3(1.0f, 0.12f, 0.01f), stripe, 1f, 0f, false);
-        Box("Stripe", t, new Vector3(0, 0.45f, -0.356f), new Vector3(1.0f, 0.12f, 0.01f), stripe, 1f, 0f, false);
-        foreach (float x in new[] { -0.5f, 0.5f })
-            Box("Handle", t, new Vector3(x, 0.55f, 0), new Vector3(0.06f, 0.06f, 0.8f), Steel, 1f, 0f, false);
-        // a glowing lamp (emissive only: a real light per crate costs too much on phones)
-        MeshGen.TexCylinder("Lamp", t.TransformPoint(new Vector3(0.45f, 0.77f, 0.2f)), 0.05f, 0.08f, stripe, 1f, t, false);
+        if (CityLordBuilder.Place("AmmoBox", t, pos, yaw) == null)
+        {
+            var olive = PortBuilder.Pbr("AmmoOlive", "Wood049", new Color(0.36f, 0.42f, 0.26f), 0.4f);
+            Box("Crate", t, new Vector3(0, 0.35f, 0), new Vector3(1.2f, 0.7f, 0.7f), olive, 0.8f);
+        }
         t.gameObject.AddComponent<AmmoBox>();
     }
 

@@ -357,7 +357,7 @@ public static class ZahraBuilder
     /// A block of writing on the front (local -Z face) of a board: local centre, size in metres, the
     /// letters at most 'maxSize' cm and smaller until the whole text fits.
     /// </summary>
-    private static void Writing(Transform board, Vector3 local, Vector2 size, string text, float maxSize, Color color, TextAnchor anchor = TextAnchor.MiddleCenter, FontStyle style = FontStyle.Normal)
+    internal static void Writing(Transform board, Vector3 local, Vector2 size, string text, float maxSize, Color color, TextAnchor anchor = TextAnchor.MiddleCenter, FontStyle style = FontStyle.Normal)
     {
         // every board draws its letters at one size from the font (a small font texture, made once);
         // the canvas is scaled so the letters come out at the size that fits
