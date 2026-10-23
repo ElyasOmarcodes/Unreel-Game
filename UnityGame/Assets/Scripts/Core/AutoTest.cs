@@ -363,8 +363,11 @@ namespace UA
             foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
                          .Where(x => x.name.StartsWith("Board ") || x.name == "Plate C-1" || x.name == "Plate A-2").OrderBy(x => x.name).ToList())
             {
-                var from = t.position - t.forward * 7f + Vector3.up * 1.2f;
-                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position + Vector3.up * (t.name.StartsWith("Board") ? 2f : 0f) - from));
+                // back from the board as far as nothing stands in between (at most 7 m)
+                var eye = t.position + Vector3.up * (t.name.StartsWith("Board") ? 2f : 0f);
+                float back = Physics.SphereCast(eye, 0.3f, -t.forward, out var wall, 7f, World.EnvMask, QueryTriggerInteraction.Ignore) ? Mathf.Max(2.5f, wall.distance - 0.4f) : 7f;
+                var from = eye - t.forward * back + Vector3.up * 0.4f;
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(eye - from));
                 yield return Wait(0.6f);
                 yield return Shot($"90{(char)('a' + sign++)}-citylord-{t.name.Replace(' ', '-').ToLowerInvariant()}");
             }
