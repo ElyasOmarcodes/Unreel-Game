@@ -59,12 +59,13 @@ public static class CityLordBuilder
         var colliders = Node("Colliders");
 
         var objects = L(scene["objects"]).Select(D).ToList();
-        var active = objects.ToDictionary(o => S(o["path"]), o => B(o["active"]));
+        // paths are not unique (siblings with the same name); every object of the map with a switched-off path is off itself
+        var inactive = new HashSet<string>(objects.Where(o => !B(o["active"])).Select(o => S(o["path"])));
         bool ActiveInHierarchy(string path)
         {
             for (string p = path; ; p = p.Substring(0, p.LastIndexOf('/')))
             {
-                if (active.TryGetValue(p, out bool on) && !on) return false;
+                if (inactive.Contains(p)) return false;
                 if (p.IndexOf('/') < 0) return true;
             }
         }
