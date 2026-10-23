@@ -307,6 +307,13 @@ namespace UA
                 (11, "60-zahra-night", new Vector3(-5f, 6.4f, 16f), new Vector3(-5f, 7.5f, 42f)),
                 (11, "60b-zahra-night-palace", new Vector3(70f, 3.2f, -48.5f), new Vector3(70f, 3.5f, -70f)),
                 (11, "60c-zahra-night-gate", new Vector3(-53.5f, 2.2f, -107f), new Vector3(-53.5f, 7f, -124f)),
+                (12, "80-citylord-overview", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
+                (12, "81-citylord-street", new Vector3(17.3f, 1.7f, 14.3f), new Vector3(39f, 2f, -2f)),
+                (12, "82-citylord-hangars", new Vector3(81.5f, 3.5f, -24.6f), new Vector3(46f, 2f, 20f)),
+                (12, "83-citylord-yard", new Vector3(-0.6f, 2f, -35.6f), new Vector3(28f, 1.5f, -24f)),
+                (12, "84-citylord-from-above", new Vector3(31f, 60f, -60f), new Vector3(31f, 0f, -4f)),
+                (13, "85-citylord-sunset", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
+                (14, "86-citylord-night", new Vector3(17.3f, 1.7f, 14.3f), new Vector3(39f, 2f, -2f)),
             };
             foreach (var v in views)
             {

@@ -26,6 +26,8 @@ namespace UA
         public float Radius = 80f;
         /// <summary>The scene the map lives in (loaded while it is played; empty: Root is in this scene).</summary>
         public string Scene = "";
+        /// <summary>The map's own sky by day (null: the procedural sky).</summary>
+        public Material Sky;
     }
 
     /// <summary>
@@ -59,7 +61,7 @@ namespace UA
         public Vector3 Center => layout.Center;
         public float Radius => layout.Radius;
 
-        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for the port, the village, the old town and Al-Zahra.</summary>
+        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for the port, the village, the old town, Al-Zahra and CityLord.</summary>
         public static int LayoutOf(int map) => map / 3;
 
         private void Awake()
@@ -326,11 +328,23 @@ namespace UA
                     }
                     break;
             }
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.fog = true;
+            // CityLord by day as in its own scene: its sun, a flat ambient light, no fog, the six-sided sky
+            bool cityLord = LayoutOf(map) == 4;
+            bool ownSky = cityLord && preset == 0;
+            if (ownSky)
+            {
+                Sun.transform.rotation = new Quaternion(0.4082179f, -0.2345697f, 0.1093816f, 0.8754261f);
+                Sun.color = new Color(1f, 0.9568627f, 0.8392157f);
+                Sun.intensity = 1.2f;
+                RenderSettings.ambientSkyColor = new Color(0.7311321f, 0.8207548f, 1f);
+            }
+            Sun.shadowStrength = ownSky ? 1f : 0.85f;
+            RenderSettings.ambientMode = ownSky ? UnityEngine.Rendering.AmbientMode.Flat : UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.fog = !ownSky;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.sun = Sun;
-            if (Skybox != null)
+            if (ownSky && layout != null && layout.Sky != null) RenderSettings.skybox = layout.Sky;
+            else if (Skybox != null)
             {
                 RenderSettings.skybox = Skybox;
                 Skybox.SetFloat("_Exposure", night ? 0.3f : preset == 1 ? 1.0f : 1.25f);
@@ -341,7 +355,12 @@ namespace UA
             if (loadedMap != null)
                 foreach (var light in loadedMap.NightLights)
                     if (light != null) light.enabled = night;
-            if (Camera.main != null) Camera.main.backgroundColor = RenderSettings.fogColor;
+            if (Camera.main != null)
+            {
+                Camera.main.backgroundColor = RenderSettings.fogColor;
+                // the CityLord ground reaches 250 m around the town: seen to its end without fog
+                Camera.main.farClipPlane = cityLord ? 450f : 260f;
+            }
         }
     }
 }

@@ -6,7 +6,7 @@ using UnityEngine;
 
 /// <summary>
 /// Builds the game: the main scene (sun, camera, sky, world, app) and one scene for each map (the port,
-/// the village, the old town and Al-Zahra), so the game loads only the map being played. The old
+/// the village, the old town, Al-Zahra and CityLord), so the game loads only the map being played. The old
 /// Downtown map is kept out of the game in BackupExtra/Downtown at the top of the repository.
 /// </summary>
 public static class MapBuilder
@@ -57,19 +57,21 @@ public static class MapBuilder
         town.Root.SetActive(false);
         var zahra = ZahraBuilder.Build();
         zahra.Root.SetActive(false);
+        var cityLord = CityLordBuilder.Build();
+        cityLord.Root.SetActive(false);
 
         var worldGo = new GameObject("World");
         var world = worldGo.AddComponent<World>();
         world.Sun = sun;
         world.Skybox = skybox;
-        world.Layouts = new[] { port, village, town, zahra };
+        world.Layouts = new[] { port, village, town, zahra, cityLord };
 
         new GameObject("App").AddComponent<App>();
 
         // every map into a scene of its own: the game loads only the one being played (memory)
         EditorSceneManager.SaveScene(scene, ScenePath);
         var buildScenes = new List<EditorBuildSettingsScene> { new EditorBuildSettingsScene(ScenePath, true) };
-        var names = new[] { "Map_Port", "Map_Village", "Map_OldTown", "Map_Zahra" };
+        var names = new[] { "Map_Port", "Map_Village", "Map_OldTown", "Map_Zahra", "Map_CityLord" };
         for (int i = 0; i < world.Layouts.Length; i++)
         {
             var layout = world.Layouts[i];

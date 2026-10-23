@@ -27,6 +27,7 @@ namespace UA
             "PORT - DAY", "PORT - SUNSET", "PORT - NIGHT",
             "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT", "OLD TOWN - DAY", "OLD TOWN - SUNSET", "OLD TOWN - NIGHT",
             "AL-ZAHRA - DAY", "AL-ZAHRA - SUNSET", "AL-ZAHRA - NIGHT",
+            "CITYLORD - DAY", "CITYLORD - SUNSET", "CITYLORD - NIGHT",
         };
         public static readonly string[] ModeNames = { "TEAM DEATHMATCH", "FREE FOR ALL" };
         public static readonly string[] SkillNames = { "EASY", "NORMAL", "HARD" };
