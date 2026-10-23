@@ -58,7 +58,8 @@ public static class ZahraBuilder
     private static Material Sand => PortBuilder.Pbr("Z_Sand", "Ground104", new Color(1.05f, 0.92f, 0.72f), 0.08f);
     private static Material Grass => PortBuilder.Pbr("Z_Grass", "Grass004", new Color(0.92f, 1.02f, 0.8f), 0.15f);
     private static Material Gravel => PortBuilder.Pbr("Z_Gravel", "Gravel036L", new Color(1.02f, 0.95f, 0.84f), 0.15f);
-    private static Material HedgeMat => PortBuilder.Pbr("Z_Hedge", "Grass001", new Color(0.32f, 0.5f, 0.26f), 0.1f);
+    private static Material hedge;
+    private static Material HedgeMat => hedge;
     private static Material TownGround => PortBuilder.Pbr("Z_TownGround", "Gravel036L", new Color(0.98f, 0.88f, 0.72f), 0.1f);
     private static Material Earth => PortBuilder.Pbr("Z_Earth", "Ground104", new Color(0.82f, 0.68f, 0.5f), 0.08f);
     private static Material RoofTiles => PortBuilder.Pbr("Z_RoofTiles", "RoofingTiles006", new Color(0.9f, 0.52f, 0.36f), 0.3f);
@@ -287,6 +288,41 @@ public static class ZahraBuilder
             return c;
         }, false);
         carpet = AssetSetup.Mat("Z_Carpet", Color.white, 0.1f, 0f, ct);
+    }
+
+    /// <summary>Clipped myrtle: small overlapping oval leaves in dark and fresh greens, shadowed between them (0.8 m per repeat).</summary>
+    private static void MakeMyrtle()
+    {
+        const int size = 256;
+        var h = new float[size, size];
+        var col = new Color[size, size];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++) { h[x, y] = 0f; col[x, y] = new Color(0.05f, 0.11f, 0.04f); }
+        var r = new System.Random(77);
+        for (int i = 0; i < 2600; i++)
+        {
+            float cx = (float)r.NextDouble() * size, cy = (float)r.NextDouble() * size;
+            float ang = (float)r.NextDouble() * Mathf.PI, len = 5f + (float)r.NextDouble() * 4f, wid = len * 0.45f;
+            float top = 0.4f + (float)r.NextDouble() * 0.6f;
+            var leaf = Color.Lerp(new Color(0.13f, 0.26f, 0.09f), new Color(0.3f, 0.46f, 0.15f), (float)r.NextDouble()) * (0.7f + 0.5f * top);
+            float ca = Mathf.Cos(ang), sa = Mathf.Sin(ang);
+            for (int oy = -6; oy <= 6; oy++)
+                for (int ox = -6; ox <= 6; ox++)
+                {
+                    float u = (ox * ca + oy * sa) / (len / 2f), v = (-ox * sa + oy * ca) / (wid / 2f);
+                    float q = u * u + v * v;
+                    if (q > 1f) continue;
+                    int px = ((int)cx + ox + size) % size, py = ((int)cy + oy + size) % size;
+                    float hh = top * (1f - q * 0.6f);
+                    if (hh < h[px, py]) continue;
+                    h[px, py] = hh;
+                    col[px, py] = leaf * (0.85f + 0.15f * (1f - Mathf.Abs(v)));
+                    col[px, py].a = 1f;
+                }
+        }
+        var tex = SaveTexture("Myrtle", size, (x, y) => col[x, y], false);
+        var nrm = NormalFrom("Myrtle_N", size, h, 4f);
+        hedge = AssetSetup.Mat("Z_Myrtle", Color.white, 0.25f, 0f, tex, nrm);
     }
 
     // ------------------------------------------------------------------ boards with writing
@@ -692,11 +728,9 @@ public static class ZahraBuilder
         }
     }
 
-    private static readonly Dictionary<string, (Vector3 size, bool alongX)> bushShape = new Dictionary<string, (Vector3, bool)>();
-
     /// <summary>
-    /// A clipped myrtle hedge from a to b: the long bushes of the nature kit end to end, turned along
-    /// the line and stretched to fill it (leaves, not a green box).
+    /// A clipped myrtle hedge from a to b, as the gardens of al-Andalus keep them: a dense block of
+    /// small leaves with rounded edges, cut flat on top.
     /// </summary>
     private static void Hedge(Transform parent, Vector3 a, Vector3 b, float height = 0.9f)
     {
@@ -704,40 +738,7 @@ public static class ZahraBuilder
         float len = d.magnitude;
         if (len < 0.3f) return;
         float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
-        string key = rng.NextDouble() < 0.5 ? "Bush_Long_1" : "Bush_Long_2";
-        var probe = Nature.Place(key, a, 0, 1f, parent);   // measured at 1 m high
-        if (probe == null)
-        {
-            MeshGen.RoundBox("Myrtle", (a + b) / 2f + Vector3.up * height / 2f, new Vector3(0.7f, height, len), 0.2f, HedgeMat, 1.5f, parent, yaw);
-            return;
-        }
-        if (!bushShape.TryGetValue(key, out var shape))
-        {
-            var rs = probe.GetComponentsInChildren<Renderer>();
-            var bb = rs[0].bounds;
-            foreach (var r in rs) bb.Encapsulate(r.bounds);
-            shape = (bb.size, bb.size.x > bb.size.z);
-            bushShape[key] = shape;
-        }
-        Object.DestroyImmediate(probe);
-        // a clipped core of leaves, the bushes overlapping along it so no gaps show
-        MeshGen.RoundBox("HedgeCore", (a + b) / 2f + Vector3.up * height * 0.42f, new Vector3(0.62f, height * 0.84f, Mathf.Max(0.3f, len - 0.2f)), 0.25f, HedgeMat, 1.2f, parent, yaw, false);
-        float piece = Mathf.Max((shape.alongX ? shape.size.x : shape.size.z) * height, 0.4f) * 0.6f;
-        int count = Mathf.Max(1, Mathf.CeilToInt(len / piece));
-        for (int i = 0; i < count; i++)
-        {
-            var p = a + d / len * ((i + 0.5f) * len / count);
-            var go = Nature.Place(key, p, yaw + (shape.alongX ? 90f : 0f) + (rng.NextDouble() < 0.5 ? 180f : 0f), height * R(0.95f, 1.08f), parent);
-            if (go == null) continue;
-            var sc = go.transform.localScale;
-            float across = 0.75f / Mathf.Max(0.1f, (shape.alongX ? shape.size.z : shape.size.x) * height);
-            go.transform.localScale = shape.alongX ? new Vector3(sc.x, sc.y, sc.z * Mathf.Min(1.2f, across)) : new Vector3(sc.x * Mathf.Min(1.2f, across), sc.y, sc.z);
-        }
-        // a box inside the leaves for bullets and feet
-        var block = new GameObject("HedgeCollider");
-        block.transform.SetParent(parent, false);
-        block.transform.SetPositionAndRotation((a + b) / 2f + Vector3.up * height * 0.45f, Quaternion.Euler(0, yaw, 0));
-        block.AddComponent<BoxCollider>().size = new Vector3(0.6f, height * 0.9f, len);
+        MeshGen.RoundBox("Myrtle", (a + b) / 2f + Vector3.up * height / 2f, new Vector3(0.7f, height, len), 0.22f, HedgeMat, 0.8f, parent, yaw);
     }
 
     private static void Flowers(Transform parent, Vector3 c, float rx, float rz, int count, float y)
@@ -847,7 +848,6 @@ public static class ZahraBuilder
         rng = new System.Random(936);   // the year the building of the city began
         night.Clear();
         meshes.Clear();
-        bushShape.Clear();
         cypressMesh = null;
         houses = 0;
         AssetDatabase.DeleteAsset(MeshFolder);
@@ -856,6 +856,7 @@ public static class ZahraBuilder
         MakeMarble();
         MakeAtaurique();
         MakeLatticeAndCarpet();
+        MakeMyrtle();
         root = new GameObject("Map_Zahra").transform;
 
         Terraces();

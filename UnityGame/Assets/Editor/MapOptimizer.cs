@@ -97,7 +97,6 @@ public static class MapOptimizer
                 mesh.CombineMeshes(chunk.ToArray(), true, true, false);
                 mesh.RecalculateBounds();
                 Slim(mesh, g.Key.mat);
-                MeshUtility.SetMeshCompression(mesh, ModelImporterMeshCompression.Medium);   // smaller build, 16-bit positions
                 if (firstAsset) { AssetDatabase.CreateAsset(mesh, path); firstAsset = false; }
                 else AssetDatabase.AddObjectToAsset(mesh, path);
                 var go = new GameObject($"Merged_{g.Key.mat.name}");
