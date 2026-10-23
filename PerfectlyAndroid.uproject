@@ -3,6 +3,13 @@
 	"EngineAssociation": "5.3",
 	"Category": "",
 	"Description": "",
+	"Modules": [
+		{
+			"Name": "PerfectlyAndroid",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
 	"TargetPlatforms": [
 		"Android"
 	]
