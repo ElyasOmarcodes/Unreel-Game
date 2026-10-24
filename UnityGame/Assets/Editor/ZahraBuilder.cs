@@ -73,6 +73,7 @@ public static class ZahraBuilder
     private static Material Leaf => AssetSetup.Solid("Z_PalmLeaf", new Color(0.3f, 0.48f, 0.18f), 0.25f);
     private static Material Cypress => PortBuilder.Pbr("Z_Cypress", "Grass001", new Color(0.3f, 0.48f, 0.24f), 0.1f);
     private static Material Bronze => AssetSetup.Solid("Z_Bronze", new Color(0.25f, 0.18f, 0.1f), 0.5f, 0.6f);
+    private static Material Soot => AssetSetup.Solid("Z_Soot", new Color(0.08f, 0.06f, 0.05f), 0.2f);
     private static Material Water => AssetSetup.WaterMat("Water_Pool", new Color(0.04f, 0.17f, 0.18f), new Color(0.18f, 0.42f, 0.4f), 3f, 0.15f);
     private static Material LimeOchre => PortBuilder.Pbr("Z_LimeOchre", "Plaster001", new Color(0.96f, 0.86f, 0.66f), 0.3f);
     private static Material Gold => AssetSetup.Solid("Z_Gold", new Color(0.85f, 0.65f, 0.25f), 0.75f, 0.85f);
@@ -1092,6 +1093,24 @@ public static class ZahraBuilder
             }
     }
 
+    /// <summary>
+    /// A stair up the face of a terrace with a stone cheek wall along each side, rising with the steps a
+    /// little above their noses and meeting the terrace face: no stepped block standing loose on the grass.
+    /// </summary>
+    private static void TerraceStair(Transform t, Vector3 start, Vector3 dir, float height, float width)
+    {
+        Buildings.Stairs(t, start, dir, height, width, Ashlar);
+        float run = Mathf.CeilToInt(height / 0.2f) * 0.36f;
+        var side = Vector3.Cross(Vector3.up, dir).normalized;
+        foreach (float s in new[] { -1f, 1f })
+        {
+            var off = side * s * (width / 2f + 0.2f);
+            Underground.Wedge(t, "StairCheek", start + off - dir * 0.6f, start + off + dir * run + Vector3.up * (height + 0.35f), 0.4f, Ashlar);
+            // the top end of the cheek: square against the terrace edge
+            Box(t, "StairCheekTop", start + off + dir * (run - 0.3f) + Vector3.up * (height + 0.175f), new Vector3(Mathf.Abs(side.x) * 0.4f + Mathf.Abs(dir.x) * 0.6f, 0.35f, Mathf.Abs(side.z) * 0.4f + Mathf.Abs(dir.z) * 0.6f), Ashlar, 1.5f);
+        }
+    }
+
     /// <summary>A wooden crate (or a stack of them) from 'baseY' up to 'topY'.</summary>
     private static void Crates(Transform t, float x, float z, float baseY, float topY, float size = 1.1f, float yaw = 0f)
     {
@@ -1340,7 +1359,7 @@ public static class ZahraBuilder
         foreach (var (x, z) in new[] { (-6.6f, -18f), (-3.4f, -18f), (-6.6f, 20f), (-3.4f, 20f), (-30f, 2.6f), (20f, 2.6f), (-40.5f, -26.5f), (30.5f, -26.5f), (-40.5f, 28.5f), (30.5f, 28.5f) })
             Lantern(t, new Vector3(x, walk, z));
         // the stair down to the Lower Garden
-        Buildings.Stairs(t, new Vector3(-5f, Lower, MidSouth - 7.2f), Vector3.forward, Middle - Lower, 6f, Ashlar);
+        TerraceStair(t, new Vector3(-5f, Lower, MidSouth - 7.2f), Vector3.forward, Middle - Lower, 6f);
     }
 
     /// <summary>
@@ -1469,7 +1488,7 @@ public static class ZahraBuilder
         }
         foreach (var (x, z) in new[] { (44f, -20f), (44f, 10f), (44f, 36f), (62f, 8f), (78f, 8f) }) Lantern(t, new Vector3(x, Middle, z));
         // the double stair from the lower street up to the plaza
-        Buildings.Stairs(t, new Vector3(37f, Lower, MidSouth - 7.2f), Vector3.forward, Middle - Lower, 3.6f, Ashlar);
+        TerraceStair(t, new Vector3(37f, Lower, MidSouth - 7.2f), Vector3.forward, Middle - Lower, 3.6f);
     }
 
     /// <summary>
@@ -1494,12 +1513,12 @@ public static class ZahraBuilder
         Box(t, "RampWall", new Vector3((54.2f + xb) / 2f, (Middle + ceiling) / 2f, 59.5f), new Vector3(xb - 54.2f, ceiling - Middle, 1f), Ashlar);
         Box(t, "RampWall", new Vector3(49f, (Middle + ceiling) / 2f, 59.5f), new Vector3(2f, ceiling - Middle, 1f), Ashlar);
         Box(t, "RampRoof", new Vector3((xa + xb) / 2f + 0.5f, ceiling + 0.2f, 52.5f), new Vector3(xb - xa + 1f, 0.4f, 15f), Ashlar);
-        foreach (float z in new[] { 48.5f, 56.5f })
-        {
-            var vault = MeshGen.Object("Vault", MeshGen.Cylinder(1f, xb - xa, 2f, 14), RoofTiles, t, new Vector3(xa, ceiling + 0.75f, z));
-            vault.transform.rotation = Quaternion.Euler(0, 0, -90f);
-            vault.transform.localScale = new Vector3(0.7f, 1f, 2.6f);
-        }
+        // over the stone roof a cover of tiles with a little overhang, a cream cornice and a red band round
+        // the top of the walls, as on the halls (no stretched vault tiles on top)
+        Box(t, "RampTiles", new Vector3((xa + xb) / 2f + 0.5f, ceiling + 0.52f, 52.5f), new Vector3(xb - xa + 1.6f, 0.24f, 15.6f), RoofTiles, 2f);
+        Box(t, "RampCornice", new Vector3((xa + xb) / 2f + 0.5f, ceiling + 0.3f, 52.5f), new Vector3(xb - xa + 1.3f, 0.2f, 15.3f), Cream, 1.5f, false);
+        foreach (float z in new[] { 44.98f, 60.02f })
+            Box(t, "RampBand", new Vector3((xa + xb) / 2f + 0.5f, ceiling - 0.45f, z), new Vector3(xb - xa + 1f, 0.5f, 0.04f), Almagra, 1.5f, false);
         foreach (float x in new[] { 60f, 76f })
             foreach (float z in new[] { 48.5f, 56.5f })
                 NightLights.Lamp(t, new Vector3(x, ceiling - 0.6f, z), new Vector3(0.2f, 0.3f, 0.2f), night, 2.6f);
@@ -1603,7 +1622,8 @@ public static class ZahraBuilder
         var t = Node("RoyalPalace", root, c, 0);
         const float hx = 28f, hz = 26f, wallH = 8f, floor = 0.5f;
         Vector3 W(float x, float y, float z) => t.TransformPoint(new Vector3(x, y, z));
-        LBox(t, "Podium", new Vector3(0, floor / 2f, 0), new Vector3(hx * 2f + 4f, floor, hz * 2f + 4f), Ashlar, 2f);
+        // a stone socle half a metre out from the outer walls (not a wide bench round the whole palace)
+        LBox(t, "Podium", new Vector3(0, floor / 2f, 0), new Vector3(hx * 2f + 2f, floor, hz * 2f + 2f), Ashlar, 2f);
         LBox(t, "CourtFloor", new Vector3(0, floor + 0.02f, 11f), new Vector3(34f, 0.04f, 22f), Tiles, 1.2f, false);
         LBox(t, "HallFloor", new Vector3(0, floor + 0.02f, -12.5f), new Vector3(34f, 0.04f, 25f), Marble, 2f, false);
         foreach (float s in new[] { -1f, 1f })
@@ -1748,8 +1768,8 @@ public static class ZahraBuilder
         var plank = W(19.2f, 8.5f, -19f);
         Box(t, "Plank", plank, new Vector3(4f, 0.1f, 0.6f), Wood, 1f);
         // the approach from the street, a ramp up onto the podium
-        Underground.Wedge(t, "Ramp", W(0, Lower, hz + 4.6f), W(0, floor, hz + 2f), 6f, Paving);
-        Slab(t, "Approach", Rect.MinMaxRect(c.x - 4f, c.z + hz + 2f, c.x + 4f, MidSouth - 4f), Lower + 0.03f, 0.1f, Paving, 2.5f);
+        Underground.Wedge(t, "Ramp", W(0, Lower, hz + 3.6f), W(0, floor, hz + 1f), 6f, Paving);
+        Slab(t, "Approach", Rect.MinMaxRect(c.x - 4f, c.z + hz + 3.6f, c.x + 4f, MidSouth - 4f), Lower + 0.03f, 0.1f, Paving, 2.5f);
     }
 
     /// <summary>
@@ -2013,7 +2033,16 @@ public static class ZahraBuilder
         NightLights.Lamp(t, new Vector3(-70f, 2.7f, z0 - 0.45f), new Vector3(0.22f, 0.32f, 0.22f), night, 2.6f);
         // the service house behind the alley, with its bread oven; the Patio de la Pila; the House of the Pool
         CourtHouse(new Vector3(-90.5f, Lower, -46f), 90f, 19f, 9f, 1, 11, "دار الخدمة", "THE SERVICE HOUSE");
-        MeshGen.TexCylinder("Oven", new Vector3(-98.2f, Lower, -40f), 1f, 1.3f, Earth, 1f, t);
+        // a round clay bread oven with its dome and a mouth (not a bare drum)
+        MeshGen.TexCylinder("Oven", new Vector3(-98.2f, Lower, -40f), 0.8f, 0.7f, Earth, 1f, t);
+        var oven = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Object.DestroyImmediate(oven.GetComponent<Collider>());
+        oven.name = "OvenDome";
+        oven.transform.SetParent(t, false);
+        oven.transform.position = new Vector3(-98.2f, Lower + 0.7f, -40f);
+        oven.transform.localScale = new Vector3(1.6f, 1.1f, 1.6f);
+        oven.GetComponent<Renderer>().sharedMaterial = Earth;
+        Box(t, "OvenMouth", new Vector3(-98.2f, Lower + 0.55f, -39.2f), new Vector3(0.5f, 0.4f, 0.05f), Soot, 1f, false);
         CourtHouse(new Vector3(-72f, Lower, -71f), 0f, 22f, 20f, 2, 12, "صحن الحوض", "PATIO DE LA PILA - COURT OF THE BASIN", Marble);
         CourtHouse(new Vector3(-90.5f, Lower, -72f), 90f, 24f, 9.5f, 1, 13, "دار البركة", "HOUSE OF THE POOL", Paving, true);
         CypressTree(t, new Vector3(-57f, Lower, -60f), 9f);
@@ -2104,7 +2133,7 @@ public static class ZahraBuilder
         CypressTree(t, new Vector3(-38f, y, 66f), 10f);
         CypressTree(t, new Vector3(-94f, y, 66f), 9f);
         BoardStand(t, new Vector3(-61f, y + 0.1f, 66f), 0f, "دار الملك", "DAR AL-MULK - THE CALIPH'S HOUSE");
-        Buildings.Stairs(t, new Vector3(-58f, Middle, UpSouth - 10.8f), Vector3.forward, Upper - Middle, 3f, Ashlar);
+        TerraceStair(t, new Vector3(-58f, Middle, UpSouth - 10.8f), Vector3.forward, Upper - Middle, 3f);
     }
 
 

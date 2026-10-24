@@ -1092,7 +1092,7 @@ public static class PortBuilder
         // fences and gates, pipe racks, electric boxes, barrels
         if (PlaceRow("Oil_tank_v2", 5, works)) works0 += 5;
         if (PlaceRow("Oil_tank_v2", 4, works)) works0 += 4;
-        foreach (var (piece, count) in new[] { ("Hangar_v4", 1), ("Hangar_v2_basic", 1), ("Hangar_v3_outbuilding_1", 1), ("Hangar_v2_outbuilding", 1),
+        foreach (var (piece, count) in new[] { ("Hangar_v4", 1), ("Hangar_v2_basic", 1),
                                                ("Concrete_fence_v1_wall_set_v1", 2), ("Concrete_fence_v2_L", 2), ("Concrete_fence_v2_Gate", 1), ("Concrete_fence_v2_S_half", 2),
                                                ("Pipes_set_v1_H_set_v1", 1), ("Electric_box_v2", 3), ("Electric_box_v1", 2), ("Barrel_v1_LD2", 2), ("Barrel_v1_LD3", 3),
                                                ("Dumpsters_v1_garbadge", 2), ("Conditioner_v1", 2), ("Palet_v1_set", 3), ("Barrel_v3_quadro", 2), ("Barrel_v2_quadro", 2) })

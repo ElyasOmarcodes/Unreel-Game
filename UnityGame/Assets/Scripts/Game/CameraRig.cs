@@ -103,7 +103,7 @@ namespace UA
             smoothOffset = Scope ? offset : Vector3.Lerp(smoothOffset, offset, 1f - Mathf.Exp(-16f * dt));
             if (!Scope)
             {
-                var near = new Vector3(0.6f * shoulder, 0.06f, -0.5f);
+                var near = new Vector3(0.8f * shoulder, 0.1f, -0.3f);
                 float wantIn = 1f;
                 for (int i = 0; i <= 8; i++)
                 {
@@ -115,7 +115,7 @@ namespace UA
                 closeIn = wantIn > closeIn ? Mathf.Lerp(closeIn, wantIn, 1f - Mathf.Exp(-25f * dt)) : Mathf.Lerp(closeIn, wantIn, 1f - Mathf.Exp(-5f * dt));
             }
             else closeIn = 0f;
-            var local = Scope ? smoothOffset : Vector3.Lerp(smoothOffset, new Vector3(0.6f * shoulder, 0.06f, -0.5f), closeIn);
+            var local = Scope ? smoothOffset : Vector3.Lerp(smoothOffset, new Vector3(0.8f * shoulder, 0.1f, -0.3f), closeIn);
             var desired = pivot + rotation * local;
             var dir = desired - pivot;
             float length = dir.magnitude;

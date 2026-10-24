@@ -344,6 +344,13 @@ namespace UA
                 (9, "74-zahra-valley", new Vector3(-30f, -1.2f, -160f), new Vector3(-53f, 3f, -125f)),
                 (9, "75-zahra-treasury-stair", new Vector3(93.5f, 2.6f, -88f), new Vector3(96.4f, 2.2f, -94.5f)),
                 (9, "76-zahra-dar-al-mulk-stair", new Vector3(-86f, 12.4f, 79f), new Vector3(-90.9f, 11.6f, 84f)),
+                (9, "77b-zahra-ramp-street-roof", new Vector3(40f, 22f, 30f), new Vector3(70f, 12f, 53f)),
+                (9, "77c-zahra-ramp-street-board", new Vector3(38f, 6f, 36f), new Vector3(46f, 5.5f, 43f)),
+                (9, "77d-zahra-garden-stair", new Vector3(4f, 3f, -42f), new Vector3(-5f, 2f, -32f)),
+                (9, "77e-zahra-plaza-stair", new Vector3(44f, 3f, -42f), new Vector3(37f, 2f, -33f)),
+                (9, "77f-zahra-palace-socle", new Vector3(104f, 2f, -102f), new Vector3(90f, 1f, -96f)),
+                (9, "77g-zahra-oven", new Vector3(-95f, 2f, -36f), new Vector3(-98.2f, 0.6f, -40f)),
+                (9, "77h-zahra-dar-al-mulk-stair", new Vector3(-50f, 7f, 42f), new Vector3(-58f, 6f, 52f)),
                 (9, "77-zahra-cypress", new Vector3(-12f, 6f, -14f), new Vector3(-8.6f, 9f, -20f)),
                 (6, "78-town-granary-stair", new Vector3(29.5f, 2.2f, 14.5f), new Vector3(21.8f, 1.8f, 10.4f)),
                 (9, "55-zahra-lower-garden", new Vector3(-5f, 6.5f, -32f), new Vector3(-5f, 0f, -70f)),
@@ -465,7 +472,7 @@ namespace UA
             yield return Shot("93b-port-overview-north");
             // the rest of the CityLord set in the Port: silo rows, hangars, sheds, fences, pipe racks
             int work = 0;
-            foreach (var name in new[] { "Oil_tank_v2", "Hangar_v4", "Hangar_v2_basic", "Hangar_v3_outbuilding_1", "Hangar_v2_outbuilding", "Concrete_fence_v2_Gate", "Pipes_set_v1_H_set_v1", "Electric_box_v2", "Barrel_v1_LD3" })
+            foreach (var name in new[] { "Oil_tank_v2", "Hangar_v4", "Hangar_v2_basic", "Concrete_fence_v2_Gate", "Pipes_set_v1_H_set_v1", "Electric_box_v2", "Barrel_v1_LD3" })
             {
                 var t = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == name);
                 if (t == null) continue;

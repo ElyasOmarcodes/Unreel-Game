@@ -375,6 +375,9 @@ public static partial class CityLordBuilder
                 if (Mathf.Abs(Ground(c + rot * k, c.y) - c.y) > 0.15f) return false;
             return true;
         }
+        // best: square in front of steps that come up beside it; else a spot with no steps beside it at
+        // all; else any free level spot
+        (Vector3 c, Quaternion rot, float yaw, float gap)? clear = null, any = null;
         foreach (var (x, z) in new[] { (30f, -6f), (24f, 4f), (38f, -20f), (10f, -12f), (60f, 10f), (0f, 2f), (44f, 12f), (16f, -26f), (70f, -26f), (-10f, -14f) })
             for (int ring = 0; ring < 4; ring++)
                 for (int k = 0; k < Mathf.Max(1, ring * 6); k++)
@@ -388,23 +391,29 @@ public static partial class CityLordBuilder
                         var rot = Quaternion.Euler(0, yaw, 0);
                         var c = hit.point;
                         if (!Fits(c, rot)) continue;
+                        if (any == null) any = (c, rot, yaw, 1.6f);
                         // steps coming up beside it: only in front of the opening, square on to it, the
                         // bed standing back from the top step (the way up leads straight in through the gap)
                         var (side, u, sw, start) = FindStair(c, rot);
-                        float gap = 1.6f;
+                        if (side < 0) { if (clear == null) clear = (c, rot, yaw, 1.6f); continue; }
                         if (side > 0) continue;
-                        if (side == 0)
-                        {
-                            c += rot * new Vector3(u, 0, Mathf.Max(0f, 1.4f - start));
-                            if (!Fits(c, rot)) continue;
-                            var again = FindStair(c, rot);
-                            if (again.side != 0 || Mathf.Abs(again.u) > 0.3f) continue;
-                            gap = Mathf.Clamp(again.width, 1.6f, w - 3f);
-                        }
+                        c += rot * new Vector3(u, 0, Mathf.Max(0f, 1.4f - start));
+                        if (!Fits(c, rot)) continue;
+                        var again = FindStair(c, rot);
+                        if (again.side != 0 || Mathf.Abs(again.u) > 0.4f) continue;
+                        float gap = Mathf.Clamp(again.width, 1.6f, w - 3f);
                         BuildGarden(parent, c, rot, yaw, w, l, gap, rng);
-                        Debug.Log($"[Map] CityLord garden at {root.InverseTransformPoint(c)} yaw {yaw}" + (side == 0 ? $", facing steps {gap:0.0} m wide" : ""));
+                        Debug.Log($"[Map] CityLord garden at {root.InverseTransformPoint(c)} yaw {yaw}, facing steps {gap:0.0} m wide");
                         return;
                     }
+        var pick = clear ?? any;
+        if (pick.HasValue)
+        {
+            var (pc, prot, pyaw, pgap) = pick.Value;
+            BuildGarden(parent, pc, prot, pyaw, w, l, pgap, rng);
+            Debug.Log($"[Map] CityLord garden at {root.InverseTransformPoint(pc)} yaw {pyaw}" + (clear.HasValue ? ", no steps beside it" : ""));
+            return;
+        }
         Debug.LogWarning("[Map] CityLord: no room for the garden");
     }
 
