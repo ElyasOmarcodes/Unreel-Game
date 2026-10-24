@@ -42,6 +42,8 @@ public static class PortBuilder
         if (mats.TryGetValue(name, out var m)) return m;
         // the grass of every map is the rocky grass (rocky_terrain_02) where it is in the project
         if (set == "Grass004" && AssetSetup.ExtraTex("RockyTerrain02_BaseColor.jpg") != null) set = "RockyTerrain02";
+        // wooden things are the planks of wood_table, each in its own colour (the tint); not tree trunks
+        if ((set == "Wood049" || set == "Planks037A") && !name.Contains("Palm") && !name.Contains("Trunk") && AssetSetup.ExtraTex("WoodTable_BaseColor.jpg") != null) set = "WoodTable";
         var albedo = T(set + "_BaseColor.jpg");
         if (albedo == null) Debug.LogWarning("[Port] missing texture set " + set);
         return mats[name] = AssetSetup.Mat("Port_" + name, tint, smoothness, metallic, albedo, T(set + "_Normal.jpg"), T(set + "_MS.png"));

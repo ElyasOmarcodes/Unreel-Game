@@ -277,6 +277,7 @@ namespace UA
                 (9, "51-zahra-portico", new Vector3(72f, 6.5f, 14f), new Vector3(36f, 8f, 8f)),
                 (9, "52-zahra-ramp-street", new Vector3(47f, 5.8f, 48.5f), new Vector3(86f, 7f, 48.5f)),
                 (9, "53-zahra-palace", new Vector3(70f, 4.5f, -35.5f), new Vector3(70f, 6f, -50f)),
+                (9, "53e-zahra-palace-fountain", new Vector3(70f, 9f, -46f), new Vector3(70f, 0.6f, -59f)),
                 (9, "53b-zahra-palace-court", new Vector3(70f, 3.2f, -48.5f), new Vector3(70f, 3.5f, -70f)),
                 (9, "53c-zahra-throne", new Vector3(70f, 2.6f, -74f), new Vector3(70f, 2.2f, -93f)),
                 (9, "53d-zahra-palace-rooms", new Vector3(88f, 2.6f, -78f), new Vector3(91f, 3.4f, -82f)),

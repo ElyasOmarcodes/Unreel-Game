@@ -277,9 +277,11 @@ public static partial class CityLordBuilder
 
     // ------------------------------------------------------------------ names and numbers
 
-    private static Material SignBlue => AssetSetup.Solid("CL_SignBlue", new Color(0.07f, 0.2f, 0.42f), 0.35f);
-    private static Material SignSteel => AssetSetup.Solid("CL_SignSteel", new Color(0.2f, 0.21f, 0.22f), 0.5f, 0.6f);
-    private static Material SignYellow => AssetSetup.Solid("CL_SignYellow", new Color(0.95f, 0.72f, 0.1f), 0.4f);
+    // the boards are made of the town's own old iron: the rusty steel of its ladder (Ladder material)
+    private static Material RustyIron => MaterialNamed("Ladder") ?? AssetSetup.Solid("CL_SignSteel", new Color(0.3f, 0.2f, 0.14f), 0.4f, 0.6f);
+    private static Material SignBlue => RustyIron;
+    private static Material SignSteel => RustyIron;
+    private static Material SignYellow => AssetSetup.Solid("CL_SignDark", new Color(0.12f, 0.08f, 0.06f), 0.4f, 0.7f);
 
     /// <summary>Name boards for the four parts of the town and a number plate on every building; returns the buildings numbered.</summary>
     private static int NameTown(Dictionary<string, Bounds> outlines)

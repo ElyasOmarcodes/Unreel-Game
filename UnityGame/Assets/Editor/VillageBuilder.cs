@@ -41,7 +41,8 @@ public static class VillageBuilder
     // kahgel: mud and straw plaster, light beige brown (the hand smoothed clay texture)
     // (shader UA/Mud: projected in world space, so separate pieces read as one plastered surface)
     private static Material Mud => MudMat("V_Mud", new Color(1.05f, 0.95f, 0.8f));
-    private static Material MudPlaster => MudMat("V_MudPlaster", new Color(1.12f, 1.02f, 0.86f));
+    // the wall tops, parapets and roofs: the same mud as the walls (one plastered piece, no seams)
+    private static Material MudPlaster => Mud;
     private static Material MudDark => MudMat("V_MudDark", new Color(0.82f, 0.72f, 0.58f));
     private static readonly Dictionary<string, Material> mudMats = new Dictionary<string, Material>();
 
@@ -320,23 +321,23 @@ public static class VillageBuilder
                 }
             return;
         }
-        Block("Roof", t, new Vector3(0, y + 0.15f, 0), new Vector3(w + 0.3f, 0.3f, l + 0.3f), MudPlaster, 0.05f);
+        Block("Roof", t, new Vector3(0, y + 0.15f, 0), new Vector3(w + 0.3f, 0.3f, l + 0.3f), MudPlaster, 0.02f);
         for (float x = -w / 2f + 0.4f; x < w / 2f - 0.2f; x += 0.75f)
             foreach (float s in new[] { -1f, 1f })
                 Block("Beam", t, new Vector3(x, y - 0.08f, s * (l / 2f + 0.3f)), new Vector3(0.13f, 0.13f, 0.45f), OldWood, 0.03f, false);
         if (!parapet) return;
         float ph = 0.55f, py = y + 0.3f + ph / 2f;
-        Block("Parapet", t, new Vector3(0, py, -l / 2f), new Vector3(w + 0.3f, ph, 0.3f), MudPlaster, 0.12f);
-        Block("Parapet", t, new Vector3(0, py, l / 2f), new Vector3(w + 0.3f, ph, 0.3f), MudPlaster, 0.12f);
+        Block("Parapet", t, new Vector3(0, py, -l / 2f), new Vector3(w + 0.3f, ph, 0.3f), MudPlaster, 0.03f);
+        Block("Parapet", t, new Vector3(0, py, l / 2f), new Vector3(w + 0.3f, ph, 0.3f), MudPlaster, 0.03f);
         foreach (float s in new[] { -1f, 1f })
         {
             // the side where the outside stair arrives has an opening at its back end
             if (stairGap > 0f && Mathf.Approximately(s, gapSide))
             {
                 float len = l - stairGap;
-                Block("Parapet", t, new Vector3(s * w / 2f, py, -l / 2f + len / 2f), new Vector3(0.3f, ph, len), MudPlaster, 0.12f);
+                Block("Parapet", t, new Vector3(s * w / 2f, py, -l / 2f + len / 2f), new Vector3(0.3f, ph, len), MudPlaster, 0.03f);
             }
-            else Block("Parapet", t, new Vector3(s * w / 2f, py, 0), new Vector3(0.3f, ph, l + 0.3f), MudPlaster, 0.12f);
+            else Block("Parapet", t, new Vector3(s * w / 2f, py, 0), new Vector3(0.3f, ph, l + 0.3f), MudPlaster, 0.03f);
         }
         // a wooden spout to drain the roof
         Block("Spout", t, new Vector3(w / 4f, y + 0.25f, -l / 2f - 0.45f), new Vector3(0.14f, 0.1f, 0.7f), OldWood, 0.02f, false);
@@ -481,8 +482,8 @@ public static class VillageBuilder
         // soft rounded wall tops (a ruin has broken tops instead)
         foreach (float s in ruined ? new float[0] : new[] { -1f, 1f })
         {
-            Block("Cap", t, new Vector3(0, wallH + 0.08f, s * l / 2f), new Vector3(w + 0.1f, 0.16f, thick + 0.12f), MudPlaster, 0.08f, false);
-            Block("Cap", t, new Vector3(s * w / 2f, wallH + 0.08f, 0), new Vector3(thick + 0.12f, 0.16f, l), MudPlaster, 0.08f, false);
+            Block("Cap", t, new Vector3(0, wallH + 0.08f, s * l / 2f), new Vector3(w + thick, 0.16f, thick + 0.02f), MudPlaster, 0.03f, false);
+            Block("Cap", t, new Vector3(s * w / 2f, wallH + 0.08f, 0), new Vector3(thick + 0.02f, 0.16f, l), MudPlaster, 0.03f, false);
         }
         if (towers)
             foreach (float x in new[] { -1f, 1f })
@@ -559,7 +560,10 @@ public static class VillageBuilder
             var row = new GameObject("Shops").transform;
             row.SetParent(t, false);
             row.SetPositionAndRotation(new Vector3(0, 0, side * 15f), Quaternion.Euler(0, side > 0 ? 0f : 180f, 0));
-            Block("ShopPlatform", row, new Vector3(0, 0.35f, 0.4f), new Vector3(26f, 0.7f, 6.4f), MudPlaster, 0.12f);
+            Block("ShopPlatform", row, new Vector3(0, 0.35f, 0.4f), new Vector3(26f, 0.7f, 6.4f), MudPlaster, 0.03f);
+            // glazed tiles on the shop platform (interior_tiles)
+            if (AssetSetup.ExtraTex("InteriorTiles_BaseColor.jpg") != null)
+                MeshGen.TexBox("ShopTiles", row.TransformPoint(new Vector3(0, 0.715f, 0.4f)), new Vector3(25.8f, 0.03f, 6.2f), PortBuilder.Pbr("V_Tiles", "InteriorTiles", new Color(0.95f, 0.88f, 0.78f), 0.6f), 1.2f, row, row.eulerAngles.y, false);
             // steps up to the platform edge (front at local z = -2.8; 4 steps of 0.36 m)
             global::Buildings.Stairs(t, row.TransformPoint(new Vector3(-8f, 0, -4.24f)), row.forward, 0.7f, 2.2f, MudPlaster);
             global::Buildings.Stairs(t, row.TransformPoint(new Vector3(8f, 0, -4.24f)), row.forward, 0.7f, 2.2f, MudPlaster);

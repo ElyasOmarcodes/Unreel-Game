@@ -451,6 +451,9 @@ public static class TownBuilder
     private static void Well(Vector3 p)
     {
         var t = Node("Well", root, p, 0);
+        // a round floor of glazed tiles (interior_tiles) round the well
+        if (AssetSetup.ExtraTex("InteriorTiles_BaseColor.jpg") != null)
+            MeshGen.Object("WellTiles", MeshGen.Cylinder(3.2f, 0.06f, 1.2f, 40), PortBuilder.Pbr("T_Tiles", "InteriorTiles", new Color(0.92f, 0.9f, 0.86f), 0.6f), t, p + Vector3.up * 0.02f);
         MeshGen.TexCylinder("WellRing", p, 1.2f, 0.9f, Stone, 1.5f, t);
         MeshGen.TexCylinder("WellWater", p + Vector3.up * 0.7f, 1.0f, 0.22f, Water, 2f, t, false);
         foreach (float s in new[] { -1f, 1f })
