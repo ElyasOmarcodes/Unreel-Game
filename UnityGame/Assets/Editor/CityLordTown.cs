@@ -473,13 +473,13 @@ public static partial class CityLordBuilder
         ZahraBuilder.Writing(t, new Vector3(0, -0.14f, -0.04f), new Vector2(1.45f, 0.44f), number, 40f, new Color(1f, 0.85f, 0.3f));
         // a lantern on a bracket over the plate: warm light on the wall and the street at night
         MeshGen.TexBox("LampArm", t.TransformPoint(new Vector3(0, 0.98f, -0.2f)), new Vector3(0.05f, 0.05f, 0.42f), NightLights.LampMetal, 1f, t, yaw, false);
-        NightLights.Lamp(t, t.TransformPoint(new Vector3(0, 0.82f, -0.42f)), new Vector3(0.22f, 0.32f, 0.22f), night, 2.8f);
+        NightLights.Lamp(t, t.TransformPoint(new Vector3(0, 0.82f, -0.42f)), new Vector3(0.22f, 0.32f, 0.22f), night, 3.8f);
         NightLights.Pool(t, t.TransformPoint(new Vector3(0, 0.6f, -0.08f)), -t.forward, 1.6f, night, 0.9f);
     }
 
     /// <summary>
     /// Street lamps along the streets of the town, as in the Old Town: a steel post with a lantern on an
-    /// arm, a pool of warm light under it; on free street ground next to a wall or fence, 14 m apart.
+    /// arm, a pool of warm light under it; on free street ground next to a wall or fence, 10 m apart.
     /// </summary>
     private static int StreetLamps()
     {
@@ -488,10 +488,10 @@ public static partial class CityLordBuilder
         var placed = new List<Vector3>();
         var dirs = new[] { Vector3.forward, Vector3.back, Vector3.left, Vector3.right };
         Physics.SyncTransforms();
-        for (float x = -40f; x <= 110f; x += 5f)
-            for (float z = -70f; z <= 60f; z += 5f)
+        for (float x = -40f; x <= 110f; x += 4f)
+            for (float z = -70f; z <= 60f; z += 4f)
             {
-                if (placed.Count >= 34) return placed.Count;
+                if (placed.Count >= 60) return placed.Count;
                 var top = root.TransformPoint(new Vector3(x, 25f, z));
                 RaycastHit hit = default;
                 bool any = false;
@@ -501,7 +501,7 @@ public static partial class CityLordBuilder
                     if (Physics.Raycast(h.point + Vector3.up * 4.6f, Vector3.down, 4.4f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;   // under a roof
                     if (!any || h.point.y < hit.point.y) { hit = h; any = true; }
                 }
-                if (!any || placed.Any(p => (p - hit.point).sqrMagnitude < 14f * 14f)) continue;
+                if (!any || placed.Any(p => (p - hit.point).sqrMagnitude < 10f * 10f)) continue;
                 if (Physics.CheckCapsule(hit.point + Vector3.up * 0.4f, hit.point + Vector3.up * 4.6f, 0.9f, mask, QueryTriggerInteraction.Ignore)) continue;
                 // beside a wall (1.2 to 3.5 m away): the lamp leans out over the street from it
                 Vector3 wall = Vector3.zero;
@@ -517,7 +517,7 @@ public static partial class CityLordBuilder
                 MeshGen.TexBox("LampPost", hit.point + Vector3.up * 2.3f, new Vector3(0.14f, 4.6f, 0.14f), steel, 1f, t, yaw, true);
                 MeshGen.TexBox("LampFoot", hit.point + Vector3.up * 0.15f, new Vector3(0.34f, 0.3f, 0.34f), steel, 1f, t, yaw, false);
                 MeshGen.TexBox("LampArm", hit.point + Vector3.up * 4.55f + arm * 0.5f, new Vector3(0.08f, 0.08f, 1.05f), steel, 1f, t, yaw, false);
-                NightLights.Lamp(t, hit.point + Vector3.up * 4.25f + arm * 0.95f, new Vector3(0.26f, 0.36f, 0.26f), night, 3.4f);
+                NightLights.Lamp(t, hit.point + Vector3.up * 4.25f + arm * 0.95f, new Vector3(0.26f, 0.36f, 0.26f), night, 4.6f);
                 placed.Add(hit.point);
             }
         return placed.Count;

@@ -56,8 +56,8 @@ public static class ZahraBuilder
     private static Material BrickFloor => PortBuilder.Pbr("Z_BrickFloor", "Bricks076A", new Color(0.95f, 0.62f, 0.48f), 0.25f);
     // field stone (dry_riverbed_rock) for the city walls, terrace faces, parapets and the plain walls of
     // the streets; flagstones (monastery_stone_floor) for stairs and some walks: the houses keep their own
-    private static Material Rubble => PortBuilder.Pbr("Z_Rubble", "DryRiverbed", new Color(1f, 0.9f, 0.74f), 0.15f);
-    private static Material Flags => PortBuilder.Pbr("Z_Flags", "MonasteryFloor", new Color(1f, 0.93f, 0.8f), 0.25f);
+    private static Material Rubble => PortBuilder.Pbr("Z_Rubble", "DryRiverbedSand", new Color(1f, 0.86f, 0.66f), 0.15f);
+    private static Material Flags => PortBuilder.Pbr("Z_Flags", "MonasteryFloorSand", new Color(1f, 0.88f, 0.7f), 0.25f);
     private static Material Paving => PortBuilder.Pbr("Z_Paving", "PavingStones070", new Color(1f, 0.9f, 0.74f), 0.3f);
     private static Material Sand => PortBuilder.Pbr("Z_Sand", "Ground104", new Color(1.05f, 0.92f, 0.72f), 0.08f);
     private static Material Grass => PortBuilder.Pbr("Z_Grass", "Grass004", new Color(0.92f, 1.02f, 0.8f), 0.15f);
