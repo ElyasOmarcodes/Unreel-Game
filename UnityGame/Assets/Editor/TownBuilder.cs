@@ -40,6 +40,10 @@ public static class TownBuilder
     private static Material Cobbles => PortBuilder.Pbr("T_Cobbles", "PavingStones070", new Color(0.8f, 0.77f, 0.88f), 0.35f);
     private static Material Grass => PortBuilder.Pbr("T_Grass", "Grass004", new Color(0.82f, 0.95f, 0.78f), 0.2f);
     private static Material Stone => PortBuilder.Pbr("T_Stone", "PavingStones070", new Color(0.74f, 0.72f, 0.8f), 0.25f);
+    // field stone (dry_riverbed_rock) for the town wall, its towers, the parapets and the plinths;
+    // flagstones (monastery_stone_floor) for steps and stairs: the houses and the church keep their stone
+    private static Material FieldStone => PortBuilder.Pbr("T_FieldStone", "DryRiverbed", new Color(0.88f, 0.86f, 0.9f), 0.15f);
+    private static Material Flagstone => PortBuilder.Pbr("T_Flagstone", "MonasteryFloor", new Color(0.9f, 0.88f, 0.94f), 0.25f);
     private static Material Timber => PortBuilder.Pbr("T_Timber", "Wood049", new Color(0.45f, 0.27f, 0.18f), 0.35f);
     private static Material DoorWood => PortBuilder.Pbr("T_Door", "Planks037A", new Color(0.62f, 0.36f, 0.22f), 0.35f);
     private static Material Boards => PortBuilder.Pbr("WoodFloor", "WoodFloor051", Color.white, 0.6f);
@@ -170,7 +174,7 @@ public static class TownBuilder
         float plinth = enterable ? 0.45f : 0.25f;
         var wallMat = Plaster(plaster);
         taken.Add(Footprint(pos, yaw, w + 2f, d + 2f));
-        B(t, "Plinth", new Vector3(0, plinth / 2f, 0), new Vector3(w + 0.24f, plinth, d + 0.24f), Stone, 2f);
+        B(t, "Plinth", new Vector3(0, plinth / 2f, 0), new Vector3(w + 0.24f, plinth, d + 0.24f), FieldStone, 2f);
         float y = plinth;
         float doorAt = R(-0.2f, 0.2f) * w;
         // front steps up to the door
@@ -178,7 +182,7 @@ public static class TownBuilder
         for (int s = 0; s < steps; s++)
         {
             float stepTop = plinth * (steps - s) / (steps + 1f);
-            B(t, "Step", new Vector3(doorAt, stepTop / 2f, -hd - 0.12f - 0.35f * s - 0.175f), new Vector3(1.6f + s * 0.3f, stepTop, 0.35f), Stone, 1.5f);
+            B(t, "Step", new Vector3(doorAt, stepTop / 2f, -hd - 0.12f - 0.35f * s - 0.175f), new Vector3(1.6f + s * 0.3f, stepTop, 0.35f), Flagstone, 1.5f);
         }
 
         // ---- ground floor: stone
@@ -454,12 +458,19 @@ public static class TownBuilder
         // a round floor of glazed tiles (interior_tiles) round the well
         if (AssetSetup.ExtraTex("InteriorTiles_BaseColor.jpg") != null)
             MeshGen.Object("WellTiles", MeshGen.Cylinder(3.2f, 0.06f, 1.2f, 40), PortBuilder.Pbr("T_Tiles", "InteriorTiles", new Color(0.92f, 0.9f, 0.86f), 0.6f), t, p + Vector3.up * 0.02f);
-        MeshGen.TexCylinder("WellRing", p, 1.2f, 0.9f, Stone, 1.5f, t);
+        MeshGen.TexCylinder("WellRing", p, 1.2f, 0.9f, FieldStone, 1.5f, t);
         MeshGen.TexCylinder("WellWater", p + Vector3.up * 0.7f, 1.0f, 0.22f, Water, 2f, t, false);
+        // two posts on the ring carry the ridge beam; the little gable roof runs along them, its ridge on
+        // the posts, its ends closed with boards
         foreach (float s in new[] { -1f, 1f })
-            B(t, "WellPost", new Vector3(s * 1.05f, 1.6f, 0), new Vector3(0.14f, 1.6f, 0.14f), Timber, 1f);
-        MeshGen.Object("WellRoof", MeshGen.GableRoof(2.6f, 1.6f, 1f, 0.15f, 1f), Roof(0), t, p + Vector3.up * 2.4f, 90f);
-        B(t, "WellBeam", new Vector3(0, 2.25f, 0), new Vector3(2.2f, 0.12f, 0.12f), Timber, 1f, false);
+        {
+            B(t, "WellPost", new Vector3(s * 1.05f, 2.1f, 0), new Vector3(0.14f, 2.4f, 0.14f), Timber, 1f);
+            var gable = MeshGen.Object("WellGable", MeshGen.Gable(1.8f, 0.9f, 1f), Timber, t, p + new Vector3(s * 1.12f, 2.45f, 0), 90f);
+            gable.isStatic = true;
+        }
+        B(t, "WellRidge", new Vector3(0, 3.27f, 0), new Vector3(2.4f, 0.12f, 0.12f), Timber, 1f, false);
+        MeshGen.Object("WellRoof", MeshGen.GableRoof(1.8f, 2.4f, 0.9f, 0.15f, 1f), Roof(0), t, p + Vector3.up * 2.45f, 90f);
+        B(t, "WellBeam", new Vector3(0, 2.0f, 0), new Vector3(2.2f, 0.12f, 0.12f), Timber, 1f, false);
         StreetLamp(p + new Vector3(2.4f, 0, 2.4f));
     }
 
@@ -524,20 +535,20 @@ public static class TownBuilder
         taken.Add(Rect.MinMaxRect(x - 3f, -64f, x + 6f, 64f));
         foreach (var (z0, z1) in new[] { (-62f, -5f), (5f, 62f) })
         {
-            B(t, "TownWall", new Vector3(x, h / 2f, (z0 + z1) / 2f), new Vector3(thick, h, z1 - z0), Stone, 2.5f);
+            B(t, "TownWall", new Vector3(x, h / 2f, (z0 + z1) / 2f), new Vector3(thick, h, z1 - z0), FieldStone, 2.5f);
             for (float z = z0 + 0.6f; z < z1 - 0.4f; z += 1.6f)
-                B(t, "Merlon", new Vector3(x - thick / 2f + 0.3f, h + 0.6f, z), new Vector3(0.6f, 1.2f, 0.9f), Stone, 1f);
+                B(t, "Merlon", new Vector3(x - thick / 2f + 0.3f, h + 0.6f, z), new Vector3(0.6f, 1.2f, 0.9f), FieldStone, 1f);
         }
         // gate towers either side of the main street, the walk carried over the gate on an arch
         foreach (float s in new[] { -1f, 1f })
         {
             var c = new Vector3(x, 0, s * 7.5f);
-            B(t, "GateTower", c + Vector3.up * (h / 2f), new Vector3(5f, h, 5f), Stone, 2.5f);
+            B(t, "GateTower", c + Vector3.up * (h / 2f), new Vector3(5f, h, 5f), FieldStone, 2.5f);
             foreach (var (dx, dz) in new[] { (-2.2f, -2.2f), (2.2f, -2.2f), (-2.2f, 2.2f), (2.2f, 2.2f), (-2.2f, 0f), (0f, s * 2.2f) })
-                B(t, "Merlon", c + new Vector3(dx, h + 0.7f, dz), new Vector3(0.7f, 1.4f, 0.7f), Stone, 1f);
+                B(t, "Merlon", c + new Vector3(dx, h + 0.7f, dz), new Vector3(0.7f, 1.4f, 0.7f), FieldStone, 1f);
             WallLantern(t, c + new Vector3(2.5f, 2.6f, -s * 1.2f), Vector3.right);
         }
-        B(t, "GateArch", new Vector3(x, h - 0.6f, 0), new Vector3(thick, 1.2f, 10f), Stone, 2f);
+        B(t, "GateArch", new Vector3(x, h - 0.6f, 0), new Vector3(thick, 1.2f, 10f), FieldStone, 2f);
         foreach (float zc in new[] { 30f, -34f }) WallClimb(t, x + thick / 2f, zc);
     }
 
@@ -569,7 +580,7 @@ public static class TownBuilder
         if (tall)
         {
             B(t, "LoftWalls", new Vector3(0, h / 2f, 0), new Vector3(w, h, d), Plaster(k), 2.5f);
-            B(t, "LoftBase", new Vector3(0, 0.45f, 0), new Vector3(w + 0.12f, 0.9f, d + 0.12f), Stone, 2f, false);
+            B(t, "LoftBase", new Vector3(0, 0.45f, 0), new Vector3(w + 0.12f, 0.9f, d + 0.12f), FieldStone, 2f, false);
         }
         else
         {
@@ -583,9 +594,9 @@ public static class TownBuilder
             B(t, "LoftWall", new Vector3(w / 2f - wt / 2f, (2.3f + h) / 2f, 0.4f), new Vector3(wt, h - 2.3f, 1.3f), Plaster(k), 2.5f);
             B(t, "LoftFloor", new Vector3(0, 0.05f, 0), new Vector3(w - 2f * wt, 0.1f, d - 2f * wt), Boards, 2f);
             foreach (float sz in new[] { -1f, 1f })
-                B(t, "LoftBase", new Vector3(0, 0.45f, sz * (d / 2f + 0.03f)), new Vector3(w + 0.12f, 0.9f, 0.06f), Stone, 2f, false);
+                B(t, "LoftBase", new Vector3(0, 0.45f, sz * (d / 2f + 0.03f)), new Vector3(w + 0.12f, 0.9f, 0.06f), FieldStone, 2f, false);
             foreach (float sx in new[] { -1f, 1f })
-                B(t, "LoftBase", new Vector3(sx * (w / 2f + 0.03f), 0.45f, 0), new Vector3(0.06f, 0.9f, d), Stone, 2f, false);
+                B(t, "LoftBase", new Vector3(sx * (w / 2f + 0.03f), 0.45f, 0), new Vector3(0.06f, 0.9f, d), FieldStone, 2f, false);
         }
         B(t, "LoftCornice", new Vector3(0, h - 0.1f, 0), new Vector3(w + 0.3f, 0.2f, d + 0.3f), Timber, 1.5f, false);
         // closed shutters on the walls, some lit at night
@@ -610,13 +621,13 @@ public static class TownBuilder
             float z = sz * (d / 2f - pt / 2f);
             if (Mathf.Approximately(z, gz))
             {
-                B(t, "Parapet", new Vector3((-w / 2f + gx0) / 2f, h + ph / 2f, z), new Vector3(gx0 + w / 2f + 0.01f, ph, pt), Stone, 1.5f);
-                B(t, "Parapet", new Vector3((gx1 + w / 2f) / 2f, h + ph / 2f, z), new Vector3(w / 2f - gx1, ph, pt), Stone, 1.5f);
+                B(t, "Parapet", new Vector3((-w / 2f + gx0) / 2f, h + ph / 2f, z), new Vector3(gx0 + w / 2f + 0.01f, ph, pt), FieldStone, 1.5f);
+                B(t, "Parapet", new Vector3((gx1 + w / 2f) / 2f, h + ph / 2f, z), new Vector3(w / 2f - gx1, ph, pt), FieldStone, 1.5f);
             }
-            else B(t, "Parapet", new Vector3(0, h + ph / 2f, z), new Vector3(w, ph, pt), Stone, 1.5f);
+            else B(t, "Parapet", new Vector3(0, h + ph / 2f, z), new Vector3(w, ph, pt), FieldStone, 1.5f);
         }
         foreach (float sx in new[] { -1f, 1f })
-            B(t, "Parapet", new Vector3(sx * (w / 2f - pt / 2f), h + ph / 2f, 0), new Vector3(pt, ph, d - 2f * pt), Stone, 1.5f);
+            B(t, "Parapet", new Vector3(sx * (w / 2f - pt / 2f), h + ph / 2f, 0), new Vector3(pt, ph, d - 2f * pt), FieldStone, 1.5f);
         B(t, "Chimney", new Vector3(2.8f, h + 0.9f, 1.2f), new Vector3(0.9f, 1.8f, 0.9f), Stone, 1f);
         // no ammunition up here: whoever holds the roof has to come down for more
         if (tall)
@@ -666,13 +677,13 @@ public static class TownBuilder
         B(t, "TerraceWalls", new Vector3(r.center.x, top / 2f, r.center.y), new Vector3(r.width, top, r.height), Stone, 2.5f);
         B(t, "TerraceLawn", new Vector3(r.center.x, top + 0.03f, r.center.y), new Vector3(r.width - 0.4f, 0.06f, r.height - 0.4f), Grass, 3f);
         // a waist-high wall round it, open where the stair comes up
-        B(t, "Parapet", new Vector3(r.center.x, top + 0.45f, r.yMax - 0.2f), new Vector3(r.width, 0.9f, 0.4f), Stone, 1.5f);
-        B(t, "Parapet", new Vector3(r.xMin + 0.2f, top + 0.45f, r.center.y), new Vector3(0.4f, 0.9f, r.height), Stone, 1.5f);
-        B(t, "Parapet", new Vector3(r.xMax - 0.2f, top + 0.45f, r.center.y), new Vector3(0.4f, 0.9f, r.height), Stone, 1.5f);
-        B(t, "Parapet", new Vector3((r.xMin + r.center.x - 1.6f) / 2f, top + 0.45f, r.yMin + 0.2f), new Vector3(r.center.x - 1.6f - r.xMin, 0.9f, 0.4f), Stone, 1.5f);
-        B(t, "Parapet", new Vector3((r.xMax + r.center.x + 1.6f) / 2f, top + 0.45f, r.yMin + 0.2f), new Vector3(r.xMax - r.center.x - 1.6f, 0.9f, 0.4f), Stone, 1.5f);
+        B(t, "Parapet", new Vector3(r.center.x, top + 0.45f, r.yMax - 0.2f), new Vector3(r.width, 0.9f, 0.4f), FieldStone, 1.5f);
+        B(t, "Parapet", new Vector3(r.xMin + 0.2f, top + 0.45f, r.center.y), new Vector3(0.4f, 0.9f, r.height), FieldStone, 1.5f);
+        B(t, "Parapet", new Vector3(r.xMax - 0.2f, top + 0.45f, r.center.y), new Vector3(0.4f, 0.9f, r.height), FieldStone, 1.5f);
+        B(t, "Parapet", new Vector3((r.xMin + r.center.x - 1.6f) / 2f, top + 0.45f, r.yMin + 0.2f), new Vector3(r.center.x - 1.6f - r.xMin, 0.9f, 0.4f), FieldStone, 1.5f);
+        B(t, "Parapet", new Vector3((r.xMax + r.center.x + 1.6f) / 2f, top + 0.45f, r.yMin + 0.2f), new Vector3(r.xMax - r.center.x - 1.6f, 0.9f, 0.4f), FieldStone, 1.5f);
         int steps = Mathf.CeilToInt(top / 0.2f);
-        Buildings.Stairs(t, new Vector3(r.center.x, 0, r.yMin - steps * 0.36f), Vector3.forward, top, 2.8f, Stone);
+        Buildings.Stairs(t, new Vector3(r.center.x, 0, r.yMin - steps * 0.36f), Vector3.forward, top, 2.8f, Flagstone);
         // pavilion with a pointed roof, benches, small trees and lanterns
         var pc = new Vector3(r.center.x, top, r.center.y + 2f);
         foreach (var (dx, dz) in new[] { (-1.6f, -1.6f), (1.6f, -1.6f), (-1.6f, 1.6f), (1.6f, 1.6f) })

@@ -54,6 +54,10 @@ public static class ZahraBuilder
     private static Material Almagra => PortBuilder.Pbr("Z_Almagra", "Plaster001", new Color(0.62f, 0.2f, 0.12f), 0.3f);
     private static Material Violet => PortBuilder.Pbr("Z_Violet", "PavingStones070", new Color(0.72f, 0.62f, 0.78f), 0.4f);
     private static Material BrickFloor => PortBuilder.Pbr("Z_BrickFloor", "Bricks076A", new Color(0.95f, 0.62f, 0.48f), 0.25f);
+    // field stone (dry_riverbed_rock) for the city walls, terrace faces, parapets and the plain walls of
+    // the streets; flagstones (monastery_stone_floor) for stairs and some walks: the houses keep their own
+    private static Material Rubble => PortBuilder.Pbr("Z_Rubble", "DryRiverbed", new Color(1f, 0.9f, 0.74f), 0.15f);
+    private static Material Flags => PortBuilder.Pbr("Z_Flags", "MonasteryFloor", new Color(1f, 0.93f, 0.8f), 0.25f);
     private static Material Paving => PortBuilder.Pbr("Z_Paving", "PavingStones070", new Color(1f, 0.9f, 0.74f), 0.3f);
     private static Material Sand => PortBuilder.Pbr("Z_Sand", "Ground104", new Color(1.05f, 0.92f, 0.72f), 0.08f);
     private static Material Grass => PortBuilder.Pbr("Z_Grass", "Grass004", new Color(0.92f, 1.02f, 0.8f), 0.15f);
@@ -1015,9 +1019,9 @@ public static class ZahraBuilder
         Slab(t, "LowerTerrace", Rect.MinMaxRect(-far, south, far, MidSouth), Lower, 5f, Lawn, 5f);
         Slab(t, "MiddleTerrace", Rect.MinMaxRect(-far, MidSouth, far, UpSouth), Middle, 8f, Lawn, 5f);
         Slab(t, "UpperTerrace", Rect.MinMaxRect(-far, UpSouth, far, far), Upper, 14f, Lawn, 5f);
-        Box(t, "TerraceFace", new Vector3(0, (Lower - 3f) / 2f, south - 0.12f), new Vector3(2f * far, Lower + 3f + 0.02f, 0.25f), Ashlar, 2.5f);
-        Box(t, "TerraceFace", new Vector3(0, (Lower + Middle) / 2f - 0.32f, MidSouth - 0.15f), new Vector3(Half * 2f + 8f, Middle - Lower + 0.6f, 0.3f), Ashlar);
-        Box(t, "TerraceFace", new Vector3(0, (Middle + Upper) / 2f - 0.32f, UpSouth - 0.15f), new Vector3(Half * 2f + 8f, Upper - Middle + 0.6f, 0.3f), Ashlar);
+        Box(t, "TerraceFace", new Vector3(0, (Lower - 3f) / 2f, south - 0.12f), new Vector3(2f * far, Lower + 3f + 0.02f, 0.25f), Rubble, 2.5f);
+        Box(t, "TerraceFace", new Vector3(0, (Lower + Middle) / 2f - 0.32f, MidSouth - 0.15f), new Vector3(Half * 2f + 8f, Middle - Lower + 0.6f, 0.3f), Rubble);
+        Box(t, "TerraceFace", new Vector3(0, (Middle + Upper) / 2f - 0.32f, UpSouth - 0.15f), new Vector3(Half * 2f + 8f, Upper - Middle + 0.6f, 0.3f), Rubble);
         void Parapet(float z, float y, params (float a, float b)[] gaps)
         {
             float x = -123.5f;
@@ -1025,7 +1029,7 @@ public static class ZahraBuilder
             ordered.Add((123.5f, 123.5f));
             foreach (var (ga, gb) in ordered)
             {
-                if (ga - x > 0.1f) Box(t, "Parapet", new Vector3((x + ga) / 2f, y + 0.45f, z), new Vector3(ga - x, 0.9f, 0.45f), Ashlar, 2f);
+                if (ga - x > 0.1f) Box(t, "Parapet", new Vector3((x + ga) / 2f, y + 0.45f, z), new Vector3(ga - x, 0.9f, 0.45f), Rubble, 2f);
                 x = Mathf.Max(x, gb);
             }
         }
@@ -1043,13 +1047,13 @@ public static class ZahraBuilder
     /// <summary>A square tower of ashlar with a band and merlons on top.</summary>
     private static void Tower(Transform t, Vector3 foot, float height, float size = 6f)
     {
-        Box(t, "Tower", foot + Vector3.up * (height / 2f - 2f), new Vector3(size, height + 4f, size), Ashlar, 2.5f);
+        Box(t, "Tower", foot + Vector3.up * (height / 2f - 2f), new Vector3(size, height + 4f, size), Rubble, 2.5f);
         Box(t, "TowerBand", foot + Vector3.up * (height - 0.15f), new Vector3(size + 0.3f, 0.3f, size + 0.3f), Cream, 1.5f, false);
         for (int i = 0; i < 4; i++)
             for (float u = -size / 2f + 0.5f; u <= size / 2f - 0.4f; u += 1.4f)
             {
                 var off = i == 0 ? new Vector3(u, 0, size / 2f - 0.25f) : i == 1 ? new Vector3(u, 0, -size / 2f + 0.25f) : i == 2 ? new Vector3(size / 2f - 0.25f, 0, u) : new Vector3(-size / 2f + 0.25f, 0, u);
-                Box(t, "Merlon", foot + off + Vector3.up * (height + 0.5f), new Vector3(0.7f, 1f, 0.7f), Ashlar, 1f);
+                Box(t, "Merlon", foot + off + Vector3.up * (height + 0.5f), new Vector3(0.7f, 1f, 0.7f), Rubble, 1f);
             }
     }
 
@@ -1068,12 +1072,12 @@ public static class ZahraBuilder
         bool alongX = Mathf.Abs(dir.x) > 0.5f;
         float top = a.y + WallTop;
         var c = (a + b) / 2f;
-        Box(t, "CityWall", new Vector3(c.x, (a.y - 4f + top) / 2f, c.z), alongX ? new Vector3(len, WallTop + 4f, 3f) : new Vector3(3f, WallTop + 4f, len), Ashlar, 2.5f);
+        Box(t, "CityWall", new Vector3(c.x, (a.y - 4f + top) / 2f, c.z), alongX ? new Vector3(len, WallTop + 4f, 3f) : new Vector3(3f, WallTop + 4f, len), Rubble, 2.5f);
         Box(t, "WallBand", new Vector3(c.x, top - 0.6f, c.z) + outward * 1.52f, alongX ? new Vector3(len, 0.2f, 0.06f) : new Vector3(0.06f, 0.2f, len), Cream, 1.5f, false);
         for (float u = 0.7f; u < len - 0.4f; u += 1.5f)
         {
             var p = a + dir * u + outward * 1.25f;
-            Box(t, "Merlon", new Vector3(p.x, top + 0.55f, p.z), alongX ? new Vector3(0.8f, 1.1f, 0.5f) : new Vector3(0.5f, 1.1f, 0.8f), Ashlar, 1f);
+            Box(t, "Merlon", new Vector3(p.x, top + 0.55f, p.z), alongX ? new Vector3(0.8f, 1.1f, 0.5f) : new Vector3(0.5f, 1.1f, 0.8f), Rubble, 1f);
         }
     }
 
@@ -1081,7 +1085,7 @@ public static class ZahraBuilder
     private static void Bastion(Transform t, Vector3 foot, float size = 6f)
     {
         float top = foot.y + WallTop;
-        Box(t, "Bastion", new Vector3(foot.x, (foot.y - 4f + top) / 2f, foot.z), new Vector3(size, WallTop + 4f, size), Ashlar, 2.5f);
+        Box(t, "Bastion", new Vector3(foot.x, (foot.y - 4f + top) / 2f, foot.z), new Vector3(size, WallTop + 4f, size), Rubble, 2.5f);
         Box(t, "BastionBand", new Vector3(foot.x, top - 0.6f, foot.z), new Vector3(size + 0.12f, 0.2f, size + 0.12f), Cream, 1.5f, false);
         float h = size / 2f - 0.3f;
         for (int side = 0; side < 4; side++)
@@ -1089,7 +1093,7 @@ public static class ZahraBuilder
             {
                 if (Mathf.Abs(u) < 1.4f) continue;
                 var off = side == 0 ? new Vector3(u, 0, h) : side == 1 ? new Vector3(u, 0, -h) : side == 2 ? new Vector3(h, 0, u) : new Vector3(-h, 0, u);
-                Box(t, "Merlon", new Vector3(foot.x, top + 0.55f, foot.z) + off, side < 2 ? new Vector3(0.7f, 1.1f, 0.6f) : new Vector3(0.6f, 1.1f, 0.7f), Ashlar, 1f);
+                Box(t, "Merlon", new Vector3(foot.x, top + 0.55f, foot.z) + off, side < 2 ? new Vector3(0.7f, 1.1f, 0.6f) : new Vector3(0.6f, 1.1f, 0.7f), Rubble, 1f);
             }
     }
 
@@ -1099,15 +1103,15 @@ public static class ZahraBuilder
     /// </summary>
     private static void TerraceStair(Transform t, Vector3 start, Vector3 dir, float height, float width)
     {
-        Buildings.Stairs(t, start, dir, height, width, Ashlar);
+        Buildings.Stairs(t, start, dir, height, width, Flags);
         float run = Mathf.CeilToInt(height / 0.2f) * 0.36f;
         var side = Vector3.Cross(Vector3.up, dir).normalized;
         foreach (float s in new[] { -1f, 1f })
         {
             var off = side * s * (width / 2f + 0.2f);
-            Underground.Wedge(t, "StairCheek", start + off - dir * 0.6f, start + off + dir * run + Vector3.up * (height + 0.35f), 0.4f, Ashlar);
+            Underground.Wedge(t, "StairCheek", start + off - dir * 0.6f, start + off + dir * run + Vector3.up * (height + 0.35f), 0.4f, Rubble);
             // the top end of the cheek: square against the terrace edge
-            Box(t, "StairCheekTop", start + off + dir * (run - 0.3f) + Vector3.up * (height + 0.175f), new Vector3(Mathf.Abs(side.x) * 0.4f + Mathf.Abs(dir.x) * 0.6f, 0.35f, Mathf.Abs(side.z) * 0.4f + Mathf.Abs(dir.z) * 0.6f), Ashlar, 1.5f);
+            Box(t, "StairCheekTop", start + off + dir * (run - 0.3f) + Vector3.up * (height + 0.175f), new Vector3(Mathf.Abs(side.x) * 0.4f + Mathf.Abs(dir.x) * 0.6f, 0.35f, Mathf.Abs(side.z) * 0.4f + Mathf.Abs(dir.z) * 0.6f), Rubble, 1.5f);
         }
     }
 
@@ -1211,8 +1215,8 @@ public static class ZahraBuilder
                 for (float z = z0 + 14f; z < z1 - 12f; z += 24f) Bastion(t, new Vector3(s * x, y, z));
             }
             // on the walk, stairs up where the wall climbs to the next terrace
-            Buildings.Stairs(t, new Vector3(s * (x - 0.25f), Lower + WallTop, MidSouth - 7.2f), Vector3.forward, Middle - Lower, 2f, Ashlar);
-            Buildings.Stairs(t, new Vector3(s * (x - 0.25f), Middle + WallTop, UpSouth - 10.8f), Vector3.forward, Upper - Middle, 2f, Ashlar);
+            Buildings.Stairs(t, new Vector3(s * (x - 0.25f), Lower + WallTop, MidSouth - 7.2f), Vector3.forward, Middle - Lower, 2f, Flags);
+            Buildings.Stairs(t, new Vector3(s * (x - 0.25f), Middle + WallTop, UpSouth - 10.8f), Vector3.forward, Upper - Middle, 2f, Flags);
         }
         // the south wall, open for the gate
         foreach (var (a, b) in new[] { (-123.5f, GateX - 4f), (GateX + 4f, 123.5f) })
@@ -1223,7 +1227,7 @@ public static class ZahraBuilder
         WallStretch(t, new Vector3(-123.5f, Upper, 124.5f), new Vector3(123.5f, Upper, 124.5f), Vector3.forward);
         for (float xx = -100f; xx < 120f; xx += 30f) Bastion(t, new Vector3(xx, Upper, 124.5f));
         foreach (float xx in new[] { -36f, 54f })
-            Buildings.Stairs(t, new Vector3(xx, Upper, 121.8f), Vector3.right, WallTop, 2f, Ashlar);
+            Buildings.Stairs(t, new Vector3(xx, Upper, 121.8f), Vector3.right, WallTop, 2f, Flags);
         foreach (var c in new[] { new Vector3(-x, Lower, -125f), new Vector3(x, Lower, -125f), new Vector3(-x, Upper, 124.5f), new Vector3(x, Upper, 124.5f) })
             Bastion(t, c, 8f);
         // no stairs on the other walls: the way up is over the roofs of the store rows built against them
@@ -1442,13 +1446,13 @@ public static class ZahraBuilder
         // the walk on top with a parapet on both sides (gap where the stair arrives)
         float walk = Middle + top;
         float zEnd = z0 + bays * bay;
-        Box(t, "Parapet", new Vector3(x + 1.3f, walk + 0.45f, (z0 + zEnd) / 2f), new Vector3(0.4f, 0.9f, zEnd - z0), Ashlar);
-        Box(t, "Parapet", new Vector3(x - 1.3f, walk + 0.45f, (z0 + 26f) / 2f), new Vector3(0.4f, 0.9f, 26f - z0), Ashlar);
-        Box(t, "Parapet", new Vector3(x - 1.3f, walk + 0.45f, (29f + zEnd) / 2f), new Vector3(0.4f, 0.9f, zEnd - 29f), Ashlar);
-        Box(t, "Parapet", new Vector3(x, walk + 0.45f, z0 - 0.25f), new Vector3(3f, 0.9f, 0.4f), Ashlar);
-        Box(t, "Parapet", new Vector3(x, walk + 0.45f, zEnd + 0.25f), new Vector3(3f, 0.9f, 0.4f), Ashlar);
+        Box(t, "Parapet", new Vector3(x + 1.3f, walk + 0.45f, (z0 + zEnd) / 2f), new Vector3(0.4f, 0.9f, zEnd - z0), Rubble);
+        Box(t, "Parapet", new Vector3(x - 1.3f, walk + 0.45f, (z0 + 26f) / 2f), new Vector3(0.4f, 0.9f, 26f - z0), Rubble);
+        Box(t, "Parapet", new Vector3(x - 1.3f, walk + 0.45f, (29f + zEnd) / 2f), new Vector3(0.4f, 0.9f, zEnd - 29f), Rubble);
+        Box(t, "Parapet", new Vector3(x, walk + 0.45f, z0 - 0.25f), new Vector3(3f, 0.9f, 0.4f), Rubble);
+        Box(t, "Parapet", new Vector3(x, walk + 0.45f, zEnd + 0.25f), new Vector3(3f, 0.9f, 0.4f), Rubble);
         // the stair along the back, from the north end up to the walk
-        Buildings.Stairs(t, new Vector3(x - 2.6f, Middle, zEnd), Vector3.back, top, 2f, Ashlar);
+        Buildings.Stairs(t, new Vector3(x - 2.6f, Middle, zEnd), Vector3.back, top, 2f, Flags);
         Lantern(t, new Vector3(x - 4.2f, Middle, zEnd - 1f));
     }
 
@@ -1501,17 +1505,18 @@ public static class ZahraBuilder
         const float xa = 48f, xb = 90f, ceiling = 13.2f;
         // lane B (south, z 46..51) from the plaza up to the hairpin; lane A (north, z 54..59) on to the upper terrace
         Underground.Wedge(t, "Ramp", new Vector3(50f, Middle, 48.5f), new Vector3(86f, 7f, 48.5f), 5f, Paving);
-        Box(t, "RampBase", new Vector3((xa + xb) / 2f + 1f, (Middle + 7f) / 2f, 56.5f), new Vector3(xb - xa - 2f, 7f - Middle, 5f), Ashlar);
+        Box(t, "RampBase", new Vector3((xa + xb) / 2f + 1f, (Middle + 7f) / 2f, 56.5f), new Vector3(xb - xa - 2f, 7f - Middle, 5f), Rubble);
         Box(t, "Hairpin", new Vector3(88f, (Middle + 7f) / 2f, 50f), new Vector3(4f, 7f - Middle, 8f), Paving);
         Underground.Wedge(t, "Ramp", new Vector3(86f, 7f, 56.5f), new Vector3(55f, Upper, 56.5f), 5f, Paving);
-        Box(t, "TopLanding", new Vector3(52.5f, (7f + Upper) / 2f, 56.5f), new Vector3(5f, Upper - 7f, 5f), Paving);
+        // the landing reaches right to the terrace edge: no slot between it and the terrace to step into
+        Box(t, "TopLanding", new Vector3(52.5f, (7f + Upper) / 2f, 57.05f), new Vector3(5f, Upper - 7f, 6.1f), Paving);
         // walls: outside, the middle wall between the lanes, the west end of lane A; the roof and its vaults
-        Box(t, "RampWall", new Vector3((xa + xb) / 2f, (Middle + ceiling) / 2f, 45.5f), new Vector3(xb - xa + 2f, ceiling - Middle, 1f), Ashlar);
-        Box(t, "RampWall", new Vector3((xa + 86f) / 2f, (Middle + ceiling) / 2f, 52.5f), new Vector3(86f - xa, ceiling - Middle, 3f), Ashlar);
-        Box(t, "RampWall", new Vector3(xb + 0.5f, (Middle + ceiling) / 2f, 52.5f), new Vector3(1f, ceiling - Middle, 15f), Ashlar);
-        Box(t, "RampWall", new Vector3(49f, (Middle + ceiling) / 2f, 56.5f), new Vector3(2f, ceiling - Middle, 5f), Ashlar);
-        Box(t, "RampWall", new Vector3((54.2f + xb) / 2f, (Middle + ceiling) / 2f, 59.5f), new Vector3(xb - 54.2f, ceiling - Middle, 1f), Ashlar);
-        Box(t, "RampWall", new Vector3(49f, (Middle + ceiling) / 2f, 59.5f), new Vector3(2f, ceiling - Middle, 1f), Ashlar);
+        Box(t, "RampWall", new Vector3((xa + xb) / 2f, (Middle + ceiling) / 2f, 45.5f), new Vector3(xb - xa + 2f, ceiling - Middle, 1f), Rubble);
+        Box(t, "RampWall", new Vector3((xa + 86f) / 2f, (Middle + ceiling) / 2f, 52.5f), new Vector3(86f - xa, ceiling - Middle, 3f), Rubble);
+        Box(t, "RampWall", new Vector3(xb + 0.5f, (Middle + ceiling) / 2f, 52.5f), new Vector3(1f, ceiling - Middle, 15f), Rubble);
+        Box(t, "RampWall", new Vector3(49f, (Middle + ceiling) / 2f, 56.5f), new Vector3(2f, ceiling - Middle, 5f), Rubble);
+        Box(t, "RampWall", new Vector3((54.2f + xb) / 2f, (Middle + ceiling) / 2f, 59.5f), new Vector3(xb - 54.2f, ceiling - Middle, 1f), Rubble);
+        Box(t, "RampWall", new Vector3(49f, (Middle + ceiling) / 2f, 59.5f), new Vector3(2f, ceiling - Middle, 1f), Rubble);
         Box(t, "RampRoof", new Vector3((xa + xb) / 2f + 0.5f, ceiling + 0.2f, 52.5f), new Vector3(xb - xa + 1f, 0.4f, 15f), Ashlar);
         // over the stone roof a cover of tiles with a little overhang, a cream cornice and a red band round
         // the top of the walls, as on the halls (no stretched vault tiles on top)
@@ -1534,9 +1539,9 @@ public static class ZahraBuilder
         foreach (float s in new[] { -1f, 1f })
         {
             // the walls along the ramp follow its slope; on the terrace they are straight
-            var wall = MeshGen.TexBox("RondaWall", new Vector3(x + s * (w / 2f + 0.3f), (Lower + Middle) / 2f + (head - 1f) / 2f, (zLow + zMid) / 2f), new Vector3(0.6f, head + 1f, len + 0.6f), Ashlar, 2f, t);
+            var wall = MeshGen.TexBox("RondaWall", new Vector3(x + s * (w / 2f + 0.3f), (Lower + Middle) / 2f + (head - 1f) / 2f, (zLow + zMid) / 2f), new Vector3(0.6f, head + 1f, len + 0.6f), Rubble, 2f, t);
             wall.transform.rotation = Quaternion.Euler(-pitch, 0, 0);
-            Box(t, "RondaWall", new Vector3(x + s * (w / 2f + 0.3f), Middle + head / 2f, (zMid + zEnd) / 2f), new Vector3(0.6f, head, zEnd - zMid), Ashlar);
+            Box(t, "RondaWall", new Vector3(x + s * (w / 2f + 0.3f), Middle + head / 2f, (zMid + zEnd) / 2f), new Vector3(0.6f, head, zEnd - zMid), Rubble);
         }
         var roof = MeshGen.TexBox("RondaRoof", new Vector3(x, (Lower + Middle) / 2f + head + 0.15f, (zLow + zMid) / 2f), new Vector3(w + 1.2f, 0.3f, len + 0.3f), Ashlar, 2f, t);
         roof.transform.rotation = Quaternion.Euler(-pitch, 0, 0);
@@ -1564,7 +1569,7 @@ public static class ZahraBuilder
         };
         var cross = Rect.MinMaxRect(-38f, -68f, 28f, -54f);
         foreach (var r in walks)
-            Slabs(t, "Walk", r, pools, walk, 0.5f, Gravel, 2.5f);
+            Slabs(t, "Walk", r, pools, walk, 0.5f, Flags, 2.5f);
         foreach (var r in pools) Pool(t, r, walk);
         MeshGen.TexCylinder("Fountain", new Vector3(-5f, walk, -61f), 1.6f, 0.6f, Tiles, 1f, t);
         var fw = MeshGen.TexCylinder("FountainWater", new Vector3(-5f, walk + 0.55f, -61f), 1.4f, 0.02f, Water, 2f, t, false);

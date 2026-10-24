@@ -68,7 +68,10 @@ public static class VillageBuilder
     private static Material Wood => PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
     private static Material OldWood => PortBuilder.Pbr("V_OldWood", "Planks037A", new Color(0.72f, 0.62f, 0.5f), 0.3f);
     private static Material Hay => PortBuilder.Pbr("V_Hay", "Ground104", new Color(1f, 0.86f, 0.5f), 0.05f);
-    private static Material Stone => PortBuilder.Pbr("V_Stone", "Rock055", Color.white, 0.2f);
+    // field stone (dry_riverbed_rock) for the compound walls, wells and stepping stones; flagstones
+    // (monastery_stone_floor) for the steps of the bazaar: the houses keep their mud
+    private static Material Stone => PortBuilder.Pbr("V_FieldStone", "DryRiverbed", new Color(1.05f, 0.93f, 0.8f), 0.15f);
+    private static Material Flagstone => PortBuilder.Pbr("V_Flagstone", "MonasteryFloor", new Color(1.05f, 0.95f, 0.82f), 0.25f);
 
     // ------------------------------------------------------------------ ground
 
@@ -465,7 +468,7 @@ public static class VillageBuilder
         const float wallH = 2.9f, thick = 0.6f;
         float gate = (float)(r.NextDouble() - 0.5) * (w - 8f);
         // front wall with the gate, back wall with a breach, solid sides with a low gap
-        Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)), null, false, ruin, thick / 2f);
+        Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)), Stone, false, ruin, thick / 2f);
         Block("GateBeam", t, new Vector3(gate, 2.62f, -l / 2f), new Vector3(3.2f, 0.2f, 0.75f), OldWood, 0.04f, false);
         Lantern(t, t.TransformPoint(new Vector3(gate + 1.3f, 2.2f, -l / 2f - 0.42f)), t.TransformDirection(Vector3.back));
         foreach (float s in new[] { -1f, 1f })
@@ -475,19 +478,19 @@ public static class VillageBuilder
             if (leaf != null) leaf.transform.RotateAround(t.TransformPoint(new Vector3(gate + s * 1.3f, 0, -l / 2f - 0.3f)), Vector3.up, s * 20f);
         }
         float breach = (float)(r.NextDouble() - 0.5) * (w - 6f);
-        Wall(t, -w / 2f, w / 2f, l / 2f, 0, wallH, thick, Openings((breach, 1.5f, 0f, wallH)), null, false, ruin, thick / 2f);
+        Wall(t, -w / 2f, w / 2f, l / 2f, 0, wallH, thick, Openings((breach, 1.5f, 0f, wallH)), Stone, false, ruin, thick / 2f);
         foreach (float s in new[] { -1f, 1f })
-            Wall(t, -l / 2f + thick / 2f, l / 2f - thick / 2f, s * w / 2f, 0, wallH, thick, Openings((s * l * 0.15f, 1.3f, 0.95f, wallH)), null, true, ruin, thick * 0.4f);
+            Wall(t, -l / 2f + thick / 2f, l / 2f - thick / 2f, s * w / 2f, 0, wallH, thick, Openings((s * l * 0.15f, 1.3f, 0.95f, wallH)), Stone, true, ruin, thick * 0.4f);
         // square corner posts over the joints of a compound without towers
         if (!towers && !ruined)
             foreach (float x in new[] { -1f, 1f })
                 foreach (float zz in new[] { -1f, 1f })
-                    Block("CornerPost", t, new Vector3(x * w / 2f, (wallH + 0.24f) / 2f, zz * l / 2f), new Vector3(thick + 0.18f, wallH + 0.24f, thick + 0.18f), MudPlaster, 0.1f);
+                    Block("CornerPost", t, new Vector3(x * w / 2f, (wallH + 0.24f) / 2f, zz * l / 2f), new Vector3(thick + 0.18f, wallH + 0.24f, thick + 0.18f), Stone, 0.1f);
         // soft rounded wall tops (a ruin has broken tops instead)
         foreach (float s in ruined ? new float[0] : new[] { -1f, 1f })
         {
-            Block("Cap", t, new Vector3(0, wallH + 0.08f, s * l / 2f), new Vector3(w + thick, 0.16f, thick), MudPlaster, 0.02f, false);
-            Block("Cap", t, new Vector3(s * w / 2f, wallH + 0.08f, 0), new Vector3(thick, 0.16f, l), MudPlaster, 0.02f, false);
+            Block("Cap", t, new Vector3(0, wallH + 0.08f, s * l / 2f), new Vector3(w + thick, 0.16f, thick), Stone, 0.02f, false);
+            Block("Cap", t, new Vector3(s * w / 2f, wallH + 0.08f, 0), new Vector3(thick, 0.16f, l), Stone, 0.02f, false);
         }
         if (towers)
             foreach (float x in new[] { -1f, 1f })
@@ -555,8 +558,8 @@ public static class VillageBuilder
         // the chinar on its round raised seat
         MeshGen.TexCylinder("TreeSeat", Vector3.zero, 4.2f, 0.9f, Mud, 2.5f, t);
         MeshGen.TexCylinder("TreeSeatTop", Vector3.up * 0.9f, 4.35f, 0.12f, MudPlaster, 2.5f, t, false);
-        global::Buildings.Stairs(t, new Vector3(0, 0, -5.9f), Vector3.forward, 0.9f, 1.6f, MudPlaster);
-        global::Buildings.Stairs(t, new Vector3(0, 0, 5.9f), Vector3.back, 0.9f, 1.6f, MudPlaster);
+        global::Buildings.Stairs(t, new Vector3(0, 0, -5.9f), Vector3.forward, 0.9f, 1.6f, Flagstone);
+        global::Buildings.Stairs(t, new Vector3(0, 0, 5.9f), Vector3.back, 0.9f, 1.6f, Flagstone);
         Nature.Tree(Nature.Trees, rng, Vector3.up * 1f, 11f, 13f, t);
         // two rows of shops facing the square
         foreach (float side in new[] { -1f, 1f })
@@ -569,8 +572,8 @@ public static class VillageBuilder
             if (AssetSetup.ExtraTex("InteriorTiles_BaseColor.jpg") != null)
                 MeshGen.TexBox("ShopTiles", row.TransformPoint(new Vector3(0, 0.715f, 0.4f)), new Vector3(25.8f, 0.03f, 6.2f), PortBuilder.Pbr("V_Tiles", "InteriorTiles", new Color(0.95f, 0.88f, 0.78f), 0.6f), 1.2f, row, row.eulerAngles.y, false);
             // steps up to the platform edge (front at local z = -2.8; 4 steps of 0.36 m)
-            global::Buildings.Stairs(t, row.TransformPoint(new Vector3(-8f, 0, -4.24f)), row.forward, 0.7f, 2.2f, MudPlaster);
-            global::Buildings.Stairs(t, row.TransformPoint(new Vector3(8f, 0, -4.24f)), row.forward, 0.7f, 2.2f, MudPlaster);
+            global::Buildings.Stairs(t, row.TransformPoint(new Vector3(-8f, 0, -4.24f)), row.forward, 0.7f, 2.2f, Flagstone);
+            global::Buildings.Stairs(t, row.TransformPoint(new Vector3(8f, 0, -4.24f)), row.forward, 0.7f, 2.2f, Flagstone);
             for (int i = 0; i < 5; i++)
             {
                 float x = -10f + i * 5f;
