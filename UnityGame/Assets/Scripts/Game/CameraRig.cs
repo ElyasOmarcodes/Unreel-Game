@@ -42,6 +42,26 @@ namespace UA
         private float closeIn;
         private Vector3 smoothOffset = new Vector3(0.12f, 0.5f, -3.1f);
 
+        /// <summary>
+        /// How far back (or forward) the camera can go from the shoulder point of offset 'local': first
+        /// sideways from the pivot to the shoulder, then along the view axis, a sphere of 'radius'.
+        /// </summary>
+        private static float Reach(Vector3 pivot, Quaternion rotation, Vector3 local, float radius)
+        {
+            var sideways = rotation * new Vector3(local.x, local.y, 0f);
+            float sideLen = sideways.magnitude;
+            var from = pivot;
+            if (sideLen > 0.01f)
+            {
+                if (Physics.SphereCast(pivot, radius, sideways / sideLen, out var sh, sideLen, World.EnvMask, QueryTriggerInteraction.Ignore)) sideLen = Mathf.Max(0f, sh.distance - 0.05f);
+                from = pivot + sideways.normalized * sideLen;
+            }
+            float back = Mathf.Abs(local.z);
+            if (back < 0.01f) return back;
+            var dir = rotation * new Vector3(0f, 0f, Mathf.Sign(local.z));
+            return Physics.SphereCast(from, radius, dir, out var hit, back, World.EnvMask, QueryTriggerInteraction.Ignore) ? Mathf.Max(0f, hit.distance - 0.05f) : back;
+        }
+
         /// <summary>Short random camera shake (explosions), in degrees.</summary>
         public void Shake(float degrees) => shake = Mathf.Max(shake, degrees);
 
@@ -101,29 +121,34 @@ namespace UA
             else if (dead) offset = new Vector3(0f, 1.5f, -4.5f);
             else offset = new Vector3(0.12f * shoulder, 0.5f, -3.1f);
             smoothOffset = Scope ? offset : Vector3.Lerp(smoothOffset, offset, 1f - Mathf.Exp(-16f * dt));
+            // the camera goes out sideways to the shoulder first, then back: a wall behind the player
+            // stops only the second leg, so the camera stays beside the shoulder and the body in sight
+            var near = new Vector3(0.75f * shoulder, 0.25f, -0.55f);
             if (!Scope)
             {
-                var near = new Vector3(0.8f * shoulder, 0.1f, -0.3f);
                 float wantIn = 1f;
                 for (int i = 0; i <= 8; i++)
                 {
                     float t = i / 8f;
-                    var at = rotation * Vector3.Lerp(smoothOffset, near, t);
-                    float len = at.magnitude;
-                    if (len < 0.01f || !Physics.SphereCast(pivot, 0.2f, at / len, out _, len, World.EnvMask, QueryTriggerInteraction.Ignore)) { wantIn = t; break; }
+                    var l = Vector3.Lerp(smoothOffset, near, t);
+                    if (Reach(pivot, rotation, l, 0.15f) >= Mathf.Abs(l.z) - 0.02f) { wantIn = t; break; }
                 }
                 closeIn = wantIn > closeIn ? Mathf.Lerp(closeIn, wantIn, 1f - Mathf.Exp(-25f * dt)) : Mathf.Lerp(closeIn, wantIn, 1f - Mathf.Exp(-5f * dt));
             }
             else closeIn = 0f;
-            var local = Scope ? smoothOffset : Vector3.Lerp(smoothOffset, new Vector3(0.8f * shoulder, 0.1f, -0.3f), closeIn);
-            var desired = pivot + rotation * local;
-            var dir = desired - pivot;
-            float length = dir.magnitude;
-            float allowed = length;
-            if (length > 0.01f && Physics.SphereCast(pivot, 0.24f, dir / length, out var hit, length, World.EnvMask, QueryTriggerInteraction.Ignore))
-                allowed = Mathf.Max(0.2f, hit.distance - 0.05f);
+            var local = Scope ? smoothOffset : Vector3.Lerp(smoothOffset, near, closeIn);
+            // the sideways leg (to the shoulder), then the leg back as far as the walls allow
+            var sideways = rotation * new Vector3(local.x, local.y, 0f);
+            float sideLen = sideways.magnitude;
+            var shoulderPoint = pivot;
+            if (sideLen > 0.01f)
+            {
+                float free = Physics.SphereCast(pivot, 0.15f, sideways / sideLen, out var sh, sideLen, World.EnvMask, QueryTriggerInteraction.Ignore) ? Mathf.Max(0f, sh.distance - 0.05f) : sideLen;
+                shoulderPoint = pivot + sideways / sideLen * free;
+            }
+            float allowed = Reach(pivot, rotation, local, 0.15f);
             distance = distance < 0f || allowed < distance || Scope ? allowed : Mathf.Lerp(distance, allowed, 1f - Mathf.Exp(-7f * dt));
-            if (length > 0.01f) desired = pivot + dir / length * Mathf.Min(distance, length);
+            var desired = shoulderPoint + rotation * new Vector3(0f, 0f, Mathf.Sign(local.z) * Mathf.Min(distance, Mathf.Abs(local.z)));
             if (shake > 0.01f)
             {
                 rotation *= Quaternion.Euler(Random.Range(-shake, shake), Random.Range(-shake, shake), Random.Range(-shake, shake) * 0.5f);
@@ -132,7 +157,7 @@ namespace UA
             transform.SetPositionAndRotation(desired, rotation);
             // a wall or a low ceiling pushed the camera up to the head: hide the body instead of
             // looking out through the inside of the head scarf (as in the big shooters)
-            Close = !dead && !Scope && (desired - pivot).magnitude < 0.3f;
+            Close = !dead && !Scope && (desired - pivot).magnitude < 0.35f;
 
             // aiming without a scope only brings the camera to the shoulder (a touch of zoom); scopes zoom
             float want = Scope ? AimFov : Aim ? 56f : 62f;

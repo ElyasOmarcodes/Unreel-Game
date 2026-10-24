@@ -345,7 +345,7 @@ namespace UA
                 (9, "75-zahra-treasury-stair", new Vector3(93.5f, 2.6f, -88f), new Vector3(96.4f, 2.2f, -94.5f)),
                 (9, "76-zahra-dar-al-mulk-stair", new Vector3(-86f, 12.4f, 79f), new Vector3(-90.9f, 11.6f, 84f)),
                 (9, "77b-zahra-ramp-street-roof", new Vector3(40f, 22f, 30f), new Vector3(70f, 12f, 53f)),
-                (9, "77c-zahra-ramp-street-board", new Vector3(38f, 6f, 36f), new Vector3(46f, 5.5f, 43f)),
+                (9, "77c-zahra-ramp-street-board", new Vector3(37f, 6f, 51f), new Vector3(46f, 5.5f, 53f)),
                 (9, "77d-zahra-garden-stair", new Vector3(4f, 3f, -42f), new Vector3(-5f, 2f, -32f)),
                 (9, "77e-zahra-plaza-stair", new Vector3(44f, 3f, -42f), new Vector3(37f, 2f, -33f)),
                 (9, "77f-zahra-palace-socle", new Vector3(104f, 2f, -102f), new Vector3(90f, 1f, -96f)),

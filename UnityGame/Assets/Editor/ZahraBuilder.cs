@@ -2408,7 +2408,7 @@ public static class ZahraBuilder
         Stand(new Vector3(-14f, Lower + 0.5f, -39.5f), 180f, "الحديقة السفلى", "THE LOWER GARDEN");
         Stand(new Vector3(-30f, Middle + 0.5f, 33.5f), 0f, "المجلس الشرقي - قاعة عبد الرحمن الناصر", "SALON RICO - HALL OF ABD AL-RAHMAN III");
         Stand(new Vector3(42f, Middle, 10f), -90f, "الرواق الكبير وساحة الاستعراض", "THE GREAT PORTICO AND THE PARADE GROUND");
-        Stand(new Vector3(45f, Middle, 41.5f), -90f, "الشارع المنحدر المقبب", "THE VAULTED RAMP STREET");
+        Stand(new Vector3(44.5f, Middle, 54f), 90f, "الشارع المنحدر المقبب", "THE VAULTED RAMP STREET");
     }
 
     /// <summary>Bot waypoints and spawn points on the open ground of the three terraces, the stairs and ramps linking them.</summary>
