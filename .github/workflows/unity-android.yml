@@ -1,0 +1,182 @@
+name: Agent Warfare (Unity Android)
+
+# Builds "Agent Warfare" (UnityGame/) into an Android APK with a Unity Personal license, then plays
+# a two-player LAN match with the desktop build on the runner and publishes the APK with screenshots.
+# The license is activated online from the UNITY_EMAIL / UNITY_PASSWORD secrets and returned
+# automatically at the end of the job (post step of activate-unity-license).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - UnityGame/**
+      - .github/workflows/unity-android.yml
+      - .github/scripts/lan-test.sh
+      - .github/scripts/fetch-assets.sh
+
+# one build at a time (they share the Unity license): a newer push cancels the running build
+concurrency:
+  group: unity-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: write   # the screenshot copies go to a branch of their own
+    steps:
+      - name: Free disk space (the Unity editor with Android tools needs ~15 GB)
+        uses: endersonmenezes/free-disk-space@7901478139cff6e9d44df5972fd8ab8fcade4db1 # v3.2.2
+        with:
+          remove_android: true
+          remove_dotnet: false
+          remove_tool_cache: false
+
+      - uses: actions/checkout@v4
+
+      # CC0 assets by Quaternius (Universal Animation Library, Downtown City MegaKit), pinned to one commit
+      # of a public mirror. Textures are downscaled to 1024 and the ORM maps converted for Unity's
+      # Standard shader (metallic in R, smoothness in A).
+      - name: Cache the 3D assets
+        id: assets-cache
+        uses: actions/cache@v4
+        with:
+          path: UnityGame/Assets/ThirdParty
+          key: cc0-assets-v1-85064399-${{ hashFiles('.github/scripts/fetch-assets.sh') }}
+
+      - name: Download the 3D assets
+        if: steps.assets-cache.outputs.cache-hit != 'true'
+        run: bash .github/scripts/fetch-assets.sh UnityGame/Assets/ThirdParty
+
+      - name: Cache the Unity Library folder
+        uses: actions/cache@v4
+        with:
+          path: UnityGame/Library
+          key: unity-library-v1-${{ hashFiles('UnityGame/Packages/manifest.json') }}-${{ github.sha }}
+          restore-keys: unity-library-v1-${{ hashFiles('UnityGame/Packages/manifest.json') }}-
+
+      # Unity Hub 3.20+ lives in /usr/lib/unityhub, but the released unity-setup action still
+      # expects /opt/unityhub/unityhub. Install the Hub first and link the old location to it.
+      - name: Install Unity Hub
+        run: |
+          wget -qO - https://hub.unity3d.com/linux/keys/public | gpg --dearmor | sudo tee /usr/share/keyrings/Unity_Technologies_ApS.gpg >/dev/null
+          printf 'Types: deb\nURIs: https://hub.unity3d.com/linux/repos/deb\nSuites: stable\nComponents: main\nSigned-By: /usr/share/keyrings/Unity_Technologies_ApS.gpg\n' | sudo tee /etc/apt/sources.list.d/unityhub.sources
+          sudo apt-get update -q && sudo apt-get install -y -q unityhub
+          if [ -x /usr/lib/unityhub/unityhub ]; then HUB_DIR=/usr/lib/unityhub; else HUB_DIR=$(dirname "$(readlink -f "$(command -v unityhub)")"); fi
+          echo "Unity Hub directory: $HUB_DIR"
+          [ -x /opt/unityhub/unityhub ] || sudo ln -sfn "$HUB_DIR" /opt/unityhub
+          ls -la /opt/unityhub/unityhub
+          # headless wrapper the actions call (same as the one unity-cli writes after a fresh Hub install)
+          sudo apt-get install -y -q xvfb libgtk2.0-0 libglu1-mesa pulseaudio || true
+          sudo sed -i 's/^\(.*DISPLAY=:.*XAUTHORITY=.*\)\( "\$@" \)2>&1$/\1\2/' /usr/bin/xvfb-run
+          printf '#!/bin/bash\nexec xvfb-run --auto-servernum /opt/unityhub/unityhub "$@" 2>/dev/null\n' | sudo tee /usr/bin/unity-hub
+          sudo chmod 777 /usr/bin/unity-hub && sudo chmod -R 777 "$HUB_DIR"
+          unity-hub --headless help | head -5 || true
+
+      - name: Install the Unity editor with Android support
+        uses: RageAgainstThePixel/unity-setup@v2
+        with:
+          # keep in sync with UnityGame/ProjectSettings/ProjectVersion.txt
+          version-file: None
+          unity-version: 6000.0.85f1
+          build-targets: Android
+          cache-installation: true
+          auto-update-hub: false
+
+      - name: Activate the Unity Personal license (email + password)
+        uses: RageAgainstThePixel/activate-unity-license@v2
+        with:
+          license: personal
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      # Unity is started directly: the unity-action wrapper sets UNITY_THISISABUILDMACHINE=1, which makes
+      # the editor's Gradle use Unity's internal package mirror (bfartifactory) that is not reachable from here.
+      # Unity is started directly: the unity-action wrapper sets UNITY_THISISABUILDMACHINE=1, which makes
+      # the editor's Gradle use Unity's internal package mirror (bfartifactory) that is not reachable from here.
+      - name: Build the APK and the desktop test build
+        env:
+          BUILD_LINUX: "1"
+        run: |
+          set +e
+          mkdir -p UnityGame/Builds/Logs
+          "$UNITY_EDITOR_PATH" -projectPath "$GITHUB_WORKSPACE/UnityGame" -buildTarget Android \
+            -batchmode -nographics -quit -executeMethod CiBuild.BuildAll \
+            -logFile - 2>&1 | tee UnityGame/Builds/Logs/Build.log | grep -E --line-buffered "\[CiBuild\]|\[Setup\]|\[Map\]|error CS|Error|FAILURE|What went wrong|Exception|Exiting"
+          echo "Unity exit code: ${PIPESTATUS[0]}"
+          tail -40 UnityGame/Builds/Logs/Build.log
+          ls -la UnityGame/Builds/Android UnityGame/Builds/Linux 2>/dev/null
+          test -f UnityGame/Builds/Android/AgentWarfare.apk
+
+      - name: Play a LAN match on the runner (host + client) and take screenshots
+        run: bash .github/scripts/lan-test.sh UnityGame/Builds/Linux shots
+
+      # small copies of the screenshots on a branch of their own (ci-shots/<branch>), so they can be seen
+      # with git alone, also where the artifact store cannot be reached
+      - name: Push the screenshots to a branch
+        if: always()
+        run: |
+          [ -d shots ] && ls shots/*.png >/dev/null 2>&1 || exit 0
+          out=$(mktemp -d)
+          for f in shots/*.png; do
+            n=$(basename "$f" .png)
+            convert "$f" -resize 1280x720 -quality 82 "$out/$n.jpg" 2>/dev/null || cp "$f" "$out/"
+          done
+          grep -hE "\[UA\]|Exception" shots/*.log > "$out/log.txt" 2>/dev/null || true
+          cd "$out"
+          git init -q -b shots
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Screenshots of ${{ github.sha }} (run ${{ github.run_number }})"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:refs/heads/ci-shots/${{ github.ref_name }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: UnityGame/Builds/Android/AgentWarfare.apk
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots/
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unity-logs
+          path: UnityGame/Builds/Logs/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: apk
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: screenshots
+          path: shots
+      # the survey shots (s-*) are for checking the maps, too many for the release
+      - name: Leave out the survey shots
+        run: rm -f shots/s-*.png
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: agent-warfare-${{ github.run_number }}
+          name: Agent Warfare - build ${{ github.run_number }}
+          prerelease: true
+          body: |
+            AGENT WARFARE - third person LAN multiplayer shooter (Unity 6, Personal license).
+            Play on the same Wi-Fi, or turn on the hotspot on one phone: CREATE GROUP on one phone, JOIN GROUP on the others.
+            Modes: Team Deathmatch, Free For All, Practice vs bots. Weapons: AK-47, M4A1, SPAS-12, L96 sniper, Glock 17, Desert Eagle.
+            3D characters, animations and city: Quaternius (CC0).
+          files: |
+            apk/AgentWarfare.apk
+            shots/*.png
