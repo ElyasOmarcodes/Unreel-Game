@@ -204,6 +204,8 @@ namespace UA
             // weapon change in the open (the body in sight): the hand goes back for the other gun
             // (mid-swap), then the pistol in the hand and the rifle across the back
             Controls.SimMove = Vector2.zero;
+            yield return Until(() => Session.I.Local != null && Session.I.Local.Alive, 8f);
+            yield return Wait(1f);
             Controls.SimSwap = true;
             yield return Wait(0.15f);
             yield return Shot("10f-weapon-swap");
