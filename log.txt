@@ -1,0 +1,447 @@
+[UA] state=menu
+[UA] ui-start
+[UA] autotest client
+[UA] state=welcome
+[UA] state=menu
+[UA] state=join
+[UA] group-found د ستوری ښه ګروپ at 10.1.0.157:7777
+[UA] group-found د ستوری ښه ګروپ at 127.0.0.1:7777
+[UA] screenshot 06-join-list
+[UA] client joining د ستوری ښه ګروپ at 10.1.0.157:7777
+[UA] joining 10.1.0.157:7777
+[UA] state=lobby
+[UA] joined id=1
+[UA] screenshot 07-lobby-client
+[UA] phase=Countdown
+[UA] state=game
+[UA] phase=Playing
+[UA] screenshot c1-client-in-match
+[UA] screenshot c2-client-firing
+[UA] screenshot c3-client-fight
+[UA] screenshot c3b-client-scope
+[UA] phase=Ended
+[UA] state=results
+[UA] screenshot c4-client-results
+[UA] autotest-done client
+[UA] state=menu
+[UA] ui-start
+[UA] autotest host
+[UA] state=welcome
+[UA] screenshot 01-welcome
+[UA] state=menu
+[UA] state=menu
+[UA] screenshot 01b-version-switched-off
+[UA] state=menu
+[UA] state=showcase
+[UA] screenshot 00-guns
+[UA] screenshot 00-styles-a
+[UA] screenshot 00-styles-a-back
+[UA] screenshot 00-styles-b
+[UA] screenshot 00-styles-b-back
+[UA] screenshot 00-presets
+[UA] screenshot 00-feet-side
+[UA] screenshot 00-faces
+[UA] screenshot 00-faces-2
+[UA] screenshot 00-faces-back
+[UA] state=menu
+[UA] screenshot 02-main-menu
+[UA] state=settings
+[UA] screenshot 03-settings
+[UA] state=layout
+[UA] screenshot 03b-controls-layout
+[UA] state=profile
+[UA] screenshot 03c-profile
+[UA] state=menu
+[UA] state=wifi
+[UA] screenshot 04-wifi
+[UA] state=create
+[UA] screenshot 05-create-group
+[UA] phase=Lobby
+[UA] state=lobby
+[UA] host-started practice=False port=7777 ip=10.1.0.157
+[UA] state=lobby
+[UA] client-joined id=1 name=Agent 953 from=10.1.0.157:58184
+[UA] host sees players: ستوری ښه, Viper [BOT], Ghost [BOT], Falcon [BOT], Rook [BOT], Agent 953
+[UA] screenshot 07-lobby-host
+[UA] phase=Countdown
+[UA] state=game
+[UA] phase=Playing
+[UA] screenshot 08-match-start
+[UA] screenshot 09-running-firing
+[UA] screenshot 10-fight
+[UA] screenshot 10b-grenade
+[UA] screenshot 10f-weapon-swap
+[UA] screenshot 10g-pistol-rifle-on-back
+[UA] screenshot 10h-rifle-pistol-at-hip
+[UA] screenshot 10c-camera-back-to-wall
+[UA] screenshot 10d-camera-back-to-wall
+[UA] screenshot 10e-camera-back-to-wall
+[UA] screenshot 11-scoreboard
+[UA] paused=True
+[UA] screenshot 12-pause
+[UA] paused=False
+[UA] screenshot 13-battle
+[UA] phase=Ended
+[UA] state=results
+[UA] screenshot 15-results
+[UA] client-left id=1
+[UA] state=menu
+[UA] state=showcase
+[UA] screenshot 21-port-office
+[UA] screenshot 22-port-office-inside
+[UA] screenshot 23-port-office-roof
+[UA] screenshot 24-port-hidden-route
+[UA] screenshot 25-port-trees
+[UA] screenshot 26-port-fire-escape
+[UA] screenshot 27-port-silos
+[UA] screenshot 27b-port-containers
+[UA] screenshot 27c-port-pit
+[UA] screenshot 27d-port-crane
+[UA] screenshot 27e-port-ship
+[UA] screenshot 27f-port-tunnel
+[UA] screenshot 27g-port-slopes
+[UA] screenshot 27h-port-factory-climb
+[UA] screenshot 27i-port-yards
+[UA] screenshot 27j-port-store-rooms
+[UA] screenshot 27k-port-factory-east
+[UA] screenshot 28-village-bazaar
+[UA] screenshot 29-village-compound
+[UA] screenshot 30-village-house
+[UA] screenshot 31-village-tower
+[UA] screenshot 32-village-river
+[UA] screenshot 33-village-terraces
+[UA] screenshot 34-village-sunset
+[UA] screenshot 35-village-ruins
+[UA] screenshot 36-village-hills
+[UA] screenshot 36e-village-farm
+[UA] screenshot 36b-village-night
+[UA] screenshot 36d-port-night
+[UA] screenshot 37-town-square
+[UA] screenshot 38-town-street
+[UA] screenshot 39-town-night
+[UA] screenshot 39b-town-night-square
+[UA] screenshot 40-town-church
+[UA] screenshot 41-town-tower-view
+[UA] screenshot 42-town-canal
+[UA] screenshot 43-town-sunset
+[UA] screenshot 44-town-wall-climb
+[UA] screenshot 45-town-wall-walk
+[UA] screenshot 46-town-garden-terrace
+[UA] screenshot 48-zahra-salon-rico
+[UA] screenshot 49-zahra-inside-hall
+[UA] screenshot 50-zahra-upper-garden
+[UA] screenshot 51-zahra-portico
+[UA] screenshot 52-zahra-ramp-street
+[UA] screenshot 53-zahra-palace
+[UA] screenshot 50b-zahra-garden-channel
+[UA] screenshot 50c-zahra-garden-walks
+[UA] screenshot 48b-zahra-patio-steps
+[UA] screenshot 55b-zahra-lower-channels
+[UA] screenshot 53f-zahra-palace-hedges
+[UA] screenshot 53e-zahra-palace-fountain
+[UA] screenshot 53b-zahra-palace-court
+[UA] screenshot 53c-zahra-throne
+[UA] screenshot 53d-zahra-palace-rooms
+[UA] screenshot 54-zahra-houses
+[UA] screenshot 54b-zahra-town
+[UA] screenshot 54c-zahra-town-middle
+[UA] screenshot 63-zahra-gate-board
+[UA] screenshot 64-zahra-gate-outside
+[UA] screenshot 65-zahra-history-board
+[UA] screenshot 66-zahra-cascade
+[UA] screenshot 67-zahra-channels
+[UA] screenshot 68-zahra-mountains
+[UA] screenshot 69-zahra-river
+[UA] screenshot 70-zahra-lantern-day
+[UA] screenshot 71-zahra-wall-walk
+[UA] screenshot 72-zahra-store-row
+[UA] screenshot 73-zahra-palace-scaffold
+[UA] screenshot 74-zahra-valley
+[UA] screenshot 75-zahra-treasury-stair
+[UA] screenshot 76-zahra-dar-al-mulk-stair
+[UA] screenshot 77b-zahra-ramp-street-roof
+[UA] screenshot 77c-zahra-ramp-street-board
+[UA] screenshot 77d-zahra-garden-stair
+[UA] screenshot 77e-zahra-plaza-stair
+[UA] screenshot 77f-zahra-palace-socle
+[UA] screenshot 77g-zahra-oven
+[UA] screenshot 77h-zahra-dar-al-mulk-stair
+[UA] screenshot 77i-zahra-ramp-exit
+[UA] screenshot 77j-zahra-city-wall
+[UA] screenshot 37b-town-well
+[UA] screenshot 37c-town-wall-stone
+[UA] screenshot 86b-citylord-night-yard
+[UA] screenshot 86c-citylord-night-above
+[UA] screenshot 86d-citylord-night-hangars
+[UA] screenshot 77k-zahra-bastion-top
+[UA] screenshot 77l-zahra-wall-texture
+[UA] screenshot 77-zahra-cypress
+[UA] screenshot 78-town-granary-stair
+[UA] screenshot 55-zahra-lower-garden
+[UA] screenshot 56-zahra-dar-al-mulk
+[UA] screenshot 57-zahra-north-gate
+[UA] screenshot 58-zahra-roof-climb
+[UA] screenshot 59-zahra-sunset
+[UA] screenshot 60-zahra-night
+[UA] screenshot 60b-zahra-night-palace
+[UA] screenshot 60c-zahra-night-gate
+[UA] screenshot 80-citylord-overview
+[UA] screenshot 81-citylord-street
+[UA] screenshot 82-citylord-hangars
+[UA] screenshot 83-citylord-yard
+[UA] screenshot 84-citylord-from-above
+[UA] screenshot 85-citylord-sunset
+[UA] screenshot 86-citylord-night
+[UA] screenshot 87-citylord-hangar-door
+[UA] screenshot 88-citylord-hangar-inside
+[UA] screenshot 89-citylord-east-door
+[UA] screenshot 89b-citylord-west-door
+[UA] screenshot 89c-citylord-small-door
+[UA] screenshot 47a-town-roof-hidden-way
+[UA] screenshot 47b-town-roof-stair
+[UA] screenshot 47c-town-roof-stair
+[UA] screenshot 47d-town-roof-stair
+[UA] screenshot 61-zahra-minaret-view
+[UA] screenshot 62-zahra-minaret
+[UA] screenshot 90a-citylord-board-container-yard-----a
+[UA] screenshot 90b-citylord-board-hangar-row-----c
+[UA] screenshot 90c-citylord-board-oil-and-pipe-works-----b
+[UA] screenshot 90d-citylord-board-south-factories-----d
+[UA] screenshot 90e-citylord-plate-a-2
+[UA] screenshot 90f-citylord-plate-c-1
+[UA] screenshot 90g-citylord-garden
+[UA] screenshot 90h-citylord-garden-above
+[UA] screenshot 90i-citylord-garden-night
+[UA] screenshot 90j-citylord-pipe-d4
+[UA] screenshot 90k-citylord-pipe-walk
+[UA] screenshot 91a-port-raised-yard
+[UA] screenshot 91b-port-raised-yard
+[UA] screenshot 92a-map0-ammocrate
+[UA] screenshot 92b-map0-cratestack
+[UA] screenshot 92c-map3-ammocrate
+[UA] screenshot 92d-map6-ammocrate
+[UA] screenshot 92e-map6-cratestack
+[UA] screenshot 92f-map9-ammocrate
+[UA] screenshot 93a-port-overview
+[UA] screenshot 93b-port-overview-north
+[UA] screenshot 93c-port-oil_tank_v2
+[UA] screenshot 93d-port-concrete_fence_v2_gate
+[UA] screenshot 93e-port-pipes_set_v1_h_set_v1
+[UA] screenshot 93f-port-electric_box_v2
+[UA] screenshot 93g-port-barrel_v1_ld3
+[UA] screenshot 94a-map0-board
+[UA] screenshot 94b-map0-board
+[UA] screenshot 94c-map0-board
+[UA] screenshot 94d-map0-board
+[UA] screenshot 94e-map3-board
+[UA] screenshot 94f-map3-board
+[UA] screenshot 94g-map3-board
+[UA] screenshot 94h-map3-board
+[UA] screenshot 94i-map6-board
+[UA] screenshot 94j-map6-board
+[UA] screenshot 94k-map6-board
+[UA] screenshot 94l-map6-board
+[UA] screenshot 94m-map9-board
+[UA] screenshot 94n-map9-board
+[UA] screenshot 94o-map9-board
+[UA] screenshot 94p-map9-board
+[UA] screenshot 97a-map3-chain-link-fence
+[UA] screenshot 97b-map3-chain-link-fence
+[UA] screenshot 97c-map3-chain-link-fence
+[UA] screenshot 97d-map3-chain-link-fence
+[UA] screenshot 97e-map6-chain-link-fence
+[UA] screenshot 97f-map6-chain-link-fence
+[UA] screenshot 97g-map6-chain-link-fence
+[UA] screenshot 95a-port-ladder
+[UA] screenshot 95b-port-ladder
+[UA] screenshot 95c-port-ladder
+[UA] screenshot 95d-port-ladder
+[UA] screenshot 96a-citylord-spawn
+[UA] screenshot 96b-citylord-spawn
+[UA] screenshot 96c-citylord-spawn
+[UA] screenshot 96d-citylord-spawn
+[UA] screenshot 96e-citylord-spawn
+[UA] screenshot 96f-citylord-spawn
+[UA] screenshot 96g-citylord-spawn
+[UA] screenshot s-zahra-00-00-y000
+[UA] screenshot s-zahra-00-01-y138
+[UA] screenshot s-zahra-00-02-y275
+[UA] screenshot s-zahra-00-03-y052
+[UA] screenshot s-zahra-00-04-y190
+[UA] screenshot s-zahra-00-05-y328
+[UA] screenshot s-zahra-00-06-y105
+[UA] screenshot s-zahra-00-07-y242
+[UA] screenshot s-zahra-00-08-y020
+[UA] screenshot s-zahra-00-09-y158
+[UA] screenshot s-zahra-00-10-y295
+[UA] screenshot s-zahra-00-11-y072
+[UA] screenshot s-zahra-00-12-y210
+[UA] screenshot s-zahra-01-00-y348
+[UA] screenshot s-zahra-01-01-y125
+[UA] screenshot s-zahra-01-02-y262
+[UA] screenshot s-zahra-01-03-y040
+[UA] screenshot s-zahra-01-04-y178
+[UA] screenshot s-zahra-01-05-y315
+[UA] screenshot s-zahra-01-06-y092
+[UA] screenshot s-zahra-01-07-y230
+[UA] screenshot s-zahra-01-08-y008
+[UA] screenshot s-zahra-01-09-y145
+[UA] screenshot s-zahra-01-10-y282
+[UA] screenshot s-zahra-01-11-y060
+[UA] screenshot s-zahra-01-12-y198
+[UA] screenshot s-zahra-02-00-y335
+[UA] screenshot s-zahra-02-01-y112
+[UA] screenshot s-zahra-02-02-y250
+[UA] screenshot s-zahra-02-03-y028
+[UA] screenshot s-zahra-02-04-y165
+[UA] screenshot s-zahra-02-05-y302
+[UA] screenshot s-zahra-02-06-y080
+[UA] screenshot s-zahra-02-07-y218
+[UA] screenshot s-zahra-02-08-y355
+[UA] screenshot s-zahra-02-09-y132
+[UA] screenshot s-zahra-02-10-y270
+[UA] screenshot s-zahra-02-11-y048
+[UA] screenshot s-zahra-02-12-y185
+[UA] screenshot s-zahra-03-00-y322
+[UA] screenshot s-zahra-03-01-y100
+[UA] screenshot s-zahra-03-02-y238
+[UA] screenshot s-zahra-03-03-y015
+[UA] screenshot s-zahra-03-04-y152
+[UA] screenshot s-zahra-03-05-y290
+[UA] screenshot s-zahra-03-06-y068
+[UA] screenshot s-zahra-03-07-y205
+[UA] screenshot s-zahra-03-08-y342
+[UA] screenshot s-zahra-03-09-y120
+[UA] screenshot s-zahra-03-10-y258
+[UA] screenshot s-zahra-03-11-y035
+[UA] screenshot s-zahra-03-12-y172
+[UA] screenshot s-zahra-04-00-y310
+[UA] screenshot s-zahra-04-01-y088
+[UA] screenshot s-zahra-04-02-y225
+[UA] screenshot s-zahra-04-03-y002
+[UA] screenshot s-zahra-04-04-y140
+[UA] screenshot s-zahra-04-05-y278
+[UA] screenshot s-zahra-04-06-y055
+[UA] screenshot s-zahra-04-07-y192
+[UA] screenshot s-zahra-04-08-y330
+[UA] screenshot s-zahra-04-09-y108
+[UA] screenshot s-zahra-04-10-y245
+[UA] screenshot s-zahra-04-11-y022
+[UA] screenshot s-zahra-04-12-y160
+[UA] screenshot s-zahra-05-00-y298
+[UA] screenshot s-zahra-05-01-y075
+[UA] screenshot s-zahra-05-02-y212
+[UA] screenshot s-zahra-05-03-y350
+[UA] screenshot s-zahra-05-04-y128
+[UA] screenshot s-zahra-05-05-y265
+[UA] screenshot s-zahra-05-06-y042
+[UA] screenshot s-zahra-05-07-y180
+[UA] screenshot s-zahra-05-08-y318
+[UA] screenshot s-zahra-05-09-y095
+[UA] screenshot s-zahra-05-10-y232
+[UA] screenshot s-zahra-05-11-y010
+[UA] screenshot s-zahra-05-12-y148
+[UA] screenshot s-zahra-06-00-y285
+[UA] screenshot s-zahra-06-01-y062
+[UA] screenshot s-zahra-06-02-y200
+[UA] screenshot s-zahra-06-03-y338
+[UA] screenshot s-zahra-06-04-y115
+[UA] screenshot s-zahra-06-05-y252
+[UA] screenshot s-zahra-06-06-y030
+[UA] screenshot s-zahra-06-07-y168
+[UA] screenshot s-zahra-06-08-y305
+[UA] screenshot s-zahra-06-09-y082
+[UA] screenshot s-zahra-06-10-y220
+[UA] screenshot s-zahra-06-11-y358
+[UA] screenshot s-zahra-06-12-y135
+[UA] screenshot s-zahra-07-00-y272
+[UA] screenshot s-zahra-07-01-y050
+[UA] screenshot s-zahra-07-02-y188
+[UA] screenshot s-zahra-07-03-y325
+[UA] screenshot s-zahra-07-04-y102
+[UA] screenshot s-zahra-07-05-y240
+[UA] screenshot s-zahra-07-06-y018
+[UA] screenshot s-zahra-07-07-y155
+[UA] screenshot s-zahra-07-08-y292
+[UA] screenshot s-zahra-07-09-y070
+[UA] screenshot s-zahra-07-10-y208
+[UA] screenshot s-zahra-07-11-y345
+[UA] screenshot s-zahra-07-12-y122
+[UA] screenshot s-zahra-08-00-y260
+[UA] screenshot s-zahra-08-01-y038
+[UA] screenshot s-zahra-08-02-y175
+[UA] screenshot s-zahra-08-03-y312
+[UA] screenshot s-zahra-08-04-y090
+[UA] screenshot s-zahra-08-05-y228
+[UA] screenshot s-zahra-08-06-y005
+[UA] screenshot s-zahra-08-07-y142
+[UA] screenshot s-zahra-08-08-y280
+[UA] screenshot s-zahra-08-09-y058
+[UA] screenshot s-zahra-08-10-y195
+[UA] screenshot s-zahra-08-11-y332
+[UA] screenshot s-zahra-08-12-y110
+[UA] screenshot s-zahra-09-00-y248
+[UA] screenshot s-zahra-09-01-y025
+[UA] screenshot s-zahra-09-02-y162
+[UA] screenshot s-zahra-09-03-y300
+[UA] screenshot s-zahra-09-04-y078
+[UA] screenshot s-zahra-09-05-y215
+[UA] screenshot s-zahra-09-06-y352
+[UA] screenshot s-zahra-09-07-y130
+[UA] screenshot s-zahra-09-08-y268
+[UA] screenshot s-zahra-09-09-y045
+[UA] screenshot s-zahra-09-10-y182
+[UA] screenshot s-zahra-09-11-y320
+[UA] screenshot s-zahra-09-12-y098
+[UA] screenshot s-zahra-10-00-y235
+[UA] screenshot s-zahra-10-01-y012
+[UA] screenshot s-zahra-10-02-y150
+[UA] screenshot s-zahra-10-03-y288
+[UA] screenshot s-zahra-10-04-y065
+[UA] screenshot s-zahra-10-05-y202
+[UA] screenshot s-zahra-10-06-y340
+[UA] screenshot s-zahra-10-07-y118
+[UA] screenshot s-zahra-10-08-y255
+[UA] screenshot s-zahra-10-09-y032
+[UA] screenshot s-zahra-10-10-y170
+[UA] screenshot s-zahra-10-11-y308
+[UA] screenshot s-zahra-10-12-y085
+[UA] screenshot s-zahra-11-00-y222
+[UA] screenshot s-zahra-11-01-y000
+[UA] screenshot s-zahra-11-02-y138
+[UA] screenshot s-zahra-11-03-y275
+[UA] screenshot s-zahra-11-04-y052
+[UA] screenshot s-zahra-11-05-y190
+[UA] screenshot s-zahra-11-06-y328
+[UA] screenshot s-zahra-11-07-y105
+[UA] screenshot s-zahra-11-08-y242
+[UA] screenshot s-zahra-11-09-y020
+[UA] screenshot s-zahra-11-10-y158
+[UA] screenshot s-zahra-11-11-y295
+[UA] screenshot s-zahra-11-12-y072
+[UA] screenshot s-zahra-12-00-y210
+[UA] screenshot s-zahra-12-01-y348
+[UA] screenshot s-zahra-12-02-y125
+[UA] screenshot s-zahra-12-03-y262
+[UA] screenshot s-zahra-12-04-y040
+[UA] screenshot s-zahra-12-05-y178
+[UA] screenshot s-zahra-12-06-y315
+[UA] screenshot s-zahra-12-07-y092
+[UA] screenshot s-zahra-12-08-y230
+[UA] screenshot s-zahra-12-09-y008
+[UA] screenshot s-zahra-12-10-y145
+[UA] screenshot s-zahra-12-11-y282
+[UA] screenshot s-zahra-12-12-y060
+[UA] screenshot s-zahra-air-0
+[UA] screenshot s-zahra-air-1
+[UA] screenshot s-zahra-air-2
+[UA] screenshot s-zahra-air-3
+[UA] screenshot s-zahra-air-4
+[UA] screenshot s-zahra-air-5
+[UA] screenshot s-zahra-air-6
+[UA] screenshot s-zahra-air-7
+[UA] screenshot s-zahra-top-ws
+[UA] screenshot s-zahra-top-es
+[UA] screenshot s-zahra-top-wn
+[UA] screenshot s-zahra-top-en
+[UA] autotest-done host
