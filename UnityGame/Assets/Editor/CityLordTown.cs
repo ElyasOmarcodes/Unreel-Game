@@ -407,7 +407,7 @@ public static partial class CityLordBuilder
                         if (Mathf.Abs(again.u) > 0.03f)
                         {
                             var nudged = c + rot * new Vector3(again.u, 0, 0);
-                            var third = Fits(nudged, rot) ? FindStair(nudged, rot) : (-1, 0f, 0f, 0f);
+                            (int side, float u, float width, float start) third = Fits(nudged, rot) ? FindStair(nudged, rot) : (-1, 0f, 0f, 0f);
                             if (third.side == 0 && Mathf.Abs(third.u) < Mathf.Abs(again.u)) { c = nudged; again = third; }
                         }
                         float gap = Mathf.Clamp(again.width, 1.6f, w - 3f);
