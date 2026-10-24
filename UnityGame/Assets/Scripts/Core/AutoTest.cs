@@ -201,8 +201,9 @@ namespace UA
             yield return Wait(3.25f);
             yield return Shot("10b-grenade");
             yield return Wait(1f);
-            yield return BackToWall();
-            // weapon change: the hand goes back for the other gun (mid-swap), then the pistol in the hand and the rifle on the back
+            // weapon change in the open (the body in sight): the hand goes back for the other gun
+            // (mid-swap), then the pistol in the hand and the rifle across the back
+            Controls.SimMove = Vector2.zero;
             Controls.SimSwap = true;
             yield return Wait(0.15f);
             yield return Shot("10f-weapon-swap");
@@ -210,6 +211,8 @@ namespace UA
             yield return Shot("10g-pistol-rifle-on-back");
             Controls.SimSwap = true;
             yield return Wait(0.9f);
+            yield return Shot("10h-rifle-pistol-at-hip");
+            yield return BackToWall();
             Controls.SimScore = true;
             yield return Wait(0.3f);
             yield return Shot("11-scoreboard");

@@ -123,6 +123,15 @@ namespace UA
             smoothOffset = Scope ? offset : Vector3.Lerp(smoothOffset, offset, 1f - Mathf.Exp(-16f * dt));
             // the camera goes out sideways to the shoulder first, then back: a wall behind the player
             // stops only the second leg, so the camera stays beside the shoulder and the body in sight
+            // a wall or post close on the right: the camera goes over the left shoulder instead (and back
+            // to the right once there is room again), so it never ends up inside the head
+            if (!Scope)
+            {
+                float Free(float side) => Physics.SphereCast(pivot, 0.15f, rotation * new Vector3(side, 0f, 0f), out var sh, 0.8f, World.EnvMask, QueryTriggerInteraction.Ignore) ? sh.distance : 0.8f;
+                float right = Free(1f);
+                float wantSide = right < 0.45f && Free(-1f) > right + 0.2f ? -1f : right > 0.6f ? 1f : Mathf.Sign(shoulder);
+                shoulder = Mathf.MoveTowards(shoulder, wantSide, dt * 5f);
+            }
             var near = new Vector3(0.75f * shoulder, 0.25f, -0.55f);
             if (!Scope)
             {

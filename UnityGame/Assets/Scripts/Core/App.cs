@@ -482,7 +482,7 @@ namespace UA
             var panel = UIKit.Panel(s, 1500, 610, 40);
             joinList = UIKit.Node(panel, "List").Fill(24);
             // the team to play in (for groups with teams): TEAM 1 .. TEAM 10, changeable in the lobby too
-            var teamRow = UIKit.Node(s, "TeamRow").At(0.5f, 1f, 0, -118, 900, 70, 0.5f, 1f);
+            var teamRow = UIKit.Node(s, "TeamRow").At(0.5f, 1f, 0, -116, 900, 58, 0.5f, 1f);
             var teamText = UIKit.Txt(teamRow, "", 34, TextAnchor.MiddleCenter, UIKit.Accent);
             teamText.rectTransform.Fill();
             System.Action showTeam = () => teamText.text = "MY TEAM:  " + MatchConfig.TeamName(Settings.Team);
