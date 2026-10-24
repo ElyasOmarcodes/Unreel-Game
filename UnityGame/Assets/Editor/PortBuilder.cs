@@ -599,6 +599,35 @@ public static class PortBuilder
         }
     }
 
+    /// <summary>A row of 'count' of a CityLord piece side by side (the silos), on free ground with room round it.</summary>
+    private static bool PlaceRow(string piece, int count, Transform parent)
+    {
+        var kit = CityLordBuilder.Kit(piece);
+        if (kit == null) return false;
+        int mask = World.EnvMask | (1 << World.FenceLayer);
+        var size = kit.Bounds.size;
+        float step = Mathf.Max(size.x, size.z) * 1.04f;
+        Physics.SyncTransforms();
+        for (int attempt = 0; attempt < 400; attempt++)
+        {
+            float yaw = 90f * rng.Next(4);
+            var rot = Quaternion.Euler(0, yaw, 0);
+            var p = new Vector3(R(-HalfX + 10f, HalfX - 10f), 0, R(-HalfZ + 10f, HalfZ - 10f));
+            float length = step * count;
+            if (InPit(p, length / 2f + 3f)) continue;
+            var half = new Vector3(length / 2f + 2f, size.y / 2f, step / 2f + 2f);
+            if (Physics.CheckBox(p + Vector3.up * (size.y / 2f + 0.15f), half, rot, mask, QueryTriggerInteraction.Ignore)) continue;
+            for (int i = 0; i < count; i++)
+            {
+                var at = p + rot * new Vector3((i - (count - 1) / 2f) * step, 0, 0) - rot * new Vector3(kit.Bounds.center.x, 0, kit.Bounds.center.z);
+                CityLordBuilder.Place(piece, parent, at, yaw);
+            }
+            Physics.SyncTransforms();
+            return true;
+        }
+        return false;
+    }
+
     /// <summary>A CityLord piece on free ground of the yard (turned square to it), with room to walk around it.</summary>
     private static bool PlaceFree(string piece, Transform parent, float clearance = 1.6f)
     {
@@ -1059,6 +1088,16 @@ public static class PortBuilder
                                                ("Industrial_pipe_v1", 2), ("Pipes_set_v1_V_set_v2", 2), ("Pipes_set_v1_H_set_v2", 2), ("Generator_v1", 2) })
             for (int i = 0; i < count; i++)
                 if (PlaceFree(piece, works)) works0++;
+        // and the rest of the CityLord set, as there: a row of tall silos on their legs, hangars and sheds,
+        // fences and gates, pipe racks, electric boxes, barrels
+        if (PlaceRow("Oil_tank_v2", 5, works)) works0 += 5;
+        if (PlaceRow("Oil_tank_v2", 4, works)) works0 += 4;
+        foreach (var (piece, count) in new[] { ("Hangar_v4", 1), ("Hangar_v2_basic", 1), ("Hangar_v3_outbuilding_1", 1), ("Hangar_v2_outbuilding", 1),
+                                               ("Concrete_fence_v1_wall_set_v1", 2), ("Concrete_fence_v2_L", 2), ("Concrete_fence_v2_Gate", 1), ("Concrete_fence_v2_S_half", 2),
+                                               ("Pipes_set_v1_H_set_v1", 1), ("Electric_box_v2", 3), ("Electric_box_v1", 2), ("Barrel_v1_LD2", 2), ("Barrel_v1_LD3", 3),
+                                               ("Dumpsters_v1_garbadge", 2), ("Conditioner_v1", 2), ("Palet_v1_set", 3), ("Barrel_v3_quadro", 2), ("Barrel_v2_quadro", 2) })
+            for (int i = 0; i < count; i++)
+                if (PlaceFree(piece, works, piece.StartsWith("Hangar") ? 2.5f : 1.4f)) works0++;
         Debug.Log($"[Map] Port: {works0} CityLord works pieces placed");
 
         // ammunition crates, one in each part of the yard

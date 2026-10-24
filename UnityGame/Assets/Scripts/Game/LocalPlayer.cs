@@ -174,10 +174,10 @@ namespace UA
                 {
                     var look = Quaternion.Euler(0, rig.Yaw, 0) * Vector3.forward;
                     bool towards = input.y > 0.2f && Vector3.Dot(look, ladder.Into) > 0.2f;
-                    if (towards) { verticalSpeed = Ladder.ClimbSpeed; climbing = true; }
-                    else if (!cc.isGrounded) { verticalSpeed = input.y < -0.2f ? -Ladder.ClimbSpeed : 0f; climbing = true; }
-                    // on the ladder the body stays at it; over the top the push carries it onto the landing
-                    if (climbing && transform.position.y < ladder.Top - 0.1f) velocity = ladder.Into * (towards ? 1.2f : 0.3f);
+                    if (towards) { verticalSpeed = ladder.Rate; climbing = true; }
+                    else if (!cc.isGrounded) { verticalSpeed = input.y < -0.2f ? -ladder.Rate : 0f; climbing = true; }
+                    // on the ladder the body stays on it (along its lean); over the top the push carries it onto the landing
+                    if (climbing && transform.position.y < ladder.Top - 0.1f) velocity = ladder.Steer(transform.position, verticalSpeed, towards ? 1.2f : 0.3f);
                 }
                 if (!climbing) verticalSpeed -= 20f * dt;
                 var before = transform.position;

@@ -2,8 +2,8 @@ using UA;
 using UnityEngine;
 
 /// <summary>
-/// Name boards for the parts of a map, as Al-Zahra has them (dark wood, gilt frame, an Arabic line over
-/// an English one, on two posts): each is set on free, level ground near the spot asked for, read from
+/// Name boards for the parts of a map, as Al-Zahra has them (an Arabic line over an English one, on two
+/// posts) but of old white-painted iron: each is set on free, level ground near the spot asked for, read from
 /// the side that faces the given point.
 /// </summary>
 public static class Signboards
@@ -40,7 +40,7 @@ public static class Signboards
                 if (!level) continue;
                 // the board is read from its local -Z side
                 float yaw = Mathf.Atan2(-face.x, -face.z) * Mathf.Rad2Deg;
-                ZahraBuilder.BoardStand(parent, hit.point, yaw, arabic, english);
+                ZahraBuilder.BoardStand(parent, hit.point, yaw, arabic, english, true);
                 Physics.SyncTransforms();
                 return true;
             }

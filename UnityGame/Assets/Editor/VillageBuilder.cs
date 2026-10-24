@@ -306,13 +306,17 @@ public static class VillageBuilder
     private static (float, float, float, float) Door(float c) => (c, 1.1f, 0f, 2.15f);
     private static (float, float, float, float) Window(float c) => (c, 0.7f, 1.1f, 1.9f);
 
-    /// <summary>Flat mud roof on wooden beams with a low parapet; the beam ends show on the front and back.</summary>
+    /// <summary>
+    /// Flat mud roof on wooden beams with a low parapet; the beam ends show on the front and back. Roof and
+    /// parapet are flush with the outer faces of the walls (no eave, no ledge): wall, roof edge and
+    /// parapet read as one plastered piece.
+    /// </summary>
     private static void Roof(Transform t, float w, float l, float y, bool parapet, float stairGap = 0f, float gapSide = 1f, System.Random collapsed = null)
     {
         if (collapsed != null)
         {
             // fallen in: a piece of roof over the front, the bare beams over the rest
-            Block("Roof", t, new Vector3(0, y + 0.15f, -l / 2f + l * 0.22f), new Vector3(w + 0.3f, 0.3f, l * 0.44f + 0.3f), MudPlaster, 0.05f);
+            Block("Roof", t, new Vector3(0, y + 0.15f, -l / 2f + l * 0.22f), new Vector3(w, 0.3f, l * 0.44f), MudPlaster, 0.02f);
             for (float x = -w / 2f + 0.4f; x < w / 2f - 0.2f; x += 0.75f)
                 if (collapsed.NextDouble() < 0.55)
                 {
@@ -321,23 +325,23 @@ public static class VillageBuilder
                 }
             return;
         }
-        Block("Roof", t, new Vector3(0, y + 0.15f, 0), new Vector3(w + 0.3f, 0.3f, l + 0.3f), MudPlaster, 0.02f);
+        Block("Roof", t, new Vector3(0, y + 0.15f, 0), new Vector3(w, 0.3f, l), MudPlaster, 0.02f);
         for (float x = -w / 2f + 0.4f; x < w / 2f - 0.2f; x += 0.75f)
             foreach (float s in new[] { -1f, 1f })
                 Block("Beam", t, new Vector3(x, y - 0.08f, s * (l / 2f + 0.3f)), new Vector3(0.13f, 0.13f, 0.45f), OldWood, 0.03f, false);
         if (!parapet) return;
         float ph = 0.55f, py = y + 0.3f + ph / 2f;
-        Block("Parapet", t, new Vector3(0, py, -l / 2f), new Vector3(w + 0.3f, ph, 0.3f), MudPlaster, 0.03f);
-        Block("Parapet", t, new Vector3(0, py, l / 2f), new Vector3(w + 0.3f, ph, 0.3f), MudPlaster, 0.03f);
+        Block("Parapet", t, new Vector3(0, py, -l / 2f + 0.15f), new Vector3(w, ph, 0.3f), MudPlaster, 0.02f);
+        Block("Parapet", t, new Vector3(0, py, l / 2f - 0.15f), new Vector3(w, ph, 0.3f), MudPlaster, 0.02f);
         foreach (float s in new[] { -1f, 1f })
         {
             // the side where the outside stair arrives has an opening at its back end
             if (stairGap > 0f && Mathf.Approximately(s, gapSide))
             {
-                float len = l - stairGap;
-                Block("Parapet", t, new Vector3(s * w / 2f, py, -l / 2f + len / 2f), new Vector3(0.3f, ph, len), MudPlaster, 0.03f);
+                float len = l - 0.3f - stairGap;
+                Block("Parapet", t, new Vector3(s * (w / 2f - 0.15f), py, -l / 2f + 0.3f + len / 2f), new Vector3(0.3f, ph, len), MudPlaster, 0.02f);
             }
-            else Block("Parapet", t, new Vector3(s * w / 2f, py, 0), new Vector3(0.3f, ph, l + 0.3f), MudPlaster, 0.03f);
+            else Block("Parapet", t, new Vector3(s * (w / 2f - 0.15f), py, 0), new Vector3(0.3f, ph, l - 0.6f), MudPlaster, 0.02f);
         }
         // a wooden spout to drain the roof
         Block("Spout", t, new Vector3(w / 4f, y + 0.25f, -l / 2f - 0.45f), new Vector3(0.14f, 0.1f, 0.7f), OldWood, 0.02f, false);
@@ -482,8 +486,8 @@ public static class VillageBuilder
         // soft rounded wall tops (a ruin has broken tops instead)
         foreach (float s in ruined ? new float[0] : new[] { -1f, 1f })
         {
-            Block("Cap", t, new Vector3(0, wallH + 0.08f, s * l / 2f), new Vector3(w + thick, 0.16f, thick + 0.02f), MudPlaster, 0.03f, false);
-            Block("Cap", t, new Vector3(s * w / 2f, wallH + 0.08f, 0), new Vector3(thick + 0.02f, 0.16f, l), MudPlaster, 0.03f, false);
+            Block("Cap", t, new Vector3(0, wallH + 0.08f, s * l / 2f), new Vector3(w + thick, 0.16f, thick), MudPlaster, 0.02f, false);
+            Block("Cap", t, new Vector3(s * w / 2f, wallH + 0.08f, 0), new Vector3(thick, 0.16f, l), MudPlaster, 0.02f, false);
         }
         if (towers)
             foreach (float x in new[] { -1f, 1f })
@@ -577,7 +581,9 @@ public static class VillageBuilder
                 Block("Back", shop, new Vector3(0, 1.4f, 1.8f), new Vector3(4.9f, 2.8f, 0.4f));
                 Block("Side", shop, new Vector3(-2.45f, 1.4f, 0), new Vector3(0.35f, 2.8f, 4f));
                 if (i == 4) Block("Side", shop, new Vector3(2.45f, 1.4f, 0), new Vector3(0.35f, 2.8f, 4f));
-                Block("Roof", shop, new Vector3(0, 2.95f, 0), new Vector3(5.1f, 0.3f, 4.2f), MudPlaster, 0.1f);
+                // the roofs of the row meet end to end, flush with the outer faces of the walls: one long roof
+                float r0 = i == 0 ? -2.625f : -2.5f, r1 = i == 4 ? 2.625f : 2.5f;
+                Block("Roof", shop, new Vector3((r0 + r1) / 2f, 2.95f, 0), new Vector3(r1 - r0, 0.3f, 4f), MudPlaster, 0.02f);
                 Block("Awning", shop, new Vector3(0, 2.5f, -2.8f), new Vector3(4.9f, 0.06f, 1.6f), OldWood, 0.02f, false).transform.localRotation = Quaternion.Euler(-12, 0, 0);
                 foreach (float px in new[] { -2.2f, 2.2f })
                     Block("Pole", shop, new Vector3(px, 1.2f, -3.45f), new Vector3(0.12f, 2.4f, 0.12f), OldWood, 0.03f);

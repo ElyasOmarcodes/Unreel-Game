@@ -327,10 +327,58 @@ public static partial class CityLordBuilder
         int mask = World.EnvMask | (1 << World.FenceLayer);
         const float w = 10f, l = 6f;
         var rng = new System.Random(5);
+        float Ground(Vector3 p, float near)
+        {
+            return Physics.Raycast(new Vector3(p.x, near + 2.5f, p.z), Vector3.down, out var h, 8f, World.EnvMask, QueryTriggerInteraction.Ignore) ? h.point.y : near - 10f;
+        }
+        // a flight of steps going down from beside the bed: the ground falls in several small steps
+        // (not one drop over a wall, not a slope); returns how far out it starts, or -1
+        float StairOut(Vector3 edge, Vector3 outward, float y)
+        {
+            float last = y, drop = 0f, first = -1f;
+            int steps = 0;
+            for (float d = 0.15f; d <= 3.5f; d += 0.1f)
+            {
+                float g = Ground(edge + outward * d, y);
+                float step = last - g;
+                if (step > 0.45f) return steps >= 3 ? first : -1f;
+                if (step > 0.07f) { steps++; drop += step; if (first < 0f) first = d; }
+                else if (step < -0.07f) return -1f;
+                last = g;
+                if (steps >= 4 && drop > 0.5f) return first;
+            }
+            return steps >= 3 && drop > 0.45f ? first : -1f;
+        }
+        // where steps come up beside the bed: on which side (0 = the open long side, -z) and where along it
+        (int side, float u, float width, float start) FindStair(Vector3 c, Quaternion rot)
+        {
+            var sides = new[] { (Vector3.back, Vector3.right, w, l), (Vector3.forward, Vector3.right, w, l), (Vector3.left, Vector3.forward, l, w), (Vector3.right, Vector3.forward, l, w) };
+            for (int k = 0; k < 4; k++)
+            {
+                var (n, along, len, across) = sides[k];
+                float lo = float.MaxValue, hi = float.MinValue, start = 9f;
+                for (float u = -len / 2f - 2.5f; u <= len / 2f + 2.5f; u += 0.25f)
+                {
+                    var edge = c + rot * (n * (across / 2f) + along * u);
+                    float o = StairOut(edge, rot * n, c.y);
+                    if (o < 0f) continue;
+                    lo = Mathf.Min(lo, u); hi = Mathf.Max(hi, u); start = Mathf.Min(start, o);
+                }
+                if (hi >= lo) return (k, (lo + hi) / 2f, hi - lo + 0.25f, start);
+            }
+            return (-1, 0f, 0f, 0f);
+        }
+        bool Fits(Vector3 c, Quaternion rot)
+        {
+            if (Physics.CheckBox(c + Vector3.up * 1.6f, new Vector3(w / 2f + 1.5f, 1.45f, l / 2f + 1.5f), rot, mask, QueryTriggerInteraction.Ignore)) return false;
+            foreach (var k in new[] { new Vector3(-w / 2f, 0, -l / 2f), new Vector3(w / 2f, 0, -l / 2f), new Vector3(-w / 2f, 0, l / 2f), new Vector3(w / 2f, 0, l / 2f), Vector3.zero })
+                if (Mathf.Abs(Ground(c + rot * k, c.y) - c.y) > 0.15f) return false;
+            return true;
+        }
         foreach (var (x, z) in new[] { (30f, -6f), (24f, 4f), (38f, -20f), (10f, -12f), (60f, 10f), (0f, 2f), (44f, 12f), (16f, -26f), (70f, -26f), (-10f, -14f) })
-            foreach (float yaw in new[] { 0f, 90f })
-                for (int ring = 0; ring < 4; ring++)
-                    for (int k = 0; k < Mathf.Max(1, ring * 6); k++)
+            for (int ring = 0; ring < 4; ring++)
+                for (int k = 0; k < Mathf.Max(1, ring * 6); k++)
+                    foreach (float yaw in new[] { 0f, 90f, 180f, 270f })
                     {
                         float a = k * Mathf.PI * 2f / Mathf.Max(1, ring * 6);
                         var probe = new Vector3(x, 0, z) + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * (ring * 3f);
@@ -338,34 +386,49 @@ public static partial class CityLordBuilder
                         if (!Physics.Raycast(top, Vector3.down, out var hit, 60f, World.EnvMask, QueryTriggerInteraction.Ignore) || hit.normal.y < 0.95f) continue;
                         if (root.InverseTransformPoint(hit.point).y > StreetTop) continue;
                         var rot = Quaternion.Euler(0, yaw, 0);
-                        if (Physics.CheckBox(hit.point + Vector3.up * 1.6f, new Vector3(w / 2f + 1.5f, 1.45f, l / 2f + 1.5f), rot, mask, QueryTriggerInteraction.Ignore)) continue;
-                        // level enough under the whole bed
-                        bool level = true;
-                        foreach (var c in new[] { new Vector3(-w / 2f, 0, -l / 2f), new Vector3(w / 2f, 0, -l / 2f), new Vector3(-w / 2f, 0, l / 2f), new Vector3(w / 2f, 0, l / 2f) })
-                            if (!Physics.Raycast(hit.point + rot * c + Vector3.up * 1f, Vector3.down, out var h2, 2f, World.EnvMask, QueryTriggerInteraction.Ignore) || Mathf.Abs(h2.point.y - hit.point.y) > 0.15f) level = false;
-                        if (!level) continue;
-                        var g = new GameObject("Garden").transform;
-                        g.SetParent(parent, false);
-                        g.SetPositionAndRotation(hit.point, rot);
-                        var grass = PortBuilder.Pbr("CL_Grass", "Grass004", new Color(0.85f, 0.95f, 0.8f), 0.15f);
-                        var green = AssetSetup.ExtraTex("GreenWall_BaseColor.jpg");
-                        var hedge = AssetSetup.Mat("CL_Hedge", new Color(0.85f, 1f, 0.8f), 0.25f, 0f, green, AssetSetup.ExtraTex("GreenWall_Normal.jpg"));
-                        MeshGen.TexBox("GardenBed", g.TransformPoint(new Vector3(0, 0.04f, 0)), new Vector3(w, 0.08f, l), grass, 3f, g, yaw, false);
-                        // square-cut green walls round it, an opening in the middle of the near long side
-                        const float hh = 0.9f, hw = 0.6f;
-                        MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(0, hh / 2f, l / 2f - hw / 2f)), new Vector3(w, hh, hw), hedge, 1.1f, g, yaw);
-                        foreach (float s in new[] { -1f, 1f })
+                        var c = hit.point;
+                        if (!Fits(c, rot)) continue;
+                        // steps coming up beside it: only in front of the opening, square on to it, the
+                        // bed standing back from the top step (the way up leads straight in through the gap)
+                        var (side, u, sw, start) = FindStair(c, rot);
+                        float gap = 1.6f;
+                        if (side > 0) continue;
+                        if (side == 0)
                         {
-                            MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(s * (w / 2f - hw / 2f), hh / 2f, 0)), new Vector3(hw, hh, l - 2f * hw), hedge, 1.1f, g, yaw);
-                            float seg = (w - 1.6f) / 2f;
-                            MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(s * (0.8f + seg / 2f), hh / 2f, -l / 2f + hw / 2f)), new Vector3(seg, hh, hw), hedge, 1.1f, g, yaw);
+                            c += rot * new Vector3(u, 0, Mathf.Max(0f, 1.4f - start));
+                            if (!Fits(c, rot)) continue;
+                            var again = FindStair(c, rot);
+                            if (again.side != 0 || Mathf.Abs(again.u) > 0.3f) continue;
+                            gap = Mathf.Clamp(again.width, 1.6f, w - 3f);
                         }
-                        foreach (float s in new[] { -1f, 1f })
-                            Nature.Tree(Nature.Trees, rng, g.TransformPoint(new Vector3(s * 2.4f, 0.08f, 0.5f)), 4.5f, 6f, g);
-                        Physics.SyncTransforms();
+                        BuildGarden(parent, c, rot, yaw, w, l, gap, rng);
+                        Debug.Log($"[Map] CityLord garden at {root.InverseTransformPoint(c)} yaw {yaw}" + (side == 0 ? $", facing steps {gap:0.0} m wide" : ""));
                         return;
                     }
         Debug.LogWarning("[Map] CityLord: no room for the garden");
+    }
+
+    private static void BuildGarden(Transform parent, Vector3 at, Quaternion rot, float yaw, float w, float l, float gap, System.Random rng)
+    {
+        var g = new GameObject("Garden").transform;
+        g.SetParent(parent, false);
+        g.SetPositionAndRotation(at, rot);
+        var grass = PortBuilder.Pbr("CL_Grass", "Grass004", new Color(0.85f, 0.95f, 0.8f), 0.15f);
+        var green = AssetSetup.ExtraTex("GreenWall_BaseColor.jpg");
+        var hedge = AssetSetup.Mat("CL_Hedge", new Color(0.85f, 1f, 0.8f), 0.25f, 0f, green, AssetSetup.ExtraTex("GreenWall_Normal.jpg"));
+        MeshGen.TexBox("GardenBed", g.TransformPoint(new Vector3(0, 0.04f, 0)), new Vector3(w, 0.08f, l), grass, 3f, g, yaw, false);
+        // square-cut green walls round it, an opening in the middle of the near long side
+        const float hh = 0.9f, hw = 0.6f;
+        MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(0, hh / 2f, l / 2f - hw / 2f)), new Vector3(w, hh, hw), hedge, 1.1f, g, yaw);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(s * (w / 2f - hw / 2f), hh / 2f, 0)), new Vector3(hw, hh, l - 2f * hw), hedge, 1.1f, g, yaw);
+            float seg = (w - gap) / 2f;
+            MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(s * (gap / 2f + seg / 2f), hh / 2f, -l / 2f + hw / 2f)), new Vector3(seg, hh, hw), hedge, 1.1f, g, yaw);
+        }
+        foreach (float s in new[] { -1f, 1f })
+            Nature.Tree(Nature.Trees, rng, g.TransformPoint(new Vector3(s * 2.6f, 0.08f, 0.6f)), 4.5f, 6f, g);
+        Physics.SyncTransforms();
     }
 
     /// <summary>A small blue plate with the building's kind and its number, on the wall of the given side.</summary>
@@ -443,10 +506,13 @@ public static partial class CityLordBuilder
         t.SetPositionAndRotation(foot, Quaternion.Euler(0, yaw, 0));
         foreach (float x in new[] { -1.55f, 1.55f })
             MeshGen.TexBox("Post", t.TransformPoint(new Vector3(x, 1.25f, 0.05f)), new Vector3(0.12f, 2.5f, 0.12f), AssetSetup.RustyPost, 1f, t, yaw, true);
-        MeshGen.TexBox("Board", t.TransformPoint(new Vector3(0, 2.05f, 0)), new Vector3(3.4f, 1.25f, 0.08f), SignBlue, 1f, t, yaw, false);
-        MeshGen.TexBox("Rim", t.TransformPoint(new Vector3(0, 2.7f, 0)), new Vector3(3.5f, 0.07f, 0.1f), SignYellow, 1f, t, yaw, false);
-        MeshGen.TexBox("Rim", t.TransformPoint(new Vector3(0, 1.4f, 0)), new Vector3(3.5f, 0.07f, 0.1f), SignYellow, 1f, t, yaw, false);
-        ZahraBuilder.Writing(t, new Vector3(0, 2.28f, -0.05f), new Vector2(3.15f, 0.62f), pashto, 42f, Color.white);
-        ZahraBuilder.Writing(t, new Vector3(0, 1.75f, -0.05f), new Vector2(3.15f, 0.42f), english, 24f, new Color(1f, 0.85f, 0.3f));
+        // a plate of old white-painted iron in a dark iron frame, dark writing
+        MeshGen.TexBox("Board", t.TransformPoint(new Vector3(0, 2.05f, 0)), new Vector3(3.4f, 1.25f, 0.08f), AssetSetup.WhiteIron, 1f, t, yaw, false);
+        MeshGen.TexBox("Rim", t.TransformPoint(new Vector3(0, 2.7f, 0)), new Vector3(3.5f, 0.07f, 0.1f), AssetSetup.RustyPost, 1f, t, yaw, false);
+        MeshGen.TexBox("Rim", t.TransformPoint(new Vector3(0, 1.4f, 0)), new Vector3(3.5f, 0.07f, 0.1f), AssetSetup.RustyPost, 1f, t, yaw, false);
+        foreach (float x in new[] { -1.72f, 1.72f })
+            MeshGen.TexBox("Rim", t.TransformPoint(new Vector3(x, 2.05f, 0)), new Vector3(0.07f, 1.37f, 0.1f), AssetSetup.RustyPost, 1f, t, yaw, false);
+        ZahraBuilder.Writing(t, new Vector3(0, 2.28f, -0.05f), new Vector2(3.15f, 0.62f), pashto, 42f, new Color(0.08f, 0.1f, 0.14f));
+        ZahraBuilder.Writing(t, new Vector3(0, 1.75f, -0.05f), new Vector2(3.15f, 0.42f), english, 24f, new Color(0.42f, 0.1f, 0.06f));
     }
 }

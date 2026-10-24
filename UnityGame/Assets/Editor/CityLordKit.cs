@@ -245,33 +245,74 @@ public static partial class CityLordBuilder
     }
 
     /// <summary>
-    /// The CityLord wooden ladder against a wall: its foot at 'foot' (world, on the ground at the wall
-    /// face), the wall facing 'outward', reaching 'height' up, with the zone players and bots climb in.
+    /// How far the CityLord ladder leans from upright, from its pose in the town (degrees).
+    /// </summary>
+    public static float LadderLean
+    {
+        get
+        {
+            Load(false);
+            var o = objects.FirstOrDefault(x => S(x["name"]) == "TallLadder");
+            if (o == null) return 35f;
+            var up = (Vector3)M(o["world_matrix"]).GetColumn(1);
+            return Vector3.Angle(up, Vector3.up);
+        }
+    }
+
+    /// <summary>
+    /// The CityLord wooden ladder against a wall, leaning on it as in CityLord: the wall face at 'foot'
+    /// (world, on the ground), the wall facing 'outward', reaching 'height' up, with the zone players and
+    /// bots climb in. It leans less (down to upright) where there is no free, level ground for its foot.
     /// </summary>
     public static GameObject PlaceLadder(Transform parent, Vector3 foot, Vector3 outward, float height)
     {
         outward.y = 0;
         outward.Normalize();
+        var side = Vector3.Cross(Vector3.up, outward);
+        Physics.SyncTransforms();
+        int mask = UA.World.EnvMask;
+        float lean = 0f;
+        for (float a = Mathf.Min(50f, LadderLean); a > 1f; a -= 8f)
+        {
+            float run = height * Mathf.Tan(a * Mathf.Deg2Rad);
+            // free space under the ladder (from the wall out to its foot) and level ground where it stands
+            var mid = foot + outward * (0.25f + run / 2f) + Vector3.up * (height / 2f + 0.25f);
+            if (Physics.CheckBox(mid, new Vector3(0.6f, height / 2f - 0.2f, run / 2f + 0.15f), Quaternion.LookRotation(outward), mask, QueryTriggerInteraction.Ignore)) continue;
+            var end = foot + outward * (0.4f + run);
+            if (!Physics.Raycast(end + Vector3.up * 1f, Vector3.down, out var g, 2f, mask, QueryTriggerInteraction.Ignore) || Mathf.Abs(g.point.y - foot.y) > 0.25f) continue;
+            lean = a;
+            break;
+        }
+        float slope = Mathf.Tan(lean * Mathf.Deg2Rad);
+        float reach = height * slope;
         var piece = Kit("TallLadder");
         float yaw = Mathf.Atan2(outward.x, outward.z) * Mathf.Rad2Deg;
-        var go = piece != null ? Place("TallLadder", parent, foot + outward * 0.2f, yaw, false) : null;
+        // its foot out from the wall, its top resting on the edge
+        var rot = Quaternion.Euler(0, yaw, 0) * Quaternion.Euler(-lean, 0, 0);
+        var at = foot + outward * (0.2f + reach);
+        var go = piece != null ? Place("TallLadder", parent, at, yaw, false) : null;
         if (go == null)
         {
             go = new GameObject("Ladder");
             go.transform.SetParent(parent, false);
-            go.transform.SetPositionAndRotation(foot + outward * 0.2f, Quaternion.Euler(0, yaw, 0));
+            go.transform.position = at;
         }
         else
         {
-            // stretched to the height, its rungs a little closer or further apart; narrower on short climbs
-            float sy = (height + 0.9f) / Mathf.Max(0.5f, piece.Bounds.size.y);
+            // stretched to its length, its rungs a little closer or further apart; narrower on short climbs
+            float length = height / Mathf.Cos(lean * Mathf.Deg2Rad) + 0.9f;
+            float sy = length / Mathf.Max(0.5f, piece.Bounds.size.y);
             go.transform.localScale = new Vector3(Mathf.Clamp(sy * 1.4f, 0.7f, 1f), sy, 1f);
         }
+        go.transform.rotation = rot;
         var ladder = go.AddComponent<UA.Ladder>();
         ladder.Into = -outward;
         ladder.Top = foot.y + height;
-        ladder.Zone = new Bounds(foot + outward * 0.55f + Vector3.up * ((height + 1.4f) / 2f),
-            new Vector3(Mathf.Abs(outward.z) * 1.4f + Mathf.Abs(outward.x) * 1.2f, height + 1.4f, Mathf.Abs(outward.x) * 1.4f + Mathf.Abs(outward.z) * 1.2f));
+        ladder.Slope = slope;
+        ladder.Foot = foot + outward * (0.55f + reach);
+        float depth = reach + 1.2f;
+        var centre = foot + outward * (0.55f + reach / 2f) + Vector3.up * ((height + 1.4f) / 2f);
+        ladder.Zone = new Bounds(centre, new Vector3(Mathf.Abs(outward.z) * 1.4f + Mathf.Abs(outward.x) * depth, height + 1.4f, Mathf.Abs(outward.x) * 1.4f + Mathf.Abs(outward.z) * depth));
         return go;
     }
 

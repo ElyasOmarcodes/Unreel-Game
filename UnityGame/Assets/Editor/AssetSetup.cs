@@ -32,6 +32,8 @@ public static class AssetSetup
     public const string Extra = "Assets/Textures/Extra";
 
     /// <summary>Old rusted iron, dark nearly to black (rusty_metal_02): the posts of the boards in every map.</summary>
+    /// <summary>Old white-painted iron gone rusty (Poly Haven rusty_metal_02 as it is): the name boards outside al-Zahra.</summary>
+    public static Material WhiteIron => PortBuilder.Pbr("WhiteIron", "RustyMetal02", new Color(1f, 1f, 1f), 0.3f, 0.45f);
     public static Material RustyPost => PortBuilder.Pbr("RustyPost", "RustyMetal02", new Color(0.3f, 0.28f, 0.27f), 0.35f, 0.5f);
 
     public static Texture2D ExtraTex(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Extra}/{file}");

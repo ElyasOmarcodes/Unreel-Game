@@ -18,6 +18,25 @@ namespace UA
         public Vector3 Into = Vector3.forward;
         /// <summary>Height of the landing at the top (world y).</summary>
         public float Top;
+        /// <summary>Where the climber's body stands at the foot (world, on the ground).</summary>
+        public Vector3 Foot;
+        /// <summary>A leaning ladder (as in CityLord): metres towards the wall for every metre up (0 = upright).</summary>
+        public float Slope;
+
+        /// <summary>Climbing speed straight up: a leaning ladder is climbed along its length at a steady pace.</summary>
+        public float Rate => ClimbSpeed / Mathf.Sqrt(1f + Slope * Slope) * (Slope > 0.05f ? 1.25f : 1f);
+
+        /// <summary>
+        /// Horizontal velocity that keeps a climber at 'pos', moving up at 'up' m/s, on the line of the
+        /// ladder (it follows the lean towards the wall), plus 'push' towards the wall.
+        /// </summary>
+        public Vector3 Steer(Vector3 pos, float up, float push)
+        {
+            var target = Foot + Into * Mathf.Max(0f, (pos.y - Foot.y) * Slope);
+            var err = target - pos;
+            err.y = 0;
+            return err * 6f + Into * (up * Slope + push);
+        }
 
         private static readonly List<Ladder> all = new List<Ladder>();
 

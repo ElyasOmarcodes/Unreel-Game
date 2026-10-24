@@ -36,6 +36,10 @@ namespace UA
         // smoothed parts of the follow camera: body height (crouch / prone), shoulder offset (aim) and the
         // distance the walls allow (moves in at once, back out gently): no jumps
         private float height = 1.62f, distance = -1f;
+        // 0 = the usual place behind the back, 1 = close over the right shoulder: a wall behind the
+        // player brings the camera round to the shoulder bit by bit (as in Battle Warfare) instead of
+        // pushing it into the head
+        private float closeIn;
         private Vector3 smoothOffset = new Vector3(0.12f, 0.5f, -3.1f);
 
         /// <summary>Short random camera shake (explosions), in degrees.</summary>
@@ -97,12 +101,27 @@ namespace UA
             else if (dead) offset = new Vector3(0f, 1.5f, -4.5f);
             else offset = new Vector3(0.12f * shoulder, 0.5f, -3.1f);
             smoothOffset = Scope ? offset : Vector3.Lerp(smoothOffset, offset, 1f - Mathf.Exp(-16f * dt));
-            var desired = pivot + rotation * smoothOffset;
+            if (!Scope)
+            {
+                var near = new Vector3(0.6f * shoulder, 0.06f, -0.5f);
+                float wantIn = 1f;
+                for (int i = 0; i <= 8; i++)
+                {
+                    float t = i / 8f;
+                    var at = rotation * Vector3.Lerp(smoothOffset, near, t);
+                    float len = at.magnitude;
+                    if (len < 0.01f || !Physics.SphereCast(pivot, 0.2f, at / len, out _, len, World.EnvMask, QueryTriggerInteraction.Ignore)) { wantIn = t; break; }
+                }
+                closeIn = wantIn > closeIn ? Mathf.Lerp(closeIn, wantIn, 1f - Mathf.Exp(-25f * dt)) : Mathf.Lerp(closeIn, wantIn, 1f - Mathf.Exp(-5f * dt));
+            }
+            else closeIn = 0f;
+            var local = Scope ? smoothOffset : Vector3.Lerp(smoothOffset, new Vector3(0.6f * shoulder, 0.06f, -0.5f), closeIn);
+            var desired = pivot + rotation * local;
             var dir = desired - pivot;
             float length = dir.magnitude;
             float allowed = length;
             if (length > 0.01f && Physics.SphereCast(pivot, 0.24f, dir / length, out var hit, length, World.EnvMask, QueryTriggerInteraction.Ignore))
-                allowed = Mathf.Max(0.25f, hit.distance - 0.05f);
+                allowed = Mathf.Max(0.2f, hit.distance - 0.05f);
             distance = distance < 0f || allowed < distance || Scope ? allowed : Mathf.Lerp(distance, allowed, 1f - Mathf.Exp(-7f * dt));
             if (length > 0.01f) desired = pivot + dir / length * Mathf.Min(distance, length);
             if (shake > 0.01f)
@@ -113,7 +132,7 @@ namespace UA
             transform.SetPositionAndRotation(desired, rotation);
             // a wall or a low ceiling pushed the camera up to the head: hide the body instead of
             // looking out through the inside of the head scarf (as in the big shooters)
-            Close = !dead && (desired - pivot).magnitude < 0.75f;
+            Close = !dead && !Scope && (desired - pivot).magnitude < 0.3f;
 
             // aiming without a scope only brings the camera to the shoulder (a touch of zoom); scopes zoom
             float want = Scope ? AimFov : Aim ? 56f : 62f;

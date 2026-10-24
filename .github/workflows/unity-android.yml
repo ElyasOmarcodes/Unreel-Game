@@ -163,6 +163,9 @@ jobs:
         with:
           name: screenshots
           path: shots
+      # the survey shots (s-*) are for checking the maps, too many for the release
+      - name: Leave out the survey shots
+        run: rm -f shots/s-*.png
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:

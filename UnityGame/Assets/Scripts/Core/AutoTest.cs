@@ -201,6 +201,7 @@ namespace UA
             yield return Wait(3.25f);
             yield return Shot("10b-grenade");
             yield return Wait(1f);
+            yield return BackToWall();
             Controls.SimScore = true;
             yield return Wait(0.3f);
             yield return Shot("11-scoreboard");
@@ -219,6 +220,46 @@ namespace UA
             app.LeaveGroup();
             yield return Wait(1f);
             yield return Tour();
+        }
+
+        /// <summary>
+        /// The player walks backwards up to a wall: the camera must come round to the shoulder bit by bit
+        /// and the body stay in sight (shots at 1.6, 0.9 and 0.45 m from the wall).
+        /// </summary>
+        private IEnumerator BackToWall()
+        {
+            var me = LocalPlayer.I != null ? LocalPlayer.I.GetComponent<Agent>() : null;
+            if (me == null) yield break;
+            Controls.SimMove = Vector2.zero;
+            var start = me.transform.position;
+            Vector3 wallPoint = default, normal = default;
+            bool found = false;
+            for (int ring = 0; ring < 6 && !found; ring++)
+                for (int k = 0; k < 16 && !found; k++)
+                {
+                    float a = k * Mathf.PI / 8f;
+                    var from = start + new Vector3(Mathf.Cos(a * 1.3f + ring), 0, Mathf.Sin(a * 1.3f + ring)) * ring * 6f + Vector3.up * 1.2f;
+                    var dir = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
+                    if (Physics.Raycast(from, dir, out var hit, 15f, World.EnvMask, QueryTriggerInteraction.Ignore) && Mathf.Abs(hit.normal.y) < 0.2f
+                        && !Physics.CheckCapsule(hit.point + hit.normal * 2.5f + Vector3.up * 0.4f, hit.point + hit.normal * 2.5f + Vector3.up * 1.6f, 0.35f, World.EnvMask, QueryTriggerInteraction.Ignore)
+                        && Physics.Raycast(hit.point + hit.normal * 1f + Vector3.up * 0.5f, Vector3.down, 2f, World.EnvMask, QueryTriggerInteraction.Ignore))
+                    {
+                        wallPoint = hit.point; normal = hit.normal; normal.y = 0; normal.Normalize(); found = true;
+                    }
+                }
+            if (!found) { App.Log("no wall for the camera test"); yield break; }
+            float yaw = Mathf.Atan2(normal.x, normal.z) * Mathf.Rad2Deg;
+            int n = 0;
+            foreach (float gap in new[] { 1.6f, 0.9f, 0.45f })
+            {
+                var at = wallPoint + normal * gap;
+                if (Physics.Raycast(at + Vector3.up * 1.5f, Vector3.down, out var ground, 3f, World.EnvMask, QueryTriggerInteraction.Ignore)) at.y = ground.point.y + 0.05f;
+                me.Teleport(at, yaw);
+                CameraRig.I.Yaw = yaw;
+                CameraRig.I.Pitch = 0f;
+                yield return Wait(1.2f);
+                yield return Shot($"10{(char)('c' + n++)}-camera-back-to-wall");
+            }
         }
 
         /// <summary>Photographs of the maps from fixed points: buildings, interiors, roofs, trees.</summary>
@@ -422,6 +463,20 @@ namespace UA
             cam.transform.SetPositionAndRotation(new Vector3(70f, 45f, 80f), Quaternion.LookRotation(new Vector3(0f, 0f, 0f) - new Vector3(70f, 45f, 80f)));
             yield return Wait(0.6f);
             yield return Shot("93b-port-overview-north");
+            // the rest of the CityLord set in the Port: silo rows, hangars, sheds, fences, pipe racks
+            int work = 0;
+            foreach (var name in new[] { "Oil_tank_v2", "Hangar_v4", "Hangar_v2_basic", "Hangar_v3_outbuilding_1", "Hangar_v2_outbuilding", "Concrete_fence_v2_Gate", "Pipes_set_v1_H_set_v1", "Electric_box_v2", "Barrel_v1_LD3" })
+            {
+                var t = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == name);
+                if (t == null) continue;
+                var r = t.GetComponent<Renderer>();
+                var b = r != null ? r.bounds : new Bounds(t.position, Vector3.one * 3f);
+                float d = Mathf.Max(5f, b.extents.magnitude * 2.2f);
+                var from = b.center + new Vector3(-0.6f, 0.35f, -0.75f).normalized * d;
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(b.center - from));
+                yield return Wait(0.5f);
+                yield return Shot($"93{(char)('c' + work++)}-port-{name.ToLowerInvariant()}");
+            }
             // name boards of the parts of each map (Arabic and English)
             int named = 0;
             foreach (int map in new[] { 0, 3, 6, 9 })
@@ -475,7 +530,53 @@ namespace UA
                 yield return Wait(0.5f);
                 yield return Shot($"96{(char)('a' + spawn++)}-citylord-spawn");
             }
+            yield return ZahraSurvey();
             CameraRig.Frozen = false;
+        }
+
+        /// <summary>
+        /// Al-Zahra from end to end: a look from eye height every 20 m (on the ground, in the buildings, on
+        /// the roofs where there is no ground), each in another direction, and the whole city from the air.
+        /// Named s-zahra-*: they go to the screenshot branch, not into the release.
+        /// </summary>
+        private IEnumerator ZahraSurvey()
+        {
+            var cam = CameraRig.I;
+            World.I.ApplyLighting(9);
+            yield return Until(() => World.I.MapReady, 30);
+            int k = 0;
+            for (int gz = -120; gz <= 120; gz += 20)
+                for (int gx = -120; gx <= 120; gx += 20)
+                {
+                    var hits = Physics.RaycastAll(new Vector3(gx, 80f, gz), Vector3.down, 100f, World.EnvMask, QueryTriggerInteraction.Ignore)
+                        .Where(h => h.normal.y > 0.6f).OrderBy(h => h.point.y).ToList();
+                    if (hits.Count == 0) continue;
+                    // the lowest floor with room to stand (inside a building, on the street), else the top
+                    var eye = hits[hits.Count - 1].point + Vector3.up * 1.7f;
+                    foreach (var h in hits)
+                        if (!Physics.CheckSphere(h.point + Vector3.up * 1.7f, 0.3f, World.EnvMask, QueryTriggerInteraction.Ignore)) { eye = h.point + Vector3.up * 1.7f; break; }
+                    float yaw = (k * 137.5f) % 360f;
+                    cam.transform.SetPositionAndRotation(eye, Quaternion.Euler(8f, yaw, 0));
+                    k++;
+                    yield return Wait(0.25f);
+                    yield return Shot($"s-zahra-{(gz + 120) / 20:00}-{(gx + 120) / 20:00}-y{Mathf.RoundToInt(yaw):000}");
+                }
+            // from the air: eight looks in from round the city, four straight down on its quarters
+            for (int i = 0; i < 8; i++)
+            {
+                float a = i * 45f * Mathf.Deg2Rad;
+                var from = new Vector3(Mathf.Sin(a) * 95f, 38f, Mathf.Cos(a) * 95f);
+                var to = new Vector3(Mathf.Sin(a) * 25f, 4f, Mathf.Cos(a) * 25f);
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(to - from));
+                yield return Wait(0.3f);
+                yield return Shot($"s-zahra-air-{i}");
+            }
+            foreach (var (x, z) in new[] { (-62f, -62f), (62f, -62f), (-62f, 62f), (62f, 62f) })
+            {
+                cam.transform.SetPositionAndRotation(new Vector3(x, 75f, z - 20f), Quaternion.LookRotation(new Vector3(0, -75f, 20f)));
+                yield return Wait(0.3f);
+                yield return Shot($"s-zahra-top-{(x < 0 ? "w" : "e")}{(z < 0 ? "s" : "n")}");
+            }
         }
 
         private IEnumerator Client()

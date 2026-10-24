@@ -170,8 +170,8 @@ namespace UA
             var ladder = Ladder.At(transform.position + Vector3.up * 0.9f);
             if (ladder != null && waypoint >= 0 && waypoint < world.Waypoints.Length && world.Waypoints[waypoint].y > transform.position.y + 0.4f)
             {
-                verticalSpeed = Ladder.ClimbSpeed;
-                if (transform.position.y < ladder.Top - 0.1f) move = ladder.Into * 0.3f;
+                verticalSpeed = ladder.Rate;
+                if (transform.position.y < ladder.Top - 0.1f) move = ladder.Steer(transform.position, verticalSpeed, 0.3f) / speed;
             }
             else verticalSpeed -= 20f * dt;
             cc.Move((Vector3.ClampMagnitude(move, 1f) * speed + Vector3.up * verticalSpeed) * dt);
