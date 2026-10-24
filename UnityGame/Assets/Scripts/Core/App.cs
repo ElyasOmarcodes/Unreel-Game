@@ -15,7 +15,7 @@ namespace UA
         public static void Log(string message) => Debug.Log("[UA] " + message);
 
         public string Current { get; private set; }
-        public MatchConfig Draft = new MatchConfig();
+        public MatchConfig Draft = new MatchConfig { Map = 9 };   // AL-ZAHRA first, as in the menu
         public bool DraftPractice;
         public bool Paused { get; private set; }
 
@@ -415,18 +415,31 @@ namespace UA
             passwordField = UIKit.Input(passRow, "", "Optional - empty = open", 30, 12);
             passwordField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 560, 74, 1f, 0.5f);
             byte[] minutes = { 3, 5, 8, 10, 15, 20, 30, 45, 60 };
-            UIKit.Stepper(panel, "GAME MODE", -130, () => MatchConfig.ModeNames[(int)Draft.Mode], d => Draft.Mode = (Mode)(((int)Draft.Mode + 2 + d) % 2), 1080);
-            UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapNames[Draft.Map], d =>
+            // GAME MODE: SOLO (everyone alone) or the team this player plays in, TEAM 1 .. TEAM 10 (the others
+            // choose theirs when they join); MAP and TIME OF DAY apart; no player limit
+            UIKit.Stepper(panel, "GAME MODE", -130, () => Draft.Mode == Mode.FreeForAll ? "SOLO - NO TEAMS" : "TEAM " + (Settings.Team + 1), d =>
             {
-                Draft.Map = (byte)((Draft.Map + MatchConfig.MapNames.Length + d) % MatchConfig.MapNames.Length);
+                int v = (Draft.Mode == Mode.FreeForAll ? 0 : Settings.Team + 1) + d;
+                v = (v + MatchConfig.MaxTeams + 1) % (MatchConfig.MaxTeams + 1);
+                Draft.Mode = v == 0 ? Mode.FreeForAll : Mode.TeamDeathmatch;
+                if (v > 0) Settings.Team = (byte)(v - 1);
+            }, 1080);
+            UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapTitles[MapSlot(Draft.Map)], d =>
+            {
+                int slot = (MapSlot(Draft.Map) + MatchConfig.MapOrder.Length + d) % MatchConfig.MapOrder.Length;
+                Draft.Map = (byte)(MatchConfig.MapOrder[slot] + Draft.Map % 3);
                 World.I?.ApplyLighting(Draft.Map);   // the map behind the menu changes with the choice
             }, 1080);
-            UIKit.Stepper(panel, "MATCH TIME", -320, () => Draft.Minutes + " MIN", d =>
+            UIKit.Stepper(panel, "TIME OF DAY", -320, () => MatchConfig.TimeNames[Draft.Map % 3], d =>
+            {
+                Draft.Map = (byte)(Draft.Map - Draft.Map % 3 + (Draft.Map % 3 + 3 + d) % 3);
+                World.I?.ApplyLighting(Draft.Map);
+            }, 1080);
+            UIKit.Stepper(panel, "MATCH TIME", -415, () => Draft.Minutes + " MIN", d =>
             {
                 int i = System.Array.IndexOf(minutes, Draft.Minutes);
                 Draft.Minutes = minutes[Mathf.Clamp((i < 0 ? 1 : i) + d, 0, minutes.Length - 1)];
             }, 1080);
-            UIKit.Stepper(panel, "MAX PLAYERS", -415, () => Draft.MaxPlayers.ToString(), d => Draft.MaxPlayers = (byte)Mathf.Clamp(Draft.MaxPlayers + d, 2, 10), 1080);
             botRows = new[]
             {
                 UIKit.Stepper(panel, "BOTS", -510, () => Draft.Bots == 0 ? "NONE" : Draft.Bots.ToString(), d => Draft.Bots = (byte)Mathf.Clamp(Draft.Bots + d, 0, 9), 1080).transform.parent.gameObject,
@@ -438,16 +451,23 @@ namespace UA
             createButton.GetComponent<RectTransform>().At(0.5f, 0f, 200, 50, 560, 96, 0.5f, 0f);
         }
 
+        /// <summary>Which map of the menu a layout index belongs to (AL-ZAHRA, CITYLORD, VILLAGE, OLD TOWN, PORT).</summary>
+        private static int MapSlot(int map)
+        {
+            int i = System.Array.IndexOf(MatchConfig.MapOrder, map - map % 3);
+            return i < 0 ? 0 : i;
+        }
+
         public void CreateFromDraft()
         {
             Draft.GroupName = Settings.Clean(groupNameField.text.Length > 0 ? groupNameField.text : Draft.GroupName, 24);
             var config = new MatchConfig
             {
                 GroupName = Draft.GroupName, Mode = Draft.Mode, Map = Draft.Map, Minutes = Draft.Minutes,
-                MaxPlayers = Draft.MaxPlayers, Bots = Draft.Bots, BotSkill = Draft.BotSkill,
+                MaxPlayers = 255, Bots = Draft.Bots, BotSkill = Draft.BotSkill,
                 Password = DraftPractice ? "" : passwordField.text.Trim(),
             };
-            if (!Session.I.Host(config, DraftPractice))
+            if (!Session.I.Host(config, DraftPractice, Settings.Team))
             {
                 Toast(Session.I.Status);
                 return;
@@ -461,6 +481,16 @@ namespace UA
             UIKit.Title(s, "JOIN GROUP", -40, 66);
             var panel = UIKit.Panel(s, 1500, 610, 40);
             joinList = UIKit.Node(panel, "List").Fill(24);
+            // the team to play in (for groups with teams): TEAM 1 .. TEAM 10, changeable in the lobby too
+            var teamRow = UIKit.Node(s, "TeamRow").At(0.5f, 1f, 0, -118, 900, 70, 0.5f, 1f);
+            var teamText = UIKit.Txt(teamRow, "", 34, TextAnchor.MiddleCenter, UIKit.Accent);
+            teamText.rectTransform.Fill();
+            System.Action showTeam = () => teamText.text = "MY TEAM:  " + MatchConfig.TeamName(Settings.Team);
+            showTeam();
+            var teamPrev = UIKit.Btn(teamRow, "<", () => { Settings.Team = (byte)((Settings.Team + MatchConfig.MaxTeams - 1) % MatchConfig.MaxTeams); showTeam(); }, 38);
+            teamPrev.GetComponent<RectTransform>().At(0f, 0.5f, 0, 0, 90, 66, 0f, 0.5f);
+            var teamNext = UIKit.Btn(teamRow, ">", () => { Settings.Team = (byte)((Settings.Team + 1) % MatchConfig.MaxTeams); showTeam(); }, 38);
+            teamNext.GetComponent<RectTransform>().At(1f, 0.5f, 0, 0, 90, 66, 1f, 0.5f);
             joinStatus = UIKit.Txt(panel, "", 32, TextAnchor.MiddleCenter, UIKit.Muted);
             joinStatus.rectTransform.Fill(60);
             var ipRow = UIKit.Node(s, "IpRow").At(0.5f, 0f, 0, 190, 1500, 90, 0.5f, 0.5f);
@@ -547,7 +577,7 @@ namespace UA
                 var name = UIKit.Txt(row.transform, $"{Rtl.Shape(g.Name)}\n<size=24><color=#9aa4b0>{MatchConfig.ModeNames[(int)g.Mode]}  -  {MatchConfig.MapNames[g.Map % MatchConfig.MapNames.Length]}  -  {g.Address.Address}</color></size>", 34, TextAnchor.MiddleLeft);
                 name.rectTransform.Fill();
                 name.rectTransform.offsetMin = new Vector2(30, 0);
-                var count = UIKit.Txt(row.transform, $"{g.Players}/{g.MaxPlayers}" + (g.Phase != Phase.Lobby ? "\n<size=22>IN MATCH</size>" : ""), 32, TextAnchor.MiddleCenter, UIKit.Accent);
+                var count = UIKit.Txt(row.transform, $"{g.Players} PLAYERS" + (g.Phase != Phase.Lobby ? "\n<size=22>IN MATCH</size>" : ""), 32, TextAnchor.MiddleCenter, UIKit.Accent);
                 count.rectTransform.At(1f, 0.5f, -330, 0, 160, 90);
                 var target = g.Address;
                 string groupName = g.Name;
@@ -592,7 +622,8 @@ namespace UA
 
             var leave = UIKit.Btn(s, "LEAVE", LeaveGroup, 34, null, "exit_to_app");
             leave.GetComponent<RectTransform>().At(0.5f, 0f, -560, 50, 320, 96, 0.5f, 0f);
-            lobbyTeam = UIKit.Btn(s, "SWITCH TEAM", () => { var me = Session.I.Local; if (me != null) Session.I.SetTeam((byte)(1 - me.Team)); RefreshLobby(); }, 32, null, "swap_horiz");
+            // tap: the next team (TEAM 1 .. TEAM 10)
+            lobbyTeam = UIKit.Btn(s, "MY TEAM: 1", () => { var me = Session.I.Local; if (me != null) Session.I.SetTeam((byte)((me.Team + 1) % MatchConfig.MaxTeams)); RefreshLobby(); }, 32, null, "swap_horiz");
             lobbyTeam.GetComponent<RectTransform>().At(0.5f, 0f, -160, 50, 400, 96, 0.5f, 0f);
             lobbyStart = UIKit.Btn(s, "START MATCH", () => Session.I.StartMatch(), 38, UIKit.AccentDark, "play_arrow");
             lobbyStart.GetComponent<RectTransform>().At(0.5f, 0f, 340, 50, 560, 96, 0.5f, 0f);
@@ -644,19 +675,27 @@ namespace UA
                 return;
             }
             lobbyTitle.text = s.Practice ? "PRACTICE" : Rtl.Shape(s.Config.GroupName.ToUpperInvariant());
-            lobbyInfo.text = $"{MatchConfig.ModeNames[(int)s.Config.Mode]}   -   {MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length]}   -   {s.Config.Minutes} MIN   -   BOTS: {s.Config.Bots} ({MatchConfig.SkillNames[s.Config.BotSkill % 3]})";
+            lobbyInfo.text = $"{(s.Config.Mode == Mode.TeamDeathmatch ? "TEAMS 1-10" : MatchConfig.ModeNames[(int)s.Config.Mode])}   -   {MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length]}   -   {s.Config.Minutes} MIN   -   BOTS: {s.Config.Bots} ({MatchConfig.SkillNames[s.Config.BotSkill % 3]})";
             lobbyIp.text = s.Practice ? "Only you and the bots - no network used" :
                 s.IsHost ? "Friends: JOIN GROUP, or type this IP:  " + (s.HostAddresses.Length > 0 ? s.HostAddresses : "(no Wi-Fi found)")
                     + (string.IsNullOrEmpty(s.Config.Password) ? "" : "   -   PASSWORD: " + s.Config.Password) : "Connected - " + s.Players.Count(p => !p.Value.IsBot) + " players in the group";
-            lobbyLeftTitle.text = tdm ? "TEAM BLUE" : "PLAYERS";
-            lobbyRightTitle.text = tdm ? "TEAM RED" : "";
+            lobbyLeftTitle.text = tdm ? "TEAMS" : "PLAYERS";
+            lobbyRightTitle.text = tdm ? "" : "";
+            lobbyLeftTitle.color = lobbyRightTitle.color = UIKit.Accent;
             var ordered = s.Players.Values.OrderBy(p => p.IsBot).ThenBy(p => p.Id).ToList();
             string Line(PlayerState p) => (p.Id == s.LocalId ? "<color=#ffa020>" : "") + (p.Id == 0 && !p.IsBot ? "[HOST] " : "") + Rtl.Shape(p.Name) + (p.Id == s.LocalId ? "</color>" : "")
                 + $"  <size=22><color=#8a94a0>{Weapons.Get(p.Primary).Name} / {Weapons.Get(p.Secondary).Name}</color></size>";
             if (tdm)
             {
-                lobbyLeft.text = string.Join("\n", ordered.Where(p => p.Team == 0).Select(Line));
-                lobbyRight.text = string.Join("\n", ordered.Where(p => p.Team == 1).Select(Line));
+                // every team in use with its players under its name, in its colour; the teams split over the two panels
+                var lines = new List<string>();
+                foreach (var g in ordered.GroupBy(p => p.Team % MatchConfig.MaxTeams).OrderBy(g => g.Key))
+                {
+                    lines.Add($"<color={MatchConfig.TeamHex(g.Key)}>{MatchConfig.TeamName(g.Key)}</color>");
+                    lines.AddRange(g.Select(p => "   " + Line(p)));
+                }
+                lobbyLeft.text = string.Join("\n", lines.Take(10));
+                lobbyRight.text = string.Join("\n", lines.Skip(10));
             }
             else
             {
@@ -668,6 +707,7 @@ namespace UA
             secondaryText.text = Weapons.Get(Settings.Secondary).Name;
             lobbyStart.gameObject.SetActive(s.IsHost && s.Phase == Phase.Lobby);
             lobbyTeam.gameObject.SetActive(tdm && s.Phase == Phase.Lobby);
+            if (me != null) lobbyTeam.SetLabel("MY TEAM: " + (me.Team % MatchConfig.MaxTeams + 1));
             lobbyWait.text = s.IsHost ? "" : s.Phase == Phase.Lobby ? "Waiting for the host to start ..." : "Match in progress - joining ...";
         }
 
@@ -803,7 +843,7 @@ namespace UA
             float accuracy = p.Shots > 0 ? (float)p.ShotHits / p.Shots : 0f;
             float score = p.Kills * 100f + p.DamageDone * 0.5f + p.Heads * 15f - p.Deaths * 40f;
             if (p.Shots >= 15) score += accuracy * 150f;
-            if (s.Config.Mode == Mode.TeamDeathmatch && s.TeamScore[p.Team & 1] > s.TeamScore[1 - (p.Team & 1)]) score += 60f;
+            if (s.Config.Mode == Mode.TeamDeathmatch && s.TeamScore[p.Team % MatchConfig.MaxTeams] > 0 && s.TeamScore[p.Team % MatchConfig.MaxTeams] == s.TeamScore.Max()) score += 60f;
             return Mathf.Max(0f, score);
         }
 
@@ -813,11 +853,13 @@ namespace UA
             string title;
             if (s.Config.Mode == Mode.TeamDeathmatch)
             {
-                title = s.TeamScore[0] == s.TeamScore[1] ? "DRAW" : s.TeamScore[0] > s.TeamScore[1] ? "<color=#4d84ff>TEAM BLUE WINS</color>" : "<color=#f24d40>TEAM RED WINS</color>";
-                title += $"  <size=40>{s.TeamScore[0]} : {s.TeamScore[1]}</size>";
+                var teams = Enumerable.Range(0, MatchConfig.MaxTeams).Where(t => s.Players.Values.Any(p => p.Team == t)).OrderByDescending(t => s.TeamScore[t]).ToList();
+                bool draw = teams.Count < 2 || s.TeamScore[teams[0]] == s.TeamScore[teams[1]];
+                title = draw ? "DRAW" : $"<color={MatchConfig.TeamHex(teams[0])}>{MatchConfig.TeamName(teams[0])} WINS</color>";
+                title += "  <size=40>" + string.Join(" : ", teams.Select(t => $"<color={MatchConfig.TeamHex(t)}>{s.TeamScore[t]}</color>")) + "</size>";
                 var me = s.Local;
-                if (me != null && s.TeamScore[0] != s.TeamScore[1])
-                    title += (s.TeamScore[me.Team] > s.TeamScore[1 - me.Team]) ? "  <size=40>VICTORY</size>" : "  <size=40>DEFEAT</size>";
+                if (me != null && !draw)
+                    title += me.Team == teams[0] ? "  <size=40>VICTORY</size>" : "  <size=40>DEFEAT</size>";
             }
             else
             {
@@ -839,7 +881,7 @@ namespace UA
                 row.rectTransform.At(0.5f, 1f, 0, -i * RowHeight, 1600, RowHeight - 6, 0.5f, 1f);
                 if (s.Config.Mode == Mode.TeamDeathmatch)
                 {
-                    var team = UIKit.Img(row.transform, p.Team == 0 ? UIKit.Blue : UIKit.Red, UIKit.Rounded);
+                    var team = UIKit.Img(row.transform, MatchConfig.TeamColors[p.Team % MatchConfig.MaxTeams], UIKit.Rounded);
                     team.rectTransform.At(0f, 0.5f, 4, 0, 8, RowHeight - 18, 0f, 0.5f);
                 }
                 float kd = p.Deaths > 0 ? (float)p.Kills / p.Deaths : p.Kills;

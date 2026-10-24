@@ -11,6 +11,8 @@ namespace UA
         public int Layout;
         /// <summary>Lit windows, lamp glass and halos: shown at night only.</summary>
         public Renderer[] NightLights = new Renderer[0];
+        /// <summary>Real lights of the lamps (per vertex, on the players only): on at night only.</summary>
+        public Light[] Lamps = new Light[0];
 
         private void Start()
         {

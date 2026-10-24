@@ -63,7 +63,11 @@ namespace UA
 
         /// <summary>Where the local player's crosshair points this frame (others aim along their yaw / pitch).</summary>
         [System.NonSerialized] public Vector3? AimPoint;
-        private Transform chestBone, handBone, upperArmBone, lowerArmBone;
+        private Transform chestBone, handBone, upperArmBone, lowerArmBone, thighBone;
+        // the other weapon of the loadout, carried: a rifle slung across the back, a pistol at the hip
+        private GameObject backCopy;
+        private int backId = -1;
+        private float swapStart = -10f;
         private float throwStart = -10f, stepTimer;
         private int stepIndex;
         private static readonly int CadenceId = Animator.StringToHash("Cadence");
@@ -81,6 +85,7 @@ namespace UA
                 else if (n == "hand_r") handBone = t;
                 else if (n == "upperarm_r") upperArmBone = t;
                 else if (n == "lowerarm_r") lowerArmBone = t;
+                else if (n == "thigh_r") thighBone = t;
             }
         }
 
@@ -92,6 +97,7 @@ namespace UA
         {
             CarryArms();
             AimArms();
+            SwapArm();
             ThrowArm();
             HoldSyringe();
             FitBodyHitbox();
@@ -203,6 +209,10 @@ namespace UA
             }
             SetWeapon(state.Weapon);
             Alive = state.Alive;
+            // the body and the weapons on the agent layer (not the hitboxes): the street lamps of the
+            // maps light only that layer, so a player walking up to a lamp is lit by it
+            foreach (var r in GetComponentsInChildren<Renderer>(true))
+                if (r.GetComponent<Collider>() == null) r.gameObject.layer = World.AgentLayer;
         }
 
         /// <summary>Called by World every frame with the latest state.</summary>
@@ -301,9 +311,92 @@ namespace UA
 
         public void SetWeapon(int id)
         {
-            weapon = Mathf.Clamp(id, 0, Weapons.Count - 1);
+            id = Mathf.Clamp(id, 0, Weapons.Count - 1);
+            // a change of weapon while alive: the hand goes to the back (or the hip) and comes up with the other
+            if (id != weapon && weapon >= 0 && State != null && Alive && Time.time - swapStart > 0.3f) swapStart = Time.time;
+            weapon = id;
+            bool inHand = visible && Time.time - swapStart > 0.22f;
             for (int i = 0; i < WeaponModels.Length; i++)
-                if (WeaponModels[i] != null) WeaponModels[i].SetActive(i == weapon && visible);
+                if (WeaponModels[i] != null) WeaponModels[i].SetActive(i == weapon && inHand);
+            CarryOther();
+        }
+
+        /// <summary>The weapon not in the hand, carried on the body: rifles across the back, pistols at the right hip.</summary>
+        private void CarryOther()
+        {
+            int other = State == null ? -1 : weapon == State.Primary ? State.Secondary : weapon == State.Secondary ? State.Primary : -1;
+            if (other == weapon) other = -1;
+            if (other != backId)
+            {
+                if (backCopy != null) Destroy(backCopy);
+                backCopy = null;
+                backId = other;
+                if (other >= 0 && other < WeaponModels.Length && WeaponModels[other] != null && other < Muzzles.Length && Muzzles[other] != null) backCopy = MakeCarried(other);
+            }
+            if (backCopy != null) backCopy.SetActive(visible);
+        }
+
+        private GameObject MakeCarried(int id)
+        {
+            var src = WeaponModels[id];
+            bool pistol = !Weapons.Get(id).Primary;
+            var bone = pistol ? (thighBone != null ? thighBone : transform) : (chestBone != null ? chestBone : transform);
+            bool was = src.activeSelf;
+            src.SetActive(true);
+            var copy = Instantiate(src, src.transform.position, src.transform.rotation, src.transform.parent);
+            src.SetActive(was);
+            copy.name = "Carried_" + id;
+            // only the look of it: no scripts, flashes, sounds or colliders
+            foreach (var c in copy.GetComponentsInChildren<Component>(true))
+                if (c != null && !(c is Transform || c is MeshFilter || c is MeshRenderer)) Destroy(c);
+            foreach (var r in copy.GetComponentsInChildren<Renderer>(true))
+            {
+                r.gameObject.layer = World.AgentLayer;
+                if (r.name.ToLowerInvariant().Contains("flash")) r.enabled = false;
+            }
+            // which way its barrel points and where its middle is, in the gun's own space
+            var muzzleDir = src.transform.InverseTransformDirection(Muzzles[id].forward);
+            var bounds = new Bounds(Muzzles[id].position, Vector3.zero);
+            foreach (var r in src.GetComponentsInChildren<MeshRenderer>(true)) bounds.Encapsulate(r.bounds);
+            var middle = src.transform.InverseTransformPoint(bounds.center);
+            var gunUp = Vector3.ProjectOnPlane(Vector3.up, muzzleDir).normalized;
+            var fromGun = Quaternion.Inverse(Quaternion.LookRotation(muzzleDir, gunUp));
+            Quaternion want;
+            Vector3 at;
+            if (pistol)
+            {
+                // muzzle down along the thigh, the grip up and back
+                want = Quaternion.LookRotation(-transform.up, transform.forward) * fromGun;
+                at = transform.position + transform.up * 0.92f + transform.right * 0.2f - transform.forward * 0.02f;
+            }
+            else
+            {
+                // slung across the back: the barrel up over the left shoulder, the top of the gun outwards
+                var dir = (transform.up * 0.72f - transform.right * 0.69f).normalized;
+                want = Quaternion.LookRotation(dir, -transform.forward) * fromGun;
+                at = (chestBone != null ? chestBone.position : transform.position + transform.up * 1.3f) - transform.forward * 0.24f - transform.up * 0.05f;
+            }
+            copy.transform.SetParent(bone, true);
+            copy.transform.rotation = want;
+            copy.transform.position += at - copy.transform.TransformPoint(middle);
+            return copy;
+        }
+
+        /// <summary>Weapon change: the right hand goes back over the shoulder (or down to the hip), then forward with the other gun.</summary>
+        private void SwapArm()
+        {
+            const float length = 0.5f;
+            float t = Time.time - swapStart;
+            if (t < 0f || t > length + 0.05f || upperArmBone == null || State == null || !Alive) return;
+            // the gun in the hand appears halfway, when the hand comes back up
+            if (weapon >= 0 && weapon < WeaponModels.Length && WeaponModels[weapon] != null && WeaponModels[weapon].activeSelf != (visible && t > 0.22f))
+                WeaponModels[weapon].SetActive(visible && t > 0.22f);
+            if (t > length) return;
+            bool pistol = !Weapons.Get(weapon).Primary;
+            float reach = pistol ? 55f : -125f;   // down to the hip / back over the shoulder
+            float angle = t < 0.22f ? Mathf.SmoothStep(0f, reach, t / 0.22f) : Mathf.SmoothStep(reach, 0f, (t - 0.22f) / (length - 0.22f));
+            upperArmBone.rotation = Quaternion.AngleAxis(angle, transform.right) * upperArmBone.rotation;
+            if (lowerArmBone != null) lowerArmBone.rotation = Quaternion.AngleAxis(Mathf.Abs(angle) * -0.4f, transform.right) * lowerArmBone.rotation;
         }
 
         public void SetVisible(bool value)

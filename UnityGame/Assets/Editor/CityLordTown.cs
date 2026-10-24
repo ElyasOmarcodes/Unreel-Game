@@ -298,6 +298,7 @@ public static partial class CityLordBuilder
             return (name.StartsWith("Hangar_") || name.StartsWith("Oil_tank_v1")) && kv.Value.size.x > 3f && kv.Value.size.z > 3f;
         }).ToList();
         int count = 0;
+        numbered.Clear();
         foreach (var group in buildings.GroupBy(kv => DistrictOf(kv.Value.center)).OrderBy(g => g.Key))
         {
             int number = 0;
@@ -312,6 +313,7 @@ public static partial class CityLordBuilder
                 // on an opened building: right over its main door
                 Plate(signs, path, b, side, open ? main.top + 0.7f : tank ? 3.2f : 3.6f, tank ? "د تېلو ټانک" : open ? "ګودام - خلاص" : "ګودام", $"{group.Key}-{number}",
                       open ? (main.from + main.to) / 2f : (float?)null);
+                numbered[$"{group.Key}-{number}"] = b;
                 count++;
             }
         }
@@ -357,14 +359,14 @@ public static partial class CityLordBuilder
             {
                 var (n, along, len, across) = sides[k];
                 float lo = float.MaxValue, hi = float.MinValue, start = 9f;
-                for (float u = -len / 2f - 2.5f; u <= len / 2f + 2.5f; u += 0.25f)
+                for (float u = -len / 2f - 2.5f; u <= len / 2f + 2.5f; u += 0.1f)
                 {
                     var edge = c + rot * (n * (across / 2f) + along * u);
                     float o = StairOut(edge, rot * n, c.y);
                     if (o < 0f) continue;
                     lo = Mathf.Min(lo, u); hi = Mathf.Max(hi, u); start = Mathf.Min(start, o);
                 }
-                if (hi >= lo) return (k, (lo + hi) / 2f, hi - lo + 0.25f, start);
+                if (hi >= lo) return (k, (lo + hi) / 2f, hi - lo + 0.1f, start);
             }
             return (-1, 0f, 0f, 0f);
         }
@@ -401,6 +403,13 @@ public static partial class CityLordBuilder
                         if (!Fits(c, rot)) continue;
                         var again = FindStair(c, rot);
                         if (again.side != 0 || Mathf.Abs(again.u) > 0.4f) continue;
+                        // and once more for the last few centimetres: the middle of the gap exactly on the middle of the steps
+                        if (Mathf.Abs(again.u) > 0.03f)
+                        {
+                            var nudged = c + rot * new Vector3(again.u, 0, 0);
+                            var third = Fits(nudged, rot) ? FindStair(nudged, rot) : (-1, 0f, 0f, 0f);
+                            if (third.side == 0 && Mathf.Abs(third.u) < Mathf.Abs(again.u)) { c = nudged; again = third; }
+                        }
                         float gap = Mathf.Clamp(again.width, 1.6f, w - 3f);
                         BuildGarden(parent, c, rot, yaw, w, l, gap, rng);
                         Debug.Log($"[Map] CityLord garden at {root.InverseTransformPoint(c)} yaw {yaw}, facing steps {gap:0.0} m wide");
@@ -437,6 +446,12 @@ public static partial class CityLordBuilder
         }
         foreach (float s in new[] { -1f, 1f })
             Nature.Tree(Nature.Trees, rng, g.TransformPoint(new Vector3(s * 2.6f, 0.08f, 0.6f)), 4.5f, 6f, g);
+        // a garden lantern on a post by the back hedge, lighting the bed and whoever stands in it at night
+        var post = g.TransformPoint(new Vector3(0, 0.08f, l / 2f - 1.1f));
+        MeshGen.TexBox("LanternPost", post + Vector3.up * 1.4f, new Vector3(0.1f, 2.8f, 0.1f), NightLights.LampMetal, 1f, g, yaw, true);
+        MeshGen.TexBox("LanternFoot", post + Vector3.up * 0.1f, new Vector3(0.26f, 0.2f, 0.26f), NightLights.LampMetal, 1f, g, yaw, false);
+        NightLights.Lamp(g, post + Vector3.up * 3f, new Vector3(0.26f, 0.36f, 0.26f), night, 3.6f);
+        LampLight(g, post + Vector3.up * 2.8f, 8f);
         Physics.SyncTransforms();
     }
 
@@ -474,7 +489,161 @@ public static partial class CityLordBuilder
         // a lantern on a bracket over the plate: warm light on the wall and the street at night
         MeshGen.TexBox("LampArm", t.TransformPoint(new Vector3(0, 0.98f, -0.2f)), new Vector3(0.05f, 0.05f, 0.42f), NightLights.LampMetal, 1f, t, yaw, false);
         NightLights.Lamp(t, t.TransformPoint(new Vector3(0, 0.82f, -0.42f)), new Vector3(0.22f, 0.32f, 0.22f), night, 3.8f);
+        LampLight(t, t.TransformPoint(new Vector3(0, 0.7f, -0.6f)), 7f);
         NightLights.Pool(t, t.TransformPoint(new Vector3(0, 0.6f, -0.08f)), -t.forward, 1.6f, night, 0.9f);
+    }
+
+    private static readonly List<Light> lamps = new List<Light>();
+    /// <summary>The numbered buildings (scene coordinates) by their number, as "D-4".</summary>
+    private static readonly Dictionary<string, Bounds> numbered = new Dictionary<string, Bounds>();
+
+    /// <summary>
+    /// A second double pipe like the one that runs from the roof of the pipe works over to the oil tank
+    /// D-5: from the same roof over to the roof of the warehouse D-4. It rises out of the roof, runs
+    /// level on steel frames over the yard (clear of the tank) and goes down into the warehouse roof;
+    /// one can walk along its top like along the other.
+    /// </summary>
+    private static void RoofPipe(Dictionary<string, Bounds> outlines)
+    {
+        if (!numbered.TryGetValue("D-4", out var d4) || !numbered.TryGetValue("D-5", out var d5)) { Debug.LogWarning("[Map] CityLord: no D-4 / D-5 for the roof pipe"); return; }
+        string Name(string path) => path.Substring(path.LastIndexOf('/') + 1);
+        var pipes = outlines.Where(kv => Name(kv.Key).StartsWith("Pipes_set_v1_H_set") || Name(kv.Key).StartsWith("Pipes_set_v1_V_set") || Name(kv.Key).StartsWith("Pipes_set_v1_tile"))
+                            .Select(kv => kv.Value).ToList();
+        var near5 = d5;
+        near5.Expand(4f);
+        var chain = pipes.Where(b => b.Intersects(near5)).ToList();
+        if (chain.Count == 0) { Debug.LogWarning("[Map] CityLord: no pipe at D-5"); return; }
+        for (bool grown = true; grown;)
+        {
+            grown = false;
+            foreach (var b in pipes)
+                if (!chain.Contains(b) && chain.Any(c => { var e = c; e.Expand(2f); return e.Intersects(b); })) { chain.Add(b); grown = true; }
+        }
+        var all = chain[0];
+        foreach (var b in chain) all.Encapsulate(b);
+        // the end of the pipe works away from the tank: there the old pipe comes out of its roof
+        var c5 = new Vector3(d5.center.x, 0, d5.center.z);
+        Vector3 far = all.size.z >= all.size.x
+            ? new Vector3(all.center.x, 0, Mathf.Abs(all.min.z - c5.z) > Mathf.Abs(all.max.z - c5.z) ? all.min.z : all.max.z)
+            : new Vector3(Mathf.Abs(all.min.x - c5.x) > Mathf.Abs(all.max.x - c5.x) ? all.min.x : all.max.x, 0, all.center.z);
+        float Surface(Vector3 at, float below, float flat)
+        {
+            float best = float.MinValue;
+            foreach (var h in Physics.RaycastAll(root.TransformPoint(new Vector3(at.x, below, at.z)), Vector3.down, 40f, World.EnvMask, QueryTriggerInteraction.Ignore))
+            {
+                float y = root.InverseTransformPoint(h.point).y;
+                if (h.normal.y > flat && y > best) best = y;
+            }
+            return best;
+        }
+        // the start: on that roof, a little in from the end of the old pipe and beside it
+        var c4 = new Vector3(d4.center.x, 0, d4.center.z);
+        var toward = (c4 - far); toward.y = 0; toward.Normalize();
+        Vector3 start = far, end = default;
+        float roofY = float.MinValue, d4Y = float.MinValue, level = 0f;
+        var side = Vector3.Cross(Vector3.up, toward);
+        bool found = false;
+        foreach (float off in new[] { 2.2f, -2.2f, 3.6f, -3.6f, 5f, -5f })
+        {
+            var s0 = far + side * off - toward * 1.5f;
+            float ry = Surface(s0, all.max.y + 3f, 0.9f);
+            if (ry < all.min.y - 6f || ry > all.max.y + 1f) continue;
+            // the end: on the warehouse roof just inside its edge towards the start
+            var e0 = new Vector3(Mathf.Clamp(s0.x, d4.min.x + 1.5f, d4.max.x - 1.5f), 0, Mathf.Clamp(s0.z, d4.min.z + 1.5f, d4.max.z - 1.5f));
+            float ey = Surface(e0, d4.max.y + 2f, 0.5f);
+            if (ey < d4.min.y + 1f) continue;
+            float lv = Mathf.Max(ry, ey) + 0.9f;
+            var a = root.TransformPoint(new Vector3(s0.x, lv, s0.z));
+            var b = root.TransformPoint(new Vector3(e0.x, lv, e0.z));
+            var dir = b - a;
+            // clear all the way (the tank, the old pipe, other roofs)
+            if (Physics.SphereCast(a - dir.normalized * 0.2f, 0.55f, dir.normalized, out _, dir.magnitude - 1.2f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
+            start = s0; end = e0; roofY = ry; d4Y = ey; level = lv; found = true;
+            break;
+        }
+        if (!found) { Debug.LogWarning("[Map] CityLord: no clear way for the roof pipe to D-4"); return; }
+        var t = new GameObject("RoofPipe").transform;
+        t.SetParent(root, false);
+        var A = new Vector3(start.x, level, start.z);
+        var B = new Vector3(end.x, level, end.z);
+        var run = B - A;
+        float length = run.magnitude;
+        var along = run / length;
+        var across = Vector3.Cross(Vector3.up, along);
+        t.localPosition = (A + B) / 2f;
+        t.localRotation = Quaternion.LookRotation(along);
+        var piece = Kit("Pipes_set_v1_H_set_v2") ?? Kit("Pipes_set_v1_H_set_v1");
+        var pipeMat = piece != null && piece.Materials.Length > 0 && piece.Materials[0] != null ? piece.Materials[0] : AssetSetup.RustyPost;
+        var steel = AssetSetup.RustyPost;
+        const float r = 0.28f, gap = 0.36f;
+        GameObject Tube(string name, Vector3 from, Vector3 to, float radius, Material m)
+        {
+            var d = to - from;
+            var go = MeshGen.Object(name, MeshGen.Cylinder(radius, d.magnitude, 2f, 14), m, t, root.TransformPoint(from));
+            go.transform.rotation = root.rotation * Quaternion.FromToRotation(Vector3.up, d.normalized);
+            go.isStatic = true;
+            return go;
+        }
+        foreach (float sd in new[] { -1f, 1f })
+        {
+            var o = across * sd * gap;
+            // level run, the two bends down, and down into the roofs with a collar where they enter
+            Tube("Pipe", A + o, B + o, r, pipeMat);
+            Tube("PipeDown", A + o + Vector3.up * 0.0f, new Vector3(A.x, roofY - 0.1f, A.z) + o, r, pipeMat);
+            Tube("PipeDown", B + o, new Vector3(B.x, d4Y - 0.3f, B.z) + o, r, pipeMat);
+            Tube("Collar", new Vector3(A.x, roofY - 0.05f, A.z) + o, new Vector3(A.x, roofY + 0.18f, A.z) + o, r + 0.08f, steel);
+            Tube("Collar", new Vector3(B.x, d4Y - 0.05f, B.z) + o, new Vector3(B.x, d4Y + 0.18f, B.z) + o, r + 0.08f, steel);
+            foreach (var p in new[] { A, B })
+                MeshGen.Object("Elbow", MeshGen.Cylinder(r + 0.04f, 0.5f, 1f, 14), pipeMat, t, root.TransformPoint(p + o - Vector3.up * 0.25f)).isStatic = true;
+            // flanges along the run
+            for (float u = 3f; u < length - 1f; u += 6f)
+                Tube("Flange", A + o + along * u, A + o + along * (u + 0.08f), r + 0.07f, steel);
+        }
+        // steel frames on the ground under the run (wherever it is not over a roof), one every 6 m
+        for (float u = 3f; u < length - 2f; u += 6f)
+        {
+            var p = A + along * u;
+            float g = Surface(p, level - 0.6f, 0.7f);
+            if (g == float.MinValue || level - g < 1.2f) continue;
+            foreach (float sd in new[] { -1f, 1f })
+            {
+                var foot = new Vector3(p.x, g, p.z) + across * sd * 0.85f;
+                MeshGen.TexBox("FramePost", root.TransformPoint(foot + Vector3.up * ((level - r - g) / 2f)), new Vector3(0.18f, level - r - g, 0.18f), steel, 1f, t, Quaternion.LookRotation(along).eulerAngles.y, true);
+            }
+            MeshGen.TexBox("FrameBeam", root.TransformPoint(p - Vector3.up * (r + 0.08f)), new Vector3(2f, 0.16f, 0.2f), steel, 1f, t, Quaternion.LookRotation(along).eulerAngles.y, false);
+        }
+        // the walk along the top of the two pipes (and the colliders of the pipes themselves)
+        var walk = new GameObject("PipeWalk");
+        walk.transform.SetParent(t, false);
+        walk.transform.localPosition = Vector3.up * (r - 0.02f);
+        walk.AddComponent<BoxCollider>().size = new Vector3(gap * 2f + r * 2f, 0.1f, length + 0.4f);
+        var body = new GameObject("PipeBody");
+        body.transform.SetParent(t, false);
+        body.AddComponent<BoxCollider>().size = new Vector3(gap * 2f + r * 2f, r * 2f, length);
+        Debug.Log($"[Map] CityLord: roof pipe to D-4 from {start} to {end}, {length:0.0} m at {level:0.0}");
+    }
+
+    /// <summary>
+    /// The real light of a lamp: a warm point light lit per vertex and only on the players and their
+    /// weapons (the agent layer), so someone walking up to a lamp is lit by it while the streets keep
+    /// their painted pools of light: cheap enough for phones. Off by day.
+    /// </summary>
+    private static void LampLight(Transform parent, Vector3 at, float range)
+    {
+        var go = new GameObject("LampLight");
+        go.transform.SetParent(parent, false);
+        go.transform.position = at;
+        var l = go.AddComponent<Light>();
+        l.type = LightType.Point;
+        l.color = new Color(1f, 0.72f, 0.42f);
+        l.range = range;
+        l.intensity = 2.4f;
+        l.shadows = LightShadows.None;
+        l.renderMode = LightRenderMode.ForceVertex;
+        l.cullingMask = 1 << World.AgentLayer;
+        l.lightmapBakeType = LightmapBakeType.Realtime;
+        l.enabled = false;
+        lamps.Add(l);
     }
 
     /// <summary>
@@ -519,6 +688,7 @@ public static partial class CityLordBuilder
                 MeshGen.TexBox("LampFoot", hit.point + Vector3.up * 0.15f, new Vector3(0.34f, 0.3f, 0.34f), steel, 1f, t, yaw, false);
                 MeshGen.TexBox("LampArm", hit.point + Vector3.up * 4.55f + arm * 0.5f, new Vector3(0.08f, 0.08f, 1.05f), steel, 1f, t, yaw, false);
                 NightLights.Lamp(t, hit.point + Vector3.up * 4.25f + arm * 0.95f, new Vector3(0.26f, 0.36f, 0.26f), night, 4.6f);
+                LampLight(t, hit.point + Vector3.up * 4f + arm * 0.95f, 9f);
                 placed.Add(hit.point);
             }
         return placed.Count;

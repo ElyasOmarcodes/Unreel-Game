@@ -179,7 +179,7 @@ namespace UA
             yield return Wait(1f);
             yield return Shot("04-wifi");
             app.Draft.Mode = Mode.TeamDeathmatch;
-            app.Draft.Map = 0; // PORT
+            app.Draft.Map = 14; // CITYLORD at night: the lamps light the players, the carried weapon on the back
             app.Draft.Minutes = 3;
             app.OpenCreate(false);
             app.Draft.Bots = 4;   // the test match still has bots to fight (the screen offers none)
@@ -202,6 +202,14 @@ namespace UA
             yield return Shot("10b-grenade");
             yield return Wait(1f);
             yield return BackToWall();
+            // weapon change: the hand goes back for the other gun (mid-swap), then the pistol in the hand and the rifle on the back
+            Controls.SimSwap = true;
+            yield return Wait(0.15f);
+            yield return Shot("10f-weapon-swap");
+            yield return Wait(0.8f);
+            yield return Shot("10g-pistol-rifle-on-back");
+            Controls.SimSwap = true;
+            yield return Wait(0.9f);
             Controls.SimScore = true;
             yield return Wait(0.3f);
             yield return Shot("11-scoreboard");
@@ -358,6 +366,8 @@ namespace UA
                 (14, "86b-citylord-night-yard", new Vector3(-0.6f, 2f, -35.6f), new Vector3(28f, 1.5f, -24f)),
                 (14, "86c-citylord-night-above", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
                 (14, "86d-citylord-night-hangars", new Vector3(81.5f, 3.5f, -24.6f), new Vector3(46f, 2f, 20f)),
+                (9, "77k-zahra-bastion-top", new Vector3(-117f, 13f, -101f), new Vector3(-125f, 8.5f, -109.5f)),
+                (9, "77l-zahra-wall-texture", new Vector3(-110f, 3f, -60f), new Vector3(-125f, 5f, -50f)),
                 (9, "77-zahra-cypress", new Vector3(-12f, 6f, -14f), new Vector3(-8.6f, 9f, -20f)),
                 (6, "78-town-granary-stair", new Vector3(29.5f, 2.2f, 14.5f), new Vector3(21.8f, 1.8f, 10.4f)),
                 (9, "55-zahra-lower-garden", new Vector3(-5f, 6.5f, -32f), new Vector3(-5f, 0f, -70f)),
@@ -440,6 +450,32 @@ namespace UA
                 cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(garden.position - from));
                 yield return Wait(0.6f);
                 yield return Shot("90g-citylord-garden");
+                // straight down on it: the gate square on to the steps
+                var above = garden.position + Vector3.up * 16f - garden.forward * 4f;
+                cam.transform.SetPositionAndRotation(above, Quaternion.LookRotation(garden.position - above));
+                yield return Wait(0.5f);
+                yield return Shot("90h-citylord-garden-above");
+                World.I.ApplyLighting(14);
+                yield return Until(() => World.I.MapReady, 30);
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(garden.position - from));
+                yield return Wait(0.6f);
+                yield return Shot("90i-citylord-garden-night");
+                World.I.ApplyLighting(12);
+                yield return Until(() => World.I.MapReady, 30);
+            }
+            // the new double pipe from the roof of the pipe works over to the warehouse D-4
+            var pipe = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "RoofPipe");
+            if (pipe != null)
+            {
+                var side = Vector3.Cross(Vector3.up, pipe.forward);
+                var from = pipe.position + side * 14f + Vector3.up * 5f - pipe.forward * 4f;
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(pipe.position - from));
+                yield return Wait(0.6f);
+                yield return Shot("90j-citylord-pipe-d4");
+                var start = pipe.position - pipe.forward * 9f + Vector3.up * 2.2f;
+                cam.transform.SetPositionAndRotation(start, Quaternion.LookRotation(pipe.forward + Vector3.down * 0.15f));
+                yield return Wait(0.5f);
+                yield return Shot("90k-citylord-pipe-walk");
             }
             // the Port's raised yards (put on free ground when the map is built)
             World.I.ApplyLighting(0);

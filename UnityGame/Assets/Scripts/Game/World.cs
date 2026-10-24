@@ -121,6 +121,8 @@ namespace UA
             loadedMap = map;
             foreach (var light in map.NightLights)
                 if (light != null) light.enabled = night;
+            foreach (var lamp in map.Lamps)
+                if (lamp != null) lamp.enabled = night;
         }
 
         private void UseLayout(int index)
@@ -193,7 +195,7 @@ namespace UA
         public static Color TeamColor(PlayerState p, Session s)
         {
             if (s.Config.Mode == Mode.TeamDeathmatch)
-                return p.Team == 0 ? new Color(0.18f, 0.42f, 0.95f) : new Color(0.92f, 0.22f, 0.18f);
+                return MatchConfig.TeamColors[p.Team % MatchConfig.MaxTeams];
             var palette = new[]
             {
                 new Color(0.95f, 0.75f, 0.15f), new Color(0.2f, 0.8f, 0.4f), new Color(0.6f, 0.3f, 0.9f), new Color(0.95f, 0.45f, 0.1f),
@@ -353,8 +355,12 @@ namespace UA
             }
             this.night = night;
             if (loadedMap != null)
+            {
                 foreach (var light in loadedMap.NightLights)
                     if (light != null) light.enabled = night;
+                foreach (var lamp in loadedMap.Lamps)
+                    if (lamp != null) lamp.enabled = night;
+            }
             if (Camera.main != null)
             {
                 Camera.main.backgroundColor = RenderSettings.fogColor;

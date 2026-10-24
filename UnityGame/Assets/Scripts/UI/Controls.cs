@@ -21,7 +21,7 @@ namespace UA
 
         // automated test input
         public static Vector2 SimMove, SimLook;
-        public static bool SimFire, SimScore, SimGrenade;
+        public static bool SimFire, SimScore, SimGrenade, SimSwap;
 
         // for drawing the stick
         public static bool StickActive;
@@ -55,6 +55,19 @@ namespace UA
                 case Button.Pause: return new Vector2(w - 75, 1038);
                 default: return new Vector2(w - 312, 1038);
             }
+        }
+
+        /// <summary>
+        /// Is the touch on the button? RANK and STOP are drawn as wide boxes, not circles: the whole box
+        /// counts (with a margin), so they no longer have to be hit right in the middle.
+        /// </summary>
+        public static bool Hit(Button b, Vector2 p)
+        {
+            var c = ButtonCenter(b);
+            float r = ButtonRadius(b);
+            if (b == Button.Score) return Mathf.Abs(p.x - c.x) <= r * 3.1f + 24f && Mathf.Abs(p.y - c.y) <= r * 0.75f + 36f;
+            if (b == Button.Pause) return Mathf.Abs(p.x - c.x) <= r * 1.45f + 16f && Mathf.Abs(p.y - c.y) <= r * 0.73f + 30f;
+            return Vector2.Distance(p, c) <= r * 1.1f;
         }
 
         public static float DefaultRadius(Button b)
@@ -113,7 +126,7 @@ namespace UA
                     var f = new Finger { Last = p };
                     foreach (var b in AllButtons)
                     {
-                        if (ButtonVisible(b) && (b != Button.Ammo || AmmoAvailable) && (b != Button.Heal || HealAvailable) && Vector2.Distance(p, ButtonCenter(b)) <= ButtonRadius(b) * 1.1f) { f.Button = b; break; }
+                        if (ButtonVisible(b) && (b != Button.Ammo || AmmoAvailable) && (b != Button.Heal || HealAvailable) && Hit(b, p)) { f.Button = b; break; }
                     }
                     if (f.Button == null)
                     {
@@ -197,6 +210,7 @@ namespace UA
             if (SimFire) fireHeld = true;
             if (SimScore) Held.Add(Button.Score);
             if (SimGrenade) { grenade = true; SimGrenade = false; }
+            if (SimSwap) { swap = true; SimSwap = false; }
             if (SimFire && !lastFireHeld) fireTap = true;
 
             FireHeld = fireHeld;

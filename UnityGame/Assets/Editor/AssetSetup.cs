@@ -34,6 +34,26 @@ public static class AssetSetup
     /// <summary>Old rusted iron, dark nearly to black (rusty_metal_02): the posts of the boards in every map.</summary>
     /// <summary>Old white-painted iron gone rusty (Poly Haven rusty_metal_02 as it is): the name boards outside al-Zahra.</summary>
     public static Material WhiteIron => PortBuilder.Pbr("WhiteIron", "RustyMetal02", new Color(1f, 1f, 1f), 0.3f, 0.45f);
+    /// <summary>
+    /// Makes a stone material look like a real wall or floor over its whole length: texture coordinates
+    /// from the place in the map ('metres' per repeat, set when the map is merged) and a broad, faint
+    /// patchiness over some 30 m (macro variation) that hides where the picture repeats.
+    /// </summary>
+    public static Material Stone(Material m, float metres)
+    {
+        if (m == null || MapOptimizer.WorldUV.ContainsKey(m)) return m;
+        MapOptimizer.WorldUV[m] = metres;
+        var macro = ExtraTex("MacroNoise.png");
+        if (macro != null)
+        {
+            m.SetTexture("_DetailAlbedoMap", macro);
+            m.SetTextureScale("_DetailAlbedoMap", Vector2.one * (metres / 30f));
+            m.EnableKeyword("_DETAIL_MULX2");
+            EditorUtility.SetDirty(m);
+        }
+        return m;
+    }
+
     public static Material RustyPost => PortBuilder.Pbr("RustyPost", "RustyMetal02", new Color(0.3f, 0.28f, 0.27f), 0.35f, 0.5f);
 
     public static Texture2D ExtraTex(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Extra}/{file}");

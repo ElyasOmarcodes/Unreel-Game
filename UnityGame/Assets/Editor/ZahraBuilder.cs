@@ -45,7 +45,7 @@ public static class ZahraBuilder
     // ------------------------------------------------------------------ materials
 
     private static Material ashlar, marble, ataurique;
-    private static Material Ashlar => ashlar;
+    private static Material Ashlar => AssetSetup.Stone(ashlar, 2f);
     private static Material Marble => marble;
     private static Material Ataurique => ataurique;
     private static Material Cream => AssetSetup.Solid("Z_Cream", new Color(0.93f, 0.85f, 0.68f), 0.25f);
@@ -56,9 +56,9 @@ public static class ZahraBuilder
     private static Material BrickFloor => PortBuilder.Pbr("Z_BrickFloor", "Bricks076A", new Color(0.95f, 0.62f, 0.48f), 0.25f);
     // field stone (dry_riverbed_rock) for the city walls, terrace faces, parapets and the plain walls of
     // the streets; flagstones (monastery_stone_floor) for stairs and some walks: the houses keep their own
-    private static Material Rubble => PortBuilder.Pbr("Z_Rubble", "DryRiverbedSand", new Color(1f, 0.86f, 0.66f), 0.15f);
-    private static Material Flags => PortBuilder.Pbr("Z_Flags", "MonasteryFloorSand", new Color(1f, 0.88f, 0.7f), 0.25f);
-    private static Material Paving => PortBuilder.Pbr("Z_Paving", "PavingStones070", new Color(1f, 0.9f, 0.74f), 0.3f);
+    private static Material Rubble => AssetSetup.Stone(PortBuilder.Pbr("Z_Rubble", "DryRiverbedSand", new Color(1f, 0.86f, 0.66f), 0.15f), 2.5f);
+    private static Material Flags => AssetSetup.Stone(PortBuilder.Pbr("Z_Flags", "MonasteryFloorSand", new Color(1f, 0.88f, 0.7f), 0.25f), 2.5f);
+    private static Material Paving => AssetSetup.Stone(PortBuilder.Pbr("Z_Paving", "PavingStones070", new Color(1f, 0.9f, 0.74f), 0.3f), 2.5f);
     private static Material Sand => PortBuilder.Pbr("Z_Sand", "Ground104", new Color(1.05f, 0.92f, 0.72f), 0.08f);
     private static Material Grass => PortBuilder.Pbr("Z_Grass", "Grass004", new Color(0.92f, 1.02f, 0.8f), 0.15f);
     private static Material Gravel => PortBuilder.Pbr("Z_Gravel", "Gravel036L", new Color(1.02f, 0.95f, 0.84f), 0.15f);
@@ -1087,6 +1087,12 @@ public static class ZahraBuilder
         float top = foot.y + WallTop;
         Box(t, "Bastion", new Vector3(foot.x, (foot.y - 4f + top) / 2f, foot.z), new Vector3(size, WallTop + 4f, size), Rubble, 2.5f);
         Box(t, "BastionBand", new Vector3(foot.x, top - 0.6f, foot.z), new Vector3(size + 0.12f, 0.2f, size + 0.12f), Cream, 1.5f, false);
+        // the merlons of the wall run on across the top of the bastion: take them away there, the
+        // bastion has its own round its edge (no two rows of merlons on one top)
+        float clear = size / 2f + 0.5f;
+        foreach (var old in t.Cast<Transform>().Where(c => c.name == "Merlon" && Mathf.Abs(c.position.x - foot.x) < clear && Mathf.Abs(c.position.z - foot.z) < clear
+                                                          && Mathf.Abs(c.position.y - (top + 0.55f)) < 0.3f).ToList())
+            Object.DestroyImmediate(old.gameObject);
         float h = size / 2f - 0.3f;
         for (int side = 0; side < 4; side++)
             for (float u = -h + 0.35f; u <= h - 0.3f; u += 1.3f)

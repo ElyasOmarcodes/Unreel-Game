@@ -37,13 +37,13 @@ public static class TownBuilder
     {
         new Color(0.36f, 0.46f, 0.98f), new Color(0.82f, 0.38f, 0.3f), new Color(0.56f, 0.39f, 0.31f), new Color(0.42f, 0.44f, 0.54f),
     };
-    private static Material Cobbles => PortBuilder.Pbr("T_Cobbles", "PavingStones070", new Color(0.8f, 0.77f, 0.88f), 0.35f);
+    private static Material Cobbles => AssetSetup.Stone(PortBuilder.Pbr("T_Cobbles", "PavingStones070", new Color(0.8f, 0.77f, 0.88f), 0.35f), 2.5f);
     private static Material Grass => PortBuilder.Pbr("T_Grass", "Grass004", new Color(0.82f, 0.95f, 0.78f), 0.2f);
-    private static Material Stone => PortBuilder.Pbr("T_Stone", "PavingStones070", new Color(0.74f, 0.72f, 0.8f), 0.25f);
+    private static Material Stone => AssetSetup.Stone(PortBuilder.Pbr("T_Stone", "PavingStones070", new Color(0.74f, 0.72f, 0.8f), 0.25f), 2.5f);
     // field stone (dry_riverbed_rock) for the town wall, its towers, the parapets and the plinths;
     // flagstones (monastery_stone_floor) for steps and stairs: the houses and the church keep their stone
-    private static Material FieldStone => PortBuilder.Pbr("T_FieldStone", "DryRiverbed", new Color(0.88f, 0.86f, 0.9f), 0.15f);
-    private static Material Flagstone => PortBuilder.Pbr("T_Flagstone", "MonasteryFloor", new Color(0.9f, 0.88f, 0.94f), 0.25f);
+    private static Material FieldStone => AssetSetup.Stone(PortBuilder.Pbr("T_FieldStone", "DryRiverbed", new Color(0.88f, 0.86f, 0.9f), 0.15f), 2.5f);
+    private static Material Flagstone => AssetSetup.Stone(PortBuilder.Pbr("T_Flagstone", "MonasteryFloor", new Color(0.9f, 0.88f, 0.94f), 0.25f), 2.5f);
     private static Material Timber => PortBuilder.Pbr("T_Timber", "Wood049", new Color(0.45f, 0.27f, 0.18f), 0.35f);
     private static Material DoorWood => PortBuilder.Pbr("T_Door", "Planks037A", new Color(0.62f, 0.36f, 0.22f), 0.35f);
     private static Material Boards => PortBuilder.Pbr("WoodFloor", "WoodFloor051", Color.white, 0.6f);

@@ -82,6 +82,8 @@ namespace UA
         public static bool ShowFps { get => PlayerPrefs.GetInt("fps", 0) == 1; set => PlayerPrefs.SetInt("fps", value ? 1 : 0); }
         public static byte Primary { get => (byte)PlayerPrefs.GetInt("primary", 0); set => PlayerPrefs.SetInt("primary", value); }
         public static byte Secondary { get => (byte)PlayerPrefs.GetInt("secondary", 4); set => PlayerPrefs.SetInt("secondary", value); }
+        /// <summary>The team this player asks for when joining a group (0..9 = TEAM 1..10).</summary>
+        public static byte Team { get => (byte)Mathf.Clamp(PlayerPrefs.GetInt("team", 0), 0, MatchConfig.MaxTeams - 1); set => PlayerPrefs.SetInt("team", value); }
 
         public static readonly string[] QualityNames = { "LOW", "MEDIUM", "HIGH" };
 

@@ -63,7 +63,7 @@ namespace UA
             Grenades = Grenade.PerLife;
             healEnd = 0;
             nextGive = 0;
-            Slot = 0;
+            // the weapon in the hand is kept over a death (Slot stays as it was)
             Aiming = false;
             crouch = false;
             prone = false;
@@ -354,10 +354,13 @@ namespace UA
             nextThrow = Time.time + 1f;
             Aiming = false;
             var rig = CameraRig.I;
-            var aim = rig.AimRay().direction;
             var origin = agent.Eye + Quaternion.Euler(0, rig.Yaw, 0) * new Vector3(0.3f, 0.15f, 0.45f);
             if (Physics.Linecast(agent.Eye, origin, World.EnvMask, QueryTriggerInteraction.Ignore)) origin = agent.Eye;
-            var throwVelocity = (aim + Vector3.up * 0.22f).normalized * (prone ? 8f : 13f) + velocity * 0.35f;   // about 15-20 m before it rolls, not across the map
+            // thrown a little above the crosshair (a 14 degree loft): level aim lands some 11 m off (4 m more
+            // than before) and rolls on; aiming higher throws further, as a real throw does (up to ~45 degrees)
+            float loft = Mathf.Clamp(rig.Pitch + 14f, -30f, 46f);
+            var dir = Quaternion.Euler(-loft, rig.Yaw, 0f) * Vector3.forward;
+            var throwVelocity = dir * (prone ? 9f : 15f) + velocity * 0.35f;
             Session.I.ThrowLocal(origin, throwVelocity);
             // the fuse on the grenade itself is the throw sound now, and the arm swing is played there (Grenade.Spawn)
         }

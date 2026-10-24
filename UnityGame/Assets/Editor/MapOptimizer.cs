@@ -96,7 +96,11 @@ public static class MapOptimizer
                 if (vertices > 65535) mesh.indexFormat = IndexFormat.UInt32;   // one very big piece
                 mesh.CombineMeshes(chunk.ToArray(), true, true, false);
                 mesh.RecalculateBounds();
+                bool world = WorldUV.TryGetValue(g.Key.mat, out float metres);
+                if (world) WorldMapped(mesh, metres);
                 Slim(mesh, g.Key.mat);
+                // world-mapped UVs run far from zero: kept at full precision (no quantising)
+                if (world) MeshUtility.SetMeshCompression(mesh, ModelImporterMeshCompression.Off);
                 if (firstAsset) { AssetDatabase.CreateAsset(mesh, path); firstAsset = false; }
                 else AssetDatabase.AddObjectToAsset(mesh, path);
                 var go = new GameObject($"Merged_{g.Key.mat.name}");
@@ -132,6 +136,31 @@ public static class MapOptimizer
         // night pieces that could not be merged still go on and off with the night
         night.AddRange(nightSet.Where(r => r != null));
         return night;
+    }
+
+    /// <summary>
+    /// Stone materials whose merged surfaces get texture coordinates from their place in the map (metres
+    /// per repeat): the stones run on from one block to the next instead of every block, merlon and step
+    /// starting the picture again at its own corner, which is what makes a texture look repeated.
+    /// </summary>
+    public static readonly Dictionary<Material, float> WorldUV = new Dictionary<Material, float>();
+
+    private static void WorldMapped(Mesh mesh, float metres)
+    {
+        var v = mesh.vertices;
+        var n = mesh.normals;
+        var uv = mesh.uv;
+        if (n.Length != v.Length || uv.Length != v.Length) return;
+        for (int i = 0; i < v.Length; i++)
+        {
+            var a = new Vector3(Mathf.Abs(n[i].x), Mathf.Abs(n[i].y), Mathf.Abs(n[i].z));
+            // flat faces only (walls, tops, steps); curved and sloping ones keep their own mapping
+            if (a.x > 0.97f) uv[i] = new Vector2(v[i].z * Mathf.Sign(n[i].x), v[i].y) / metres;
+            else if (a.z > 0.97f) uv[i] = new Vector2(-v[i].x * Mathf.Sign(n[i].z), v[i].y) / metres;
+            else if (a.y > 0.97f) uv[i] = new Vector2(v[i].x, v[i].z) / metres;
+        }
+        mesh.uv = uv;
+        if (mesh.tangents.Length == v.Length) mesh.RecalculateTangents();
     }
 
     /// <summary>

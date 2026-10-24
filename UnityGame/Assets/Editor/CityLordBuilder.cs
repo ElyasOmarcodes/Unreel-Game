@@ -47,6 +47,7 @@ public static partial class CityLordBuilder
         Load(false);
         root = new GameObject("Map_CityLord").transform;
         night.Clear();
+        lamps.Clear();
         root.position = new Vector3(0, Lift, 0);
         var geometry = Node("Geometry");
         var colliders = Node("Colliders");
@@ -209,8 +210,9 @@ public static partial class CityLordBuilder
         // the four parts of the town: a name board in each, a number on every building
         Physics.SyncTransforms();
         int numbered = NameTown(outlines);
-        int lamps = StreetLamps();
-        Debug.Log($"[Map] CityLord: {lamps} street lamps");
+        RoofPipe(outlines);
+        int lampCount = StreetLamps();
+        Debug.Log($"[Map] CityLord: {lampCount} street lamps");
         foreach (var tr in root.GetComponentsInChildren<Transform>(true))
             if (tr.gameObject.layer != World.FenceLayer)
                 GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
@@ -225,7 +227,9 @@ public static partial class CityLordBuilder
             Sky = Mat(S(D(D(scene["settings"])["render"])["skybox"])),
         };
         BuildNavigation(layout, play, spawns);
-        root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "CityLord", null, night).ToArray();
+        var mapScene = root.gameObject.AddComponent<MapScene>();
+        mapScene.NightLights = MapOptimizer.Merge(root, "CityLord", null, night).ToArray();
+        mapScene.Lamps = lamps.Where(l => l != null).ToArray();
         SaveMeshes();
         Debug.Log($"[Map] CityLord built: {renderers} renderers ({root.GetComponentsInChildren<Renderer>().Length} after merging), {meshColliders} mesh and {boxes} box colliders, " +
                   $"{ammo} ammo boxes, {doors} doors opened, {numbered} buildings numbered, {materials.Count} materials, {textures.Count} textures, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns, play area {play.size}");

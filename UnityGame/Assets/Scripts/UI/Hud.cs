@@ -325,8 +325,13 @@ namespace UA
             timer.text = $"{seconds / 60}:{seconds % 60:00}";
             if (tdm)
             {
-                scoreBlue.text = "BLUE " + s.TeamScore[0];
-                scoreRed.text = "RED " + s.TeamScore[1];
+                // my team and the best of the others, each in its own colour
+                int mine = me != null ? me.Team % MatchConfig.MaxTeams : 0;
+                int rival = Enumerable.Range(0, MatchConfig.MaxTeams).Where(t => t != mine && s.Players.Values.Any(p => p.Team == t)).OrderByDescending(t => s.TeamScore[t]).DefaultIfEmpty((mine + 1) % MatchConfig.MaxTeams).First();
+                scoreBlue.text = $"T{mine + 1}  {s.TeamScore[mine]}";
+                scoreBlue.color = MatchConfig.TeamColors[mine];
+                scoreRed.text = $"T{rival + 1}  {s.TeamScore[rival]}";
+                scoreRed.color = MatchConfig.TeamColors[rival];
             }
             else
             {
@@ -334,6 +339,8 @@ namespace UA
                 int place = me != null ? ranked.IndexOf(me) + 1 : 0;
                 scoreBlue.text = "SOLO #" + Mathf.Max(1, place);
                 scoreRed.text = "TOP " + (ranked.Count > 0 ? ranked[0].Kills : 0);
+                scoreBlue.color = UIKit.Blue;
+                scoreRed.color = UIKit.Red;
             }
             if (me != null)
             {
@@ -515,23 +522,30 @@ namespace UA
             for (int i = used; i < names.Count; i++) names[i].enabled = false;
         }
 
+        /// <summary>
+        /// The standings while the match runs (RANK held): the teams by their kills, then every player
+        /// ranked by the match score as on the results page, with place, team, kills, deaths and score.
+        /// </summary>
         public static string ScoreboardText(Session s)
         {
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("<color=#9aa4b0>PLAYER                                   KILLS     DEATHS</color>");
-            IEnumerable<IGrouping<int, PlayerState>> groups = s.Config.Mode == Mode.TeamDeathmatch
-                ? s.Players.Values.GroupBy(p => (int)p.Team).OrderBy(g => g.Key)
-                : s.Players.Values.GroupBy(p => 0);
-            foreach (var g in groups)
+            bool tdm = s.Config.Mode == Mode.TeamDeathmatch;
+            if (tdm)
             {
-                if (s.Config.Mode == Mode.TeamDeathmatch)
-                    sb.AppendLine(g.Key == 0 ? $"<color=#4d84ff>TEAM BLUE   {s.TeamScore[0]}</color>" : $"<color=#f24d40>TEAM RED   {s.TeamScore[1]}</color>");
-                foreach (var p in g.OrderByDescending(p => p.Kills).ThenBy(p => p.Deaths))
-                {
-                    string name = Rtl.Shape(p.Name.Length > 18 ? p.Name.Substring(0, 18) : p.Name);
-                    string line = name.PadRight(30) + p.Kills.ToString().PadLeft(10) + p.Deaths.ToString().PadLeft(12);
-                    sb.AppendLine(p.Id == s.LocalId ? $"<color=#ffb040>{line}</color>" : line);
-                }
+                var teams = Enumerable.Range(0, MatchConfig.MaxTeams).Where(t => s.Players.Values.Any(p => p.Team == t)).OrderByDescending(t => s.TeamScore[t]).ToList();
+                sb.AppendLine(string.Join("     ", teams.Select((t, i) => $"<color={MatchConfig.TeamHex(t)}>{i + 1}. {MatchConfig.TeamName(t)}  {s.TeamScore[t]}</color>")));
+                sb.AppendLine();
+            }
+            sb.AppendLine("<color=#9aa4b0>#    PLAYER                     " + (tdm ? "TEAM     " : "") + "KILLS   DEATHS   SCORE</color>");
+            var ranked = s.Players.Values.Select(p => (p, score: App.MatchScore(p, s))).OrderByDescending(x => x.score).ThenByDescending(x => x.p.Kills).ToList();
+            for (int i = 0; i < ranked.Count; i++)
+            {
+                var (p, score) = ranked[i];
+                string name = Rtl.Shape(p.Name.Length > 16 ? p.Name.Substring(0, 16) : p.Name);
+                string line = (i + 1).ToString().PadRight(5) + name.PadRight(27)
+                              + (tdm ? $"<color={MatchConfig.TeamHex(p.Team)}>{("T" + (p.Team % MatchConfig.MaxTeams + 1)).PadRight(9)}</color>" : "")
+                              + p.Kills.ToString().PadLeft(5) + p.Deaths.ToString().PadLeft(9) + Mathf.RoundToInt(score).ToString().PadLeft(8);
+                sb.AppendLine(p.Id == s.LocalId ? $"<color=#ffb040>{line}</color>" : line);
             }
             return sb.ToString();
         }

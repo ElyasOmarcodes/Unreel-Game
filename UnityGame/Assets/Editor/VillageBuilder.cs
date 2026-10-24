@@ -70,8 +70,8 @@ public static class VillageBuilder
     private static Material Hay => PortBuilder.Pbr("V_Hay", "Ground104", new Color(1f, 0.86f, 0.5f), 0.05f);
     // field stone (dry_riverbed_rock) for the compound walls, wells and stepping stones; flagstones
     // (monastery_stone_floor) for the steps of the bazaar: the houses keep their mud
-    private static Material Stone => PortBuilder.Pbr("V_FieldStone", "DryRiverbedSand", new Color(0.95f, 0.82f, 0.66f), 0.15f);
-    private static Material Flagstone => PortBuilder.Pbr("V_Flagstone", "MonasteryFloorSand", new Color(0.95f, 0.85f, 0.7f), 0.25f);
+    private static Material Stone => AssetSetup.Stone(PortBuilder.Pbr("V_FieldStone", "DryRiverbedSand", new Color(0.95f, 0.82f, 0.66f), 0.15f), 2.5f);
+    private static Material Flagstone => AssetSetup.Stone(PortBuilder.Pbr("V_Flagstone", "MonasteryFloorSand", new Color(0.95f, 0.85f, 0.7f), 0.25f), 2.5f);
 
     // ------------------------------------------------------------------ ground
 

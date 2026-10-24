@@ -17,7 +17,7 @@ namespace UA
         public Mode Mode = Mode.TeamDeathmatch;
         public byte Map;
         public byte Minutes = 5;
-        public byte MaxPlayers = 8;
+        public byte MaxPlayers = 255;   // no limit: as many as want to join
         public byte Bots = 2;
         public byte BotSkill = 1;
         public string Password = "";   // host only, never sent: joiners must type it (empty = open group)
@@ -29,7 +29,20 @@ namespace UA
             "AL-ZAHRA - DAY", "AL-ZAHRA - SUNSET", "AL-ZAHRA - NIGHT",
             "CITYLORD - DAY", "CITYLORD - SUNSET", "CITYLORD - NIGHT",
         };
-        public static readonly string[] ModeNames = { "TEAM DEATHMATCH", "FREE FOR ALL" };
+        public static readonly string[] ModeNames = { "TEAMS", "SOLO - NO TEAMS" };
+        public const int MaxTeams = 10;
+        /// <summary>The ten teams: TEAM 1 .. TEAM 10, each its own colour (the vest, the names, the tables).</summary>
+        public static readonly Color[] TeamColors =
+        {
+            new Color(0.18f, 0.42f, 0.95f), new Color(0.92f, 0.22f, 0.18f), new Color(0.2f, 0.75f, 0.3f), new Color(0.98f, 0.78f, 0.12f), new Color(0.62f, 0.3f, 0.9f),
+            new Color(0.1f, 0.8f, 0.85f), new Color(0.98f, 0.5f, 0.1f), new Color(0.95f, 0.4f, 0.7f), new Color(0.55f, 0.4f, 0.25f), new Color(0.85f, 0.88f, 0.92f),
+        };
+        public static string TeamName(int team) => "TEAM " + (team % MaxTeams + 1);
+        public static string TeamHex(int team) => "#" + ColorUtility.ToHtmlStringRGB(TeamColors[team % MaxTeams]);
+        /// <summary>The maps in the order of the menu (base layout of each; + 0 day, 1 afternoon, 2 evening).</summary>
+        public static readonly int[] MapOrder = { 9, 12, 3, 6, 0 };
+        public static readonly string[] MapTitles = { "AL-ZAHRA", "CITYLORD", "VILLAGE", "OLD TOWN", "PORT" };
+        public static readonly string[] TimeNames = { "DAY", "AFTERNOON", "EVENING" };
         public static readonly string[] SkillNames = { "EASY", "NORMAL", "HARD" };
 
         public int KillLimit => Mode == Mode.FreeForAll ? 25 : 50;
@@ -100,7 +113,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 10;
+        public const byte Version = 11;
         public const byte NoPlayer = 255;
         public const string PasswordNeeded = "This group is locked: type its password";
         public const string WrongPassword = "Wrong password for this group";
@@ -109,7 +122,7 @@ namespace UA
         public MatchConfig Config = new MatchConfig();
         public Phase Phase;
         public float TimeLeft;
-        public readonly int[] TeamScore = new int[2];
+        public readonly int[] TeamScore = new int[MatchConfig.MaxTeams];
         public readonly Dictionary<byte, PlayerState> Players = new Dictionary<byte, PlayerState>();
         public byte LocalId;
         public readonly List<KillEvent> KillFeed = new List<KillEvent>();
@@ -163,7 +176,7 @@ namespace UA
 
         // ------------------------------------------------------------------ host / join / leave
 
-        public bool Host(MatchConfig config, bool practice)
+        public bool Host(MatchConfig config, bool practice, byte team = 0)
         {
             Stop();
             Config = config;
@@ -180,7 +193,7 @@ namespace UA
             }
             Active = true;
             Players.Clear();
-            Players[0] = new PlayerState { Id = 0, Name = Settings.PlayerName, Team = 0, Primary = Settings.Primary, Secondary = Settings.Secondary, Look = Settings.Look };
+            Players[0] = new PlayerState { Id = 0, Name = Settings.PlayerName, Team = (byte)(team % MatchConfig.MaxTeams), Primary = Settings.Primary, Secondary = Settings.Secondary, Look = Settings.Look };
             LocalId = 0;
             SyncBots();
             HostAddresses = string.Join("   ", LanUtil.LocalAddresses());
@@ -244,7 +257,7 @@ namespace UA
             healRing.Clear();
             Grenade.ClearAll();
             killInit = fxInit = nadeInit = healInit = false;
-            TeamScore[0] = TeamScore[1] = 0;
+            Array.Clear(TeamScore, 0, TeamScore.Length);
             Phase = Phase.Lobby;
             Time.timeScale = 1f;
         }
@@ -421,14 +434,28 @@ namespace UA
 
         private bool LimitReached()
         {
-            if (Config.Mode == Mode.TeamDeathmatch) return TeamScore[0] >= Config.KillLimit || TeamScore[1] >= Config.KillLimit;
+            if (Config.Mode == Mode.TeamDeathmatch) return TeamScore.Any(t => t >= Config.KillLimit);
             return Players.Values.Any(p => p.Kills >= Config.KillLimit);
         }
 
+        /// <summary>
+        /// The team with the fewest players among the teams the people chose (at least two teams: if
+        /// everyone is in one, the next team number is the other side); bots and late comers go there.
+        /// </summary>
         private byte SmallerTeam()
         {
-            int a = Players.Values.Count(p => p.Team == 0), b = Players.Values.Count(p => p.Team == 1);
-            return (byte)(a <= b ? 0 : 1);
+            var teams = Players.Values.Where(p => !p.IsBot && p.Team < MatchConfig.MaxTeams).Select(p => (int)p.Team).Distinct().ToList();
+            if (teams.Count == 0) teams.Add(0);
+            if (teams.Count < 2) teams.Add((teams[0] + 1) % MatchConfig.MaxTeams);
+            return (byte)teams.OrderBy(t => Players.Values.Count(p => p.Team == t)).ThenBy(t => t).First();
+        }
+
+        /// <summary>The bots spread over the teams the people are in, the smallest filled first.</summary>
+        private void BalanceBots()
+        {
+            var bots = Players.Values.Where(p => p.IsBot).OrderBy(p => p.Id).ToList();
+            foreach (var b in bots) b.Team = 255;
+            foreach (var b in bots) b.Team = SmallerTeam();
         }
 
         private void SyncBots()
@@ -458,7 +485,8 @@ namespace UA
         {
             var me = Local;
             if (me == null || Phase != Phase.Lobby || Config.Mode != Mode.TeamDeathmatch) return;
-            me.Team = (byte)(team & 1);
+            me.Team = (byte)(team % MatchConfig.MaxTeams);
+            Settings.Team = me.Team;
         }
 
         public void SetLoadout(byte primary, byte secondary)
@@ -474,8 +502,9 @@ namespace UA
         public void StartMatch()
         {
             if (!IsHost || Phase != Phase.Lobby) return;
-            TeamScore[0] = TeamScore[1] = 0;
+            Array.Clear(TeamScore, 0, TeamScore.Length);
             KillFeed.Clear();
+            if (Config.Mode == Mode.TeamDeathmatch) BalanceBots();
             foreach (var p in Players.Values)
             {
                 p.Kills = p.Deaths = 0;
@@ -521,7 +550,8 @@ namespace UA
             p.Alive = true;
             p.Spawned = true;
             p.SpawnSeq++;
-            p.Weapon = p.Primary;
+            // back with the weapon that was in the hand (the choice is kept over a death)
+            if (p.Weapon != p.Primary && p.Weapon != p.Secondary) p.Weapon = p.Primary;
         }
 
         private void HostOnJoin(BinaryReader r, IPEndPoint from, float now)
@@ -532,6 +562,7 @@ namespace UA
             byte primary = r.ReadByte(), secondary = r.ReadByte();
             int look = r.ReadInt32();
             string password = r.BaseStream.Position < r.BaseStream.Length ? r.ReadString() : "";
+            byte wanted = r.BaseStream.Position < r.BaseStream.Length ? r.ReadByte() : (byte)255;
             var player = Players.Values.FirstOrDefault(p => !p.IsBot && p.Id != 0 && p.Token == tok);
             if (player == null)
             {
@@ -541,12 +572,12 @@ namespace UA
                     SendKicked(from, password.Length == 0 ? PasswordNeeded : WrongPassword);
                     return;
                 }
-                if (Players.Values.Count(p => !p.IsBot) >= Config.MaxPlayers) { SendKicked(from, "The group is full"); return; }
+                if (Players.Values.Count(p => !p.IsBot) >= 250) { SendKicked(from, "The group is full"); return; }
                 byte id = 1;
                 while (Players.ContainsKey(id)) id++;
                 player = new PlayerState
                 {
-                    Id = id, Token = tok, Name = name, Team = SmallerTeam(), Primary = (byte)(primary % Weapons.Count),
+                    Id = id, Token = tok, Name = name, Team = wanted < MatchConfig.MaxTeams ? wanted : SmallerTeam(), Primary = (byte)(primary % Weapons.Count),
                     Secondary = (byte)(secondary % Weapons.Count), Weapon = (byte)(primary % Weapons.Count), Look = look,
                 };
                 if (Phase == Phase.Playing || Phase == Phase.Countdown) player.RespawnAt = now + 1f;
@@ -572,7 +603,7 @@ namespace UA
             byte team = r.ReadByte(), primary = r.ReadByte(), secondary = r.ReadByte();
             if (Phase == Phase.Lobby)
             {
-                if (Config.Mode == Mode.TeamDeathmatch) p.Team = (byte)(team & 1);
+                if (Config.Mode == Mode.TeamDeathmatch) p.Team = (byte)(team % MatchConfig.MaxTeams);
                 p.Primary = (byte)(primary % Weapons.Count);
                 p.Secondary = (byte)(secondary % Weapons.Count);
             }
@@ -687,7 +718,7 @@ namespace UA
             if (victim != shooter)
             {
                 shooter.Kills++;
-                if (Config.Mode == Mode.TeamDeathmatch) TeamScore[shooter.Team & 1]++;
+                if (Config.Mode == Mode.TeamDeathmatch) TeamScore[shooter.Team % MatchConfig.MaxTeams]++;
             }
             var kill = new KillEvent { Seq = ++killSeq, Killer = shooter.Id, Victim = victim.Id, Weapon = def.Id, Headshot = head };
             KillFeed.Add(kill);
@@ -716,8 +747,7 @@ namespace UA
             var w = pw.Begin(Msg.Snapshot);
             w.Write((byte)Phase);
             w.Write(TimeLeft);
-            w.Write((short)TeamScore[0]);
-            w.Write((short)TeamScore[1]);
+            for (int t = 0; t < MatchConfig.MaxTeams; t++) w.Write((short)TeamScore[t]);
             w.Write((byte)Players.Count);
             foreach (var p in Players.Values)
             {
@@ -780,6 +810,7 @@ namespace UA
                     var w = pw.Begin(Msg.Join);
                     w.Write(Version); w.Write(token); w.Write(Settings.PlayerName); w.Write(Settings.Primary); w.Write(Settings.Secondary); w.Write(Settings.Look);
                     w.Write(joinPassword);
+                    w.Write(Settings.Team);
                     socket.Send(pw.Buffer, pw.Length, hostEndPoint);
                 }
                 if (now > joinDeadline) Disconnect("Could not reach the group. Check that you are on the same Wi-Fi or hotspot.");
@@ -861,8 +892,7 @@ namespace UA
         {
             var phase = (Phase)r.ReadByte();
             TimeLeft = r.ReadSingle();
-            TeamScore[0] = r.ReadInt16();
-            TeamScore[1] = r.ReadInt16();
+            for (int t = 0; t < MatchConfig.MaxTeams; t++) TeamScore[t] = r.ReadInt16();
             int count = r.ReadByte();
             for (int i = 0; i < count; i++)
             {
