@@ -23,7 +23,6 @@ namespace UA
         private readonly Dictionary<string, RectTransform> screens = new Dictionary<string, RectTransform>();
         private Hud hud;
         private Text toast, menuPlayer;
-        private Image splashBar;
         private float toastUntil;
         private string settingsReturn = "menu";
 
@@ -62,7 +61,7 @@ namespace UA
             var canvas = UIKit.CreateCanvas("Menus", 10);
             root = (RectTransform)canvas.transform;
 
-            BuildSplash();
+            BuildWelcome();
             BuildMenu();
             BuildWifi();
             BuildCreate();
@@ -88,20 +87,16 @@ namespace UA
             };
             Session.I.ShotSeen += OnRemoteShot;
             Session.I.Healed += OnHealed;
-            ShowScreen("splash");
+            BuildBlocked();
+            // no splash of our own (Unity's comes first): the first start asks for a name, later the menu
+            ShowScreen("menu");
             Log("ui-start");
         }
 
         private IEnumerator Start()
         {
-            float t = 0;
-            while (t < 2.6f)
-            {
-                t += Time.unscaledDeltaTime;
-                splashBar.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(t / 2.4f), 1f);
-                yield return null;
-            }
-            if (Current == "splash") ShowScreen("menu");
+            yield return null;   // the preview stage needs the scene up
+            if (!Settings.Welcomed && !KillSwitch.Blocked) OpenWelcome();
         }
 
         // ------------------------------------------------------------------ navigation
@@ -121,7 +116,7 @@ namespace UA
             if (name == "join") Session.I.StartDiscovery(); else Session.I.StopDiscovery();
             if (name == "menu") menuPlayer.text = "PLAYER:  <color=#ffa020>" + Rtl.Shape(Settings.PlayerName) + "</color>";
             if (name == "lobby") RefreshLobby();
-            if (name != "profile" && stage != null) stage.SetActive(false);
+            if (name != "profile" && name != "welcome" && stage != null) stage.SetActive(false);
             Log("state=" + name);
         }
 
@@ -152,6 +147,8 @@ namespace UA
 
         private void Update()
         {
+            UpdateBlocked();
+            if (KillSwitch.Blocked) return;
             var s = Session.I;
             Controls.Enabled = Current == "game" && !Paused;
             if (Controls.PausePressed)
@@ -232,33 +229,6 @@ namespace UA
             return r;
         }
 
-        private void BuildSplash()
-        {
-            var s = MakeScreen("splash", false);
-            var bg = UIKit.Img(s, new Color(0.02f, 0.025f, 0.035f, 1f));
-            bg.rectTransform.Fill();
-            var glow = UIKit.Img(s, new Color(1f, 0.55f, 0.1f, 0.12f), UIKit.Soft);
-            glow.rectTransform.At(0.5f, 0.5f, 0, 60, 1500, 700);
-            var logo = Logo();
-            if (logo != null) Badge(s).At(0.5f, 0.5f, 0, 150, 560, 560);
-            else
-            {
-                var title = UIKit.Txt(s, GameName, 150, TextAnchor.MiddleCenter, UIKit.Accent).Shadowed();
-                title.rectTransform.At(0.5f, 0.5f, 0, 90, 1700, 190);
-            }
-            var sub = UIKit.Txt(s, "LAN MULTIPLAYER  -  WI-FI & HOTSPOT  -  THIRD PERSON SHOOTER", 34, TextAnchor.MiddleCenter, UIKit.Muted);
-            sub.rectTransform.At(0.5f, 0.5f, 0, -170, 1700, 50);
-            var barBack = UIKit.Img(s, new Color(1, 1, 1, 0.1f), UIKit.Rounded);
-            barBack.rectTransform.At(0.5f, 0.5f, 0, -250, 700, 16);
-            splashBar = UIKit.Img(barBack.transform, UIKit.Accent, UIKit.Rounded);
-            splashBar.rectTransform.Fill();
-            splashBar.rectTransform.anchorMax = new Vector2(0, 1);
-            var credits = UIKit.Txt(s, "Made with Unity  -  3D characters, animations and city by Quaternius (CC0)\n"
-                + "Military gear based on \"Military Character Kit 1.1\" by britdawgmasterfunk (sketchfab.com), CC-BY-4.0\n"
-                + "Pain and death voices: \"11 male human pain/death sounds\" by Michel Baradari (opengameart.org), CC-BY 3.0; footsteps by Fantozzi, CC0; PKM model by ElyasOmarcodes", 24, TextAnchor.MiddleCenter, new Color(1, 1, 1, 0.4f));
-            credits.rectTransform.At(0.5f, 0f, 0, 40, 1800, 105);
-        }
-
         private static Sprite logoSprite;
 
         /// <summary>The round Agent Warfare badge (also the app icon).</summary>
@@ -311,7 +281,7 @@ namespace UA
             }
             menuPlayer = UIKit.Txt(side.transform, "", 30, TextAnchor.LowerLeft);
             menuPlayer.rectTransform.At(0f, 0f, 92, 50, 620, 50, 0f, 0f);
-            var info = UIKit.Txt(s, "v1.0  -  LAN multiplayer  -  up to 10 players", 24, TextAnchor.LowerRight, new Color(1, 1, 1, 0.5f));
+            var info = UIKit.Txt(s, "v1.0  -  LAN multiplayer  -  no player limit", 24, TextAnchor.LowerRight, new Color(1, 1, 1, 0.5f));
             info.rectTransform.At(1f, 0f, -40, 30, 900, 40, 1f, 0f);
             BuildSocial(s);
         }

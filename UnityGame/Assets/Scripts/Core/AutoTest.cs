@@ -158,9 +158,20 @@ namespace UA
         {
             var app = App.I;
             Settings.PlayerName = "ستوری ښه";   // a Pashto name: checks the joined right-to-left text
-            yield return Wait(1.2f);
-            yield return Shot("01-splash");
+            yield return Wait(1.5f);
+            // the first start: the name and character page (no splash of our own any more)
+            if (app.Current == "welcome")
+            {
+                yield return Shot("01-welcome");
+                app.FinishWelcome(false);
+            }
             yield return Until(() => app.Current == "menu", 10);
+            // the page shown while this version is switched off from GitHub (A-W-Game.TXT = false)
+            KillSwitch.Preview(true);
+            yield return Wait(0.8f);
+            yield return Shot("01b-version-switched-off");
+            KillSwitch.Preview(false);
+            yield return Wait(0.5f);
             yield return Showcase();
             yield return Wait(2f);
             yield return Shot("02-main-menu");
@@ -637,6 +648,8 @@ namespace UA
         private IEnumerator Client()
         {
             var app = App.I;
+            yield return Wait(1.5f);
+            if (app.Current == "welcome") app.FinishWelcome(false);
             yield return Until(() => app.Current == "menu", 15);
             yield return Wait(1f);
             Settings.Primary = 7;   // the client plays the SVD: a look through the PSO-1 scope

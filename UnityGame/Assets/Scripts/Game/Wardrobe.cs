@@ -173,17 +173,17 @@ namespace UA
         public static readonly Preset[] Presets =
         {
             // white ghutra with a black agal, white perahan and tunban, dark waistcoat, sandals, camo pack, no beard
-            new Preset("ELYAS", 0, 2, 0, 0, 2, 0, (Slot.Head, 6), (Slot.Bag, 1)),
-            new Preset("ABID", 1, 3, 1, 1, 2, 1),        // Afghan elder: blue chapan, white turban
-            new Preset("MONIB", 0, 0, 2, 2, 3, 0),       // soldier in woodland camo
-            new Preset("HAMMAD", 0, 4, 0, 0, 2, 1),      // Arab thobe and ghutra
-            new Preset("JACK", 0, 1, 3, 3, 1, 1),        // special forces, black
-            new Preset("JAMAL", 1, 6, 1, 0, 2, 1),       // everyday: long shirt, jeans
-            new Preset("NIZAMI", 1, 7, 4, 2, 3, 1),      // Afghan guard: grey perahan, turban, chest rig
-            new Preset("MUTTAQI", 0, 2, 7, 7, 1, 1, (Slot.Head, 5)),   // cream perahan, black turban, waistcoat
-            new Preset("KARIM", 0, 5, 1, 1, 1, 0),       // statesman: navy suit
-            new Preset("MARYAM", 2, 8, 0, 0, 1, 0),      // abaya and hijab
-            new Preset("AMINA", 3, 9, 4, 4, 3, 0),       // woman soldier
+            new Preset("DESERT SCOUT", 0, 2, 0, 0, 2, 0, (Slot.Head, 6), (Slot.Bag, 1)),
+            new Preset("ELDER", 1, 3, 1, 1, 2, 1),        // Afghan elder: blue chapan, white turban
+            new Preset("SOLDIER", 0, 0, 2, 2, 3, 0),       // soldier in woodland camo
+            new Preset("THOBE", 0, 4, 0, 0, 2, 1),      // Arab thobe and ghutra
+            new Preset("SPECIAL FORCES", 0, 1, 3, 3, 1, 1),        // special forces, black
+            new Preset("CIVILIAN", 1, 6, 1, 0, 2, 1),       // everyday: long shirt, jeans
+            new Preset("GUARD", 1, 7, 4, 2, 3, 1),      // Afghan guard: grey perahan, turban, chest rig
+            new Preset("BLACK TURBAN", 0, 2, 7, 7, 1, 1, (Slot.Head, 5)),   // cream perahan, black turban, waistcoat
+            new Preset("STATESMAN", 0, 5, 1, 1, 1, 0),       // statesman: navy suit
+            new Preset("ABAYA", 2, 8, 0, 0, 1, 0),      // abaya and hijab
+            new Preset("WOMAN SOLDIER", 3, 9, 4, 4, 3, 0),       // woman soldier
         };
 
         public static int PresetLook(int index)

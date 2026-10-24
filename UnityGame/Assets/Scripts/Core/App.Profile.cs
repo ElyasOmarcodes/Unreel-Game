@@ -141,6 +141,7 @@ namespace UA
         {
             if (stage == null) stage = PreviewStage.Create();
             characterView.texture = stage.CharacterTexture;
+            characterView.GetComponent<RotateDrag>().Stage = stage;   // dragging turns the character
             gunView.texture = stage.GunTexture;
             profileName.text = Settings.PlayerName;
             previewWeapon = Settings.Primary;

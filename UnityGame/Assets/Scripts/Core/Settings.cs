@@ -9,13 +9,33 @@ namespace UA
         {
             get
             {
-                // until the player types a name, they go by their character's name (ELYAS, ABID, ...)
+                // until the player types a name, they are "Agent" with a number from 1 to 1000, drawn
+                // once on the first start and kept
                 string name = PlayerPrefs.GetString("name", "");
-                if (name.Length == 0 || name.StartsWith("Agent")) return Wardrobe.Presets[Preset].Name;
-                return name;
+                return name.Length > 0 && name != "Agent" ? name : AutoName;
             }
-            set => PlayerPrefs.SetString("name", Clean(value));
+            // an empty name goes back to the Agent number
+            set => PlayerPrefs.SetString("name", string.IsNullOrWhiteSpace(value) ? "" : Clean(value));
         }
+
+        /// <summary>The name given on the first start: Agent 1 .. Agent 1000, at random.</summary>
+        public static string AutoName
+        {
+            get
+            {
+                string auto = PlayerPrefs.GetString("autoname", "");
+                if (auto.Length == 0)
+                {
+                    auto = "Agent " + Random.Range(1, 1001);
+                    PlayerPrefs.SetString("autoname", auto);
+                    PlayerPrefs.Save();
+                }
+                return auto;
+            }
+        }
+
+        /// <summary>The first-start page (name and character) was seen.</summary>
+        public static bool Welcomed { get => PlayerPrefs.GetInt("welcomed", 0) == 1; set { PlayerPrefs.SetInt("welcomed", value ? 1 : 0); PlayerPrefs.Save(); } }
 
         /// <summary>0 low, 1 medium, 2 high. The first start picks what the phone can carry.</summary>
         public static int Quality { get => PlayerPrefs.GetInt("quality", DeviceClass); set { PlayerPrefs.SetInt("quality", Mathf.Clamp(value, 0, 2)); Apply(); } }
