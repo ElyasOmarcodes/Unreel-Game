@@ -290,6 +290,8 @@ public static partial class CityLordBuilder
         foreach (var (id, pashto, english, at) in Districts)
             BoardStand(signs, new Vector3(at.x, 0, at.y), pashto, $"{english}  -  {id}");
 
+        Garden(signs);
+
         var buildings = outlines.Where(kv =>
         {
             string name = kv.Key.Substring(kv.Key.LastIndexOf('/') + 1);
@@ -314,6 +316,56 @@ public static partial class CityLordBuilder
             }
         }
         return count;
+    }
+
+    /// <summary>
+    /// A small green garden in the town: a bed of grass (10 x 6 m) with square-cut green walls round it
+    /// (an opening on one long side) and two trees, on free street ground near the middle of the yards.
+    /// </summary>
+    private static void Garden(Transform parent)
+    {
+        int mask = World.EnvMask | (1 << World.FenceLayer);
+        const float w = 10f, l = 6f;
+        var rng = new System.Random(5);
+        foreach (var (x, z) in new[] { (30f, -6f), (24f, 4f), (38f, -20f), (10f, -12f), (60f, 10f), (0f, 2f), (44f, 12f), (16f, -26f), (70f, -26f), (-10f, -14f) })
+            foreach (float yaw in new[] { 0f, 90f })
+                for (int ring = 0; ring < 4; ring++)
+                    for (int k = 0; k < Mathf.Max(1, ring * 6); k++)
+                    {
+                        float a = k * Mathf.PI * 2f / Mathf.Max(1, ring * 6);
+                        var probe = new Vector3(x, 0, z) + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * (ring * 3f);
+                        var top = root.TransformPoint(new Vector3(probe.x, 25f, probe.z));
+                        if (!Physics.Raycast(top, Vector3.down, out var hit, 60f, World.EnvMask, QueryTriggerInteraction.Ignore) || hit.normal.y < 0.95f) continue;
+                        if (root.InverseTransformPoint(hit.point).y > StreetTop) continue;
+                        var rot = Quaternion.Euler(0, yaw, 0);
+                        if (Physics.CheckBox(hit.point + Vector3.up * 1.6f, new Vector3(w / 2f + 1.5f, 1.45f, l / 2f + 1.5f), rot, mask, QueryTriggerInteraction.Ignore)) continue;
+                        // level enough under the whole bed
+                        bool level = true;
+                        foreach (var c in new[] { new Vector3(-w / 2f, 0, -l / 2f), new Vector3(w / 2f, 0, -l / 2f), new Vector3(-w / 2f, 0, l / 2f), new Vector3(w / 2f, 0, l / 2f) })
+                            if (!Physics.Raycast(hit.point + rot * c + Vector3.up * 1f, Vector3.down, out var h2, 2f, World.EnvMask, QueryTriggerInteraction.Ignore) || Mathf.Abs(h2.point.y - hit.point.y) > 0.15f) level = false;
+                        if (!level) continue;
+                        var g = new GameObject("Garden").transform;
+                        g.SetParent(parent, false);
+                        g.SetPositionAndRotation(hit.point, rot);
+                        var grass = PortBuilder.Pbr("CL_Grass", "Grass004", new Color(0.85f, 0.95f, 0.8f), 0.15f);
+                        var green = AssetSetup.ExtraTex("GreenWall_BaseColor.jpg");
+                        var hedge = AssetSetup.Mat("CL_Hedge", new Color(0.85f, 1f, 0.8f), 0.25f, 0f, green, AssetSetup.ExtraTex("GreenWall_Normal.jpg"));
+                        MeshGen.TexBox("GardenBed", g.TransformPoint(new Vector3(0, 0.04f, 0)), new Vector3(w, 0.08f, l), grass, 3f, g, yaw, false);
+                        // square-cut green walls round it, an opening in the middle of the near long side
+                        const float hh = 0.9f, hw = 0.6f;
+                        MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(0, hh / 2f, l / 2f - hw / 2f)), new Vector3(w, hh, hw), hedge, 1.1f, g, yaw);
+                        foreach (float s in new[] { -1f, 1f })
+                        {
+                            MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(s * (w / 2f - hw / 2f), hh / 2f, 0)), new Vector3(hw, hh, l - 2f * hw), hedge, 1.1f, g, yaw);
+                            float seg = (w - 1.6f) / 2f;
+                            MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(s * (0.8f + seg / 2f), hh / 2f, -l / 2f + hw / 2f)), new Vector3(seg, hh, hw), hedge, 1.1f, g, yaw);
+                        }
+                        foreach (float s in new[] { -1f, 1f })
+                            Nature.Tree(Nature.Trees, rng, g.TransformPoint(new Vector3(s * 2.4f, 0.08f, 0.5f)), 4.5f, 6f, g);
+                        Physics.SyncTransforms();
+                        return;
+                    }
+        Debug.LogWarning("[Map] CityLord: no room for the garden");
     }
 
     /// <summary>A small blue plate with the building's kind and its number, on the wall of the given side.</summary>
@@ -390,7 +442,7 @@ public static partial class CityLordBuilder
         t.SetParent(parent, false);
         t.SetPositionAndRotation(foot, Quaternion.Euler(0, yaw, 0));
         foreach (float x in new[] { -1.55f, 1.55f })
-            MeshGen.TexBox("Post", t.TransformPoint(new Vector3(x, 1.25f, 0.05f)), new Vector3(0.12f, 2.5f, 0.12f), SignSteel, 1f, t, yaw, true);
+            MeshGen.TexBox("Post", t.TransformPoint(new Vector3(x, 1.25f, 0.05f)), new Vector3(0.12f, 2.5f, 0.12f), AssetSetup.RustyPost, 1f, t, yaw, true);
         MeshGen.TexBox("Board", t.TransformPoint(new Vector3(0, 2.05f, 0)), new Vector3(3.4f, 1.25f, 0.08f), SignBlue, 1f, t, yaw, false);
         MeshGen.TexBox("Rim", t.TransformPoint(new Vector3(0, 2.7f, 0)), new Vector3(3.5f, 0.07f, 0.1f), SignYellow, 1f, t, yaw, false);
         MeshGen.TexBox("Rim", t.TransformPoint(new Vector3(0, 1.4f, 0)), new Vector3(3.5f, 0.07f, 0.1f), SignYellow, 1f, t, yaw, false);

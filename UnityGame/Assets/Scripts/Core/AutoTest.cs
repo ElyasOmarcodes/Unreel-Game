@@ -277,6 +277,11 @@ namespace UA
                 (9, "51-zahra-portico", new Vector3(72f, 6.5f, 14f), new Vector3(36f, 8f, 8f)),
                 (9, "52-zahra-ramp-street", new Vector3(47f, 5.8f, 48.5f), new Vector3(86f, 7f, 48.5f)),
                 (9, "53-zahra-palace", new Vector3(70f, 4.5f, -35.5f), new Vector3(70f, 6f, -50f)),
+                (9, "50b-zahra-garden-channel", new Vector3(-5f, 6f, 24f), new Vector3(-5f, 4.2f, 13f)),
+                (9, "50c-zahra-garden-walks", new Vector3(-36f, 6.5f, 24f), new Vector3(-20f, 4f, 10f)),
+                (9, "48b-zahra-patio-steps", new Vector3(-12f, 6f, 31f), new Vector3(-5f, 4.6f, 38f)),
+                (9, "55b-zahra-lower-channels", new Vector3(-5f, 2.4f, -52f), new Vector3(-5f, 0.4f, -60f)),
+                (9, "53f-zahra-palace-hedges", new Vector3(60f, 2.6f, -55f), new Vector3(78f, 0.8f, -60f)),
                 (9, "53e-zahra-palace-fountain", new Vector3(70f, 9f, -46f), new Vector3(70f, 0.6f, -59f)),
                 (9, "53b-zahra-palace-court", new Vector3(70f, 3.2f, -48.5f), new Vector3(70f, 3.5f, -70f)),
                 (9, "53c-zahra-throne", new Vector3(70f, 2.6f, -74f), new Vector3(70f, 2.2f, -93f)),
@@ -371,6 +376,15 @@ namespace UA
                 cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(eye - from));
                 yield return Wait(0.6f);
                 yield return Shot($"90{(char)('a' + sign++)}-citylord-{t.name.Replace(' ', '-').ToLowerInvariant()}");
+            }
+            // the CityLord garden
+            var garden = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "Garden");
+            if (garden != null)
+            {
+                var from = garden.position - garden.forward * 9f + Vector3.up * 4f;
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(garden.position - from));
+                yield return Wait(0.6f);
+                yield return Shot("90g-citylord-garden");
             }
             // the Port's raised yards (put on free ground when the map is built)
             World.I.ApplyLighting(0);

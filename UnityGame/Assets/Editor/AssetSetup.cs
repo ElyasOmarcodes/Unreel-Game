@@ -31,6 +31,9 @@ public static class AssetSetup
     /// </summary>
     public const string Extra = "Assets/Textures/Extra";
 
+    /// <summary>Old rusted iron, dark nearly to black (rusty_metal_02): the posts of the boards in every map.</summary>
+    public static Material RustyPost => PortBuilder.Pbr("RustyPost", "RustyMetal02", new Color(0.3f, 0.28f, 0.27f), 0.35f, 0.5f);
+
     public static Texture2D ExtraTex(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Extra}/{file}");
 
     public static readonly Dictionary<string, Material> CityMaterials = new Dictionary<string, Material>();

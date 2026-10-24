@@ -885,6 +885,14 @@ public static class ZahraBuilder
             LBox(t, "ChannelBase", new Vector3(0, (foot - top - 0.25f) / 2f + 0.0f, 0), new Vector3(width + 0.36f, top - 0.25f - foot, len), Ashlar, 2f);
     }
 
+    /// <summary>A small square basin of glazed tiles where a channel begins or ends ('top' its rim).</summary>
+    private static void EndBasin(Transform parent, Vector3 at, float top)
+    {
+        Box(parent, "EndBasin", new Vector3(at.x, top - 0.2f, at.z), new Vector3(1.5f, 0.4f, 1.5f), Tiles, 1f);
+        var w = MeshGen.TexBox("EndBasinWater", new Vector3(at.x, top + 0.01f, at.z), new Vector3(1.2f, 0.02f, 1.2f), Water, 2f, parent, 0f, false);
+        w.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+    }
+
     /// <summary>A cascade: water running down a stone chute between two cheeks, from 'high' to 'low'.</summary>
     private static void Cascade(Transform parent, Vector3 high, Vector3 low, float width)
     {
@@ -906,7 +914,7 @@ public static class ZahraBuilder
     {
         var t = Node("Pool", parent, new Vector3(r.center.x, y, r.center.y), 0);
         Box(parent, "PoolBed", new Vector3(r.center.x, y - depth - 0.1f, r.center.y), new Vector3(r.width, 0.2f, r.height), Ashlar, 2f);
-        var water = MeshGen.TexBox("Water", new Vector3(r.center.x, y - 0.25f, r.center.y), new Vector3(r.width - 0.1f, 0.02f, r.height - 0.1f), Water, 4f, t, 0f, false);
+        var water = MeshGen.TexBox("Water", new Vector3(r.center.x, y + 0.04f, r.center.y), new Vector3(r.width - 0.1f, 0.02f, r.height - 0.1f), Water, 4f, t, 0f, false);
         water.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         // the rim, a step above the walk
         foreach (float s in new[] { -1f, 1f })
@@ -1110,11 +1118,14 @@ public static class ZahraBuilder
         var mid = foot + dir * (run / 2f);
         Box(t, "StairPlinth", new Vector3(mid.x, foot.y + plinth / 2f, mid.z), alongX ? new Vector3(run, plinth, width) : new Vector3(width, plinth, run), Ashlar, 1.5f);
         Buildings.Stairs(t, foot + Vector3.up * plinth, dir, rise, width, Ashlar);
-        // the crates: one 1.6 m high beside the plinth, one 0.8 m beside that
-        var b = foot + dir * 0.6f + side * (width / 2f + 0.65f);
-        var a = foot + dir * 0.6f + side * (width / 2f + 1.85f);
-        Crates(t, b.x, b.z, foot.y, foot.y + plinth);
-        Crates(t, a.x, a.z, foot.y, foot.y + 0.8f);
+        // three crates in steps beside the plinth (two thirds of a metre each, a jump), the highest level
+        // with the second step of the stair beside it: one walks straight across onto the stair
+        float top = foot.y + plinth + 2f * stepH;
+        for (int k = 0; k < 3; k++)
+        {
+            var at = foot + dir * 0.55f + side * (width / 2f + 0.65f + k * 1.2f);
+            Crates(t, at.x, at.z, foot.y, foot.y + (top - foot.y) * (3 - k) / 3f);
+        }
         // open the roof from where the head would touch it to the top of the stair
         int first = 0;
         while (first < n && underside - (foot.y + plinth + (first + 1) * stepH) > 1.9f) first++;
@@ -1258,7 +1269,8 @@ public static class ZahraBuilder
     {
         var t = Node("UpperGarden", root, Vector3.zero, 0);
         var area = Rect.MinMaxRect(-42f, -28f, 32f, 30f);
-        float walk = Middle + 0.5f;
+        // the walks lie on the level of the grass (a few centimetres of paving), not on a raised bank
+        float walk = Middle + 0.08f;
         Slab(t, "Beds", area, Middle + 0.04f, 0.1f, Grass, 3f);
         // pools round the pavilion on the crossing, and the paved centre
         var pools = new[] { Rect.MinMaxRect(-12f, 9f, 2f, 15f), Rect.MinMaxRect(-12f, -13f, 2f, -7f), Rect.MinMaxRect(-26f, -5f, -14f, 7f), Rect.MinMaxRect(4f, -5f, 16f, 7f) };
@@ -1283,15 +1295,16 @@ public static class ZahraBuilder
                 if (r.width < 2.5f || r.height < 2.5f) continue;
                 // hedges along the edges, a gap in the middle of each side
                 var c = new Vector3(r.center.x, Middle, r.center.y);
-                float hx = r.width / 2f - 0.6f, hz = r.height / 2f - 0.6f;
+                // hedges flush with the edges of the bed (against the walks), closed at the corners, a gap in the middle of each side
+                float ex = r.width / 2f, ez = r.height / 2f, hx = ex - 0.35f, hz = ez - 0.35f;
                 foreach (float sz in new[] { -1f, 1f })
                 {
-                    Hedge(t, c + new Vector3(-hx, 0, sz * hz), c + new Vector3(-1f, 0, sz * hz));
-                    Hedge(t, c + new Vector3(1f, 0, sz * hz), c + new Vector3(hx, 0, sz * hz));
+                    Hedge(t, c + new Vector3(-ex, 0, sz * hz), c + new Vector3(-1f, 0, sz * hz));
+                    Hedge(t, c + new Vector3(1f, 0, sz * hz), c + new Vector3(ex, 0, sz * hz));
                     if (hz > 2f)
                     {
-                        Hedge(t, c + new Vector3(sz * hx, 0, -hz), c + new Vector3(sz * hx, 0, -1f));
-                        Hedge(t, c + new Vector3(sz * hx, 0, 1f), c + new Vector3(sz * hx, 0, hz));
+                        Hedge(t, c + new Vector3(sz * hx, 0, -ez + 0.7f), c + new Vector3(sz * hx, 0, -1f));
+                        Hedge(t, c + new Vector3(sz * hx, 0, 1f), c + new Vector3(sz * hx, 0, ez - 0.7f));
                     }
                 }
                 for (float x = r.xMin + 4f; x < r.xMax - 2.5f; x += 8f)
@@ -1338,8 +1351,10 @@ public static class ZahraBuilder
         var t = Node("SalonRico", root, Vector3.zero, 0);
         float floor = Middle + 0.5f, top = 8.5f, roofY = floor + top;
         const float x0 = -20f, x1 = 10f, z0 = 38f, z1 = UpSouth;
-        // the patio in front, level with the garden walks, and the marble floor
-        Slab(t, "Patio", Rect.MinMaxRect(-42f, 30f, 32f, z0), floor, 0.5f, Paving, 2.5f);
+        // the patio in front, level with the garden walks, three marble steps up to the hall's raised floor
+        float patio = Middle + 0.08f;
+        Slab(t, "Patio", Rect.MinMaxRect(-42f, 30f, 32f, z0), patio, 0.5f, Paving, 2.5f);
+        Buildings.Stairs(t, new Vector3((x0 + x1) / 2f, patio, z0 - 3 * 0.36f), Vector3.forward, floor - patio, x1 - x0, Marble);
         Slab(t, "HallFloor", Rect.MinMaxRect(x0, z0, x1, z1), floor, 0.5f, Marble, 2f);
         // the front: five horseshoe arches on piers in an ashlar wall
         Arcade(t, new Vector3(x0, floor, z0), Vector3.right, 5, 6f, 3.6f, top, 1f, 28f, Ashlar, false, true, 0.9f);
@@ -1441,8 +1456,8 @@ public static class ZahraBuilder
         {
             var size = along ? new Vector3(5f, 0.8f, 1.3f) : new Vector3(1.3f, 0.8f, 5f);
             Box(t, "Planter", new Vector3(x, Middle + 0.4f, z), size, Ashlar, 1.5f);
-            var a = new Vector3(x - (along ? 2.2f : 0f), Middle + 0.8f, z - (along ? 0f : 2.2f));
-            var b = new Vector3(x + (along ? 2.2f : 0f), Middle + 0.8f, z + (along ? 0f : 2.2f));
+            var a = new Vector3(x - (along ? 2.35f : 0f), Middle + 0.8f, z - (along ? 0f : 2.35f));
+            var b = new Vector3(x + (along ? 2.35f : 0f), Middle + 0.8f, z + (along ? 0f : 2.35f));
             Hedge(t, a, b, 0.8f);
         }
         for (float z = -18f; z < 36f; z += 9f)
@@ -1517,7 +1532,7 @@ public static class ZahraBuilder
     {
         var t = Node("LowerGarden", root, Vector3.zero, 0);
         var area = Rect.MinMaxRect(-40f, -88f, 30f, -38f);
-        float walk = Lower + 0.5f;
+        float walk = Lower + 0.08f;   // level with the grass
         Slab(t, "Beds", area, Lower + 0.04f, 0.1f, Grass, 3f);
         var pools = new[] { Rect.MinMaxRect(-36f, -66f, -26f, -56f), Rect.MinMaxRect(16f, -66f, 26f, -56f) };
         var walks = new List<Rect>
@@ -1530,7 +1545,7 @@ public static class ZahraBuilder
         foreach (var r in walks)
             Slabs(t, "Walk", r, pools, walk, 0.5f, Gravel, 2.5f);
         foreach (var r in pools) Pool(t, r, walk);
-        MeshGen.TexCylinder("Fountain", new Vector3(-5f, walk, -61f), 1.6f, 0.6f, Cream, 1f, t);
+        MeshGen.TexCylinder("Fountain", new Vector3(-5f, walk, -61f), 1.6f, 0.6f, Tiles, 1f, t);
         var fw = MeshGen.TexCylinder("FountainWater", new Vector3(-5f, walk + 0.55f, -61f), 1.4f, 0.02f, Water, 2f, t, false);
         fw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         var beds = new[] { Rect.MinMaxRect(area.xMin + 3f, -59f, -7f, area.yMax - 3f), Rect.MinMaxRect(-3f, -59f, area.xMax - 3f, area.yMax - 3f),
@@ -1540,7 +1555,8 @@ public static class ZahraBuilder
         foreach (var bed in beds)
         {
             var c = new Vector3(bed.center.x, Lower, bed.center.y);
-            float hx = bed.width / 2f - 0.6f, hz = bed.height / 2f - 0.6f;
+            // flush with the edges of the bed, reaching its corners
+            float hx = bed.width / 2f, hz = bed.height / 2f - 0.35f;
             foreach (float sz in new[] { -1f, 1f })
                 foreach (var (a, b) in new[] { (c + new Vector3(-hx, 0, sz * hz), c + new Vector3(-1.2f, 0, sz * hz)), (c + new Vector3(1.2f, 0, sz * hz), c + new Vector3(hx, 0, sz * hz)) })
                 {
@@ -1633,8 +1649,9 @@ public static class ZahraBuilder
             {
                 var bc = W(sx * 8.5f, floor, 11f + sz * 5.5f);
                 Box(t, "CourtBed", bc + Vector3.up * 0.06f, new Vector3(12f, 0.1f, 7f), Grass, 2f, false);
-                Hedge(t, bc + new Vector3(-5.6f, 0, -3.2f), bc + new Vector3(5.6f, 0, -3.2f), 0.7f);
-                Hedge(t, bc + new Vector3(-5.6f, 0, 3.2f), bc + new Vector3(5.6f, 0, 3.2f), 0.7f);
+                // flush with the long edges of the bed, its whole length
+                Hedge(t, bc + new Vector3(-6f, 0, -3.15f), bc + new Vector3(6f, 0, -3.15f), 0.7f);
+                Hedge(t, bc + new Vector3(-6f, 0, 3.15f), bc + new Vector3(6f, 0, 3.15f), 0.7f);
                 OrangeTree(t, bc + new Vector3(-2.5f, 0, 0));
                 OrangeTree(t, bc + new Vector3(2.5f, 0, 0));
             }
@@ -2265,21 +2282,25 @@ public static class ZahraBuilder
         Cascade(t, new Vector3(x, Upper + 0.2f, UpSouth + 1.2f), new Vector3(x, Middle + 0.3f, UpSouth - 8f), 1.6f);
         Pool(t, Rect.MinMaxRect(x - 2.5f, UpSouth - 12.5f, x + 2.5f, UpSouth - 8f), Middle + 0.5f, 0.6f);
         Channel(t, new Vector3(x, 0, UpSouth - 12.8f), new Vector3(x, 0, 32.3f), 0.7f, Middle + 0.72f, Middle);
-        var bc = new Vector3(x, Middle + 0.5f, 31f);
-        MeshGen.Object("ChannelBasin", MeshGen.Cylinder(1.3f, 0.45f, 1f, 8), Cream, t, bc).AddComponent<MeshCollider>();
-        var bw = MeshGen.TexCylinder("BasinWater", bc + Vector3.up * 0.4f, 1.15f, 0.02f, Water, 2f, t, false);
+        var bc = new Vector3(x, Middle + 0.08f, 31f);
+        MeshGen.Object("ChannelBasin", MeshGen.Cylinder(1.3f, 0.45f, 1.2f, 40), Tiles, t, bc).AddComponent<MeshCollider>();
+        var bw = MeshGen.Object("BasinWater", MeshGen.Cylinder(1.15f, 0.02f, 2f, 40), Water, t, bc + Vector3.up * 0.44f);
         bw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         // the garden axes
-        float walk = Middle + 0.5f;
-        Channel(t, new Vector3(-5f, 0, 27f), new Vector3(-5f, 0, 17.3f), 0.5f, walk + 0.18f);
-        Channel(t, new Vector3(-5f, 0, -25f), new Vector3(-5f, 0, -15.3f), 0.5f, walk + 0.18f);
-        Channel(t, new Vector3(-39f, 0, 1f), new Vector3(-28.3f, 0, 1f), 0.5f, walk + 0.18f);
-        Channel(t, new Vector3(29f, 0, 1f), new Vector3(18.3f, 0, 1f), 0.5f, walk + 0.18f);
+        float walk = Middle + 0.08f;
+        // each from a small basin at the edge of the garden into the rim of a pool by the pavilion
+        foreach (var (from, to) in new[] { (new Vector3(-5f, 0, 26.3f), new Vector3(-5f, 0, 15.2f)), (new Vector3(-5f, 0, -24.3f), new Vector3(-5f, 0, -13.2f)),
+                                           (new Vector3(-38.3f, 0, 1f), new Vector3(-26.2f, 0, 1f)), (new Vector3(28.3f, 0, 1f), new Vector3(16.2f, 0, 1f)) })
+        {
+            Channel(t, from, to, 0.5f, walk + 0.18f);
+            EndBasin(t, from, walk + 0.36f);
+        }
         // the twin cascades beside the great stair and the Lower Garden channels
         foreach (float cx in new[] { -9.4f, -0.6f })
         {
             Cascade(t, new Vector3(cx, Middle + 0.1f, MidSouth + 0.3f), new Vector3(cx, Lower + 0.35f, MidSouth - 6.6f), 0.9f);
             Channel(t, new Vector3(cx, 0, MidSouth - 6.8f), new Vector3(cx, 0, -59f), 0.6f, Lower + 0.32f);
+            EndBasin(t, new Vector3(cx, 0, -59.6f), Lower + 0.5f);
         }
     }
 
@@ -2334,7 +2355,7 @@ public static class ZahraBuilder
     internal static void BoardStand(Transform parent, Vector3 foot, float yaw, string ar, string en)
     {
         var s = Node("BoardStand", parent, foot, yaw);
-        foreach (float x in new[] { -1.3f, 1.3f }) LBox(s, "Post", new Vector3(x, 0.9f, 0), new Vector3(0.12f, 1.8f, 0.12f), Signboard, 1f);
+        foreach (float x in new[] { -1.3f, 1.3f }) LBox(s, "Post", new Vector3(x, 0.9f, 0), new Vector3(0.12f, 1.8f, 0.12f), AssetSetup.RustyPost, 1f);
         Sign(s, s.TransformPoint(new Vector3(0, 1.9f, -0.1f)), yaw, ar, en, 3f, 0.9f);
     }
 
