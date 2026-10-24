@@ -499,10 +499,11 @@ public static partial class CityLordBuilder
                 {
                     if (h.normal.y < 0.9f || root.InverseTransformPoint(h.point).y > StreetTop) continue;
                     if (Physics.Raycast(h.point + Vector3.up * 4.6f, Vector3.down, 4.4f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;   // under a roof
-                    if (!any || h.point.y < hit.point.y) { hit = h; any = true; }
+                    // the street surface itself: the highest level ground below street top (not the big plane under the roads)
+                    if (!any || h.point.y > hit.point.y) { hit = h; any = true; }
                 }
                 if (!any || placed.Any(p => (p - hit.point).sqrMagnitude < 10f * 10f)) continue;
-                if (Physics.CheckCapsule(hit.point + Vector3.up * 0.4f, hit.point + Vector3.up * 4.6f, 0.9f, mask, QueryTriggerInteraction.Ignore)) continue;
+                if (Physics.CheckCapsule(hit.point + Vector3.up * 1.0f, hit.point + Vector3.up * 4.6f, 0.7f, mask, QueryTriggerInteraction.Ignore)) continue;
                 // beside a wall (1.2 to 3.5 m away): the lamp leans out over the street from it
                 Vector3 wall = Vector3.zero;
                 foreach (var d in dirs)
