@@ -157,8 +157,9 @@ public static partial class CityLordBuilder
 
     /// <summary>
     /// A wall of the CityLord chain-link fence from a to b (world, x and z): concrete panels with their
-    /// steel frame, 5.67 m each, the chain-link set in above the concrete (it stops players, not bullets),
-    /// every panel on the ground below it. Returns the panels put up.
+    /// steel frame, 5.67 m each (stretched or squeezed a little so they fill the run exactly, end to end),
+    /// the chain-link set in above the concrete (it stops players, not bullets), every panel on the ground
+    /// below it. Returns the panels put up.
     /// </summary>
     public static int PlaceChainLinkFence(Transform parent, Vector3 a, Vector3 b)
     {
@@ -174,7 +175,9 @@ public static partial class CityLordBuilder
         float panel = longX ? wall.Bounds.size.x : wall.Bounds.size.z;
         // turn the panel's long axis onto the run
         float yaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg - (longX ? 90f : 0f);
-        int count = Mathf.Max(1, Mathf.FloorToInt(length / panel));
+        int count = Mathf.Max(1, Mathf.CeilToInt(length / panel - 0.05f));
+        float stretch = length / (count * panel);
+        panel *= stretch;
         int placed = 0;
         for (int i = 0; i < count; i++)
         {
@@ -184,6 +187,7 @@ public static partial class CityLordBuilder
             var foot = new Vector3(c.x, y - 0.05f, c.z);
             var go = Place("Concrete_fence_v2_S", parent, foot, yaw);
             if (go == null) continue;
+            go.transform.localScale = longX ? new Vector3(stretch, 1f, 1f) : new Vector3(1f, 1f, stretch);
             if (mesh != null)
             {
                 // the chain-link sits 1.07 m above the foot of the concrete, as in the town's own fence
@@ -192,7 +196,7 @@ public static partial class CityLordBuilder
                 blocker.layer = UA.World.FenceLayer;
                 blocker.transform.SetParent(go.transform, false);
                 blocker.transform.localPosition = new Vector3(0, 1.8f, 0);
-                var size = longX ? new Vector3(panel, 1.45f, 0.25f) : new Vector3(0.25f, 1.45f, panel);
+                var size = longX ? new Vector3(panel / stretch, 1.45f, 0.25f) : new Vector3(0.25f, 1.45f, panel / stretch);
                 blocker.AddComponent<BoxCollider>().size = size;
                 if (link == null) Object.DestroyImmediate(blocker);
             }

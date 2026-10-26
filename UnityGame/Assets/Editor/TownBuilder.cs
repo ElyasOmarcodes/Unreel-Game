@@ -17,6 +17,8 @@ public static class TownBuilder
     public const float Half = 74f;
     private const float FloorH = 3.1f, Wall = 0.3f;
     private const float CanalX0 = 55f, CanalX1 = 61f;
+    // the enclosure round the town: the stone wall on the west at x = -72, the other three sides at this distance
+    private const float Wall = 76f;
 
     private static Transform root;
     private static System.Random rng;
@@ -532,8 +534,8 @@ public static class TownBuilder
     {
         var t = Node("TownWall", root, Vector3.zero, 0);
         const float x = -72f, h = 4.6f, thick = 2.4f;
-        taken.Add(Rect.MinMaxRect(x - 3f, -64f, x + 6f, 64f));
-        foreach (var (z0, z1) in new[] { (-62f, -5f), (5f, 62f) })
+        taken.Add(Rect.MinMaxRect(x - 3f, -Wall - 2f, x + 6f, Wall + 2f));
+        foreach (var (z0, z1) in new[] { (-Wall - thick / 2f, -5f), (5f, Wall + thick / 2f) })
         {
             B(t, "TownWall", new Vector3(x, h / 2f, (z0 + z1) / 2f), new Vector3(thick, h, z1 - z0), FieldStone, 2.5f);
             for (float z = z0 + 0.6f; z < z1 - 0.4f; z += 1.6f)
@@ -550,6 +552,48 @@ public static class TownBuilder
         }
         B(t, "GateArch", new Vector3(x, h - 0.6f, 0), new Vector3(thick, 1.2f, 10f), FieldStone, 2f);
         foreach (float zc in new[] { 30f, -34f }) WallClimb(t, x + thick / 2f, zc);
+    }
+
+    /// <summary>
+    /// The town closed all round: the stone wall on the west, a CityLord chain-link fence along the north
+    /// and the south, an old plank wall on the east; the runs meet each other and the stone wall at stone
+    /// corner posts, with no gap anywhere.
+    /// </summary>
+    private static void Enclosure()
+    {
+        var t = Node("Enclosure", root, Vector3.zero, 0);
+        const float west = -72f + 1.2f;   // the inner face of the stone wall
+        Physics.SyncTransforms();
+        int panels = 0;
+        foreach (float z in new[] { Wall, -Wall })
+            panels += CityLordBuilder.PlaceChainLinkFence(t, new Vector3(west - 0.3f, 0, z), new Vector3(Wall, 0, z));
+        PlankWall(t, new Vector3(Wall, 0, -Wall), new Vector3(Wall, 0, Wall));
+        foreach (float z in new[] { Wall, -Wall })
+            B(t, "CornerPost", new Vector3(Wall, 1.6f, z), new Vector3(1.1f, 3.2f, 1.1f), FieldStone, 1.5f);
+        Debug.Log($"[Map] OldTown: enclosure of {panels} chain-link panels and an old plank wall {Wall * 2f:0} m long");
+    }
+
+    private static Material OldPlanks => Mats.Pbr("T_OldPlanks", "Planks037A", new Color(0.52f, 0.46f, 0.4f), 0.2f);
+
+    /// <summary>An old wall of upright weathered planks (2.6 m) on posts and two rails, from a to b on the ground.</summary>
+    private static void PlankWall(Transform parent, Vector3 a, Vector3 b)
+    {
+        var dir = b - a;
+        float len = dir.magnitude;
+        var t = Node("PlankWall", parent, a, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg);
+        // one collider for the whole wall: it stops players (and bullets, like the stone wall)
+        t.gameObject.AddComponent<BoxCollider>().center = new Vector3(0, 1.3f, len / 2f);
+        t.GetComponent<BoxCollider>().size = new Vector3(0.3f, 2.6f, len);
+        for (float u = 0; u <= len + 0.01f; u += 2.5f)
+            B(t, "Post", new Vector3(-0.12f, 1.4f, u), new Vector3(0.18f, 2.8f, 0.18f), OldPlanks, 1f, false);
+        foreach (float y in new[] { 0.5f, 2.1f })
+            B(t, "Rail", new Vector3(-0.08f, y, len / 2f), new Vector3(0.08f, 0.14f, len), OldPlanks, 2f, false);
+        // the planks, each a little different in height and colour of wear, a finger's gap between some
+        for (float u = 0.14f; u < len; u += 0.27f)
+        {
+            float h = 2.45f + R(0f, 0.25f);
+            B(t, "Plank", new Vector3(0.02f, h / 2f, u), new Vector3(0.05f, h, 0.24f + R(0f, 0.025f)), OldPlanks, 1f, false);
+        }
     }
 
     /// <summary>A plank shed against the inside of the wall (face at x = wallX), with crates up onto it and from it onto the walk.</summary>
@@ -719,7 +763,8 @@ public static class TownBuilder
         MeshGen.TexBox("CanalBed", new Vector3((CanalX0 + CanalX1) / 2f, -1.1f, 0), new Vector3(CanalX1 - CanalX0, 0.4f, 520f), Stone, 2f, root);
         var water = MeshGen.TexBox("CanalWater", new Vector3((CanalX0 + CanalX1) / 2f, -0.55f, 0), new Vector3(CanalX1 - CanalX0, 0.02f, 520f), Water, 6f, root, 0f, false);
         water.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        foreach (float x in new[] { CanalX0 - 0.25f, CanalX1 + 0.25f })
+        // the canal walls stand 3 cm proud of the cut in the ground (no two faces in one plane: no flicker)
+        foreach (float x in new[] { CanalX0 - 0.22f, CanalX1 + 0.22f })
             MeshGen.TexBox("CanalWall", new Vector3(x, -0.4f, 0), new Vector3(0.5f, 1.2f, 520f), Stone, 2f, root, 0f, false);
         // steps down into the canal (cover in the water)
         foreach (float z in new[] { -22f, 26f })
@@ -896,6 +941,7 @@ public static class TownBuilder
 
         Buildings.Night = null;
         var layout = new MapLayout { Name = "OLD TOWN", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
+        Enclosure();
         // CityLord chain-link fence walls on the grass by the gardens, the barn and the fields (never across a street)
         var fences = new GameObject("ChainLinkFences").transform;
         fences.SetParent(root, false);
