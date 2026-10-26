@@ -302,7 +302,7 @@ namespace UA
 
         private float centerUntil;
 
-        private void ShowCenter(string big, string small, float seconds)
+        public void ShowCenter(string big, string small, float seconds)
         {
             center.text = big;
             centerSmall.text = small;

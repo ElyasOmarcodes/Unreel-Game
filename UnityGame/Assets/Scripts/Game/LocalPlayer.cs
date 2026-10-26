@@ -264,6 +264,7 @@ namespace UA
             {
                 var hit = world.TraceShot(origin, d, def.Range, agent.Id);
                 Effects.Tracer(muzzle, hit.Point, def.Pellets > 1 ? 0.6f : 1f);
+                if (hit.Sacred) { Hud.I?.ShowCenter("DO NOT SHOOT THE BOARDS", "the shot comes back on you", 1.6f); continue; }
                 if (hit.Kind == 0) Effects.Impact(hit.Point, -d);
                 else if (hit.Kind == 1)
                 {

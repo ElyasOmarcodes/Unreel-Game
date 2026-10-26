@@ -54,9 +54,10 @@ public static class ZahraBuilder
     private static Material Almagra => Mats.Pbr("Z_Almagra", "Plaster001", new Color(0.62f, 0.2f, 0.12f), 0.3f);
     private static Material Violet => Mats.Pbr("Z_Violet", "PavingStones070", new Color(0.72f, 0.62f, 0.78f), 0.4f);
     private static Material BrickFloor => Mats.Pbr("Z_BrickFloor", "Bricks076A", new Color(0.95f, 0.62f, 0.48f), 0.25f);
-    // field stone (dry_riverbed_rock) for the city walls, terrace faces, parapets and the plain walls of
-    // the streets; flagstones (monastery_stone_floor) for stairs and some walks: the houses keep their own
-    private static Material Rubble => AssetSetup.Stone(Mats.Pbr("Z_Rubble", "DryRiverbedSand", new Color(1f, 0.86f, 0.66f), 0.15f), 2.5f);
+    // the stones of the Old Town streets (paving_stones_070, warmer) for the city walls, terrace faces,
+    // parapets and the plain walls of the streets; flagstones (monastery_stone_floor) for stairs and some
+    // walks: the houses keep their own
+    private static Material Rubble => AssetSetup.Stone(Mats.Pbr("Z_Rubble", "PavingStones070", new Color(1f, 0.88f, 0.7f), 0.2f), 2.5f);
     private static Material Flags => AssetSetup.Stone(Mats.Pbr("Z_Flags", "MonasteryFloorSand", new Color(1f, 0.88f, 0.7f), 0.25f), 2.5f);
     private static Material Paving => AssetSetup.Stone(Mats.Pbr("Z_Paving", "PavingStones070", new Color(1f, 0.9f, 0.74f), 0.3f), 2.5f);
     private static Material Sand => Mats.Pbr("Z_Sand", "Ground104", new Color(1.05f, 0.92f, 0.72f), 0.08f);
@@ -909,7 +910,7 @@ public static class ZahraBuilder
         float len = d.magnitude;
         foreach (float s in new[] { -1f, 1f })
         {
-            var cheek = MeshGen.TexBox("CascadeCheek", (high + low) / 2f + side * s * (width / 2f + 0.2f) + Vector3.up * 0.15f, new Vector3(0.3f, 0.5f, Mathf.Sqrt(len * len + (high.y - low.y) * (high.y - low.y))), Cream, 1f, parent);
+            var cheek = MeshGen.TexBox("CascadeCheek", (high + low) / 2f + side * s * (width / 2f + 0.2f) + Vector3.up * 0.15f, new Vector3(0.3f, 0.5f, Mathf.Sqrt(len * len + (high.y - low.y) * (high.y - low.y))), Tiles, 1f, parent);
             cheek.transform.rotation = Quaternion.LookRotation(high - low);
         }
     }
@@ -1046,12 +1047,13 @@ public static class ZahraBuilder
 
     private const float GateX = -53.5f;
 
-    /// <summary>A square tower of ashlar with a band and merlons on top.</summary>
-    private static void Tower(Transform t, Vector3 foot, float height, float size = 6f)
+    /// <summary>A square tower of ashlar with a band and merlons on top (none when something stands on it).</summary>
+    private static void Tower(Transform t, Vector3 foot, float height, float size = 6f, bool merlons = true)
     {
         Box(t, "Tower", foot + Vector3.up * (height / 2f - 2f), new Vector3(size, height + 4f, size), Rubble, 2.5f);
-        Box(t, "TowerBand", foot + Vector3.up * (height - 0.15f), new Vector3(size + 0.3f, 0.3f, size + 0.3f), Cream, 1.5f, false);
-        for (int i = 0; i < 4; i++)
+        // (under what stands on it the band sits lower: its top not in the plane of the tower's top)
+        Box(t, "TowerBand", foot + Vector3.up * (height - (merlons ? 0.15f : 0.6f)), new Vector3(size + 0.3f, 0.3f, size + 0.3f), Cream, 1.5f, false);
+        for (int i = 0; i < (merlons ? 4 : 0); i++)
             for (float u = -size / 2f + 0.5f; u <= size / 2f - 0.4f; u += 1.4f)
             {
                 var off = i == 0 ? new Vector3(u, 0, size / 2f - 0.25f) : i == 1 ? new Vector3(u, 0, -size / 2f + 0.25f) : i == 2 ? new Vector3(size / 2f - 0.25f, 0, u) : new Vector3(-size / 2f + 0.25f, 0, u);
@@ -1248,8 +1250,12 @@ public static class ZahraBuilder
         Arch(gate, 0, 8f, 4.6f, 13f, 4f, 30f, Ashlar);
         foreach (float s in new[] { -1f, 1f })
             Box(t, "GateDoor", new Vector3(GateX + s * 3.9f, 2.2f, -122.85f), new Vector3(2.6f, 4.4f, 0.16f), Wood, 1.5f);
-        Sign(t, new Vector3(GateX, 11.7f, -122.85f), 180f, "مدينة الزهراء  -  سنة 325 للهجرة", "MADINAT AL-ZAHRA  -  FOUNDED 936 CE (325 AH)", 6.4f, 1.8f);
-        Sign(t, new Vector3(GateX, 11.7f, -127.15f), 0f, "مدينة الزهراء  -  سنة 325 للهجرة", "MADINAT AL-ZAHRA  -  FOUNDED 936 CE (325 AH)", 6.4f, 1.8f);
+        // the name of the city over the gate, inside and out: not to be shot at (Sacred)
+        foreach (var (z, yaw) in new[] { (-122.85f, 180f), (-127.15f, 0f) })
+        {
+            var sign = Sign(t, new Vector3(GateX, 11.7f, z), yaw, "مدينة الزهراء  -  سنة 325 للهجرة", "MADINAT AL-ZAHRA  -  FOUNDED 936 CE (325 AH)", 6.4f, 1.8f);
+            Sacred.Guard(sign, new Vector3(0, 0, -0.1f), new Vector3(6.6f, 2f, 0.4f));
+        }
         foreach (float s in new[] { -1f, 1f })
         {
             NightLights.Lamp(t, new Vector3(GateX + s * 4.6f, 5.6f, -122.7f), new Vector3(0.3f, 0.45f, 0.3f), night, 3.4f);
@@ -1292,6 +1298,8 @@ public static class ZahraBuilder
         Writing(t, new Vector3(0, mid - 0.3f, face - 0.01f), new Vector2(w - 0.4f, 0.42f), "THE STORY OF MADINAT AL-ZAHRA", 28f, title);
         Writing(t, new Vector3(0, (mid - 0.58f + 0.75f) / 2f, face - 0.01f), new Vector2(w - 0.5f, mid - 0.58f - 0.75f), StoryEnglish, 20f, ink);
         NightLights.Lamp(t, t.TransformPoint(new Vector3(0, 0.6f + h + 0.6f, -0.4f)), new Vector3(0.24f, 0.34f, 0.24f), night, 3f);
+        // the story of the city is not to be shot at (Sacred): a trigger round the whole stele
+        Sacred.Guard(t, new Vector3(0, (0.6f + h + 0.3f) / 2f, 0), new Vector3(w + 0.8f, 0.6f + h + 0.3f, 1.4f));
     }
 
     /// <summary>
@@ -1361,7 +1369,7 @@ public static class ZahraBuilder
         }
         Box(t, "PavilionRoof", pc + Vector3.up * 4.6f, new Vector3(side + 0.8f, 0.4f, side + 0.8f), RoofTiles, 2f);
         Box(t, "PavilionCeiling", pc + Vector3.up * 4.38f, new Vector3(side - 0.6f, 0.06f, side - 0.6f), Wood, 2f, false);
-        MeshGen.TexCylinder("Basin", pc, 1.4f, 0.55f, Cream, 1f, t);
+        MeshGen.TexCylinder("Basin", pc, 1.4f, 0.55f, Tiles, 1f, t);
         var basinWater = MeshGen.TexCylinder("BasinWater", pc + Vector3.up * 0.5f, 1.2f, 0.02f, Water, 2f, t, false);
         basinWater.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         // garden walls on the west and the east (doors to the Camino de Ronda and the Portico)
@@ -1479,11 +1487,11 @@ public static class ZahraBuilder
         Box(t, "GalleryBack", new Vector3(68.5f, Middle + 2.5f, -29.6f), new Vector3(49f, 5f, 0.4f), Ashlar);
         // the great fountain
         var fc = new Vector3(70f, Middle, 8f);
-        MeshGen.Object("FountainBasin", MeshGen.Cylinder(3.2f, 0.7f, 2f, 16), Cream, t, fc).AddComponent<MeshCollider>();
+        MeshGen.Object("FountainBasin", MeshGen.Cylinder(3.2f, 0.7f, 2f, 16), Tiles, t, fc).AddComponent<MeshCollider>();
         var fw = MeshGen.TexCylinder("FountainWater", fc + Vector3.up * 0.62f, 3f, 0.02f, Water, 3f, t, false);
         fw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        MeshGen.TexCylinder("FountainShaft", fc, 0.35f, 2.2f, MarblePink, 1f, t);
-        MeshGen.TexCylinder("FountainBowl", fc + Vector3.up * 2.2f, 1.1f, 0.3f, Cream, 1f, t, false);
+        MeshGen.TexCylinder("FountainShaft", fc, 0.35f, 2.2f, Tiles, 1f, t);
+        MeshGen.TexCylinder("FountainBowl", fc + Vector3.up * 2.2f, 1.1f, 0.3f, Tiles, 1f, t, false);
         // planters of clipped myrtle: cover across the open ground
         foreach (var (x, z, along) in new[] { (55f, -10f, true), (55f, 26f, true), (85f, -10f, true), (85f, 26f, true), (70f, -17f, true), (70f, 33f, true), (50f, 8f, false), (90f, 8f, false) })
         {
@@ -1576,8 +1584,10 @@ public static class ZahraBuilder
             Rect.MinMaxRect(-7f, area.yMin + 3f, -3f, area.yMax - 3f), Rect.MinMaxRect(area.xMin + 3f, -63f, area.xMax - 3f, -59f),
         };
         var cross = Rect.MinMaxRect(-38f, -68f, 28f, -54f);
-        foreach (var r in walks)
-            Slabs(t, "Walk", r, pools, walk, 0.5f, Flags, 2.5f);
+        // each walk without the pools and without the walks laid before it: where two cross there is one
+        // slab, not two in one plane (no flicker on the crossing)
+        for (int i = 0; i < walks.Count; i++)
+            Slabs(t, "Walk", walks[i], pools.Concat(walks.Take(i)).ToList(), walk, 0.5f, Flags, 2.5f);
         foreach (var r in pools) Pool(t, r, walk);
         MeshGen.TexCylinder("Fountain", new Vector3(-5f, walk, -61f), 1.6f, 0.6f, Tiles, 1f, t);
         var fw = MeshGen.TexCylinder("FountainWater", new Vector3(-5f, walk + 0.55f, -61f), 1.4f, 0.02f, Water, 2f, t, false);
@@ -1642,8 +1652,9 @@ public static class ZahraBuilder
         foreach (float s in new[] { -1f, 1f })
             LBox(t, "RoomFloor", new Vector3(s * 22.25f, floor + 0.02f, -2.5f), new Vector3(10.5f, 0.04f, 46f), BrickFloor, 2f, false);
         // outer walls, the gate in the north wall, corner towers, the watch tower in the north-west
-        Wall(t, W(-hx, floor, -hz), W(hx, floor, -hz), wallH, 1f, Ashlar);
-        Wall(t, W(-hx, floor, -hz), W(-hx, floor, hz), wallH, 1f, Ashlar);
+        // (the south-west tower stands over their corner: they run up to its faces)
+        Wall(t, W(-hx + 3f, floor, -hz), W(hx, floor, -hz), wallH, 1f, Ashlar);
+        Wall(t, W(-hx, floor, -hz + 3f), W(-hx, floor, hz), wallH, 1f, Ashlar);
         Wall(t, W(hx, floor, -hz), W(hx, floor, hz), wallH, 1f, Ashlar);
         Wall(t, W(-hx, floor, hz), W(-3f, floor, hz), wallH, 1f, Ashlar);
         Wall(t, W(3f, floor, hz), W(hx, floor, hz), wallH, 1f, Ashlar);
@@ -1652,7 +1663,13 @@ public static class ZahraBuilder
         foreach (float s in new[] { -1f, 1f })
             LBox(t, "GateDoor", new Vector3(s * 2.6f, floor + 2f, hz - 0.95f), new Vector3(2f, 4f, 0.14f), Wood, 1.5f);
         Sign(t, W(0, floor + wallH + 0.4f, hz + 0.98f), 180f, "قصر الخلافة", "THE CALIPH'S PALACE", 5f, 1.3f);
-        foreach (var (x, z) in new[] { (-hx, -hz), (hx, -hz), (hx, hz) }) Tower(t, W(x, floor, z), 11f, 5f);
+        foreach (var (x, z) in new[] { (hx, -hz), (hx, hz) }) Tower(t, W(x, floor, z), 11f, 5f);
+        // the high tower in the south-west: solid up to the roof of the west chambers, then a stair tower
+        // with its door on that roof (the way: the treasury stair, the hall roof, down on to the west
+        // roof, along it to the tower), its stair up to a lookout at 18 m behind a waist-high parapet
+        const float westRoof = 5.63f;   // 3 cm over the roof slab that runs into it
+        Tower(t, W(-hx, floor, -hz), westRoof, 6f, false);
+        Minaret(t, new Vector3(-hx, floor + westRoof, -hz), 12f, 180f, 0.9f, "PalaceTower");
         Minaret(t, new Vector3(-24.3f, floor, 22.3f), 15.6f);
         // the courtyard: a round fountain in a round tiled floor, four channels running out of its basin
         // to four small square basins, four beds of orange trees edged with myrtle
@@ -1662,11 +1679,11 @@ public static class ZahraBuilder
         basin.AddComponent<MeshCollider>();
         var cw = MeshGen.Object("CourtFountainWater", MeshGen.Cylinder(2.42f, 0.02f, 2f, 40), Water, t, fc + Vector3.up * 0.54f);
         cw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        MeshGen.Object("FountainShaft", MeshGen.Cylinder(0.32f, 1.25f, 1f, 24), MarblePink, t, fc + Vector3.up * 0.55f);
-        MeshGen.Object("FountainBowl", MeshGen.Cylinder(0.95f, 0.22f, 1f, 32), Cream, t, fc + Vector3.up * 1.8f);
+        MeshGen.Object("FountainShaft", MeshGen.Cylinder(0.32f, 1.25f, 1f, 24), Tiles, t, fc + Vector3.up * 0.55f);
+        MeshGen.Object("FountainBowl", MeshGen.Cylinder(0.95f, 0.22f, 1f, 32), Tiles, t, fc + Vector3.up * 1.8f);
         var bw = MeshGen.Object("FountainBowlWater", MeshGen.Cylinder(0.85f, 0.02f, 1f, 32), Water, t, fc + Vector3.up * 2.01f);
         bw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        MeshGen.Object("FountainJet", MeshGen.Cylinder(0.09f, 0.55f, 1f, 12), Cream, t, fc + Vector3.up * 2.02f);
+        MeshGen.Object("FountainJet", MeshGen.Cylinder(0.09f, 0.55f, 1f, 12), Tiles, t, fc + Vector3.up * 2.02f);
         foreach (var (dx, dz) in new[] { (0f, 1f), (0f, -1f), (1f, 0f), (-1f, 0f) })
         {
             // from inside the basin's rim to the middle of a small basin at the end: no loose ends
@@ -1790,10 +1807,10 @@ public static class ZahraBuilder
     /// flights along the four sides with landings in the corners climbing to a platform with a parapet
     /// at 'height' (open above the last flights so nobody hits their head).
     /// </summary>
-    private static void Minaret(Transform mosque, Vector3 local, float height)
+    private static void Minaret(Transform mosque, Vector3 local, float height, float yaw = 0f, float parapet = 1.1f, string name = "Minaret")
     {
-        var t = Node("Minaret", mosque, mosque.TransformPoint(local), mosque.eulerAngles.y);
-        const float outer = 6f, wall = 0.6f, lane = 1.2f, rise = 1.2f, thick = 0.3f, parapet = 1.1f;
+        var t = Node(name, mosque, mosque.TransformPoint(local), mosque.eulerAngles.y + yaw);
+        const float outer = 6f, wall = 0.6f, lane = 1.2f, rise = 1.2f, thick = 0.3f;
         float inner = outer / 2f - wall;       // 2.4
         float core = inner - lane;             // 1.2
         float corner = (inner + core) / 2f;    // 1.8
@@ -1839,7 +1856,7 @@ public static class ZahraBuilder
             LBox(t, "TopFloor", new Vector3(r.center.x, height - thick / 2f, r.center.y), new Vector3(r.width, thick, r.height), Paving, 1f);
         foreach (var (cx, cz, sx, sz) in new[] { (0f, outer / 2f, outer + 0.3f, 0.75f), (0f, -outer / 2f, outer + 0.3f, 0.75f), (outer / 2f, 0f, 0.75f, outer - 0.45f), (-outer / 2f, 0f, 0.75f, outer - 0.45f) })
             LBox(t, "Coping", new Vector3(cx * 0.95f, wallH + 0.08f, cz * 0.95f), new Vector3(sx, 0.16f, sz), Cream, 1f, false);
-        var mark = new GameObject("MinaretTop");
+        var mark = new GameObject(name + "Top");
         mark.transform.SetParent(t, false);
         mark.transform.localPosition = new Vector3(0, height + 1.6f, 0);
         NightLights.Lamp(t, t.TransformPoint(new Vector3(0, height + 0.6f, inner - 0.3f)), new Vector3(0.2f, 0.3f, 0.2f), night, 3f);
@@ -1940,7 +1957,7 @@ public static class ZahraBuilder
         }
         else
         {
-            MeshGen.Object("PatioFountain", MeshGen.Cylinder(0.75f, 0.5f, 1f, 8), Cream, t, pc + Vector3.up * 0.1f).AddComponent<MeshCollider>();
+            MeshGen.Object("PatioFountain", MeshGen.Cylinder(0.75f, 0.5f, 1f, 8), Tiles, t, pc + Vector3.up * 0.1f).AddComponent<MeshCollider>();
             var fw = MeshGen.TexCylinder("PatioWater", pc + Vector3.up * 0.55f, 0.65f, 0.02f, Water, 2f, t, false);
             fw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             OrangeTree(t, t.TransformPoint(new Vector3(pw / 2f - 1f, 0.12f, pd / 2f - 1f)));
@@ -2021,7 +2038,7 @@ public static class ZahraBuilder
         float x0 = -84f, x1 = -60f, z0 = -56f, z1 = -36f;
         Slab(t, "YafarFloor", Rect.MinMaxRect(x0, z0, x1, z1), Lower + 0.05f, 0.1f, BrickFloor, 2f);
         Slab(t, "YafarCourt", Rect.MinMaxRect(-78f, -52f, -66f, -42f), Lower + 0.1f, 0.06f, Violet, 2f);
-        MeshGen.Object("Basin", MeshGen.Cylinder(0.9f, 0.5f, 1f, 8), Marble, t, new Vector3(-72f, Lower + 0.1f, -47f)).AddComponent<MeshCollider>();
+        MeshGen.Object("Basin", MeshGen.Cylinder(0.9f, 0.5f, 1f, 8), Tiles, t, new Vector3(-72f, Lower + 0.1f, -47f)).AddComponent<MeshCollider>();
         var bw = MeshGen.TexCylinder("BasinWater", new Vector3(-72f, Lower + 0.56f, -47f), 0.8f, 0.02f, Water, 2f, t, false);
         bw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         Wall(t, new Vector3(x0, Lower, z1), new Vector3(x1, Lower, z1), h, th, Plaster);

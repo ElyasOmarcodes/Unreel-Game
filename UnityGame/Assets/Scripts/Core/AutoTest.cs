@@ -532,6 +532,38 @@ namespace UA
                     yield return Shot($"98{(char)('a' + lampShot++)}-map{map}-lamp-at-edge");
                 }
             }
+            // Al-Zahra: the high palace tower (from the west roof: its door; from its top), the tiled
+            // fountains, the walks crossing in the Lower Garden
+            World.I.ApplyLighting(3);
+            yield return Until(() => World.I.MapReady, 30);
+            var all3 = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            var ptower = all3.FirstOrDefault(x => x.name == "PalaceTower");
+            if (ptower != null)
+            {
+                var from = ptower.position + new Vector3(16f, 9f, 18f);
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(ptower.position + Vector3.up * 5f - from));
+                yield return Wait(0.6f);
+                yield return Shot("99d-zahra-palace-tower");
+                var door = ptower.position + new Vector3(1.8f, 1.7f, 7.5f);
+                cam.transform.SetPositionAndRotation(door, Quaternion.LookRotation(ptower.position + new Vector3(1.8f, 1.2f, 2.7f) - door));
+                yield return Wait(0.5f);
+                yield return Shot("99e-zahra-palace-tower-door-from-the-roof");
+                var top = all3.FirstOrDefault(x => x.name == "PalaceTowerTop");
+                if (top != null)
+                {
+                    cam.transform.SetPositionAndRotation(top.position, Quaternion.LookRotation(new Vector3(1f, -0.35f, 1f)));
+                    yield return Wait(0.5f);
+                    yield return Shot("99f-zahra-palace-tower-top");
+                }
+            }
+            foreach (var (name, from, to) in new[] { ("99g-zahra-plaza-fountain", new Vector3(64f, 7f, 2f), new Vector3(70f, 5f, 8f)),
+                                                     ("99h-zahra-lower-garden-crossing", new Vector3(-12f, 4f, -68f), new Vector3(-5f, 0f, -61f)),
+                                                     ("99i-zahra-gate-board", new Vector3(-53.5f, 9f, -112f), new Vector3(-53.5f, 11.7f, -122.85f)) })
+            {
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(to - from));
+                yield return Wait(0.5f);
+                yield return Shot(name);
+            }
             // the Village: the hide up in the old tree (from the yard, from up in it) and a paved path
             World.I.ApplyLighting(6);
             yield return Until(() => World.I.MapReady, 30);

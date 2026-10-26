@@ -670,12 +670,13 @@ namespace UA
             var def = Weapons.Get(shot.Weapon);
             var dirs = Ballistics.Pellets(shot.Dir.normalized, shot.Seed, def);
             shooter.Shots++;
-            bool hitAny = false, headAny = false, claimMet = false;
+            bool hitAny = false, headAny = false, claimMet = false, sacred = false;
             var fx = new ShotFx { Shooter = shot.Shooter, Weapon = shot.Weapon, Origin = shot.Origin, HitKind = 2, End = shot.Origin + shot.Dir * def.Range };
             for (int i = 0; i < dirs.Length; i++)
             {
                 var hit = World.I.TraceShot(shot.Origin, dirs[i], def.Range, shot.Shooter);
                 if (i == 0) { fx.End = hit.Point; fx.HitKind = hit.Kind; }
+                sacred |= hit.Sacred;
                 if (hit.Victim != NoPlayer && Players.TryGetValue(hit.Victim, out var victim))
                 {
                     claimMet |= hit.Victim == shot.Victim;
@@ -683,6 +684,8 @@ namespace UA
                     if (Damage(shooter, victim, def, hit.Head, def.Damage * falloff) > 0f) { hitAny = true; headAny |= hit.Head; }
                 }
             }
+            // shooting at the name of the city or its story hurts the shooter (once a shot, whatever the pellets)
+            if (sacred && !shooter.IsBot) Damage(shooter, shooter, def, false, def.Damage);
             // the shooter saw a hit the host's newer picture misses (the target moved on meanwhile): count it
             // when the target was really close to the line of fire and nothing solid stood in between
             if (!claimMet && shot.Victim != NoPlayer && shot.Victim != shot.Shooter && Players.TryGetValue(shot.Victim, out var claimed) && claimed.Alive)

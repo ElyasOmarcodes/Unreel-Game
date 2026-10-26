@@ -11,6 +11,7 @@ namespace UA
         public byte Kind;   // 0 wall, 1 player, 2 nothing
         public byte Victim;
         public bool Head;
+        public bool Sacred;   // stopped by a board not to be shot at (Sacred)
     }
 
     /// <summary>One playable map in the scene: its root object, spawn points and bot waypoint graph.</summary>
@@ -224,6 +225,9 @@ namespace UA
                     if (box.Owner == null || box.Owner.Id == shooter || !box.Owner.Alive) continue;
                     return new TraceResult { Point = h.point, Distance = h.distance, Kind = 1, Victim = box.Owner.Id, Head = box.Head };
                 }
+                // a board that is not to be shot at: the bullet stops on it (the host turns it on the shooter)
+                if (h.collider.isTrigger && h.collider.GetComponent<Sacred>() != null)
+                    return new TraceResult { Point = h.point, Distance = h.distance, Kind = 0, Victim = Session.NoPlayer, Sacred = true };
                 if (h.collider.isTrigger) continue;
                 return new TraceResult { Point = h.point, Distance = h.distance, Kind = 0, Victim = Session.NoPlayer };
             }
