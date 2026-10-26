@@ -183,6 +183,11 @@ public static class VillageBuilder
         mat.SetTexture("_Rock", T("Rock055_BaseColor.jpg"));
         mat.SetColor("_GrassTint", new Color(0.9f, 1f, 0.85f));
         mat.SetVector("_Tiles", new Vector4(5f, 4f, 3f, 8f));
+        // the paths paved with field stones
+        var paths = new Rect(-Half, -Half, Half * 2f, Half * 2f);
+        mat.SetTexture("_Path", T("MonasteryFloorSand_BaseColor.jpg") ?? T("PavingStones070_BaseColor.jpg"));
+        mat.SetTexture("_PathMask", PathMask(paths, 512));
+        mat.SetVector("_PathArea", new Vector4(paths.xMin, paths.yMin, paths.width, 2.4f));
         AssetDatabase.CreateAsset(mat, matPath);
 
         var go = new GameObject("Ground");
@@ -213,7 +218,8 @@ public static class VillageBuilder
         new[] { new Vector2(80, 4), new Vector2(92, -36), new Vector2(98, -62) },
     };
 
-    private static float PathWeight(float x, float z)
+    /// <summary>Distance from (x, z) to the nearest path (its middle line).</summary>
+    private static float PathDistance(float x, float z)
     {
         float best = 99f;
         var p = new Vector2(x, z);
@@ -224,7 +230,34 @@ public static class VillageBuilder
                 float t = Mathf.Clamp01(Vector2.Dot(p - a, b - a) / (b - a).sqrMagnitude);
                 best = Mathf.Min(best, Vector2.Distance(p, a + (b - a) * t));
             }
-        return Mathf.InverseLerp(2.6f, 1.2f, best);
+        return best;
+    }
+
+    // trodden dirt beside the paving, fading into the grass
+    private static float PathWeight(float x, float z) => Mathf.InverseLerp(3.6f, 1.8f, PathDistance(x, z));
+
+    /// <summary>
+    /// Where the paths are paved (shader UA/Ground, _PathMask): full in the middle 1.4 m, fading out
+    /// over the next metre with a ragged edge, so stone, dirt and grass run into each other.
+    /// </summary>
+    private static Texture2D PathMask(Rect area, int size)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.R8, false, true) { name = "Village_PathMask", wrapMode = TextureWrapMode.Clamp };
+        var px = new Color32[size * size];
+        for (int j = 0; j < size; j++)
+            for (int i = 0; i < size; i++)
+            {
+                float x = area.xMin + (i + 0.5f) * area.width / size, z = area.yMin + (j + 0.5f) * area.height / size;
+                float edge = 1.4f + 0.6f * Mathf.PerlinNoise(x * 0.35f + 11f, z * 0.35f + 5f);
+                float m = Mathf.InverseLerp(edge + 1.1f, edge, PathDistance(x, z));
+                px[j * size + i] = new Color32((byte)(m * 255f), 0, 0, 255);
+            }
+        tex.SetPixels32(px);
+        tex.Apply();
+        string path = $"{AssetSetup.Generated}/Village_PathMask.asset";
+        AssetDatabase.DeleteAsset(path);
+        AssetDatabase.CreateAsset(tex, path);
+        return tex;
     }
 
     /// <summary>Ground height under (x, z): the mesh surface (raycast), else the height function.</summary>
@@ -458,7 +491,7 @@ public static class VillageBuilder
     }
 
     /// <summary>A compound: mud walls with a gate (and a breach), corner towers, a house against the back wall and a yard.</summary>
-    private static void Compound(Vector3 c, float w, float l, float yaw, bool upper, bool towers, int seed, bool ruined = false)
+    private static void Compound(Vector3 c, float w, float l, float yaw, bool upper, bool towers, int seed, bool ruined = false, bool climbTree = false)
     {
         var r = new System.Random(seed);
         var ruin = ruined ? r : null;
@@ -468,7 +501,7 @@ public static class VillageBuilder
         const float wallH = 2.9f, thick = 0.6f;
         float gate = (float)(r.NextDouble() - 0.5) * (w - 8f);
         // front wall with the gate, back wall with a breach, solid sides with a low gap
-        Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)), Stone, false, ruin, thick / 2f);
+        Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)), null, false, ruin, thick / 2f);
         Block("GateBeam", t, new Vector3(gate, 2.62f, -l / 2f), new Vector3(3.2f, 0.2f, 0.75f), OldWood, 0.04f, false);
         Lantern(t, t.TransformPoint(new Vector3(gate + 1.3f, 2.2f, -l / 2f - 0.42f)), t.TransformDirection(Vector3.back));
         foreach (float s in new[] { -1f, 1f })
@@ -478,19 +511,19 @@ public static class VillageBuilder
             if (leaf != null) leaf.transform.RotateAround(t.TransformPoint(new Vector3(gate + s * 1.3f, 0, -l / 2f - 0.3f)), Vector3.up, s * 20f);
         }
         float breach = (float)(r.NextDouble() - 0.5) * (w - 6f);
-        Wall(t, -w / 2f, w / 2f, l / 2f, 0, wallH, thick, Openings((breach, 1.5f, 0f, wallH)), Stone, false, ruin, thick / 2f);
+        Wall(t, -w / 2f, w / 2f, l / 2f, 0, wallH, thick, Openings((breach, 1.5f, 0f, wallH)), null, false, ruin, thick / 2f);
         foreach (float s in new[] { -1f, 1f })
-            Wall(t, -l / 2f + thick / 2f, l / 2f - thick / 2f, s * w / 2f, 0, wallH, thick, Openings((s * l * 0.15f, 1.3f, 0.95f, wallH)), Stone, true, ruin, thick * 0.4f);
+            Wall(t, -l / 2f + thick / 2f, l / 2f - thick / 2f, s * w / 2f, 0, wallH, thick, Openings((s * l * 0.15f, 1.3f, 0.95f, wallH)), null, true, ruin, thick * 0.4f);
         // square corner posts over the joints of a compound without towers
         if (!towers && !ruined)
             foreach (float x in new[] { -1f, 1f })
                 foreach (float zz in new[] { -1f, 1f })
-                    Block("CornerPost", t, new Vector3(x * w / 2f, (wallH + 0.24f) / 2f, zz * l / 2f), new Vector3(thick + 0.18f, wallH + 0.24f, thick + 0.18f), Stone, 0.1f);
+                    Block("CornerPost", t, new Vector3(x * w / 2f, (wallH + 0.24f) / 2f, zz * l / 2f), new Vector3(thick + 0.18f, wallH + 0.24f, thick + 0.18f), MudPlaster, 0.1f);
         // soft rounded wall tops (a ruin has broken tops instead)
         foreach (float s in ruined ? new float[0] : new[] { -1f, 1f })
         {
-            Block("Cap", t, new Vector3(0, wallH + 0.08f, s * l / 2f), new Vector3(w + thick, 0.16f, thick), Stone, 0.02f, false);
-            Block("Cap", t, new Vector3(s * w / 2f, wallH + 0.08f, 0), new Vector3(thick, 0.16f, l), Stone, 0.02f, false);
+            Block("Cap", t, new Vector3(0, wallH + 0.08f, s * l / 2f), new Vector3(w + thick, 0.16f, thick), MudPlaster, 0.02f, false);
+            Block("Cap", t, new Vector3(s * w / 2f, wallH + 0.08f, 0), new Vector3(thick, 0.16f, l), MudPlaster, 0.02f, false);
         }
         if (towers)
             foreach (float x in new[] { -1f, 1f })
@@ -523,11 +556,11 @@ public static class VillageBuilder
         float g = gate >= 0f ? 1f : -1f;
         Hut(t, t.TransformPoint(new Vector3(-g * (w / 2f - thick / 2f - 2.2f), 0, -l / 2f + thick / 2f + 2.1f)), yaw + 180f, 4f, 3.6f, ruin, false, towers ? (int)-g : 0);
         // the yard: tandoor oven, hay stack, firewood, a tree, sacks and a water jar
-        Yard(t, w, l, gate, r);
+        Yard(t, w, l, gate, r, climbTree);
         if (ruined) Rubble(t, new Vector3(breach, 0, l / 2f - 1.5f), 1.8f, r);
     }
 
-    private static void Yard(Transform t, float w, float l, float gate, System.Random r)
+    private static void Yard(Transform t, float w, float l, float gate, System.Random r, bool climbTree)
     {
         float yardZ = -l / 2f + (l - 6f) / 2f;
         float g = gate >= 0f ? 1f : -1f;
@@ -546,8 +579,42 @@ public static class VillageBuilder
         foreach (float x in new[] { -0.85f, 0.85f })
             foreach (float z in new[] { -0.4f, 0.4f })
                 Block("Leg", t, new Vector3(w * 0.15f + x, 0.2f, yardZ - 1.5f + z), new Vector3(0.08f, 0.4f, 0.08f), OldWood, 0.02f, false);
-        if (r.NextDouble() < 0.7)
+        if (climbTree) ClimbingTree(t, t.TransformPoint(new Vector3(w * 0.25f, 0, yardZ + 0.5f)), t.TransformDirection(Vector3.back));
+        else if (r.NextDouble() < 0.7)
             Nature.Tree(Nature.Trees, rng, t.TransformPoint(new Vector3(w * 0.25f, 0, yardZ + 0.5f)), 6f, 8f, t);
+    }
+
+    /// <summary>
+    /// A tall old tree in a yard with a hide up in it: a plank platform round the trunk at 5.6 m on
+    /// braces, low plank walls on three sides, inside the crown, and a wooden ladder up to it from the
+    /// yard side. From up there one sees over the walls and the lanes without being seen.
+    /// </summary>
+    private static void ClimbingTree(Transform parent, Vector3 foot, Vector3 outward)
+    {
+        const float high = 5.6f, half = 1.5f;
+        var t = new GameObject("ClimbingTree").transform;
+        t.SetParent(parent, false);
+        t.SetPositionAndRotation(foot, Quaternion.LookRotation(-outward));
+        Nature.Tree(Nature.Trees, rng, foot, 15f, 16f, t);
+        var bark = Mats.Pbr("V_TreeTrunk", "Wood049", new Color(0.42f, 0.33f, 0.25f), 0.2f);
+        MeshGen.TexCylinder("Trunk", foot, 0.5f, high + 2f, bark, 2f, t);
+        // the platform (open over the ladder) and the low walls of the hide on the other three sides
+        Block("HidePlatform", t, new Vector3(0, high - 0.06f, 0), new Vector3(half * 2f, 0.12f, half * 2f), OldWood, 0.02f);
+        Block("HideWall", t, new Vector3(0, high + 0.25f, half - 0.04f), new Vector3(half * 2f, 0.5f, 0.08f), OldWood, 0.02f);
+        foreach (float sd in new[] { -1f, 1f })
+            Block("HideWall", t, new Vector3(sd * (half - 0.04f), high + 0.25f, 0.2f), new Vector3(0.08f, 0.5f, half * 2f - 0.4f), OldWood, 0.02f);
+        // braces from the trunk out under the corners
+        foreach (float sx in new[] { -1f, 1f })
+            foreach (float sz in new[] { -1f, 1f })
+            {
+                var from = t.TransformPoint(new Vector3(sx * 0.35f, high - 1.7f, sz * 0.35f));
+                var to = t.TransformPoint(new Vector3(sx * (half - 0.2f), high - 0.12f, sz * (half - 0.2f)));
+                var brace = MeshGen.Object("Brace", MeshGen.Cylinder(0.08f, (to - from).magnitude, 1f, 8), bark, t, from);
+                brace.transform.rotation = Quaternion.FromToRotation(Vector3.up, (to - from).normalized);
+            }
+        // the ladder up from the yard to the open edge of the platform
+        Physics.SyncTransforms();
+        CityLordBuilder.PlaceLadder(t, foot + outward * half, outward, high);
     }
 
     /// <summary>The bazaar: shops on a raised platform with steps, around a big plane tree on a round seat.</summary>
@@ -725,7 +792,7 @@ public static class VillageBuilder
         for (int i = 0; i < compounds.Length; i++)
         {
             var k = compounds[i];
-            Compound(k.c, k.w, k.l, k.yaw, k.upper, k.towers, seed++, ruins.Contains(i));
+            Compound(k.c, k.w, k.l, k.yaw, k.upper, k.towers, seed++, ruins.Contains(i), i == 2);
         }
         // lone huts: by the fields and up on the hills around the village, some of them in ruins
         var huts = new GameObject("Huts").transform;
@@ -856,12 +923,6 @@ public static class VillageBuilder
                 GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
 
         var layout = new MapLayout { Name = "VILLAGE", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
-        // CityLord chain-link fence walls on the open fields and by the compounds (not in the river bed)
-        var fences = new GameObject("ChainLinkFences").transform;
-        fences.SetParent(root, false);
-        int fencePanels = CityLordBuilder.ChainLinkRuns(fences, rng, Rect.MinMaxRect(-Half + 10f, -Half + 10f, Half - 10f, Half - 10f), 6,
-            h => Mathf.Abs(h.point.z - RiverZ(h.point.x)) > 9f && h.collider.gameObject.layer == 0);
-        Debug.Log($"[Map] Village: {fencePanels} chain-link fence panels");
         // the parts of the village named on boards (Arabic and English), as in Al-Zahra
         var boards = new GameObject("Boards").transform;
         boards.SetParent(root, false);

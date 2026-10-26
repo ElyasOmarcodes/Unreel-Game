@@ -527,6 +527,24 @@ namespace UA
                     yield return Shot($"98{(char)('a' + lampShot++)}-map{map}-lamp-at-edge");
                 }
             }
+            // the Village: the hide up in the old tree (from the yard, from up in it) and a paved path
+            World.I.ApplyLighting(6);
+            yield return Until(() => World.I.MapReady, 30);
+            var climb = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "ClimbingTree");
+            if (climb != null)
+            {
+                var from = climb.position - climb.forward * 9f + climb.right * 3f + Vector3.up * 3f;
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(climb.position + Vector3.up * 4.5f - from));
+                yield return Wait(0.6f);
+                yield return Shot("99a-village-tree-hide");
+                var up = climb.position + Vector3.up * 7.2f + climb.forward * 0.9f;
+                cam.transform.SetPositionAndRotation(up, Quaternion.LookRotation(-climb.forward + Vector3.down * 0.35f));
+                yield return Wait(0.5f);
+                yield return Shot("99b-village-view-from-the-hide");
+            }
+            cam.transform.SetPositionAndRotation(new Vector3(-12f, 5f, -6f), Quaternion.LookRotation(new Vector3(-30f, 0f, -24f) - new Vector3(-12f, 5f, -6f)));
+            yield return Wait(0.5f);
+            yield return Shot("99c-village-paved-path");
             World.I.ApplyLighting(0);
             yield return Until(() => World.I.MapReady, 30);
             // the seven CityLord spawn points: on the streets, nothing under or above
