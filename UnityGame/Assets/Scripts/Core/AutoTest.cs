@@ -190,7 +190,7 @@ namespace UA
             yield return Wait(1f);
             yield return Shot("04-wifi");
             app.Draft.Mode = Mode.TeamDeathmatch;
-            app.Draft.Map = 14; // CITYLORD at night: the lamps light the players, the carried weapon on the back
+            app.Draft.Map = 2; // CITYLORD (STEEL CITY) at night: the lamps light the players, the carried weapon on the back
             app.Draft.Minutes = 3;
             app.OpenCreate(false);
             app.Draft.Bots = 4;   // the test match still has bots to fight (the screen offers none)
@@ -203,6 +203,7 @@ namespace UA
             yield return Wait(2f);
             yield return Shot("07-lobby-host");
             Session.I.StartMatch();
+            StartCoroutine(FilmShots("08f"));
             yield return Until(() => Session.I.Phase == Phase.Playing && World.I.MapReady, 30);
             yield return Wait(3f);
             yield return Shot("08-match-start");
@@ -296,116 +297,98 @@ namespace UA
             cam.Cam.fieldOfView = 62;
             (int map, string name, Vector3 from, Vector3 to)[] views =
             {
-                (0, "21-port-office", new Vector3(44f, 4f, 4f), new Vector3(58f, 5f, 24f)),
-                (0, "22-port-office-inside", new Vector3(53f, 1.7f, 16.3f), new Vector3(63f, 1.6f, 24f)),
-                (0, "23-port-office-roof", new Vector3(52f, 12f, 17f), new Vector3(10f, 3f, 0f)),
-                (0, "24-port-hidden-route", new Vector3(-38f, 5f, -32f), new Vector3(-56f, 3f, -45f)),
-                (0, "25-port-trees", new Vector3(52f, 2.5f, 34f), new Vector3(58f, 3f, 48f)),
-                (0, "26-port-fire-escape", new Vector3(-24f, 4f, 30f), new Vector3(-34f, 4.5f, 37f)),
-                (0, "27-port-silos", new Vector3(-6f, 4f, 22f), new Vector3(-14f, 4f, 31f)),
-                (0, "27b-port-containers", new Vector3(-4f, 2f, -24f), new Vector3(-12f, 1.5f, -14f)),
-                (0, "27c-port-pit", new Vector3(66f, 4f, -40f), new Vector3(79f, -2f, -23f)),
-                (0, "27d-port-crane", new Vector3(-2f, 6f, 34f), new Vector3(-21f, 8f, 57f)),
-                (1, "27e-port-ship", new Vector3(40f, 9f, 48f), new Vector3(10f, 4f, 88f)),
-                (0, "27f-port-tunnel", new Vector3(79f, -2.3f, -9f), new Vector3(79f, -3f, 20f)),
-                (0, "27g-port-slopes", new Vector3(44f, 4f, 46f), new Vector3(62f, 1f, 56f)),
-                (0, "27h-port-factory-climb", new Vector3(-22f, 8f, 12f), new Vector3(-37f, 4f, 27f)),
-                (0, "27i-port-yards", new Vector3(10f, 20f, -26f), new Vector3(-34f, 1f, -56f)),
-                (0, "27j-port-store-rooms", new Vector3(-10f, 3f, 36f), new Vector3(-10f, 1.5f, 20f)),
-                (0, "27k-port-factory-east", new Vector3(76f, 10f, -52f), new Vector3(58f, 4f, -36f)),
-                (3, "28-village-bazaar", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
-                (3, "29-village-compound", new Vector3(-16f, 8f, -4f), new Vector3(-34f, 2f, 12f)),
-                (3, "30-village-house", new Vector3(18f, 3f, 12f), new Vector3(32f, 2f, 18f)),
-                (3, "31-village-tower", new Vector3(30f, 14f, 28f), new Vector3(58f, 12f, 56f)),
-                (3, "32-village-river", new Vector3(30f, 5f, -25f), new Vector3(12f, 0f, -40f)),
-                (3, "33-village-terraces", new Vector3(-28f, 10f, 30f), new Vector3(-52f, 5f, 60f)),
-                (4, "34-village-sunset", new Vector3(-62f, 26f, -72f), new Vector3(0f, 0f, 0f)),
-                (3, "35-village-ruins", new Vector3(-46f, 6f, -2f), new Vector3(-62f, 1f, -12f)),
-                (3, "36-village-hills", new Vector3(20f, 34f, 110f), new Vector3(4f, 24f, 150f)),
-                (3, "36e-village-farm", new Vector3(-80f, 9f, -48f), new Vector3(-98f, 1f, -76f)),
-                (5, "36b-village-night", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
-                (2, "36d-port-night", new Vector3(-4f, 6f, -24f), new Vector3(-30f, 2f, 10f)),
-                (6, "37-town-square", new Vector3(-16f, 6f, -20f), new Vector3(0f, 1.5f, 0f)),
-                (6, "38-town-street", new Vector3(-62f, 2f, 0f), new Vector3(-20f, 3f, 0f)),
-                (8, "39-town-night", new Vector3(-56f, 1.8f, -1.5f), new Vector3(-38f, 3f, 6f)),
-                (8, "39b-town-night-square", new Vector3(-16f, 6f, -20f), new Vector3(0f, 1.5f, 0f)),
-                (6, "40-town-church", new Vector3(-20f, 4f, 22f), new Vector3(0f, 12f, 44f)),
-                (6, "41-town-tower-view", new Vector3(0f, 18.6f, 38.4f), new Vector3(0f, 2f, 0f)),
-                (6, "42-town-canal", new Vector3(50f, 3f, -20f), new Vector3(58f, 0f, 10f)),
-                (7, "43-town-sunset", new Vector3(-70f, 25f, -70f), new Vector3(0f, 0f, 0f)),
-                (6, "44-town-wall-climb", new Vector3(-58f, 5f, 22f), new Vector3(-71f, 3f, 31f)),
-                (6, "45-town-wall-walk", new Vector3(-71.5f, 6.4f, -20f), new Vector3(-50f, 2f, 10f)),
-                (6, "46-town-garden-terrace", new Vector3(44f, 6f, 36f), new Vector3(50f, 2f, 56f)),
-                (9, "48-zahra-salon-rico", new Vector3(-5f, 6.4f, 16f), new Vector3(-5f, 7.5f, 42f)),
-                (9, "49-zahra-inside-hall", new Vector3(-5f, 6.2f, 41f), new Vector3(-5f, 6f, 58f)),
-                (9, "50-zahra-upper-garden", new Vector3(-36f, 13f, -24f), new Vector3(-5f, 4f, 6f)),
-                (9, "51-zahra-portico", new Vector3(72f, 6.5f, 14f), new Vector3(36f, 8f, 8f)),
-                (9, "52-zahra-ramp-street", new Vector3(47f, 5.8f, 48.5f), new Vector3(86f, 7f, 48.5f)),
-                (9, "53-zahra-palace", new Vector3(70f, 4.5f, -35.5f), new Vector3(70f, 6f, -50f)),
-                (9, "50b-zahra-garden-channel", new Vector3(-5f, 6f, 24f), new Vector3(-5f, 4.2f, 13f)),
-                (9, "50c-zahra-garden-walks", new Vector3(-36f, 6.5f, 24f), new Vector3(-20f, 4f, 10f)),
-                (9, "48b-zahra-patio-steps", new Vector3(-12f, 6f, 31f), new Vector3(-5f, 4.6f, 38f)),
-                (9, "55b-zahra-lower-channels", new Vector3(-5f, 2.4f, -52f), new Vector3(-5f, 0.4f, -60f)),
-                (9, "53f-zahra-palace-hedges", new Vector3(60f, 2.6f, -55f), new Vector3(78f, 0.8f, -60f)),
-                (9, "53e-zahra-palace-fountain", new Vector3(70f, 9f, -46f), new Vector3(70f, 0.6f, -59f)),
-                (9, "53b-zahra-palace-court", new Vector3(70f, 3.2f, -48.5f), new Vector3(70f, 3.5f, -70f)),
-                (9, "53c-zahra-throne", new Vector3(70f, 2.6f, -74f), new Vector3(70f, 2.2f, -93f)),
-                (9, "53d-zahra-palace-rooms", new Vector3(88f, 2.6f, -78f), new Vector3(91f, 3.4f, -82f)),
-                (9, "54-zahra-houses", new Vector3(-60f, 2.5f, -59.5f), new Vector3(-72f, 3.8f, -56.4f)),
-                (9, "54b-zahra-town", new Vector3(-60f, 22f, -100f), new Vector3(-102f, 2f, -76f)),
-                (9, "54c-zahra-town-middle", new Vector3(-78f, 9f, -27f), new Vector3(-104f, 5f, 8f)),
-                (9, "63-zahra-gate-board", new Vector3(-53.5f, 2.2f, -107f), new Vector3(-53.5f, 9.5f, -124f)),
-                (9, "64-zahra-gate-outside", new Vector3(-53.5f, 1.5f, -143f), new Vector3(-53.5f, 8f, -125f)),
-                (9, "65-zahra-history-board", new Vector3(-55.2f, 3.6f, -112f), new Vector3(-47.3f, 3.6f, -112f)),
-                (9, "66-zahra-cascade", new Vector3(14f, 8f, 44f), new Vector3(21f, 7f, 56f)),
-                (9, "67-zahra-channels", new Vector3(-5f, 3f, -50f), new Vector3(-5f, 2f, -32f)),
-                (9, "68-zahra-mountains", new Vector3(0f, 18.5f, 121f), new Vector3(0f, 28f, 250f)),
-                (9, "69-zahra-river", new Vector3(-53.5f, 17f, -126f), new Vector3(-53.5f, -3f, -290f)),
-                (9, "70-zahra-lantern-day", new Vector3(-9f, 6f, -14.5f), new Vector3(-6.6f, 6.6f, -18f)),
-                (9, "71-zahra-wall-walk", new Vector3(-125f, 9.8f, -104f), new Vector3(-125f, 10.5f, -40f)),
-                (9, "72-zahra-store-row", new Vector3(-110f, 6f, -66f), new Vector3(-122f, 4f, -49f)),
-                (9, "73-zahra-palace-scaffold", new Vector3(86f, 9.5f, -84f), new Vector3(89f, 4f, -93f)),
-                (9, "74-zahra-valley", new Vector3(-30f, -1.2f, -160f), new Vector3(-53f, 3f, -125f)),
-                (9, "75-zahra-treasury-stair", new Vector3(93.5f, 2.6f, -88f), new Vector3(96.4f, 2.2f, -94.5f)),
-                (9, "76-zahra-dar-al-mulk-stair", new Vector3(-86f, 12.4f, 79f), new Vector3(-90.9f, 11.6f, 84f)),
-                (9, "77b-zahra-ramp-street-roof", new Vector3(40f, 22f, 30f), new Vector3(70f, 12f, 53f)),
-                (9, "77c-zahra-ramp-street-board", new Vector3(37f, 6f, 51f), new Vector3(46f, 5.5f, 53f)),
-                (9, "77d-zahra-garden-stair", new Vector3(4f, 3f, -42f), new Vector3(-5f, 2f, -32f)),
-                (9, "77e-zahra-plaza-stair", new Vector3(44f, 3f, -42f), new Vector3(37f, 2f, -33f)),
-                (9, "77f-zahra-palace-socle", new Vector3(104f, 2f, -102f), new Vector3(90f, 1f, -96f)),
-                (9, "77g-zahra-oven", new Vector3(-95f, 2f, -36f), new Vector3(-98.2f, 0.6f, -40f)),
-                (9, "77h-zahra-dar-al-mulk-stair", new Vector3(-50f, 7f, 42f), new Vector3(-58f, 6f, 52f)),
-                (9, "77i-zahra-ramp-exit", new Vector3(52.2f, 11.8f, 64f), new Vector3(52.2f, 10.4f, 56f)),
-                (9, "77j-zahra-city-wall", new Vector3(-110f, 2f, -20f), new Vector3(-125f, 5f, -5f)),
-                (6, "37b-town-well", new Vector3(4.5f, 3.2f, 4.5f), new Vector3(0f, 1.8f, 0f)),
-                (6, "37c-town-wall-stone", new Vector3(-62f, 2f, 10f), new Vector3(-71f, 3f, 20f)),
-                (14, "86b-citylord-night-yard", new Vector3(-0.6f, 2f, -35.6f), new Vector3(28f, 1.5f, -24f)),
-                (14, "86c-citylord-night-above", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
-                (14, "86d-citylord-night-hangars", new Vector3(81.5f, 3.5f, -24.6f), new Vector3(46f, 2f, 20f)),
-                (9, "77k-zahra-bastion-top", new Vector3(-117f, 13f, -101f), new Vector3(-125f, 8.5f, -109.5f)),
-                (9, "77l-zahra-wall-texture", new Vector3(-110f, 3f, -60f), new Vector3(-125f, 5f, -50f)),
-                (9, "77-zahra-cypress", new Vector3(-12f, 6f, -14f), new Vector3(-8.6f, 9f, -20f)),
-                (6, "78-town-granary-stair", new Vector3(29.5f, 2.2f, 14.5f), new Vector3(21.8f, 1.8f, 10.4f)),
-                (9, "55-zahra-lower-garden", new Vector3(-5f, 6.5f, -32f), new Vector3(-5f, 0f, -70f)),
-                (9, "56-zahra-dar-al-mulk", new Vector3(-62f, 12.5f, 63f), new Vector3(-5f, 4f, 0f)),
-                (9, "57-zahra-north-gate", new Vector3(47f, 12f, 86f), new Vector3(30f, 11f, 86f)),
-                (9, "58-zahra-roof-climb", new Vector3(-6f, 12.5f, 66f), new Vector3(-1f, 12f, 58f)),
-                (10, "59-zahra-sunset", new Vector3(-80f, 26f, -80f), new Vector3(0f, 6f, 20f)),
-                (11, "60-zahra-night", new Vector3(-5f, 6.4f, 16f), new Vector3(-5f, 7.5f, 42f)),
-                (11, "60b-zahra-night-palace", new Vector3(70f, 3.2f, -48.5f), new Vector3(70f, 3.5f, -70f)),
-                (11, "60c-zahra-night-gate", new Vector3(-53.5f, 2.2f, -107f), new Vector3(-53.5f, 7f, -124f)),
-                (12, "80-citylord-overview", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
-                (12, "81-citylord-street", new Vector3(17.3f, 1.7f, 14.3f), new Vector3(39f, 2f, -2f)),
-                (12, "82-citylord-hangars", new Vector3(81.5f, 3.5f, -24.6f), new Vector3(46f, 2f, 20f)),
-                (12, "83-citylord-yard", new Vector3(-0.6f, 2f, -35.6f), new Vector3(28f, 1.5f, -24f)),
-                (12, "84-citylord-from-above", new Vector3(31f, 60f, -60f), new Vector3(31f, 0f, -4f)),
-                (13, "85-citylord-sunset", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
-                (14, "86-citylord-night", new Vector3(17.3f, 1.7f, 14.3f), new Vector3(39f, 2f, -2f)),
-                (12, "87-citylord-hangar-door", new Vector3(81f, 3.6f, -13.3f), new Vector3(70f, 3f, -13.3f)),
-                (12, "88-citylord-hangar-inside", new Vector3(72.6f, 3.4f, -13.3f), new Vector3(64f, 2.6f, -6f)),
-                (12, "89-citylord-east-door", new Vector3(61f, 3.6f, 29.9f), new Vector3(50f, 3f, 29.9f)),
-                (12, "89b-citylord-west-door", new Vector3(-24f, 3.2f, -29.8f), new Vector3(-12f, 2.5f, -29.8f)),
-                (12, "89c-citylord-small-door", new Vector3(46.3f, 3.2f, 16f), new Vector3(46.3f, 2.6f, 26f)),
+                (6, "28-village-bazaar", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
+                (6, "29-village-compound", new Vector3(-16f, 8f, -4f), new Vector3(-34f, 2f, 12f)),
+                (6, "30-village-house", new Vector3(18f, 3f, 12f), new Vector3(32f, 2f, 18f)),
+                (6, "31-village-tower", new Vector3(30f, 14f, 28f), new Vector3(58f, 12f, 56f)),
+                (6, "32-village-river", new Vector3(30f, 5f, -25f), new Vector3(12f, 0f, -40f)),
+                (6, "33-village-terraces", new Vector3(-28f, 10f, 30f), new Vector3(-52f, 5f, 60f)),
+                (7, "34-village-sunset", new Vector3(-62f, 26f, -72f), new Vector3(0f, 0f, 0f)),
+                (6, "35-village-ruins", new Vector3(-46f, 6f, -2f), new Vector3(-62f, 1f, -12f)),
+                (6, "36-village-hills", new Vector3(20f, 34f, 110f), new Vector3(4f, 24f, 150f)),
+                (6, "36e-village-farm", new Vector3(-80f, 9f, -48f), new Vector3(-98f, 1f, -76f)),
+                (8, "36b-village-night", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),
+                (9, "37-town-square", new Vector3(-16f, 6f, -20f), new Vector3(0f, 1.5f, 0f)),
+                (9, "38-town-street", new Vector3(-62f, 2f, 0f), new Vector3(-20f, 3f, 0f)),
+                (11, "39-town-night", new Vector3(-56f, 1.8f, -1.5f), new Vector3(-38f, 3f, 6f)),
+                (11, "39b-town-night-square", new Vector3(-16f, 6f, -20f), new Vector3(0f, 1.5f, 0f)),
+                (9, "40-town-church", new Vector3(-20f, 4f, 22f), new Vector3(0f, 12f, 44f)),
+                (9, "41-town-tower-view", new Vector3(0f, 18.6f, 38.4f), new Vector3(0f, 2f, 0f)),
+                (9, "42-town-canal", new Vector3(50f, 3f, -20f), new Vector3(58f, 0f, 10f)),
+                (10, "43-town-sunset", new Vector3(-70f, 25f, -70f), new Vector3(0f, 0f, 0f)),
+                (9, "44-town-wall-climb", new Vector3(-58f, 5f, 22f), new Vector3(-71f, 3f, 31f)),
+                (9, "45-town-wall-walk", new Vector3(-71.5f, 6.4f, -20f), new Vector3(-50f, 2f, 10f)),
+                (9, "46-town-garden-terrace", new Vector3(44f, 6f, 36f), new Vector3(50f, 2f, 56f)),
+                (3, "48-zahra-salon-rico", new Vector3(-5f, 6.4f, 16f), new Vector3(-5f, 7.5f, 42f)),
+                (3, "49-zahra-inside-hall", new Vector3(-5f, 6.2f, 41f), new Vector3(-5f, 6f, 58f)),
+                (3, "50-zahra-upper-garden", new Vector3(-36f, 13f, -24f), new Vector3(-5f, 4f, 6f)),
+                (3, "51-zahra-portico", new Vector3(72f, 6.5f, 14f), new Vector3(36f, 8f, 8f)),
+                (3, "52-zahra-ramp-street", new Vector3(47f, 5.8f, 48.5f), new Vector3(86f, 7f, 48.5f)),
+                (3, "53-zahra-palace", new Vector3(70f, 4.5f, -35.5f), new Vector3(70f, 6f, -50f)),
+                (3, "50b-zahra-garden-channel", new Vector3(-5f, 6f, 24f), new Vector3(-5f, 4.2f, 13f)),
+                (3, "50c-zahra-garden-walks", new Vector3(-36f, 6.5f, 24f), new Vector3(-20f, 4f, 10f)),
+                (3, "48b-zahra-patio-steps", new Vector3(-12f, 6f, 31f), new Vector3(-5f, 4.6f, 38f)),
+                (3, "55b-zahra-lower-channels", new Vector3(-5f, 2.4f, -52f), new Vector3(-5f, 0.4f, -60f)),
+                (3, "53f-zahra-palace-hedges", new Vector3(60f, 2.6f, -55f), new Vector3(78f, 0.8f, -60f)),
+                (3, "53e-zahra-palace-fountain", new Vector3(70f, 9f, -46f), new Vector3(70f, 0.6f, -59f)),
+                (3, "53b-zahra-palace-court", new Vector3(70f, 3.2f, -48.5f), new Vector3(70f, 3.5f, -70f)),
+                (3, "53c-zahra-throne", new Vector3(70f, 2.6f, -74f), new Vector3(70f, 2.2f, -93f)),
+                (3, "53d-zahra-palace-rooms", new Vector3(88f, 2.6f, -78f), new Vector3(91f, 3.4f, -82f)),
+                (3, "54-zahra-houses", new Vector3(-60f, 2.5f, -59.5f), new Vector3(-72f, 3.8f, -56.4f)),
+                (3, "54b-zahra-town", new Vector3(-60f, 22f, -100f), new Vector3(-102f, 2f, -76f)),
+                (3, "54c-zahra-town-middle", new Vector3(-78f, 9f, -27f), new Vector3(-104f, 5f, 8f)),
+                (3, "63-zahra-gate-board", new Vector3(-53.5f, 2.2f, -107f), new Vector3(-53.5f, 9.5f, -124f)),
+                (3, "64-zahra-gate-outside", new Vector3(-53.5f, 1.5f, -143f), new Vector3(-53.5f, 8f, -125f)),
+                (3, "65-zahra-history-board", new Vector3(-55.2f, 3.6f, -112f), new Vector3(-47.3f, 3.6f, -112f)),
+                (3, "66-zahra-cascade", new Vector3(14f, 8f, 44f), new Vector3(21f, 7f, 56f)),
+                (3, "67-zahra-channels", new Vector3(-5f, 3f, -50f), new Vector3(-5f, 2f, -32f)),
+                (3, "68-zahra-mountains", new Vector3(0f, 18.5f, 121f), new Vector3(0f, 28f, 250f)),
+                (3, "69-zahra-river", new Vector3(-53.5f, 17f, -126f), new Vector3(-53.5f, -3f, -290f)),
+                (3, "70-zahra-lantern-day", new Vector3(-9f, 6f, -14.5f), new Vector3(-6.6f, 6.6f, -18f)),
+                (3, "71-zahra-wall-walk", new Vector3(-125f, 9.8f, -104f), new Vector3(-125f, 10.5f, -40f)),
+                (3, "72-zahra-store-row", new Vector3(-110f, 6f, -66f), new Vector3(-122f, 4f, -49f)),
+                (3, "73-zahra-palace-scaffold", new Vector3(86f, 9.5f, -84f), new Vector3(89f, 4f, -93f)),
+                (3, "74-zahra-valley", new Vector3(-30f, -1.2f, -160f), new Vector3(-53f, 3f, -125f)),
+                (3, "75-zahra-treasury-stair", new Vector3(93.5f, 2.6f, -88f), new Vector3(96.4f, 2.2f, -94.5f)),
+                (3, "76-zahra-dar-al-mulk-stair", new Vector3(-86f, 12.4f, 79f), new Vector3(-90.9f, 11.6f, 84f)),
+                (3, "77b-zahra-ramp-street-roof", new Vector3(40f, 22f, 30f), new Vector3(70f, 12f, 53f)),
+                (3, "77c-zahra-ramp-street-board", new Vector3(37f, 6f, 51f), new Vector3(46f, 5.5f, 53f)),
+                (3, "77d-zahra-garden-stair", new Vector3(4f, 3f, -42f), new Vector3(-5f, 2f, -32f)),
+                (3, "77e-zahra-plaza-stair", new Vector3(44f, 3f, -42f), new Vector3(37f, 2f, -33f)),
+                (3, "77f-zahra-palace-socle", new Vector3(104f, 2f, -102f), new Vector3(90f, 1f, -96f)),
+                (3, "77g-zahra-oven", new Vector3(-95f, 2f, -36f), new Vector3(-98.2f, 0.6f, -40f)),
+                (3, "77h-zahra-dar-al-mulk-stair", new Vector3(-50f, 7f, 42f), new Vector3(-58f, 6f, 52f)),
+                (3, "77i-zahra-ramp-exit", new Vector3(52.2f, 11.8f, 64f), new Vector3(52.2f, 10.4f, 56f)),
+                (3, "77j-zahra-city-wall", new Vector3(-110f, 2f, -20f), new Vector3(-125f, 5f, -5f)),
+                (9, "37b-town-well", new Vector3(4.5f, 3.2f, 4.5f), new Vector3(0f, 1.8f, 0f)),
+                (9, "37c-town-wall-stone", new Vector3(-62f, 2f, 10f), new Vector3(-71f, 3f, 20f)),
+                (2, "86b-citylord-night-yard", new Vector3(-0.6f, 2f, -35.6f), new Vector3(28f, 1.5f, -24f)),
+                (2, "86c-citylord-night-above", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
+                (2, "86d-citylord-night-hangars", new Vector3(81.5f, 3.5f, -24.6f), new Vector3(46f, 2f, 20f)),
+                (3, "77k-zahra-bastion-top", new Vector3(-117f, 13f, -101f), new Vector3(-125f, 8.5f, -109.5f)),
+                (3, "77l-zahra-wall-texture", new Vector3(-110f, 3f, -60f), new Vector3(-125f, 5f, -50f)),
+                (3, "77-zahra-cypress", new Vector3(-12f, 6f, -14f), new Vector3(-8.6f, 9f, -20f)),
+                (9, "78-town-granary-stair", new Vector3(29.5f, 2.2f, 14.5f), new Vector3(21.8f, 1.8f, 10.4f)),
+                (3, "55-zahra-lower-garden", new Vector3(-5f, 6.5f, -32f), new Vector3(-5f, 0f, -70f)),
+                (3, "56-zahra-dar-al-mulk", new Vector3(-62f, 12.5f, 63f), new Vector3(-5f, 4f, 0f)),
+                (3, "57-zahra-north-gate", new Vector3(47f, 12f, 86f), new Vector3(30f, 11f, 86f)),
+                (3, "58-zahra-roof-climb", new Vector3(-6f, 12.5f, 66f), new Vector3(-1f, 12f, 58f)),
+                (4, "59-zahra-sunset", new Vector3(-80f, 26f, -80f), new Vector3(0f, 6f, 20f)),
+                (5, "60-zahra-night", new Vector3(-5f, 6.4f, 16f), new Vector3(-5f, 7.5f, 42f)),
+                (5, "60b-zahra-night-palace", new Vector3(70f, 3.2f, -48.5f), new Vector3(70f, 3.5f, -70f)),
+                (5, "60c-zahra-night-gate", new Vector3(-53.5f, 2.2f, -107f), new Vector3(-53.5f, 7f, -124f)),
+                (0, "80-citylord-overview", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
+                (0, "81-citylord-street", new Vector3(17.3f, 1.7f, 14.3f), new Vector3(39f, 2f, -2f)),
+                (0, "82-citylord-hangars", new Vector3(81.5f, 3.5f, -24.6f), new Vector3(46f, 2f, 20f)),
+                (0, "83-citylord-yard", new Vector3(-0.6f, 2f, -35.6f), new Vector3(28f, 1.5f, -24f)),
+                (0, "84-citylord-from-above", new Vector3(31f, 60f, -60f), new Vector3(31f, 0f, -4f)),
+                (1, "85-citylord-sunset", new Vector3(-30f, 26f, -50f), new Vector3(30f, 0f, -5f)),
+                (2, "86-citylord-night", new Vector3(17.3f, 1.7f, 14.3f), new Vector3(39f, 2f, -2f)),
+                (0, "87-citylord-hangar-door", new Vector3(81f, 3.6f, -13.3f), new Vector3(70f, 3f, -13.3f)),
+                (0, "88-citylord-hangar-inside", new Vector3(72.6f, 3.4f, -13.3f), new Vector3(64f, 2.6f, -6f)),
+                (0, "89-citylord-east-door", new Vector3(61f, 3.6f, 29.9f), new Vector3(50f, 3f, 29.9f)),
+                (0, "89b-citylord-west-door", new Vector3(-24f, 3.2f, -29.8f), new Vector3(-12f, 2.5f, -29.8f)),
+                (0, "89c-citylord-small-door", new Vector3(46.3f, 3.2f, 16f), new Vector3(46.3f, 2.6f, 26f)),
             };
             foreach (var v in views)
             {
@@ -416,7 +399,7 @@ namespace UA
                 yield return Shot(v.name);
             }
             // the Old Town store houses are placed on free ground when the map is built: look them up
-            World.I.ApplyLighting(6);
+            World.I.ApplyLighting(9);
             yield return Until(() => World.I.MapReady, 30);
             int k = 0;
             foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
@@ -430,7 +413,7 @@ namespace UA
                 yield return Shot($"47{(char)('a' + k++)}-town-{(loft ? "roof-stair" : "roof-hidden-way")}");
             }
             // the view from the top of the minaret
-            World.I.ApplyLighting(9);
+            World.I.ApplyLighting(3);
             yield return Until(() => World.I.MapReady, 30);
             var minaret = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "MinaretTop");
             if (minaret != null)
@@ -444,7 +427,7 @@ namespace UA
                 yield return Shot("62-zahra-minaret");
             }
             // CityLord: its name boards (placed on free ground near their spot) and number plates
-            World.I.ApplyLighting(12);
+            World.I.ApplyLighting(0);
             yield return Until(() => World.I.MapReady, 30);
             int sign = 0;
             foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
@@ -471,12 +454,12 @@ namespace UA
                 cam.transform.SetPositionAndRotation(above, Quaternion.LookRotation(garden.position - above));
                 yield return Wait(0.5f);
                 yield return Shot("90h-citylord-garden-above");
-                World.I.ApplyLighting(14);
+                World.I.ApplyLighting(2);
                 yield return Until(() => World.I.MapReady, 30);
                 cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(garden.position - from));
                 yield return Wait(0.6f);
                 yield return Shot("90i-citylord-garden-night");
-                World.I.ApplyLighting(12);
+                World.I.ApplyLighting(0);
                 yield return Until(() => World.I.MapReady, 30);
             }
             // the new double pipe from the roof of the pipe works over to the warehouse D-4
@@ -492,17 +475,6 @@ namespace UA
                 cam.transform.SetPositionAndRotation(start, Quaternion.LookRotation(pipe.forward + Vector3.down * 0.15f));
                 yield return Wait(0.5f);
                 yield return Shot("90k-citylord-pipe-walk");
-            }
-            // the Port's raised yards (put on free ground when the map is built)
-            World.I.ApplyLighting(0);
-            yield return Until(() => World.I.MapReady, 30);
-            int raised = 0;
-            foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Where(x => x.name == "RaisedYardUpper" || x.name == "RaisedYard").Take(3).ToList())
-            {
-                var from = t.position + new Vector3(-24f, 14f, -24f);
-                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position - from));
-                yield return Wait(0.6f);
-                yield return Shot($"91{(char)('a' + raised++)}-port-raised-yard");
             }
             // the CityLord ammo box and wooden crates in the other maps
             int box = 0;
@@ -520,29 +492,6 @@ namespace UA
                     yield return Shot($"92{(char)('a' + box++)}-map{map}-{t.name.ToLowerInvariant()}");
                 }
             }
-            // the Port from above: the CityLord asphalt, containers, tanks and hangars
-            World.I.ApplyLighting(0);
-            yield return Until(() => World.I.MapReady, 30);
-            cam.transform.SetPositionAndRotation(new Vector3(-70f, 45f, -80f), Quaternion.LookRotation(new Vector3(0f, 0f, 0f) - new Vector3(-70f, 45f, -80f)));
-            yield return Wait(0.6f);
-            yield return Shot("93a-port-overview");
-            cam.transform.SetPositionAndRotation(new Vector3(70f, 45f, 80f), Quaternion.LookRotation(new Vector3(0f, 0f, 0f) - new Vector3(70f, 45f, 80f)));
-            yield return Wait(0.6f);
-            yield return Shot("93b-port-overview-north");
-            // the rest of the CityLord set in the Port: silo rows, hangars, sheds, fences, pipe racks
-            int work = 0;
-            foreach (var name in new[] { "Oil_tank_v2", "Hangar_v4", "Hangar_v2_basic", "Concrete_fence_v2_Gate", "Pipes_set_v1_H_set_v1", "Electric_box_v2", "Barrel_v1_LD3" })
-            {
-                var t = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == name);
-                if (t == null) continue;
-                var r = t.GetComponent<Renderer>();
-                var b = r != null ? r.bounds : new Bounds(t.position, Vector3.one * 3f);
-                float d = Mathf.Max(5f, b.extents.magnitude * 2.2f);
-                var from = b.center + new Vector3(-0.6f, 0.35f, -0.75f).normalized * d;
-                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(b.center - from));
-                yield return Wait(0.5f);
-                yield return Shot($"93{(char)('c' + work++)}-port-{name.ToLowerInvariant()}");
-            }
             // name boards of the parts of each map (Arabic and English)
             int named = 0;
             foreach (int map in new[] { 0, 3, 6, 9 })
@@ -559,7 +508,7 @@ namespace UA
             }
             // the CityLord chain-link fence walls in the Village and the Old Town
             int link = 0;
-            foreach (int map in new[] { 3, 6 })
+            foreach (int map in new[] { 6, 9 })
             {
                 World.I.ApplyLighting(map);
                 yield return Until(() => World.I.MapReady, 30);
@@ -567,14 +516,14 @@ namespace UA
                 if (holder == null) continue;
                 foreach (Transform t in holder)
                 {
-                    if (link >= 4 + (map == 6 ? 3 : 0)) break;
+                    if (link >= 4 + (map == 9 ? 3 : 0)) break;
                     var from = t.position + t.right * 6f + Vector3.up * 2.2f + t.forward * 4f;
                     cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position + Vector3.up * 1.2f - from));
                     yield return Wait(0.5f);
                     yield return Shot($"97{(char)('a' + link++)}-map{map}-chain-link-fence");
                 }
             }
-            // the CityLord wooden ladders in the Port (no stairs)
+            // the CityLord wooden ladders
             World.I.ApplyLighting(0);
             yield return Until(() => World.I.MapReady, 30);
             int ladders = 0;
@@ -583,11 +532,9 @@ namespace UA
                 var from = l.transform.position - l.Into * 5f + Vector3.up * 2f + Vector3.Cross(Vector3.up, l.Into) * 2f;
                 cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(l.transform.position + Vector3.up * 1.5f - from));
                 yield return Wait(0.5f);
-                yield return Shot($"95{(char)('a' + ladders++)}-port-ladder");
+                yield return Shot($"95{(char)('a' + ladders++)}-citylord-ladder");
             }
             // the seven CityLord spawn points: on the streets, nothing under or above
-            World.I.ApplyLighting(12);
-            yield return Until(() => World.I.MapReady, 30);
             int spawn = 0;
             foreach (var p in World.I.Spawns.Take(7).ToList())
             {
@@ -608,7 +555,7 @@ namespace UA
         private IEnumerator ZahraSurvey()
         {
             var cam = CameraRig.I;
-            World.I.ApplyLighting(9);
+            World.I.ApplyLighting(3);
             yield return Until(() => World.I.MapReady, 30);
             int k = 0;
             for (int gz = -120; gz <= 120; gz += 20)
@@ -664,6 +611,7 @@ namespace UA
             yield return Wait(2f);
             yield return Shot("07-lobby-client");
             yield return Until(() => Session.I.Phase == Phase.Playing, 120);
+            StartCoroutine(FilmShots("c1f"));
             yield return Wait(4f);
             yield return Shot("c1-client-in-match");
             yield return Play(10f, "c2-client-firing", "c3-client-fight");
@@ -678,6 +626,19 @@ namespace UA
             yield return Until(() => app.Current == "results", 90);
             yield return Wait(1.5f);
             yield return Shot("c4-client-results");
+        }
+
+        /// <summary>The first kill film, on whichever machine: the shot leaving, the bullet on its way, the hit, the fall.</summary>
+        private IEnumerator FilmShots(string prefix)
+        {
+            yield return Until(() => KillCam.Active, 150);
+            if (!KillCam.Active) { App.Log("no first kill film"); yield break; }
+            float start = Time.realtimeSinceStartup;
+            foreach (var (at, name) in new[] { (0.2f, "a-aim"), (0.75f, "b-bullet"), (1.45f, "c-bullet-near"), (2.1f, "d-hit"), (3.2f, "e-fall") })
+            {
+                while (Time.realtimeSinceStartup - start < at) yield return null;
+                yield return Shot($"{prefix}{name}-first-kill");
+            }
         }
 
         /// <summary>Walk around and shoot with simulated input, taking up to two screenshots.</summary>

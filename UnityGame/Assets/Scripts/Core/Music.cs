@@ -3,9 +3,8 @@ using UnityEngine;
 namespace UA
 {
     /// <summary>
-    /// The menu music: starts after the splash screen, plays on in the menus and settings, fades out
-    /// when a match starts and comes back after it. The clip is cut so its end runs into its start, so
-    /// the loop is never heard. MUSIC in the settings turns it off.
+    /// The menu music ("Ready to Fight", David Fesliyan): plays on in the menus and settings, fades out
+    /// when a match starts and comes back after it. MUSIC in the settings turns it off.
     /// </summary>
     public class Music : MonoBehaviour
     {

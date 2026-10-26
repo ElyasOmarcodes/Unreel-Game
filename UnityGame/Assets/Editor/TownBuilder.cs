@@ -37,20 +37,20 @@ public static class TownBuilder
     {
         new Color(0.36f, 0.46f, 0.98f), new Color(0.82f, 0.38f, 0.3f), new Color(0.56f, 0.39f, 0.31f), new Color(0.42f, 0.44f, 0.54f),
     };
-    private static Material Cobbles => AssetSetup.Stone(PortBuilder.Pbr("T_Cobbles", "PavingStones070", new Color(0.8f, 0.77f, 0.88f), 0.35f), 2.5f);
-    private static Material Grass => PortBuilder.Pbr("T_Grass", "Grass004", new Color(0.82f, 0.95f, 0.78f), 0.2f);
-    private static Material Stone => AssetSetup.Stone(PortBuilder.Pbr("T_Stone", "PavingStones070", new Color(0.74f, 0.72f, 0.8f), 0.25f), 2.5f);
+    private static Material Cobbles => AssetSetup.Stone(Mats.Pbr("T_Cobbles", "PavingStones070", new Color(0.8f, 0.77f, 0.88f), 0.35f), 2.5f);
+    private static Material Grass => Mats.Pbr("T_Grass", "Grass004", new Color(0.82f, 0.95f, 0.78f), 0.2f);
+    private static Material Stone => AssetSetup.Stone(Mats.Pbr("T_Stone", "PavingStones070", new Color(0.74f, 0.72f, 0.8f), 0.25f), 2.5f);
     // field stone (dry_riverbed_rock) for the town wall, its towers, the parapets and the plinths;
     // flagstones (monastery_stone_floor) for steps and stairs: the houses and the church keep their stone
-    private static Material FieldStone => AssetSetup.Stone(PortBuilder.Pbr("T_FieldStone", "DryRiverbed", new Color(0.88f, 0.86f, 0.9f), 0.15f), 2.5f);
-    private static Material Flagstone => AssetSetup.Stone(PortBuilder.Pbr("T_Flagstone", "MonasteryFloor", new Color(0.9f, 0.88f, 0.94f), 0.25f), 2.5f);
-    private static Material Timber => PortBuilder.Pbr("T_Timber", "Wood049", new Color(0.45f, 0.27f, 0.18f), 0.35f);
-    private static Material DoorWood => PortBuilder.Pbr("T_Door", "Planks037A", new Color(0.62f, 0.36f, 0.22f), 0.35f);
-    private static Material Boards => PortBuilder.Pbr("WoodFloor", "WoodFloor051", Color.white, 0.6f);
-    private static Material Barn => PortBuilder.Pbr("T_Barn", "Planks037A", new Color(0.7f, 0.42f, 0.3f), 0.3f);
-    private static Material Hay => PortBuilder.Pbr("V_Hay", "Ground104", new Color(1f, 0.86f, 0.5f), 0.05f);
-    private static Material Plaster(int i) => PortBuilder.Pbr("T_Plaster" + i, "Plaster001", PlasterTints[i % PlasterTints.Length], 0.3f);
-    private static Material Roof(int i) => PortBuilder.Pbr("T_Roof" + i, "RoofingTiles006", RoofTints[i % RoofTints.Length], 0.4f);
+    private static Material FieldStone => AssetSetup.Stone(Mats.Pbr("T_FieldStone", "DryRiverbed", new Color(0.88f, 0.86f, 0.9f), 0.15f), 2.5f);
+    private static Material Flagstone => AssetSetup.Stone(Mats.Pbr("T_Flagstone", "MonasteryFloor", new Color(0.9f, 0.88f, 0.94f), 0.25f), 2.5f);
+    private static Material Timber => Mats.Pbr("T_Timber", "Wood049", new Color(0.45f, 0.27f, 0.18f), 0.35f);
+    private static Material DoorWood => Mats.Pbr("T_Door", "Planks037A", new Color(0.62f, 0.36f, 0.22f), 0.35f);
+    private static Material Boards => Mats.Pbr("WoodFloor", "WoodFloor051", Color.white, 0.6f);
+    private static Material Barn => Mats.Pbr("T_Barn", "Planks037A", new Color(0.7f, 0.42f, 0.3f), 0.3f);
+    private static Material Hay => Mats.Pbr("V_Hay", "Ground104", new Color(1f, 0.86f, 0.5f), 0.05f);
+    private static Material Plaster(int i) => Mats.Pbr("T_Plaster" + i, "Plaster001", PlasterTints[i % PlasterTints.Length], 0.3f);
+    private static Material Roof(int i) => Mats.Pbr("T_Roof" + i, "RoofingTiles006", RoofTints[i % RoofTints.Length], 0.4f);
     private static Material Iron => AssetSetup.Solid("T_Iron", new Color(0.07f, 0.07f, 0.08f), 0.45f, 0.6f);
     private static Material Glass => AssetSetup.Mat("T_WindowGlass", new Color(0.16f, 0.26f, 0.32f), 0.93f, 0.3f);
     private static Material Water => AssetSetup.WaterMat("Water_Canal", new Color(0.04f, 0.13f, 0.14f), new Color(0.12f, 0.3f, 0.3f), 2f, 0.22f);
@@ -457,7 +457,7 @@ public static class TownBuilder
         var t = Node("Well", root, p, 0);
         // a round floor of glazed tiles (interior_tiles) round the well
         if (AssetSetup.ExtraTex("InteriorTiles_BaseColor.jpg") != null)
-            MeshGen.Object("WellTiles", MeshGen.Cylinder(3.2f, 0.06f, 1.2f, 40), PortBuilder.Pbr("T_Tiles", "InteriorTiles", new Color(0.92f, 0.9f, 0.86f), 0.6f), t, p + Vector3.up * 0.02f);
+            MeshGen.Object("WellTiles", MeshGen.Cylinder(3.2f, 0.06f, 1.2f, 40), Mats.Pbr("T_Tiles", "InteriorTiles", new Color(0.92f, 0.9f, 0.86f), 0.6f), t, p + Vector3.up * 0.02f);
         MeshGen.TexCylinder("WellRing", p, 1.2f, 0.9f, FieldStone, 1.5f, t);
         MeshGen.TexCylinder("WellWater", p + Vector3.up * 0.7f, 1.0f, 0.22f, Water, 2f, t, false);
         // two posts on the ring carry the ridge beam; the little gable roof runs along them, its ridge on

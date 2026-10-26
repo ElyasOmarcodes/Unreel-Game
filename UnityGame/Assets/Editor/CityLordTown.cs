@@ -431,7 +431,7 @@ public static partial class CityLordBuilder
         var g = new GameObject("Garden").transform;
         g.SetParent(parent, false);
         g.SetPositionAndRotation(at, rot);
-        var grass = PortBuilder.Pbr("CL_Grass", "Grass004", new Color(0.85f, 0.95f, 0.8f), 0.15f);
+        var grass = Mats.Pbr("CL_Grass", "Grass004", new Color(0.85f, 0.95f, 0.8f), 0.15f);
         var green = AssetSetup.ExtraTex("GreenWall_BaseColor.jpg");
         var hedge = AssetSetup.Mat("CL_Hedge", new Color(0.85f, 1f, 0.8f), 0.25f, 0f, green, AssetSetup.ExtraTex("GreenWall_Normal.jpg"));
         MeshGen.TexBox("GardenBed", g.TransformPoint(new Vector3(0, 0.04f, 0)), new Vector3(w, 0.08f, l), grass, 3f, g, yaw, false);

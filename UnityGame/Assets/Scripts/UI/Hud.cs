@@ -283,6 +283,7 @@ namespace UA
             string line = k.Killer == k.Victim
                 ? $"<color={vc}>{victim}</color> <color=#aaaaaa>eliminated</color>"
                 : $"<color={kc}>{killer}</color>  <color=#ffb040>[{weapon}]</color>{(k.Headshot ? " <color=#ff5040>HEADSHOT</color>" : "")}  <color={vc}>{victim}</color>";
+            KillCam.OnKill(k);
             feed.Add((line, Time.unscaledTime + 6f));
             if (feed.Count > 5) feed.RemoveAt(0);
             if (k.Killer != k.Victim)
@@ -314,6 +315,8 @@ namespace UA
         {
             var s = Session.I;
             if (canvas == null || !canvas.gameObject.activeSelf || s == null) return;
+            // the first kill film: only its own bars and caption on the screen
+            canvas.enabled = !KillCam.Active;
             var me = s.Local;
             var lp = LocalPlayer.I;
             float now = Time.unscaledTime;

@@ -463,7 +463,7 @@ namespace UA
             Sfx.Step(clip, transform.position, s.Prone ? volume * 0.8f : volume, IsLocal);
         }
 
-        private float lastHealth = 100f, nextPain;
+        private float lastHealth = 100f, nextPain, nextBreath;
         private bool female;
 
         /// <summary>A cry when hit and when killed (Michel Baradari, CC-BY 3.0), heard around the body.</summary>
@@ -476,6 +476,12 @@ namespace UA
             }
             if (!s.Alive && Alive && Sfx.Count("death_") > 0)
                 Sfx.PlayAt("death_" + Random.Range(0, Sfx.Count("death_")), Chest, 0.9f, female ? 1.22f : 1f);
+            // badly hurt: one's own heavy breathing until healed (or dead)
+            if (IsLocal && s.Alive && s.Health < 30f && Time.time >= nextBreath && Sfx.Has("breath_0"))
+            {
+                nextBreath = Time.time + 5.4f;
+                Sfx.Play("breath_0", 0.4f, female ? 1.15f : 1f);
+            }
             lastHealth = s.Health;
         }
 

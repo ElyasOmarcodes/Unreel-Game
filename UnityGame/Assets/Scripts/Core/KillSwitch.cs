@@ -8,7 +8,7 @@ namespace UA
     /// <summary>
     /// The remote on/off switch of this version (ElyasOmarcodes/Ai-Model, branch Apps-Expire-Files,
     /// file A-W-Game.TXT: "true" plays, "false" stops). Read through the GitHub API with an ETag (an
-    /// unchanged file answers 304, every 10 s), the raw file as a fallback. Only a clear answer changes
+    /// unchanged file answers 304, which GitHub does not count against its limit: every 5 s), the raw file as a fallback. Only a clear answer changes
     /// anything: no internet, an error or an unreadable file leave the game as it was, and a "false" is
     /// kept until a real "true" comes. Nothing about the player is sent: one plain GET of a public file.
     /// </summary>
@@ -18,7 +18,7 @@ namespace UA
         private static readonly string Api = $"https://api.github.com/repos/{Owner}/{Repo}/contents/{FilePath}?ref={Branch}";
         private static readonly string Raw = $"https://raw.githubusercontent.com/{Owner}/{Repo}/{Branch}/{FilePath}";
         private const string KBlocked = "aw_blocked", KEtag = "aw_etag";
-        private const float Watch = 10f, Slow = 120f;
+        private const float Watch = 5f, Slow = 120f;
         private const int Timeout = 12;
 
         public static KillSwitch I { get; private set; }
@@ -48,24 +48,27 @@ namespace UA
         }
 
         private void OnEnable() => Arm();
-        private void OnDisable() { if (loop != null) StopCoroutine(loop); loop = null; }
+        private void OnDisable() { if (loop != null) StopCoroutine(loop); loop = null; busy = false; }
 
         private void OnApplicationFocus(bool focus)
         {
             if (focus) Arm();
-            else { if (loop != null) StopCoroutine(loop); loop = null; }
+            else { if (loop != null) StopCoroutine(loop); loop = null; busy = false; }
         }
 
         private void OnApplicationPause(bool paused)
         {
             if (!paused) Arm();
-            else { if (loop != null) StopCoroutine(loop); loop = null; }
+            else { if (loop != null) StopCoroutine(loop); loop = null; busy = false; }
         }
 
         private void Arm()
         {
             if (!isActiveAndEnabled) return;
             if (loop != null) StopCoroutine(loop);
+            // a check stopped half way (the loop restarted when the app came back to the front) would
+            // leave "busy" set for ever and no check would run again: start clean
+            busy = false;
             loop = StartCoroutine(Loop());
         }
 
@@ -100,6 +103,7 @@ namespace UA
                 if (r == Probe.Active || r == Probe.Blocked) { answer = r; break; }
                 if (r == Probe.None) { busy = false; yield break; }   // 304: nothing changed (never the cached raw file then)
             }
+            App.Log("killswitch answer " + answer);
             if (answer == Probe.Active && Blocked) Store(false);
             else if (answer == Probe.Blocked && !Blocked) Store(true);
             busy = false;   // offline or unclear: nothing changes

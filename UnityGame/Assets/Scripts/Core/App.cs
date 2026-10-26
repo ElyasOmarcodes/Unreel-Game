@@ -15,7 +15,7 @@ namespace UA
         public static void Log(string message) => Debug.Log("[UA] " + message);
 
         public string Current { get; private set; }
-        public MatchConfig Draft = new MatchConfig { Map = 9 };   // AL-ZAHRA first, as in the menu
+        public MatchConfig Draft = new MatchConfig { Map = 0 };   // STEEL CITY first, as in the menu
         public bool DraftPractice;
         public bool Paused { get; private set; }
 
@@ -421,7 +421,7 @@ namespace UA
             createButton.GetComponent<RectTransform>().At(0.5f, 0f, 200, 50, 560, 96, 0.5f, 0f);
         }
 
-        /// <summary>Which map of the menu a layout index belongs to (AL-ZAHRA, CITYLORD, VILLAGE, OLD TOWN, PORT).</summary>
+        /// <summary>Which map of the menu a layout index belongs to (STEEL CITY, AL-ZAHRA, VILLAGE, OLD TOWN).</summary>
         private static int MapSlot(int map)
         {
             int i = System.Array.IndexOf(MatchConfig.MapOrder, map - map % 3);

@@ -52,7 +52,7 @@ namespace UA
             var world = World.I;
             if (s == null || st == null || world == null || !st.Alive || !cc.enabled) return;
             float dt = Time.deltaTime;
-            bool playing = s.Phase == Phase.Playing;
+            bool playing = s.Phase == Phase.Playing && !KillCam.Active;
             var def = Weapons.Get(st.Primary);
             st.Weapon = def.Id;
             // nobody in the sights and a badly wounded team mate next to it: blood for the team mate

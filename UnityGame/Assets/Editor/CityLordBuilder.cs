@@ -220,7 +220,7 @@ public static partial class CityLordBuilder
         var spawns = objects.Where(o => S(o["path"]).StartsWith("Element/Network_Manager/spwan")).Select(o => (Vector3)M(o["world_matrix"]).GetColumn(3) + lift).ToList();
         var layout = new MapLayout
         {
-            Name = "CITYLORD",
+            Name = "STEEL CITY",
             Root = root.gameObject,
             Center = new Vector3(play.center.x, spawns.Count > 0 ? spawns.Average(s => s.y) : Lift, play.center.z),
             Radius = Mathf.Max(play.extents.x, play.extents.z),

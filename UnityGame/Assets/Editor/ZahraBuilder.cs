@@ -50,42 +50,42 @@ public static class ZahraBuilder
     private static Material Ataurique => ataurique;
     private static Material Cream => AssetSetup.Solid("Z_Cream", new Color(0.93f, 0.85f, 0.68f), 0.25f);
     private static Material Red => AssetSetup.Solid("Z_Red", new Color(0.62f, 0.2f, 0.12f), 0.2f);
-    private static Material Plaster => PortBuilder.Pbr("Z_PlasterWhite", "Plaster001", new Color(0.98f, 0.96f, 0.92f), 0.3f);
-    private static Material Almagra => PortBuilder.Pbr("Z_Almagra", "Plaster001", new Color(0.62f, 0.2f, 0.12f), 0.3f);
-    private static Material Violet => PortBuilder.Pbr("Z_Violet", "PavingStones070", new Color(0.72f, 0.62f, 0.78f), 0.4f);
-    private static Material BrickFloor => PortBuilder.Pbr("Z_BrickFloor", "Bricks076A", new Color(0.95f, 0.62f, 0.48f), 0.25f);
+    private static Material Plaster => Mats.Pbr("Z_PlasterWhite", "Plaster001", new Color(0.98f, 0.96f, 0.92f), 0.3f);
+    private static Material Almagra => Mats.Pbr("Z_Almagra", "Plaster001", new Color(0.62f, 0.2f, 0.12f), 0.3f);
+    private static Material Violet => Mats.Pbr("Z_Violet", "PavingStones070", new Color(0.72f, 0.62f, 0.78f), 0.4f);
+    private static Material BrickFloor => Mats.Pbr("Z_BrickFloor", "Bricks076A", new Color(0.95f, 0.62f, 0.48f), 0.25f);
     // field stone (dry_riverbed_rock) for the city walls, terrace faces, parapets and the plain walls of
     // the streets; flagstones (monastery_stone_floor) for stairs and some walks: the houses keep their own
-    private static Material Rubble => AssetSetup.Stone(PortBuilder.Pbr("Z_Rubble", "DryRiverbedSand", new Color(1f, 0.86f, 0.66f), 0.15f), 2.5f);
-    private static Material Flags => AssetSetup.Stone(PortBuilder.Pbr("Z_Flags", "MonasteryFloorSand", new Color(1f, 0.88f, 0.7f), 0.25f), 2.5f);
-    private static Material Paving => AssetSetup.Stone(PortBuilder.Pbr("Z_Paving", "PavingStones070", new Color(1f, 0.9f, 0.74f), 0.3f), 2.5f);
-    private static Material Sand => PortBuilder.Pbr("Z_Sand", "Ground104", new Color(1.05f, 0.92f, 0.72f), 0.08f);
-    private static Material Grass => PortBuilder.Pbr("Z_Grass", "Grass004", new Color(0.92f, 1.02f, 0.8f), 0.15f);
-    private static Material Gravel => PortBuilder.Pbr("Z_Gravel", "Gravel036L", new Color(1.02f, 0.95f, 0.84f), 0.15f);
+    private static Material Rubble => AssetSetup.Stone(Mats.Pbr("Z_Rubble", "DryRiverbedSand", new Color(1f, 0.86f, 0.66f), 0.15f), 2.5f);
+    private static Material Flags => AssetSetup.Stone(Mats.Pbr("Z_Flags", "MonasteryFloorSand", new Color(1f, 0.88f, 0.7f), 0.25f), 2.5f);
+    private static Material Paving => AssetSetup.Stone(Mats.Pbr("Z_Paving", "PavingStones070", new Color(1f, 0.9f, 0.74f), 0.3f), 2.5f);
+    private static Material Sand => Mats.Pbr("Z_Sand", "Ground104", new Color(1.05f, 0.92f, 0.72f), 0.08f);
+    private static Material Grass => Mats.Pbr("Z_Grass", "Grass004", new Color(0.92f, 1.02f, 0.8f), 0.15f);
+    private static Material Gravel => Mats.Pbr("Z_Gravel", "Gravel036L", new Color(1.02f, 0.95f, 0.84f), 0.15f);
     private static Material hedge;
     private static Material HedgeMat => hedge;
-    private static Material Lawn => PortBuilder.Pbr("Z_Lawn", "Grass004", new Color(0.8f, 0.98f, 0.62f), 0.12f);
-    private static Material Wheat => PortBuilder.Pbr("Z_Wheat", "Grass004", new Color(1.1f, 1.05f, 0.5f), 0.1f);
-    private static Material TownGround => PortBuilder.Pbr("Z_TownGround", "Gravel036L", new Color(0.98f, 0.88f, 0.72f), 0.1f);
-    private static Material Earth => PortBuilder.Pbr("Z_Earth", "Ground104", new Color(0.82f, 0.68f, 0.5f), 0.08f);
-    private static Material RoofTiles => PortBuilder.Pbr("Z_RoofTiles", "RoofingTiles006", new Color(0.9f, 0.52f, 0.36f), 0.3f);
-    private static Material Wood => PortBuilder.Pbr("Z_Wood", "Wood049", new Color(0.62f, 0.44f, 0.3f), 0.4f);
-    private static Material PalmTrunk => PortBuilder.Pbr("Z_PalmTrunk", "Wood049", new Color(0.62f, 0.5f, 0.38f), 0.2f);
+    private static Material Lawn => Mats.Pbr("Z_Lawn", "Grass004", new Color(0.8f, 0.98f, 0.62f), 0.12f);
+    private static Material Wheat => Mats.Pbr("Z_Wheat", "Grass004", new Color(1.1f, 1.05f, 0.5f), 0.1f);
+    private static Material TownGround => Mats.Pbr("Z_TownGround", "Gravel036L", new Color(0.98f, 0.88f, 0.72f), 0.1f);
+    private static Material Earth => Mats.Pbr("Z_Earth", "Ground104", new Color(0.82f, 0.68f, 0.5f), 0.08f);
+    private static Material RoofTiles => Mats.Pbr("Z_RoofTiles", "RoofingTiles006", new Color(0.9f, 0.52f, 0.36f), 0.3f);
+    private static Material Wood => Mats.Pbr("Z_Wood", "Wood049", new Color(0.62f, 0.44f, 0.3f), 0.4f);
+    private static Material PalmTrunk => Mats.Pbr("Z_PalmTrunk", "Wood049", new Color(0.62f, 0.5f, 0.38f), 0.2f);
     private static Material MarblePink => AssetSetup.Solid("Z_MarblePink", new Color(0.86f, 0.64f, 0.62f), 0.75f);
     private static Material MarbleBlue => AssetSetup.Solid("Z_MarbleBlue", new Color(0.6f, 0.67f, 0.76f), 0.75f);
     private static Material Capital => AssetSetup.Solid("Z_Capital", new Color(0.94f, 0.93f, 0.88f), 0.5f);
     private static Material Leaf => AssetSetup.Solid("Z_PalmLeaf", new Color(0.3f, 0.48f, 0.18f), 0.25f);
-    private static Material Cypress => PortBuilder.Pbr("Z_Cypress", "Grass001", new Color(0.3f, 0.48f, 0.24f), 0.1f);
+    private static Material Cypress => Mats.Pbr("Z_Cypress", "Grass001", new Color(0.3f, 0.48f, 0.24f), 0.1f);
     private static Material Bronze => AssetSetup.Solid("Z_Bronze", new Color(0.25f, 0.18f, 0.1f), 0.5f, 0.6f);
     private static Material Soot => AssetSetup.Solid("Z_Soot", new Color(0.08f, 0.06f, 0.05f), 0.2f);
     private static Material Water => AssetSetup.WaterMat("Water_Pool", new Color(0.04f, 0.17f, 0.18f), new Color(0.18f, 0.42f, 0.4f), 3f, 0.15f);
-    private static Material LimeOchre => PortBuilder.Pbr("Z_LimeOchre", "Plaster001", new Color(0.96f, 0.86f, 0.66f), 0.3f);
+    private static Material LimeOchre => Mats.Pbr("Z_LimeOchre", "Plaster001", new Color(0.96f, 0.86f, 0.66f), 0.3f);
     private static Material Gold => AssetSetup.Solid("Z_Gold", new Color(0.85f, 0.65f, 0.25f), 0.75f, 0.85f);
     private static Material Velvet => AssetSetup.Solid("Z_Velvet", new Color(0.5f, 0.06f, 0.08f), 0.2f);
     private static Material Terracotta => AssetSetup.Solid("Z_Terracotta", new Color(0.7f, 0.36f, 0.22f), 0.2f);
     /// <summary>Glazed ceramic tiles (interior_tiles): pool edges, channel rims, the palace courtyard.</summary>
-    private static Material Tiles => PortBuilder.Pbr("Z_Tiles", "InteriorTiles", new Color(1f, 0.96f, 0.9f), 0.65f);
-    private static Material Signboard => PortBuilder.Pbr("Z_Signboard", "Wood049", new Color(0.35f, 0.22f, 0.14f), 0.4f);
+    private static Material Tiles => Mats.Pbr("Z_Tiles", "InteriorTiles", new Color(1f, 0.96f, 0.9f), 0.65f);
+    private static Material Signboard => Mats.Pbr("Z_Signboard", "Wood049", new Color(0.35f, 0.22f, 0.14f), 0.4f);
     private static Material lattice, carpet;
 
     /// <summary>Running water, the waves drifting the way it flows (one material per direction).</summary>
@@ -2261,7 +2261,7 @@ public static class ZahraBuilder
     private static void Surroundings()
     {
         var t = Node("Surroundings", root, Vector3.zero, 0);
-        var hills = PortBuilder.Pbr("Z_Hills", "Grass004", new Color(0.62f, 0.72f, 0.48f), 0.1f);
+        var hills = Mats.Pbr("Z_Hills", "Grass004", new Color(0.62f, 0.72f, 0.48f), 0.1f);
         float North(float x, float z) => Upper - 2f + Mathf.Max(0f, z - 132f) * 0.32f * (0.55f + Fbm(x, z, 1)) + Fbm(x, z, 2) * 18f * Mathf.Clamp01((z - 132f) / 40f);
         var mesh = HillMesh("hills_north", Rect.MinMaxRect(-420f, 130f, 420f, 420f), 56, 22, North, 10f);
         var go = MeshObject(t, "SierraMorena", mesh, hills, false);

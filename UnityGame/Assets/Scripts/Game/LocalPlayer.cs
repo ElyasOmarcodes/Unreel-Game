@@ -26,6 +26,7 @@ namespace UA
         private Agent agent;
         private CharacterController cc;
         private float verticalSpeed;
+        private bool sprinting;
         private float nextFire;
         private float reloadEnd;
         private float boltAt;   // when the bolt is worked after a bolt-action shot
@@ -94,8 +95,8 @@ namespace UA
             if (s == null || state == null) return;
             var rig = CameraRig.I;
             bool alive = state.Alive;
-            bool canMove = alive && (s.Phase == Phase.Playing || s.Phase == Phase.Countdown) && Controls.Enabled;
-            bool canShoot = alive && s.Phase == Phase.Playing && Controls.Enabled;
+            bool canMove = alive && (s.Phase == Phase.Playing || s.Phase == Phase.Countdown) && Controls.Enabled && !KillCam.Active;
+            bool canShoot = alive && s.Phase == Phase.Playing && Controls.Enabled && !KillCam.Active;
             float dt = Time.deltaTime;
 
             // look
@@ -122,6 +123,7 @@ namespace UA
                 if (Controls.HealPressed && !Healing && bloodMate != null) StartHeal();
             }
             if (!alive) { Aiming = false; reloadEnd = 0; healEnd = 0; }
+            if (KillCam.Active) Aiming = false;
             if (Healing && Time.time >= healEnd) FinishHeal(s);
             var def = Current;
             if (Reloading && Time.time >= reloadEnd) FinishReload();
@@ -147,7 +149,10 @@ namespace UA
             var input = canMove ? Controls.Move : Vector2.zero;
             if (s.Phase == Phase.Countdown) input = Vector2.zero;
             bool firing = Time.time - LastShotTime < 0.25f;
-            bool sprint = input.y > 0.8f && Mathf.Abs(input.x) < 0.5f && !firing && !Aiming && !crouch && !prone && !Reloading;
+            // sprint with the stick pushed well forward; once sprinting a thumb that drifts a little back or
+            // to the side keeps it (no sudden drop to the run speed and the slower steps in the middle of a run)
+            bool forward = sprinting ? input.y > 0.45f && Mathf.Abs(input.x) < Mathf.Max(0.6f, input.y * 0.9f) : input.y > 0.8f && Mathf.Abs(input.x) < 0.5f;
+            bool sprint = sprinting = forward && !firing && !Aiming && !crouch && !prone && !Reloading;
             float baseSpeed = prone ? ProneSpeed : crouch ? CrouchSpeed : RunSpeed;
             float maxSpeed = (sprint ? SprintSpeed : baseSpeed) * def.MoveSpeed * (Aiming ? 0.72f : 1f);
             var wish = Quaternion.Euler(0, rig.Yaw, 0) * Vector3.ClampMagnitude(new Vector3(input.x, 0, input.y), 1f) * maxSpeed;

@@ -52,7 +52,7 @@ namespace UA
             skip.GetComponent<RectTransform>().At(0.5f, 1f, -250, -400, 340, 100, 0.5f, 1f);
             // the credits of the free models and sounds the game uses (their licences ask for them)
             var credits = UIKit.Txt(right, "3D characters, animations and city by Quaternius (CC0)  -  military gear: \"Military Character Kit 1.1\" by britdawgmasterfunk, CC-BY-4.0\n"
-                + "pain voices: Michel Baradari (opengameart.org), CC-BY 3.0  -  footsteps by Fantozzi, CC0  -  textures: Poly Haven, CC0", 19, TextAnchor.LowerCenter, new Color(1, 1, 1, 0.4f));
+                + "music \"Ready to Fight\" by David Fesliyan and sounds: FesliyanStudios.com  -  death cries: Michel Baradari, CC-BY 3.0  -  textures: Poly Haven, CC0", 19, TextAnchor.LowerCenter, new Color(1, 1, 1, 0.4f));
             credits.rectTransform.At(0.5f, 0f, 0, 24, 940, 110, 0.5f, 0f);
         }
 

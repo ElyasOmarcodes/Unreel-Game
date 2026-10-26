@@ -64,14 +64,14 @@ public static class VillageBuilder
         AssetDatabase.CreateAsset(m, path);
         return mudMats[name] = m;
     }
-    private static Material Dirt => PortBuilder.Pbr("V_Dirt", "Ground104", Color.white, 0.1f);
-    private static Material Wood => PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
-    private static Material OldWood => PortBuilder.Pbr("V_OldWood", "Planks037A", new Color(0.72f, 0.62f, 0.5f), 0.3f);
-    private static Material Hay => PortBuilder.Pbr("V_Hay", "Ground104", new Color(1f, 0.86f, 0.5f), 0.05f);
+    private static Material Dirt => Mats.Pbr("V_Dirt", "Ground104", Color.white, 0.1f);
+    private static Material Wood => Mats.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
+    private static Material OldWood => Mats.Pbr("V_OldWood", "Planks037A", new Color(0.72f, 0.62f, 0.5f), 0.3f);
+    private static Material Hay => Mats.Pbr("V_Hay", "Ground104", new Color(1f, 0.86f, 0.5f), 0.05f);
     // field stone (dry_riverbed_rock) for the compound walls, wells and stepping stones; flagstones
     // (monastery_stone_floor) for the steps of the bazaar: the houses keep their mud
-    private static Material Stone => AssetSetup.Stone(PortBuilder.Pbr("V_FieldStone", "DryRiverbedSand", new Color(0.95f, 0.82f, 0.66f), 0.15f), 2.5f);
-    private static Material Flagstone => AssetSetup.Stone(PortBuilder.Pbr("V_Flagstone", "MonasteryFloorSand", new Color(0.95f, 0.85f, 0.7f), 0.25f), 2.5f);
+    private static Material Stone => AssetSetup.Stone(Mats.Pbr("V_FieldStone", "DryRiverbedSand", new Color(0.95f, 0.82f, 0.66f), 0.15f), 2.5f);
+    private static Material Flagstone => AssetSetup.Stone(Mats.Pbr("V_Flagstone", "MonasteryFloorSand", new Color(0.95f, 0.85f, 0.7f), 0.25f), 2.5f);
 
     // ------------------------------------------------------------------ ground
 
@@ -112,7 +112,7 @@ public static class VillageBuilder
 
     public static float GroundHeight(float x, float z) => Mathf.Lerp(RawHeight(x, z), 0f, FlatWeight(x, z));
 
-    private static Texture2D T(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{PortBuilder.Textures}/{file}") ?? AssetSetup.ExtraTex(file);
+    private static Texture2D T(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Mats.Textures}/{file}") ?? AssetSetup.ExtraTex(file);
 
     /// <summary>
     /// The ground: a height field mesh (2 m cells) with a mesh collider, painted with grass, dirt,
@@ -570,7 +570,7 @@ public static class VillageBuilder
             Block("ShopPlatform", row, new Vector3(0, 0.35f, 0.4f), new Vector3(26f, 0.7f, 6.4f), MudPlaster, 0.03f);
             // glazed tiles on the shop platform (interior_tiles)
             if (AssetSetup.ExtraTex("InteriorTiles_BaseColor.jpg") != null)
-                MeshGen.TexBox("ShopTiles", row.TransformPoint(new Vector3(0, 0.715f, 0.4f)), new Vector3(25.8f, 0.03f, 6.2f), PortBuilder.Pbr("V_Tiles", "InteriorTiles", new Color(0.95f, 0.88f, 0.78f), 0.6f), 1.2f, row, row.eulerAngles.y, false);
+                MeshGen.TexBox("ShopTiles", row.TransformPoint(new Vector3(0, 0.715f, 0.4f)), new Vector3(25.8f, 0.03f, 6.2f), Mats.Pbr("V_Tiles", "InteriorTiles", new Color(0.95f, 0.88f, 0.78f), 0.6f), 1.2f, row, row.eulerAngles.y, false);
             // steps up to the platform edge (front at local z = -2.8; 4 steps of 0.36 m)
             global::Buildings.Stairs(t, row.TransformPoint(new Vector3(-8f, 0, -4.24f)), row.forward, 0.7f, 2.2f, Flagstone);
             global::Buildings.Stairs(t, row.TransformPoint(new Vector3(8f, 0, -4.24f)), row.forward, 0.7f, 2.2f, Flagstone);

@@ -51,8 +51,6 @@ public static class MapBuilder
         // the CityLord pieces (ammo box, wooden boxes, containers, tanks, the asphalt...) are used in every map
         CityLordBuilder.Load(true);
         // each map is built while the others are switched off so their colliders do not mix
-        var port = PortBuilder.Build(null);
-        port.Root.SetActive(false);
         var village = VillageBuilder.Build();
         village.Root.SetActive(false);
         var town = TownBuilder.Build();
@@ -66,14 +64,14 @@ public static class MapBuilder
         var world = worldGo.AddComponent<World>();
         world.Sun = sun;
         world.Skybox = skybox;
-        world.Layouts = new[] { port, village, town, zahra, cityLord };
+        world.Layouts = new[] { cityLord, zahra, village, town };   // the order of MatchConfig.MapNames
 
         new GameObject("App").AddComponent<App>();
 
         // every map into a scene of its own: the game loads only the one being played (memory)
         EditorSceneManager.SaveScene(scene, ScenePath);
         var buildScenes = new List<EditorBuildSettingsScene> { new EditorBuildSettingsScene(ScenePath, true) };
-        var names = new[] { "Map_Port", "Map_Village", "Map_OldTown", "Map_Zahra", "Map_CityLord" };
+        var names = new[] { "Map_CityLord", "Map_Zahra", "Map_Village", "Map_OldTown" };
         for (int i = 0; i < world.Layouts.Length; i++)
         {
             var layout = world.Layouts[i];

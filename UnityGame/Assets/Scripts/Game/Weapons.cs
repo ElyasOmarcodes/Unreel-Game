@@ -37,23 +37,33 @@ namespace UA
     /// <summary>
     /// Damage rules (100 health): AK-47 kills with 5 body shots or 2 head shots, M4A1 6 / 2,
     /// L96 sniper 2 body shots or 1 head shot, SVD 2 / 1, Glock 7 / 3, Desert Eagle 3 / 2,
-    /// MP5 8 / 3, PKM 6 / 3 (fast, a belt of 100, slow to reload, heavy to carry), SPAS-12 one close shot. Scoped guns: M4A1 (ACOG), SVD (PSO-1: its real field of view of about 6 degrees, reticle in true thousandths), L96.
+    /// MP5 8 / 3, PKM 6 / 3 (fast, a belt of 100, slow to reload, heavy to carry), SPAS-12 one close shot. Scoped guns: M4A1 (ACOG 4x), SVD (PSO-1 4x, reticle in true thousandths), L96 (6x), each at its power / ScopeScale.
     /// Any weapon can go in either slot.
     /// </summary>
     public static class Weapons
     {
         public const int Count = 9;
 
+        /// <summary>
+        /// The maps are small: a scope magnifies its real power divided by this (ACOG and PSO-1 4x -> 2.7x,
+        /// the 6x of the L96 -> 4x), so a target across the map still fills the sight sensibly.
+        /// </summary>
+        public const float ScopeScale = 1.5f;
+
+        /// <summary>Field of view of a scope of this real magnification (the hip view is 62 degrees).</summary>
+        public static float ScopeFov(float magnification) =>
+            2f * Mathf.Atan(Mathf.Tan(31f * Mathf.Deg2Rad) * ScopeScale / magnification) * Mathf.Rad2Deg;
+
         public static readonly WeaponDef[] All =
         {
             new WeaponDef { Id = 0, Name = "AK-47", Climb = 0.5f, Primary = true, Damage = 21, HeadMultiplier = 2.5f, FireRate = 10f, Range = 400, Spread = 2.6f, AimSpread = 0.7f, Recoil = 1.5f, ReloadTime = 2.4f, MagSize = 30, Reserve = 150, Auto = true, AimFov = 42, Sound = "shot_ak", MoveSpeed = 0.95f, Caliber = "7.62×39 mm", MuzzleVelocity = 715, EffectiveRange = 350, Action = "AUTO 600 RPM" },
-            new WeaponDef { Id = 1, Name = "M4A1 ACOG", Climb = 0.35f, Primary = true, Damage = 18, HeadMultiplier = 2.8f, FireRate = 12.5f, Range = 450, Spread = 2.1f, AimSpread = 0.35f, Recoil = 1.05f, ReloadTime = 2.2f, MagSize = 30, Reserve = 180, Auto = true, Scope = true, AimFov = 27, Sound = "shot_m4", MoveSpeed = 0.97f, Caliber = "5.56×45 mm NATO", MuzzleVelocity = 910, EffectiveRange = 500, Action = "AUTO 750 RPM" },
+            new WeaponDef { Id = 1, Name = "M4A1 ACOG", Climb = 0.35f, Primary = true, Damage = 18, HeadMultiplier = 2.8f, FireRate = 12.5f, Range = 450, Spread = 2.1f, AimSpread = 0.35f, Recoil = 1.05f, ReloadTime = 2.2f, MagSize = 30, Reserve = 180, Auto = true, Scope = true, AimFov = ScopeFov(4f), Sound = "shot_m4", MoveSpeed = 0.97f, Caliber = "5.56×45 mm NATO", MuzzleVelocity = 910, EffectiveRange = 500, Action = "AUTO 750 RPM" },
             new WeaponDef { Id = 2, Name = "SPAS-12", Climb = 1.4f, Primary = true, Damage = 13, HeadMultiplier = 1.5f, Pellets = 9, FireRate = 1.4f, Range = 38, Spread = 6.5f, AimSpread = 4.5f, Recoil = 4f, ReloadTime = 3.2f, MagSize = 8, Reserve = 40, AimFov = 50, Sound = "shot_shotgun", MoveSpeed = 0.95f, Caliber = "12 GAUGE", MuzzleVelocity = 400, EffectiveRange = 40, Action = "SEMI-AUTO" },
-            new WeaponDef { Id = 3, Name = "L96 SNIPER", Climb = 1.0f, Primary = true, Damage = 75, HeadMultiplier = 3f, FireRate = 0.8f, Range = 800, Spread = 7f, AimSpread = 0f, Recoil = 5f, ReloadTime = 3f, MagSize = 5, Reserve = 25, Scope = true, BoltAction = true, AimFov = 4.5f, Sound = "shot_sniper", MoveSpeed = 0.88f, Caliber = "7.62×51 mm NATO", MuzzleVelocity = 850, EffectiveRange = 800, Action = "BOLT ACTION" },
+            new WeaponDef { Id = 3, Name = "L96 SNIPER", Climb = 1.0f, Primary = true, Damage = 75, HeadMultiplier = 3f, FireRate = 0.8f, Range = 800, Spread = 7f, AimSpread = 0f, Recoil = 5f, ReloadTime = 3f, MagSize = 5, Reserve = 25, Scope = true, BoltAction = true, AimFov = ScopeFov(6f), Sound = "shot_sniper", MoveSpeed = 0.88f, Caliber = "7.62×51 mm NATO", MuzzleVelocity = 850, EffectiveRange = 800, Action = "BOLT ACTION" },
             new WeaponDef { Id = 4, Name = "GLOCK 17", Climb = 0.35f, Primary = false, Damage = 15, HeadMultiplier = 2.5f, FireRate = 6.5f, Range = 150, Spread = 2.2f, AimSpread = 0.8f, Recoil = 0.9f, ReloadTime = 1.5f, MagSize = 17, Reserve = 85, AimFov = 50, Sound = "shot_pistol", MoveSpeed = 1.05f, Caliber = "9×19 mm", MuzzleVelocity = 375, EffectiveRange = 50, Action = "SEMI-AUTO" },
             new WeaponDef { Id = 5, Name = "DESERT EAGLE", Climb = 1.0f, Primary = false, Damage = 35, HeadMultiplier = 2.5f, FireRate = 2.6f, Range = 150, Spread = 2.6f, AimSpread = 0.7f, Recoil = 3.2f, ReloadTime = 1.9f, MagSize = 7, Reserve = 35, AimFov = 48, Sound = "shot_deagle", MoveSpeed = 1.03f, Caliber = ".50 AE", MuzzleVelocity = 470, EffectiveRange = 50, Action = "SEMI-AUTO" },
             new WeaponDef { Id = 6, Name = "MP5", Climb = 0.2f, Primary = false, Damage = 14, HeadMultiplier = 2.2f, FireRate = 13.33f, Range = 220, Spread = 2.8f, AimSpread = 1f, Recoil = 0.8f, ReloadTime = 2f, MagSize = 30, Reserve = 180, Auto = true, AimFov = 46, Sound = "shot_smg", MoveSpeed = 1.02f, Caliber = "9×19 mm", MuzzleVelocity = 400, EffectiveRange = 150, Action = "AUTO 800 RPM" },
-            new WeaponDef { Id = 7, Name = "SVD DRAGUNOV", Climb = 0.9f, Primary = true, Damage = 52, HeadMultiplier = 2.4f, FireRate = 3f, Range = 700, Spread = 4f, AimSpread = 0.1f, Recoil = 3f, ReloadTime = 2.6f, MagSize = 10, Reserve = 40, Scope = true, AimFov = 6.5f, Sound = "shot_marksman", MoveSpeed = 0.92f, Caliber = "7.62×54 mm R", MuzzleVelocity = 830, EffectiveRange = 800, Action = "SEMI-AUTO" },
+            new WeaponDef { Id = 7, Name = "SVD DRAGUNOV", Climb = 0.9f, Primary = true, Damage = 52, HeadMultiplier = 2.4f, FireRate = 3f, Range = 700, Spread = 4f, AimSpread = 0.1f, Recoil = 3f, ReloadTime = 2.6f, MagSize = 10, Reserve = 40, Scope = true, AimFov = ScopeFov(4f), Sound = "shot_marksman", MoveSpeed = 0.92f, Caliber = "7.62×54 mm R", MuzzleVelocity = 830, EffectiveRange = 800, Action = "SEMI-AUTO" },
             new WeaponDef { Id = 8, Name = "PKM", Climb = 0.45f, Primary = true, Damage = 19, HeadMultiplier = 2.4f, FireRate = 12.5f, Range = 500, Spread = 3.4f, AimSpread = 1.2f, Recoil = 1.9f, ReloadTime = 5.5f, MagSize = 100, Reserve = 200, Auto = true, AimFov = 45, Sound = "shot_ak", SoundPitch = 0.86f, MoveSpeed = 0.85f, Caliber = "7.62×54 mm R", MuzzleVelocity = 825, EffectiveRange = 1000, Action = "AUTO 750 RPM, BELT 100" },
         };
 

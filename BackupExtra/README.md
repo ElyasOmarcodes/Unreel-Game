@@ -19,3 +19,21 @@ To bring the map back:
 
 The city kit itself is still downloaded by `.github/scripts/fetch-assets.sh` (into
 `Assets/ThirdParty/City`); unused assets are not packed into the APK.
+
+## Port/
+
+The PORT harbour map (corrugated steel warehouses, oil tanks, silos, containers, the loading pit and
+its tunnel, the ship and the crane, with the CityLord ladders and props). `PortBuilder.cs` is the
+builder as it was when the map was taken out; `AutoTest-views.txt` holds its camera tour views.
+
+To bring the map back:
+
+1. Copy `PortBuilder.cs` into `UnityGame/Assets/Editor/` (its materials now come from `Mats.Pbr`:
+   replace its own `Pbr`/`T`/`mats` with `Mats.Pbr`).
+2. In `MapBuilder.BuildScene` build it with `PortBuilder.Build(null)`, add it to `world.Layouts`
+   and `names` (`"Map_Port"`), add `"PORT - DAY", "PORT - SUNSET", "PORT - NIGHT"` to
+   `MatchConfig.MapNames` at the same place, its base number to `MapOrder`/`MapTitles`, and raise
+   `Session.Version`.
+3. Put the Poly Haven props (`Barrel_01`, `old_military_crate`, `propane_tank` ...) and the corrugated
+   steel / asphalt / plaster texture sets back into `.github/scripts/fetch-assets.sh` (see the git
+   history of that file).

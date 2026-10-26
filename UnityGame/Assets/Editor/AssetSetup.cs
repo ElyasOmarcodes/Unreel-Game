@@ -33,7 +33,7 @@ public static class AssetSetup
 
     /// <summary>Old rusted iron, dark nearly to black (rusty_metal_02): the posts of the boards in every map.</summary>
     /// <summary>Old white-painted iron gone rusty (Poly Haven rusty_metal_02 as it is): the name boards outside al-Zahra.</summary>
-    public static Material WhiteIron => PortBuilder.Pbr("WhiteIron", "RustyMetal02", new Color(1f, 1f, 1f), 0.3f, 0.45f);
+    public static Material WhiteIron => Mats.Pbr("WhiteIron", "RustyMetal02", new Color(1f, 1f, 1f), 0.3f, 0.45f);
     /// <summary>
     /// Makes a stone material look like a real wall or floor over its whole length: texture coordinates
     /// from the place in the map ('metres' per repeat, set when the map is merged) and a broad, faint
@@ -54,7 +54,7 @@ public static class AssetSetup
         return m;
     }
 
-    public static Material RustyPost => PortBuilder.Pbr("RustyPost", "RustyMetal02", new Color(0.3f, 0.28f, 0.27f), 0.35f, 0.5f);
+    public static Material RustyPost => Mats.Pbr("RustyPost", "RustyMetal02", new Color(0.3f, 0.28f, 0.27f), 0.35f, 0.5f);
 
     public static Texture2D ExtraTex(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Extra}/{file}");
 
@@ -545,7 +545,7 @@ public static class AssetSetup
         string key = (wood ? "Wood_" : "Metal_") + ColorUtility.ToHtmlStringRGB(c);
         if (gunMaterials.TryGetValue(key, out var m) && m != null) return m;
         string set = wood ? "Wood049" : "Metal032";
-        Texture2D T(string kind) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{PortBuilder.Textures}/{set}_{kind}");
+        Texture2D T(string kind) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Mats.Textures}/{set}_{kind}");
         var tint = wood ? new Color(Mathf.Max(c.r, 0.35f) * 1.3f, Mathf.Max(c.g, 0.2f) * 1.3f, Mathf.Max(c.b, 0.12f) * 1.3f) : new Color(c.r * 0.9f + 0.03f, c.g * 0.9f + 0.03f, c.b * 0.9f + 0.03f);
         return gunMaterials[key] = Mat("Gun_" + key, tint, wood ? 0.45f : 0.75f, wood ? 0f : 0.8f, T("BaseColor.jpg"), T("Normal.jpg"), wood ? null : T("MS.png"));
     }

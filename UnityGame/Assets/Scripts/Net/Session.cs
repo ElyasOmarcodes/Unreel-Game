@@ -24,10 +24,9 @@ namespace UA
 
         public static readonly string[] MapNames =
         {
-            "PORT - DAY", "PORT - SUNSET", "PORT - NIGHT",
-            "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT", "OLD TOWN - DAY", "OLD TOWN - SUNSET", "OLD TOWN - NIGHT",
+            "STEEL CITY - DAY", "STEEL CITY - SUNSET", "STEEL CITY - NIGHT",
             "AL-ZAHRA - DAY", "AL-ZAHRA - SUNSET", "AL-ZAHRA - NIGHT",
-            "CITYLORD - DAY", "CITYLORD - SUNSET", "CITYLORD - NIGHT",
+            "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT", "OLD TOWN - DAY", "OLD TOWN - SUNSET", "OLD TOWN - NIGHT",
         };
         public static readonly string[] ModeNames = { "TEAMS", "SOLO - NO TEAMS" };
         public const int MaxTeams = 10;
@@ -40,8 +39,8 @@ namespace UA
         public static string TeamName(int team) => "TEAM " + (team % MaxTeams + 1);
         public static string TeamHex(int team) => "#" + ColorUtility.ToHtmlStringRGB(TeamColors[team % MaxTeams]);
         /// <summary>The maps in the order of the menu (base layout of each; + 0 day, 1 afternoon, 2 evening).</summary>
-        public static readonly int[] MapOrder = { 9, 12, 3, 6, 0 };
-        public static readonly string[] MapTitles = { "AL-ZAHRA", "CITYLORD", "VILLAGE", "OLD TOWN", "PORT" };
+        public static readonly int[] MapOrder = { 0, 3, 6, 9 };
+        public static readonly string[] MapTitles = { "STEEL CITY", "AL-ZAHRA", "VILLAGE", "OLD TOWN" };
         public static readonly string[] TimeNames = { "DAY", "AFTERNOON", "EVENING" };
         public static readonly string[] SkillNames = { "EASY", "NORMAL", "HARD" };
 
@@ -113,7 +112,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 11;
+        public const byte Version = 12;
         public const byte NoPlayer = 255;
         public const string PasswordNeeded = "This group is locked: type its password";
         public const string WrongPassword = "Wrong password for this group";
@@ -121,6 +120,8 @@ namespace UA
         public bool Active, IsHost, Practice;
         public MatchConfig Config = new MatchConfig();
         public Phase Phase;
+        /// <summary>Counts the matches played in this session (each countdown starts a new one).</summary>
+        public int MatchNumber;
         public float TimeLeft;
         public readonly int[] TeamScore = new int[MatchConfig.MaxTeams];
         public readonly Dictionary<byte, PlayerState> Players = new Dictionary<byte, PlayerState>();
@@ -516,6 +517,15 @@ namespace UA
             SetPhase(Phase.Countdown);
         }
 
+        /// <summary>Host: the match stands still for a while (the first kill film): the clock and the respawns wait.</summary>
+        public void Hold(float seconds)
+        {
+            if (!IsHost || Phase != Phase.Playing) return;
+            phaseEnd += seconds;
+            foreach (var p in Players.Values)
+                if (!p.Alive) p.RespawnAt += seconds;
+        }
+
         public void EndMatch()
         {
             if (!IsHost || Phase == Phase.Lobby || Phase == Phase.Ended) return;
@@ -534,6 +544,7 @@ namespace UA
         {
             if (Phase == phase && phase != Phase.Lobby) return;
             Phase = phase;
+            if (phase == Phase.Countdown) MatchNumber++;
             if (phase != Phase.Playing) Grenade.ClearAll();
             if (phase == Phase.Lobby) foreach (var p in Players.Values) p.Spawned = false;
             App.Log("phase=" + phase);
@@ -655,7 +666,7 @@ namespace UA
         /// <summary>Host: hit test a shot against the world and the players and apply its damage.</summary>
         private void ProcessShot(Shot shot)
         {
-            if (Phase != Phase.Playing || !Players.TryGetValue(shot.Shooter, out var shooter) || !shooter.Alive || World.I == null) return;
+            if (Phase != Phase.Playing || KillCam.Active || !Players.TryGetValue(shot.Shooter, out var shooter) || !shooter.Alive || World.I == null) return;
             var def = Weapons.Get(shot.Weapon);
             var dirs = Ballistics.Pellets(shot.Dir.normalized, shot.Seed, def);
             shooter.Shots++;
@@ -1028,7 +1039,7 @@ namespace UA
 
         private void HostThrow(Throw t)
         {
-            if (Phase != Phase.Playing || !Players.TryGetValue(t.Thrower, out var p) || !p.Alive) return;
+            if (Phase != Phase.Playing || KillCam.Active || !Players.TryGetValue(t.Thrower, out var p) || !p.Alive) return;
             Grenade.Spawn(t.Thrower, t.Seq, t.Origin, Vector3.ClampMagnitude(t.Velocity, 25f), true);
             AddNade(new NadeEvent { Thrower = t.Thrower, ThrowSeq = t.Seq, Kind = 0, A = t.Origin, B = Vector3.ClampMagnitude(t.Velocity, 25f) });
         }

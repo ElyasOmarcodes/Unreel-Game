@@ -8,12 +8,12 @@ using UnityEngine;
 /// </summary>
 public static class Obstacles
 {
-    private static Material Sandbag => PortBuilder.Pbr("Sandbag", "Concrete042A", new Color(0.72f, 0.64f, 0.46f), 0.25f);
-    private static Material Rust => PortBuilder.Pbr("RustPlates", "MetalPlates013", Color.white, 0.7f);
-    private static Material Burned => PortBuilder.Pbr("Burned", "MetalPlates013", new Color(0.32f, 0.29f, 0.27f), 0.5f);
-    private static Material Concrete => PortBuilder.Pbr("Concrete", "Concrete034", Color.white, 0.6f);
-    private static Material Steel => PortBuilder.Pbr("HedgehogSteel", "Metal032", new Color(0.35f, 0.36f, 0.37f), 0.7f);
-    private static Material Crate => PortBuilder.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
+    private static Material Sandbag => Mats.Pbr("Sandbag", "Concrete042A", new Color(0.72f, 0.64f, 0.46f), 0.25f);
+    private static Material Rust => Mats.Pbr("RustPlates", "MetalPlates013", Color.white, 0.7f);
+    private static Material Burned => Mats.Pbr("Burned", "MetalPlates013", new Color(0.32f, 0.29f, 0.27f), 0.5f);
+    private static Material Concrete => Mats.Pbr("Concrete", "Concrete034", Color.white, 0.6f);
+    private static Material Steel => Mats.Pbr("HedgehogSteel", "Metal032", new Color(0.35f, 0.36f, 0.37f), 0.7f);
+    private static Material Crate => Mats.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
 
     private static GameObject Box(string name, Transform parent, Vector3 localPos, Vector3 size, Material m, float tex, float localYaw = 0f, bool collider = true, float round = 0f)
         => round > 0f
@@ -147,7 +147,7 @@ public static class Obstacles
         var t = Root(parent, "AmmoCrate", pos, yaw);
         if (CityLordBuilder.Place("AmmoBox", t, pos, yaw) == null)
         {
-            var olive = PortBuilder.Pbr("AmmoOlive", "Wood049", new Color(0.36f, 0.42f, 0.26f), 0.4f);
+            var olive = Mats.Pbr("AmmoOlive", "Wood049", new Color(0.36f, 0.42f, 0.26f), 0.4f);
             Box("Crate", t, new Vector3(0, 0.35f, 0), new Vector3(1.2f, 0.7f, 0.7f), olive, 0.8f);
         }
         t.gameObject.AddComponent<AmmoBox>();

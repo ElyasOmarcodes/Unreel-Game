@@ -61,8 +61,9 @@ namespace UA
         public Vector3 Center => layout.Center;
         public float Radius => layout.Radius;
 
-        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for the port, the village, the old town, Al-Zahra and CityLord.</summary>
+        /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for CityLord (STEEL CITY), Al-Zahra, the village and the old town.</summary>
         public static int LayoutOf(int map) => map / 3;
+        public const int CityLordLayout = 0, ZahraLayout = 1;
 
         private void Awake()
         {
@@ -316,7 +317,7 @@ namespace UA
                     RenderSettings.ambientGroundColor = new Color(0.2f, 0.19f, 0.17f);
                     RenderSettings.fogColor = new Color(0.7f, 0.76f, 0.84f);
                     RenderSettings.fogDensity = 0.006f;
-                    if (LayoutOf(map) == 3)
+                    if (LayoutOf(map) == ZahraLayout)
                     {
                         // Al-Zahra in spring: warm, soft Andalusian light, a clear sky and a light haze over the valley
                         Sun.transform.rotation = Quaternion.Euler(52f, -150f, 0f);
@@ -331,7 +332,7 @@ namespace UA
                     break;
             }
             // CityLord by day as in its own scene: its sun, a flat ambient light, no fog, the six-sided sky
-            bool cityLord = LayoutOf(map) == 4;
+            bool cityLord = LayoutOf(map) == CityLordLayout;
             bool ownSky = cityLord && preset == 0;
             if (ownSky)
             {

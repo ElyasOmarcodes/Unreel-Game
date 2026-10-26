@@ -122,7 +122,8 @@ public class ImportRules : AssetPostprocessor
         bool music = assetPath.Contains("/music_");
         importer.forceToMono = !music;   // the music keeps its stereo
         var settings = importer.defaultSampleSettings;
-        settings.loadType = AudioClipLoadType.DecompressOnLoad;   // also keeps the music loop seamless
+        // the sounds ready to play at once; the two minutes of music stay compressed in memory (2 MB, not 23)
+        settings.loadType = music ? AudioClipLoadType.CompressedInMemory : AudioClipLoadType.DecompressOnLoad;
         settings.compressionFormat = AudioCompressionFormat.Vorbis;
         settings.quality = music ? 0.6f : 0.5f;
         importer.defaultSampleSettings = settings;
