@@ -513,21 +513,24 @@ public static class AssetSetup
     private static GameObject Tube(Transform parent, Vector3 center, float length, float radius, Material material) =>
         Part(parent, PrimitiveType.Cylinder, center, new Vector3(radius * 2, length / 2, radius * 2), material, new Vector3(90, 0, 0));
 
-    // Quaternius Ultimate Gun Pack model used for each weapon, its length in meters and where the hand
-    // holds it (fraction of the length from the back, fraction of the height from the bottom)
-    // (several candidates per weapon: the first model found in the pack is used)
+    // the model of each weapon, its length in meters and where the hand holds it (fraction of the length
+    // from the back, fraction of the height from the bottom). A folder under Assets/Weapons is the player's
+    // weapon pack: textured parts (Body.obj, Mag.obj ...) already barrel along +Z, each with its
+    // <part>_Albedo / _Normal / _MS textures; other names are Quaternius Ultimate Gun Pack models
+    // (several candidates per weapon: the first found is used)
     public static readonly string[][] GunModels =
     {
-        new[] { "AssaultRifle_2" }, new[] { "AssaultRifle2_1" }, new[] { "Shotgun_1" }, new[] { "SniperRifle_1" },
-        new[] { "Pistol_1" }, new[] { "Revolver_1" }, new[] { "SubmachineGun_2", "SubmachineGun_1" }, new[] { "SniperRifle_4", "SniperRifle_2", "SniperRifle_1" },
+        new[] { "Assets/Weapons/AK47" }, new[] { "Assets/Weapons/M4A1" }, new[] { "Shotgun_1" }, new[] { "Assets/Weapons/L96" },
+        new[] { "Pistol_1" }, new[] { "Revolver_1" }, new[] { "Assets/Weapons/MP5K" }, new[] { "SniperRifle_4", "SniperRifle_2", "SniperRifle_1" },
         new[] { "Assets/Weapons/PKM/PKM.fbx" },   // PKM machine gun model brought by the player (barrel already along +Z)
+        new[] { "Assets/Weapons/SCARL" }, new[] { "Assets/Weapons/UMP45" }, new[] { "Assets/Weapons/Kar98k" },
     };
-    private static readonly float[] GunLengths = { 0.88f, 0.84f, 0.98f, 1.15f, 0.2f, 0.27f, 0.55f, 1.12f, 1.19f };
+    private static readonly float[] GunLengths = { 0.88f, 0.84f, 0.98f, 1.18f, 0.2f, 0.27f, 0.33f, 1.12f, 1.19f, 0.89f, 0.69f, 1.11f };
     private static readonly Vector2[] GunGrips =
     {
-        new Vector2(0.36f, 0.35f), new Vector2(0.36f, 0.35f), new Vector2(0.32f, 0.35f), new Vector2(0.3f, 0.35f),
-        new Vector2(0.2f, 0.45f), new Vector2(0.2f, 0.45f), new Vector2(0.4f, 0.35f), new Vector2(0.3f, 0.35f),
-        new Vector2(0.34f, 0.3f),
+        new Vector2(0.28f, 0.46f), new Vector2(0.26f, 0.4f), new Vector2(0.32f, 0.35f), new Vector2(0.27f, 0.35f),
+        new Vector2(0.2f, 0.45f), new Vector2(0.2f, 0.45f), new Vector2(0.2f, 0.39f), new Vector2(0.3f, 0.35f),
+        new Vector2(0.34f, 0.3f), new Vector2(0.35f, 0.43f), new Vector2(0.43f, 0.5f), new Vector2(0.23f, 0.37f),
     };
 
     private static readonly Dictionary<string, Material> gunMaterials = new Dictionary<string, Material>();
@@ -596,29 +599,29 @@ public static class AssetSetup
         }
     }
 
-    /// <summary>ACOG style sight on a rail, for rifles whose model has no optic.</summary>
-    private static void AddScope(Transform gun, float top, float z)
-    {
-        var black = Solid("ScopeBody", new Color(0.06f, 0.06f, 0.065f), 0.55f, 0.4f);
-        var lens = Solid("ScopeLens", new Color(0.15f, 0.32f, 0.38f), 0.97f, 0.6f);
-        Part(gun, PrimitiveType.Cube, new Vector3(0, top + 0.012f, z), new Vector3(0.03f, 0.024f, 0.09f), black);
-        Tube(gun, new Vector3(0, top + 0.05f, z), 0.15f, 0.022f, black);
-        Tube(gun, new Vector3(0, top + 0.05f, z + 0.085f), 0.03f, 0.027f, black);
-        Tube(gun, new Vector3(0, top + 0.05f, z - 0.08f), 0.03f, 0.024f, black);
-        Part(gun, PrimitiveType.Cylinder, new Vector3(0, top + 0.05f, z + 0.101f), new Vector3(0.048f, 0.002f, 0.048f), lens, new Vector3(90, 0, 0));
-        Part(gun, PrimitiveType.Cylinder, new Vector3(0, top + 0.05f, z - 0.096f), new Vector3(0.04f, 0.002f, 0.04f), lens, new Vector3(90, 0, 0));
-    }
-
     /// <summary>Instance of a gun model from the pack, barrel along +Z, scaled to the given length.</summary>
     public static GameObject GunModel(string name, float length, bool textured = false)
     {
         // a full asset path for models outside the pack (their barrel already points to +Z)
-        bool own = name.EndsWith(".fbx");
-        var model = AssetDatabase.LoadAssetAtPath<GameObject>(own ? name : $"{GunsPath}/{name}.fbx");
-        if (model == null) return null;
-        if (own) name = System.IO.Path.GetFileNameWithoutExtension(name);
+        bool pack = AssetDatabase.IsValidFolder(name);
+        bool own = pack || name.EndsWith(".fbx");
+        GameObject go;
+        if (pack)
+        {
+            go = PackGun(name);
+            if (go == null) return null;
+            name = System.IO.Path.GetFileName(name);
+            textured = false;   // its own textures
+        }
+        else
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(own ? name : $"{GunsPath}/{name}.fbx");
+            if (model == null) return null;
+            if (own) name = System.IO.Path.GetFileNameWithoutExtension(name);
+            go = (GameObject)Object.Instantiate(model);
+        }
         var holder = new GameObject(name);
-        var go = (GameObject)Object.Instantiate(model, holder.transform);
+        go.transform.SetParent(holder.transform, false);
         foreach (var c in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
         var b = RendererBounds(go);
         // longest side becomes the barrel axis
@@ -639,6 +642,29 @@ public static class AssetSetup
         }
         if (textured) TextureGun(holder, name);
         return holder;
+    }
+
+    /// <summary>A gun of the player's weapon pack: every part (OBJ) of its folder with its own textures.</summary>
+    private static GameObject PackGun(string folder)
+    {
+        var parts = Directory.GetFiles(folder, "*.obj").Select(p => p.Replace('\\', '/')).OrderBy(p => p).ToList();
+        if (parts.Count == 0) return null;
+        var go = new GameObject("Model");
+        string gun = System.IO.Path.GetFileName(folder);
+        foreach (var path in parts)
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (model == null) continue;
+            var part = (GameObject)Object.Instantiate(model, go.transform);
+            string stem = path.Substring(0, path.Length - 4);
+            Texture2D T(string kind) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{stem}_{kind}.png");
+            var ms = T("MS");
+            var mat = Mat($"Gun_{gun}_{System.IO.Path.GetFileName(stem)}", Color.white, ms != null ? 0.8f : 0.45f, ms != null ? 1f : 0.3f, T("Albedo"), T("Normal"), ms);
+            foreach (var r in part.GetComponentsInChildren<Renderer>())
+                r.sharedMaterials = Enumerable.Repeat(mat, r.sharedMaterials.Length).ToArray();
+        }
+        if (go.transform.childCount == 0) { Object.DestroyImmediate(go); return null; }
+        return go;
     }
 
     private static Bounds RendererBounds(GameObject go)
@@ -667,22 +693,6 @@ public static class AssetSetup
             var tip = new GameObject("Muzzle").transform;
             tip.SetParent(fromPack.transform, false);
             tip.localPosition = new Vector3(0, size.y * (0.5f - grip.y) + size.y * 0.25f, size.z * (1f - grip.x));
-            if (id == 1)
-            {
-                // sit the sight on the top of the receiver (highest point of the gun just ahead of the grip)
-                float z = size.z * 0.08f, top = float.MinValue;
-                foreach (var filter in fromPack.GetComponentsInChildren<MeshFilter>())
-                {
-                    if (filter.sharedMesh == null || !filter.sharedMesh.isReadable) continue;
-                    foreach (var v in filter.sharedMesh.vertices)
-                    {
-                        var p = fromPack.transform.InverseTransformPoint(filter.transform.TransformPoint(v));
-                        if (Mathf.Abs(p.z - z) < size.z * 0.12f && p.y > top) top = p.y;
-                    }
-                }
-                if (top == float.MinValue) top = size.y * (1f - grip.y);
-                AddScope(fromPack.transform, top - 0.005f, z);
-            }
             return fromPack;
         }
         var metal = Solid("GunMetal", new Color(0.13f, 0.13f, 0.14f), 0.55f, 0.75f);
@@ -748,8 +758,8 @@ public static class AssetSetup
                 Part(root, PrimitiveType.Cube, new Vector3(0, 0.0f, 0.0f), new Vector3(0.028f, 0.11f, 0.05f), polymer, new Vector3(-15, 0, 0));
                 muzzle = 0.15f;
                 break;
-            case 6: // MP5 (fallback: short M4)
-            case 7: // SVD (fallback: L96 shape)
+            case 6: case 9: case 10: // MP5K, SCAR-L, UMP-45 (fallback: M4 shape, the sub machine guns short)
+            case 7: case 11: // SVD, Kar98k (fallback: L96 shape)
                 return BuildGunFallback(id, root);
             default: // Desert Eagle
                 Part(root, PrimitiveType.Cube, new Vector3(0, 0.055f, 0.07f), new Vector3(0.036f, 0.045f, 0.25f), silver);
@@ -767,9 +777,9 @@ public static class AssetSetup
     {
         var parent = root.parent;
         Object.DestroyImmediate(root.gameObject);
-        var gun = BuildGun(id == 6 ? 1 : 3, parent);
+        var gun = BuildGun(id == 6 || id == 9 || id == 10 ? 1 : 3, parent);
         gun.name = "W_" + Weapons.Get(id).Name;
-        if (id == 6) gun.transform.localScale = new Vector3(1f, 1f, 0.7f);
+        if (id == 6 || id == 10) gun.transform.localScale = new Vector3(1f, 1f, 0.7f);
         return gun;
     }
 
@@ -786,32 +796,23 @@ public static class AssetSetup
         }
     }
 
-    /// <summary>All guns of the pack in a grid with labels, photographed by the auto test to pick models.</summary>
+    /// <summary>The weapons of the game in a grid with their names, photographed by the auto test.</summary>
     private static void BuildGunLineup()
     {
         Folder("Assets/Resources/Debug");
         var root = new GameObject("GunLineup");
         var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        var names = AssetDatabase.FindAssets("t:Model", new[] { GunsPath }).Select(AssetDatabase.GUIDToAssetPath)
-            .Select(Path.GetFileNameWithoutExtension).OrderBy(n => n).ToList();
-        for (int i = 0; i < names.Count; i++)
+        for (int i = 0; i < Weapons.Count; i++)
         {
-            var gun = GunModel(names[i], names[i].Contains("Pistol") || names[i].Contains("Revolver") ? 0.35f : 1f);
-            if (gun == null) continue;
-            gun.transform.SetParent(root.transform, false);
-            gun.transform.localPosition = new Vector3(0, (i / 6) * 0.55f, (i % 6) * 1.35f);
-            var marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Object.DestroyImmediate(marker.GetComponent<Collider>());
-            marker.transform.SetParent(gun.transform, false);
-            marker.transform.localPosition = new Vector3(0, 0, 0.6f);
-            marker.transform.localScale = Vector3.one * 0.04f;
-            marker.GetComponent<Renderer>().sharedMaterial = Solid("MarkerRed", Color.red, 0.2f);
+            var gun = BuildGun(i, root.transform);
+            // seen from the side (+X): a row of four along Z, rows above each other
+            gun.transform.localPosition = new Vector3(0, (2 - i / 4) * 0.55f, (i % 4) * 1.45f);
             var label = new GameObject("Label");
             label.transform.SetParent(root.transform, false);
             label.transform.localPosition = gun.transform.localPosition + new Vector3(0, -0.2f, 0);
             label.transform.localRotation = Quaternion.Euler(0, -90, 0);
             var text = label.AddComponent<TextMesh>();
-            text.text = names[i];
+            text.text = Weapons.Get(i).Name;
             text.font = font;
             text.fontSize = 48;
             text.characterSize = 0.012f;
@@ -820,7 +821,7 @@ public static class AssetSetup
         }
         PrefabUtility.SaveAsPrefabAsset(root, "Assets/Resources/Debug/GunLineup.prefab");
         Object.DestroyImmediate(root);
-        Debug.Log($"[Setup] gun lineup: {names.Count} models");
+        Debug.Log($"[Setup] gun lineup: {Weapons.Count} weapons");
     }
 
     public static Texture2D Camo(string name, Color[] tones, float scale)

@@ -84,7 +84,7 @@ public class ImportRules : AssetPostprocessor
             extra.SetPlatformTextureSettings(phone);
             return;
         }
-        if (!assetPath.Contains("ThirdParty/")) return;
+        if (!assetPath.Contains("ThirdParty/") && !assetPath.Contains("Assets/Weapons/")) return;
         var importer = (TextureImporter)assetImporter;
         string file = System.IO.Path.GetFileNameWithoutExtension(assetPath);
         importer.maxTextureSize = 1024;
@@ -109,6 +109,8 @@ public class ImportRules : AssetPostprocessor
         android.overridden = true;
         // interiors and the village ground and mud are seen up close only in small patches: half size
         bool small = file.Contains("interior") || file.Contains("Ornaments") || file.StartsWith("Clay") || file.StartsWith("Ground1") || file.StartsWith("Gravel") || file.StartsWith("Rock0");
+        // the guns are small on the screen: half size too
+        small |= assetPath.Contains("Assets/Weapons/");
         android.maxTextureSize = small ? 512 : 1024;
         // colour keeps the finer 6x6 blocks; normal and roughness maps can be coarser (smaller APK)
         android.format = file.EndsWith("_Normal") || file.EndsWith("_MS") ? TextureImporterFormat.ASTC_8x8 : TextureImporterFormat.ASTC_6x6;
