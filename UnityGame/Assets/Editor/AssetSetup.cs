@@ -978,6 +978,8 @@ public static class AssetSetup
                 skinned.Where(r => r != bodyRenderer).ToArray(), vestMat);
             parts = dressed.Parts;
             teamRenderers = dressed.Team;
+            // the ready-made characters of the player's pack on the same skeleton
+            parts.AddRange(CharacterPack.Dress(new Outfit.Body(bodyRenderer, prefabName), sex == "Female", vestMat, teamRenderers));
         }
 
         // weapons in the right hand, aligned with the character's forward direction in the aim pose
@@ -1036,6 +1038,7 @@ public static class AssetSetup
         agent.Skins = skins;
         agent.SkinRenderers = realistic && bodyRenderer != null ? new Renderer[] { bodyRenderer } : new Renderer[0];
         agent.Parts = parts.ToArray();
+        agent.BaseBody = skinned.Select(r => r.gameObject).ToArray();
 
         PrefabUtility.SaveAsPrefabAsset(root, $"Assets/Resources/{prefabName}.prefab");
         Object.DestroyImmediate(root);

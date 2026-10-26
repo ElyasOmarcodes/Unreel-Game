@@ -25,7 +25,8 @@ namespace UA
 
         private static void ChangeLook(Wardrobe.Slot slot, int delta)
         {
-            int look = Settings.Look;
+            // a piece changed: built piece by piece again (not a ready-made character of the pack)
+            int look = Wardrobe.Set(Settings.Look, Wardrobe.Slot.Character, 0);
             look = Wardrobe.Set(look, slot, Wardrobe.Get(look, slot) + delta);
             // the camo of a combat jacket and cargo trousers match until one is changed on its own
             if (slot == Wardrobe.Slot.Top || slot == Wardrobe.Slot.TopColor)
@@ -38,7 +39,7 @@ namespace UA
         {
             int n = Wardrobe.Styles.Length;
             int style = (Wardrobe.StyleOf(Settings.Look) + n + delta) % n;
-            int look = Wardrobe.Apply(Settings.Look, Wardrobe.Styles[style]);
+            int look = Wardrobe.Apply(Wardrobe.Set(Settings.Look, Wardrobe.Slot.Character, 0), Wardrobe.Styles[style]);
             // a woman's style picks the woman's body (and back), keeping the skin tone
             bool female = style >= 8;
             if (female != Wardrobe.Female(look)) look = Wardrobe.Set(look, Wardrobe.Slot.Body, (female ? 2 : 0) + Wardrobe.Get(look, Wardrobe.Slot.Body) % 2);

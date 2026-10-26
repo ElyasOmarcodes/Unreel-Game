@@ -9,10 +9,10 @@ namespace UA
     /// </summary>
     public static class Wardrobe
     {
-        public enum Slot { Body, Top, Bottom, Head, Vest, Feet, Gloves, Kit, Beard, Bag, TopColor, BottomColor, HeadColor }
+        public enum Slot { Body, Top, Bottom, Head, Vest, Feet, Gloves, Kit, Beard, Bag, TopColor, BottomColor, HeadColor, Character }
 
         // bits per slot, in the order of the enum
-        private static readonly int[] Bits = { 2, 3, 2, 4, 2, 2, 1, 1, 1, 1, 3, 3, 2 };
+        private static readonly int[] Bits = { 2, 3, 2, 4, 2, 2, 1, 1, 1, 1, 3, 3, 2, 3 };
 
         public static readonly string[][] Names =
         {
@@ -27,9 +27,13 @@ namespace UA
             new[] { "NONE", "BEARD" },
             new[] { "NONE", "ASSAULT PACK" },
             null, null, null,
+            // a ready-made character of the player's pack in place of all the pieces (0: built piece by piece)
+            new[] { "OWN BUILD", "MERCENARY", "POLICE OFFICER", "FIELD AGENT", "OPERATIVE", "BODYGUARD" },
         };
+        /// <summary>The pack characters that are women (their value in the Character slot).</summary>
+        public static bool FemaleCharacter(int character) => character == 3;
 
-        public static readonly string[] SlotNames = { "AGENT", "TOP", "BOTTOM", "HEAD", "VEST", "SHOES", "GLOVES", "BELT", "BEARD", "BAG", "TOP COLOUR", "BOTTOM COLOUR", "HEAD COLOUR" };
+        public static readonly string[] SlotNames = { "AGENT", "TOP", "BOTTOM", "HEAD", "VEST", "SHOES", "GLOVES", "BELT", "BEARD", "BAG", "TOP COLOUR", "BOTTOM COLOUR", "HEAD COLOUR", "CHARACTER" };
 
         public struct Swatch
         {
@@ -184,6 +188,12 @@ namespace UA
             new Preset("STATESMAN", 0, 5, 1, 1, 1, 0),       // statesman: navy suit
             new Preset("ABAYA", 2, 8, 0, 0, 1, 0),      // abaya and hijab
             new Preset("WOMAN SOLDIER", 3, 9, 4, 4, 3, 0),       // woman soldier
+            // the player's character pack
+            new Preset("MERCENARY", 0, 0, 0, 0, 0, 0, (Slot.Character, 1)),
+            new Preset("POLICE OFFICER", 0, 0, 0, 0, 0, 0, (Slot.Character, 2)),
+            new Preset("FIELD AGENT", 2, 9, 0, 0, 0, 0, (Slot.Character, 3)),
+            new Preset("OPERATIVE", 0, 0, 0, 0, 0, 0, (Slot.Character, 4)),
+            new Preset("BODYGUARD", 0, 0, 0, 0, 0, 0, (Slot.Character, 5)),
         };
 
         public static int PresetLook(int index)
@@ -211,6 +221,12 @@ namespace UA
             look = Set(look, Slot.HeadColor, UnityEngine.Random.Range(0, HeadColors.Length));
             if (!female) look = Set(look, Slot.Beard, UnityEngine.Random.value < 0.7f ? 1 : 0);
             if (Get(look, Slot.Top) == 0) look = Set(look, Slot.BottomColor, Get(look, Slot.TopColor));
+            // now and then one of the pack characters (of the same sex)
+            if (UnityEngine.Random.value < 0.35f)
+            {
+                int character = female ? 3 : new[] { 1, 2, 4, 5 }[UnityEngine.Random.Range(0, 4)];
+                look = Set(look, Slot.Character, character);
+            }
             return look;
         }
     }

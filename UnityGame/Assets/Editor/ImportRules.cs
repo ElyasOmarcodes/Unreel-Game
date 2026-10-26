@@ -84,7 +84,7 @@ public class ImportRules : AssetPostprocessor
             extra.SetPlatformTextureSettings(phone);
             return;
         }
-        if (!assetPath.Contains("ThirdParty/") && !assetPath.Contains("Assets/Weapons/")) return;
+        if (!assetPath.Contains("ThirdParty/") && !assetPath.Contains("Assets/Weapons/") && !assetPath.Contains("Assets/Characters/")) return;
         var importer = (TextureImporter)assetImporter;
         string file = System.IO.Path.GetFileNameWithoutExtension(assetPath);
         importer.maxTextureSize = 1024;
