@@ -290,8 +290,6 @@ public static partial class CityLordBuilder
         foreach (var (id, pashto, english, at) in Districts)
             BoardStand(signs, new Vector3(at.x, 0, at.y), pashto, $"{english}  -  {id}");
 
-        Garden(signs);
-
         var buildings = outlines.Where(kv =>
         {
             string name = kv.Key.Substring(kv.Key.LastIndexOf('/') + 1);
@@ -318,141 +316,6 @@ public static partial class CityLordBuilder
             }
         }
         return count;
-    }
-
-    /// <summary>
-    /// A small green garden in the town: a bed of grass (10 x 6 m) with square-cut green walls round it
-    /// (an opening on one long side) and two trees, on free street ground near the middle of the yards.
-    /// </summary>
-    private static void Garden(Transform parent)
-    {
-        int mask = World.EnvMask | (1 << World.FenceLayer);
-        const float w = 10f, l = 6f;
-        var rng = new System.Random(5);
-        float Ground(Vector3 p, float near)
-        {
-            return Physics.Raycast(new Vector3(p.x, near + 2.5f, p.z), Vector3.down, out var h, 8f, World.EnvMask, QueryTriggerInteraction.Ignore) ? h.point.y : near - 10f;
-        }
-        // a flight of steps going down from beside the bed: the ground falls in several small steps
-        // (not one drop over a wall, not a slope); returns how far out it starts, or -1
-        float StairOut(Vector3 edge, Vector3 outward, float y)
-        {
-            float last = y, drop = 0f, first = -1f;
-            int steps = 0;
-            for (float d = 0.15f; d <= 3.5f; d += 0.1f)
-            {
-                float g = Ground(edge + outward * d, y);
-                float step = last - g;
-                if (step > 0.45f) return steps >= 3 ? first : -1f;
-                if (step > 0.07f) { steps++; drop += step; if (first < 0f) first = d; }
-                else if (step < -0.07f) return -1f;
-                last = g;
-                if (steps >= 4 && drop > 0.5f) return first;
-            }
-            return steps >= 3 && drop > 0.45f ? first : -1f;
-        }
-        // where steps come up beside the bed: on which side (0 = the open long side, -z) and where along it
-        (int side, float u, float width, float start) FindStair(Vector3 c, Quaternion rot)
-        {
-            var sides = new[] { (Vector3.back, Vector3.right, w, l), (Vector3.forward, Vector3.right, w, l), (Vector3.left, Vector3.forward, l, w), (Vector3.right, Vector3.forward, l, w) };
-            for (int k = 0; k < 4; k++)
-            {
-                var (n, along, len, across) = sides[k];
-                float lo = float.MaxValue, hi = float.MinValue, start = 9f;
-                for (float u = -len / 2f - 2.5f; u <= len / 2f + 2.5f; u += 0.1f)
-                {
-                    var edge = c + rot * (n * (across / 2f) + along * u);
-                    float o = StairOut(edge, rot * n, c.y);
-                    if (o < 0f) continue;
-                    lo = Mathf.Min(lo, u); hi = Mathf.Max(hi, u); start = Mathf.Min(start, o);
-                }
-                if (hi >= lo) return (k, (lo + hi) / 2f, hi - lo + 0.1f, start);
-            }
-            return (-1, 0f, 0f, 0f);
-        }
-        bool Fits(Vector3 c, Quaternion rot)
-        {
-            if (Physics.CheckBox(c + Vector3.up * 1.6f, new Vector3(w / 2f + 1.5f, 1.45f, l / 2f + 1.5f), rot, mask, QueryTriggerInteraction.Ignore)) return false;
-            foreach (var k in new[] { new Vector3(-w / 2f, 0, -l / 2f), new Vector3(w / 2f, 0, -l / 2f), new Vector3(-w / 2f, 0, l / 2f), new Vector3(w / 2f, 0, l / 2f), Vector3.zero })
-                if (Mathf.Abs(Ground(c + rot * k, c.y) - c.y) > 0.15f) return false;
-            return true;
-        }
-        // best: square in front of steps that come up beside it; else a spot with no steps beside it at
-        // all; else any free level spot
-        (Vector3 c, Quaternion rot, float yaw, float gap)? clear = null, any = null;
-        foreach (var (x, z) in new[] { (30f, -6f), (24f, 4f), (38f, -20f), (10f, -12f), (60f, 10f), (0f, 2f), (44f, 12f), (16f, -26f), (70f, -26f), (-10f, -14f) })
-            for (int ring = 0; ring < 4; ring++)
-                for (int k = 0; k < Mathf.Max(1, ring * 6); k++)
-                    foreach (float yaw in new[] { 0f, 90f, 180f, 270f })
-                    {
-                        float a = k * Mathf.PI * 2f / Mathf.Max(1, ring * 6);
-                        var probe = new Vector3(x, 0, z) + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * (ring * 3f);
-                        var top = root.TransformPoint(new Vector3(probe.x, 25f, probe.z));
-                        if (!Physics.Raycast(top, Vector3.down, out var hit, 60f, World.EnvMask, QueryTriggerInteraction.Ignore) || hit.normal.y < 0.95f) continue;
-                        if (root.InverseTransformPoint(hit.point).y > StreetTop) continue;
-                        var rot = Quaternion.Euler(0, yaw, 0);
-                        var c = hit.point;
-                        if (!Fits(c, rot)) continue;
-                        if (any == null) any = (c, rot, yaw, 1.6f);
-                        // steps coming up beside it: only in front of the opening, square on to it, the
-                        // bed standing back from the top step (the way up leads straight in through the gap)
-                        var (side, u, sw, start) = FindStair(c, rot);
-                        if (side < 0) { if (clear == null) clear = (c, rot, yaw, 1.6f); continue; }
-                        if (side > 0) continue;
-                        c += rot * new Vector3(u, 0, Mathf.Max(0f, 1.4f - start));
-                        if (!Fits(c, rot)) continue;
-                        var again = FindStair(c, rot);
-                        if (again.side != 0 || Mathf.Abs(again.u) > 0.4f) continue;
-                        // and once more for the last few centimetres: the middle of the gap exactly on the middle of the steps
-                        if (Mathf.Abs(again.u) > 0.03f)
-                        {
-                            var nudged = c + rot * new Vector3(again.u, 0, 0);
-                            (int side, float u, float width, float start) third = Fits(nudged, rot) ? FindStair(nudged, rot) : (-1, 0f, 0f, 0f);
-                            if (third.side == 0 && Mathf.Abs(third.u) < Mathf.Abs(again.u)) { c = nudged; again = third; }
-                        }
-                        float gap = Mathf.Clamp(again.width, 1.6f, w - 3f);
-                        BuildGarden(parent, c, rot, yaw, w, l, gap, rng);
-                        Debug.Log($"[Map] CityLord garden at {root.InverseTransformPoint(c)} yaw {yaw}, facing steps {gap:0.0} m wide");
-                        return;
-                    }
-        var pick = clear ?? any;
-        if (pick.HasValue)
-        {
-            var (pc, prot, pyaw, pgap) = pick.Value;
-            BuildGarden(parent, pc, prot, pyaw, w, l, pgap, rng);
-            Debug.Log($"[Map] CityLord garden at {root.InverseTransformPoint(pc)} yaw {pyaw}" + (clear.HasValue ? ", no steps beside it" : ""));
-            return;
-        }
-        Debug.LogWarning("[Map] CityLord: no room for the garden");
-    }
-
-    private static void BuildGarden(Transform parent, Vector3 at, Quaternion rot, float yaw, float w, float l, float gap, System.Random rng)
-    {
-        var g = new GameObject("Garden").transform;
-        g.SetParent(parent, false);
-        g.SetPositionAndRotation(at, rot);
-        var grass = Mats.Pbr("CL_Grass", "Grass004", new Color(0.85f, 0.95f, 0.8f), 0.15f);
-        var green = AssetSetup.ExtraTex("GreenWall_BaseColor.jpg");
-        var hedge = AssetSetup.Mat("CL_Hedge", new Color(0.85f, 1f, 0.8f), 0.25f, 0f, green, AssetSetup.ExtraTex("GreenWall_Normal.jpg"));
-        MeshGen.TexBox("GardenBed", g.TransformPoint(new Vector3(0, 0.04f, 0)), new Vector3(w, 0.08f, l), grass, 3f, g, yaw, false);
-        // square-cut green walls round it, an opening in the middle of the near long side
-        const float hh = 0.9f, hw = 0.6f;
-        MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(0, hh / 2f, l / 2f - hw / 2f)), new Vector3(w, hh, hw), hedge, 1.1f, g, yaw);
-        foreach (float s in new[] { -1f, 1f })
-        {
-            MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(s * (w / 2f - hw / 2f), hh / 2f, 0)), new Vector3(hw, hh, l - 2f * hw), hedge, 1.1f, g, yaw);
-            float seg = (w - gap) / 2f;
-            MeshGen.TexBox("Hedge", g.TransformPoint(new Vector3(s * (gap / 2f + seg / 2f), hh / 2f, -l / 2f + hw / 2f)), new Vector3(seg, hh, hw), hedge, 1.1f, g, yaw);
-        }
-        foreach (float s in new[] { -1f, 1f })
-            Nature.Tree(Nature.Trees, rng, g.TransformPoint(new Vector3(s * 2.6f, 0.08f, 0.6f)), 4.5f, 6f, g);
-        // a garden lantern on a post by the back hedge, lighting the bed and whoever stands in it at night
-        var post = g.TransformPoint(new Vector3(0, 0.08f, l / 2f - 1.1f));
-        MeshGen.TexBox("LanternPost", post + Vector3.up * 1.4f, new Vector3(0.1f, 2.8f, 0.1f), NightLights.LampMetal, 1f, g, yaw, true);
-        MeshGen.TexBox("LanternFoot", post + Vector3.up * 0.1f, new Vector3(0.26f, 0.2f, 0.26f), NightLights.LampMetal, 1f, g, yaw, false);
-        NightLights.Lamp(g, post + Vector3.up * 3f, new Vector3(0.26f, 0.36f, 0.26f), night, 3.6f);
-        LampLight(g, post + Vector3.up * 2.8f, 8f);
-        Physics.SyncTransforms();
     }
 
     /// <summary>A small blue plate with the building's kind and its number, on the wall of the given side.</summary>
@@ -562,6 +425,26 @@ public static partial class CityLordBuilder
             break;
         }
         if (!found) { Debug.LogWarning("[Map] CityLord: no clear way for the roof pipe to D-4"); return; }
+        const float r = 0.28f, gap = 0.36f;
+        // behind the start, away from D-4: the first roof as high as the pipe's top or higher. The pipe is
+        // carried on to it and runs into its wall just under its edge, its top level with that roof, so
+        // one walks off that roof straight on to the pipe and along it to D-4.
+        bool fromWall = false;
+        for (float u = 0.5f; u <= 30f; u += 0.5f)
+        {
+            var p = start - toward * u;
+            float hy = Surface(p, level + 12f, 0.9f);
+            if (hy == float.MinValue || hy < level + r - 0.3f || hy > level + 8f) continue;
+            float lv = hy - r;
+            var a = root.TransformPoint(new Vector3(p.x, lv, p.z) + toward * 0.5f);
+            var b = root.TransformPoint(new Vector3(end.x, lv, end.z));
+            var dir = b - a;
+            if (Physics.SphereCast(a, 0.45f, dir.normalized, out _, dir.magnitude - 1.2f, World.EnvMask, QueryTriggerInteraction.Ignore)) break;
+            start = p + toward * 0.3f;
+            level = lv;
+            fromWall = true;
+            break;
+        }
         var t = new GameObject("RoofPipe").transform;
         t.SetParent(root, false);
         var A = new Vector3(start.x, level, start.z);
@@ -575,7 +458,6 @@ public static partial class CityLordBuilder
         var piece = Kit("Pipes_set_v1_H_set_v2") ?? Kit("Pipes_set_v1_H_set_v1");
         var pipeMat = piece != null && piece.Materials.Length > 0 && piece.Materials[0] != null ? piece.Materials[0] : AssetSetup.RustyPost;
         var steel = AssetSetup.RustyPost;
-        const float r = 0.28f, gap = 0.36f;
         GameObject Tube(string name, Vector3 from, Vector3 to, float radius, Material m)
         {
             var d = to - from;
@@ -589,18 +471,19 @@ public static partial class CityLordBuilder
             var o = across * sd * gap;
             // level run, the two bends down, and down into the roofs with a collar where they enter
             Tube("Pipe", A + o, B + o, r, pipeMat);
-            Tube("PipeDown", A + o + Vector3.up * 0.0f, new Vector3(A.x, roofY - 0.1f, A.z) + o, r, pipeMat);
+            if (!fromWall) Tube("PipeDown", A + o, new Vector3(A.x, roofY - 0.1f, A.z) + o, r, pipeMat);
             Tube("PipeDown", B + o, new Vector3(B.x, d4Y - 0.3f, B.z) + o, r, pipeMat);
-            Tube("Collar", new Vector3(A.x, roofY - 0.05f, A.z) + o, new Vector3(A.x, roofY + 0.18f, A.z) + o, r + 0.08f, steel);
+            if (fromWall) Tube("Collar", A + o - along * 0.05f, A + o + along * 0.25f, r + 0.08f, steel);
+            else Tube("Collar", new Vector3(A.x, roofY - 0.05f, A.z) + o, new Vector3(A.x, roofY + 0.18f, A.z) + o, r + 0.08f, steel);
             Tube("Collar", new Vector3(B.x, d4Y - 0.05f, B.z) + o, new Vector3(B.x, d4Y + 0.18f, B.z) + o, r + 0.08f, steel);
-            foreach (var p in new[] { A, B })
+            foreach (var p in fromWall ? new[] { B } : new[] { A, B })
                 MeshGen.Object("Elbow", MeshGen.Cylinder(r + 0.04f, 0.5f, 1f, 14), pipeMat, t, root.TransformPoint(p + o - Vector3.up * 0.25f)).isStatic = true;
             // flanges along the run
             for (float u = 3f; u < length - 1f; u += 6f)
                 Tube("Flange", A + o + along * u, A + o + along * (u + 0.08f), r + 0.07f, steel);
         }
-        // steel frames on the ground under the run (wherever it is not over a roof), one every 6 m
-        for (float u = 3f; u < length - 2f; u += 6f)
+        // steel frames on the ground under the run (wherever it is not over a roof), one every 12 m
+        for (float u = Mathf.Min(6f, length / 2f); u < length - 2f; u += 12f)
         {
             var p = A + along * u;
             float g = Surface(p, level - 0.6f, 0.7f);
@@ -620,7 +503,7 @@ public static partial class CityLordBuilder
         var body = new GameObject("PipeBody");
         body.transform.SetParent(t, false);
         body.AddComponent<BoxCollider>().size = new Vector3(gap * 2f + r * 2f, r * 2f, length);
-        Debug.Log($"[Map] CityLord: roof pipe to D-4 from {start} to {end}, {length:0.0} m at {level:0.0}");
+        Debug.Log($"[Map] CityLord: roof pipe to D-4 from {start} to {end}, {length:0.0} m at {level:0.0}{(fromWall ? ", from the wall of the roof behind" : "")}");
     }
 
     /// <summary>
@@ -647,20 +530,20 @@ public static partial class CityLordBuilder
     }
 
     /// <summary>
-    /// Street lamps along the streets of the town, as in the Old Town: a steel post with a lantern on an
-    /// arm, a pool of warm light under it; on free street ground next to a wall or fence, 10 m apart.
+    /// Street lamps along the streets of the town, where real ones stand: at the edge of the street right
+    /// against a wall or fence (never out in the way, never at a door or a ladder), a steel post with a
+    /// lantern on an arm out over the street, 12 m apart.
     /// </summary>
     private static int StreetLamps()
     {
         var parent = Node("StreetLamps");
-        int mask = World.EnvMask | (1 << World.FenceLayer);
         var placed = new List<Vector3>();
-        var dirs = new[] { Vector3.forward, Vector3.back, Vector3.left, Vector3.right };
         Physics.SyncTransforms();
+        var ladders = Object.FindObjectsByType<Ladder>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Select(l => l.transform.position).ToList();
         for (float x = -40f; x <= 110f; x += 4f)
             for (float z = -70f; z <= 60f; z += 4f)
             {
-                if (placed.Count >= 60) return placed.Count;
+                if (placed.Count >= 50) return placed.Count;
                 var top = root.TransformPoint(new Vector3(x, 25f, z));
                 RaycastHit hit = default;
                 bool any = false;
@@ -671,25 +554,21 @@ public static partial class CityLordBuilder
                     // the street surface itself: the highest level ground below street top (not the big plane under the roads)
                     if (!any || h.point.y > hit.point.y) { hit = h; any = true; }
                 }
-                if (!any || placed.Any(p => (p - hit.point).sqrMagnitude < 10f * 10f)) continue;
-                if (Physics.CheckCapsule(hit.point + Vector3.up * 1.0f, hit.point + Vector3.up * 4.6f, 0.7f, mask, QueryTriggerInteraction.Ignore)) continue;
-                // beside a wall (1.2 to 3.5 m away): the lamp leans out over the street from it
-                Vector3 wall = Vector3.zero;
-                foreach (var d in dirs)
-                    if (Physics.Raycast(hit.point + Vector3.up * 1.5f, d, out var w, 3.5f, mask, QueryTriggerInteraction.Ignore) && w.distance > 1.2f) { wall = d; break; }
-                if (wall == Vector3.zero) continue;
-                var arm = -wall;
+                if (!any || !LampSpot.Edge(hit.point, 4f, 0.3f, out var foot, out var arm)) continue;
+                if (placed.Any(p => (p - foot).sqrMagnitude < 12f * 12f) || ladders.Any(l => (l - foot).sqrMagnitude < 3f * 3f)) continue;
+                // the arm and the lantern over the street must be free too
+                if (Physics.CheckSphere(foot + Vector3.up * 4.3f + arm * 0.95f, 0.35f, World.EnvMask | (1 << World.FenceLayer), QueryTriggerInteraction.Ignore)) continue;
                 var t = new GameObject("StreetLamp").transform;
                 t.SetParent(parent, false);
-                t.position = hit.point;
+                t.position = foot;
                 float yaw = Mathf.Atan2(arm.x, arm.z) * Mathf.Rad2Deg;
                 var steel = AssetSetup.RustyPost;
-                MeshGen.TexBox("LampPost", hit.point + Vector3.up * 2.3f, new Vector3(0.14f, 4.6f, 0.14f), steel, 1f, t, yaw, true);
-                MeshGen.TexBox("LampFoot", hit.point + Vector3.up * 0.15f, new Vector3(0.34f, 0.3f, 0.34f), steel, 1f, t, yaw, false);
-                MeshGen.TexBox("LampArm", hit.point + Vector3.up * 4.55f + arm * 0.5f, new Vector3(0.08f, 0.08f, 1.05f), steel, 1f, t, yaw, false);
-                NightLights.Lamp(t, hit.point + Vector3.up * 4.25f + arm * 0.95f, new Vector3(0.26f, 0.36f, 0.26f), night, 4.6f);
-                LampLight(t, hit.point + Vector3.up * 4f + arm * 0.95f, 9f);
-                placed.Add(hit.point);
+                MeshGen.TexBox("LampPost", foot + Vector3.up * 2.3f, new Vector3(0.14f, 4.6f, 0.14f), steel, 1f, t, yaw, true);
+                MeshGen.TexBox("LampFoot", foot + Vector3.up * 0.15f, new Vector3(0.3f, 0.3f, 0.3f), steel, 1f, t, yaw, false);
+                MeshGen.TexBox("LampArm", foot + Vector3.up * 4.55f + arm * 0.5f, new Vector3(0.08f, 0.08f, 1.05f), steel, 1f, t, yaw, false);
+                NightLights.Lamp(t, foot + Vector3.up * 4.25f + arm * 0.95f, new Vector3(0.26f, 0.36f, 0.26f), night, 4.6f);
+                LampLight(t, foot + Vector3.up * 4f + arm * 0.95f, 9f);
+                placed.Add(foot);
             }
         return placed.Count;
     }

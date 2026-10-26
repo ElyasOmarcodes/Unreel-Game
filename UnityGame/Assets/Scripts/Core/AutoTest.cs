@@ -441,27 +441,6 @@ namespace UA
                 yield return Wait(0.6f);
                 yield return Shot($"90{(char)('a' + sign++)}-citylord-{t.name.Replace(' ', '-').ToLowerInvariant()}");
             }
-            // the CityLord garden
-            var garden = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "Garden");
-            if (garden != null)
-            {
-                var from = garden.position - garden.forward * 9f + Vector3.up * 4f;
-                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(garden.position - from));
-                yield return Wait(0.6f);
-                yield return Shot("90g-citylord-garden");
-                // straight down on it: the gate square on to the steps
-                var above = garden.position + Vector3.up * 16f - garden.forward * 4f;
-                cam.transform.SetPositionAndRotation(above, Quaternion.LookRotation(garden.position - above));
-                yield return Wait(0.5f);
-                yield return Shot("90h-citylord-garden-above");
-                World.I.ApplyLighting(2);
-                yield return Until(() => World.I.MapReady, 30);
-                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(garden.position - from));
-                yield return Wait(0.6f);
-                yield return Shot("90i-citylord-garden-night");
-                World.I.ApplyLighting(0);
-                yield return Until(() => World.I.MapReady, 30);
-            }
             // the new double pipe from the roof of the pipe works over to the warehouse D-4
             var pipe = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "RoofPipe");
             if (pipe != null)
@@ -534,6 +513,22 @@ namespace UA
                 yield return Wait(0.5f);
                 yield return Shot($"95{(char)('a' + ladders++)}-citylord-ladder");
             }
+            // the street lamps at the edges of the streets and walks (STEEL CITY, Old Town, Al-Zahra)
+            int lampShot = 0;
+            foreach (var (map, lamp) in new[] { (0, "StreetLamp"), (9, "StreetLamp"), (3, "Lantern") })
+            {
+                World.I.ApplyLighting(map);
+                yield return Until(() => World.I.MapReady, 30);
+                foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Where(x => x.name == lamp).Take(3).ToList())
+                {
+                    var from = t.position + new Vector3(4.5f, 3.2f, -4.5f);
+                    cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position + Vector3.up * 1.8f - from));
+                    yield return Wait(0.5f);
+                    yield return Shot($"98{(char)('a' + lampShot++)}-map{map}-lamp-at-edge");
+                }
+            }
+            World.I.ApplyLighting(0);
+            yield return Until(() => World.I.MapReady, 30);
             // the seven CityLord spawn points: on the streets, nothing under or above
             int spawn = 0;
             foreach (var p in World.I.Spawns.Take(7).ToList())

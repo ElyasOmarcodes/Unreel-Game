@@ -914,6 +914,8 @@ public static class TownBuilder
                  })
             Signboards.Stand(boards, new Vector3(x, 0, z), Vector3.zero, ar, en);
         BuildNavigation(layout);
+        // the lamps to the edges of their streets and walks (against a wall, out of the way)
+        Debug.Log($"[Map] OldTown: {LampSpot.Settle(root, "StreetLamp", 3.5f, 0.3f, false)} lamps moved to the edge of the path");
         root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "OldTown", null, night).ToArray();
         Debug.Log($"[Town] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {index} houses, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
         return layout;

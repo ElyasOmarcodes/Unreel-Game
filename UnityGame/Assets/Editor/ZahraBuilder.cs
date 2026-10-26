@@ -1003,6 +1003,8 @@ public static class ZahraBuilder
 
         var layout = new MapLayout { Name = "AL-ZAHRA", Root = root.gameObject, Center = new Vector3(0, Middle, 0), Radius = Half };
         BuildNavigation(layout);
+        // the lamps to the edges of their streets and walks (against a wall, out of the way)
+        Debug.Log($"[Map] Zahra: {LampSpot.Settle(root, "Lantern", 3f, 0.3f, true)} lamps moved to the edge of the path");
         root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "Zahra", null, night).ToArray();
         Debug.Log($"[Map] Zahra built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns, {houses} houses");
         return layout;
