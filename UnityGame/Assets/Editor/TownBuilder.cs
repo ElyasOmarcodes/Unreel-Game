@@ -18,7 +18,7 @@ public static class TownBuilder
     private const float FloorH = 3.1f, Wall = 0.3f;
     private const float CanalX0 = 55f, CanalX1 = 61f;
     // the enclosure round the town: the stone wall on the west at x = -72, the other three sides at this distance
-    private const float Wall = 76f;
+    private const float Rim = 76f;
 
     private static Transform root;
     private static System.Random rng;
@@ -534,8 +534,8 @@ public static class TownBuilder
     {
         var t = Node("TownWall", root, Vector3.zero, 0);
         const float x = -72f, h = 4.6f, thick = 2.4f;
-        taken.Add(Rect.MinMaxRect(x - 3f, -Wall - 2f, x + 6f, Wall + 2f));
-        foreach (var (z0, z1) in new[] { (-Wall - thick / 2f, -5f), (5f, Wall + thick / 2f) })
+        taken.Add(Rect.MinMaxRect(x - 3f, -Rim - 2f, x + 6f, Rim + 2f));
+        foreach (var (z0, z1) in new[] { (-Rim - thick / 2f, -5f), (5f, Rim + thick / 2f) })
         {
             B(t, "TownWall", new Vector3(x, h / 2f, (z0 + z1) / 2f), new Vector3(thick, h, z1 - z0), FieldStone, 2.5f);
             for (float z = z0 + 0.6f; z < z1 - 0.4f; z += 1.6f)
@@ -565,12 +565,12 @@ public static class TownBuilder
         const float west = -72f + 1.2f;   // the inner face of the stone wall
         Physics.SyncTransforms();
         int panels = 0;
-        foreach (float z in new[] { Wall, -Wall })
-            panels += CityLordBuilder.PlaceChainLinkFence(t, new Vector3(west - 0.3f, 0, z), new Vector3(Wall, 0, z));
-        PlankWall(t, new Vector3(Wall, 0, -Wall), new Vector3(Wall, 0, Wall));
-        foreach (float z in new[] { Wall, -Wall })
-            B(t, "CornerPost", new Vector3(Wall, 1.6f, z), new Vector3(1.1f, 3.2f, 1.1f), FieldStone, 1.5f);
-        Debug.Log($"[Map] OldTown: enclosure of {panels} chain-link panels and an old plank wall {Wall * 2f:0} m long");
+        foreach (float z in new[] { Rim, -Rim })
+            panels += CityLordBuilder.PlaceChainLinkFence(t, new Vector3(west - 0.3f, 0, z), new Vector3(Rim, 0, z));
+        PlankWall(t, new Vector3(Rim, 0, -Rim), new Vector3(Rim, 0, Rim));
+        foreach (float z in new[] { Rim, -Rim })
+            B(t, "CornerPost", new Vector3(Rim, 1.6f, z), new Vector3(1.1f, 3.2f, 1.1f), FieldStone, 1.5f);
+        Debug.Log($"[Map] OldTown: enclosure of {panels} chain-link panels and an old plank wall {Rim * 2f:0} m long");
     }
 
     private static Material OldPlanks => Mats.Pbr("T_OldPlanks", "Planks037A", new Color(0.52f, 0.46f, 0.4f), 0.2f);
