@@ -226,6 +226,16 @@ namespace UA
             yield return Until(() => Session.I.Phase == Phase.Playing && World.I.MapReady, 30);
             yield return Wait(3f);
             yield return Shot("08-match-start");
+            // the first kill of the match, for the film: the host shoots the nearest enemy bot
+            var me = Session.I.Local;
+            var prey = Session.I.Players.Values.Where(p => p.IsBot && p.Alive && p.Team != me.Team).OrderBy(p => (p.Pos - me.Pos).sqrMagnitude).FirstOrDefault();
+            if (prey != null)
+            {
+                CameraRig.I.Yaw = Quaternion.LookRotation(prey.Pos - me.Pos).eulerAngles.y;
+                yield return Wait(0.3f);
+                Session.I.TestKill(me.Id, prey.Id);
+                yield return Until(() => !KillCam.Active, 8);
+            }
             yield return Play(10f, "09-running-firing", "10-fight");
             Controls.SimMove = Vector2.zero;
             Controls.SimGrenade = true;

@@ -26,7 +26,8 @@ namespace UA
         private Agent agent;
         private CharacterController cc;
         private float verticalSpeed;
-        private bool sprinting;
+        private float stickX, stickY;   // the stick, smoothed axis by axis
+        private float nextJump;
         private float nextFire;
         private float reloadEnd;
         private float boltAt;   // when the bolt is worked after a bolt-action shot
@@ -34,8 +35,10 @@ namespace UA
         private bool crouch, prone;
         private Vector3 velocity;
 
-        // speeds in m/s (the same for everyone)
-        public const float RunSpeed = 5.6f, SprintSpeed = 7.8f, CrouchSpeed = 3f, ProneSpeed = 1.6f;
+        // speeds in m/s (the same for everyone), as in Battle Warfare: one running pace, a walk while
+        // aiming, shooting or crouched, no sprint
+        public const float RunSpeed = 5f, WalkSpeed = 2f, CrouchSpeed = 2f, ProneSpeed = 1.6f;
+        private const float Gravity = 9.81f, JumpSpeed = 4.43f, JumpEvery = 1f;
         private const float StandHeight = 1.8f, ProneHeight = 0.7f;
         private System.Random rng;
 
@@ -145,18 +148,21 @@ namespace UA
             }
             bloom = Mathf.MoveTowards(bloom, 0f, (Aiming ? 10f : 6f) * dt);
 
-            // movement: smooth acceleration towards the wanted speed (no sudden starts and stops)
+            // movement as in Battle Warfare (Player.movement): each axis of the stick pushed past half way
+            // runs up to full at 5 per second, otherwise it falls back (and snaps to 0 under 0.2); the
+            // direction then always moves at the full pace: running, or walking while aiming, shooting
+            // (0.3 s after a shot) or crouched
             var input = canMove ? Controls.Move : Vector2.zero;
             if (s.Phase == Phase.Countdown) input = Vector2.zero;
-            bool firing = Time.time - LastShotTime < 0.25f;
-            // sprint with the stick pushed well forward; once sprinting a thumb that drifts a little back or
-            // to the side keeps it (no sudden drop to the run speed and the slower steps in the middle of a run)
-            bool forward = sprinting ? input.y > 0.45f && Mathf.Abs(input.x) < Mathf.Max(0.6f, input.y * 0.9f) : input.y > 0.8f && Mathf.Abs(input.x) < 0.5f;
-            bool sprint = sprinting = forward && !firing && !Aiming && !crouch && !prone && !Reloading;
+            bool firing = Time.time - LastShotTime < 0.3f;
+            Smooth(ref stickX, input.x, dt);
+            Smooth(ref stickY, input.y, dt);
+            var stick = new Vector2(stickX, stickY);
+            if (stick.sqrMagnitude > 1e-4f) stick.Normalize();
             float baseSpeed = prone ? ProneSpeed : crouch ? CrouchSpeed : RunSpeed;
-            float maxSpeed = (sprint ? SprintSpeed : baseSpeed) * def.MoveSpeed * (Aiming ? 0.72f : 1f);
-            var wish = Quaternion.Euler(0, rig.Yaw, 0) * Vector3.ClampMagnitude(new Vector3(input.x, 0, input.y), 1f) * maxSpeed;
-            float accel = cc.isGrounded ? (wish.sqrMagnitude >= velocity.sqrMagnitude ? 30f : 40f) : 8f;
+            float maxSpeed = (prone || crouch ? baseSpeed : Aiming || firing ? WalkSpeed : RunSpeed) * def.MoveSpeed;
+            var wish = Quaternion.Euler(0, rig.Yaw, 0) * new Vector3(stick.x, 0, stick.y) * maxSpeed;
+            float accel = cc.isGrounded ? 40f : 8f;
             velocity = Vector3.MoveTowards(velocity, wish, accel * dt);
             if (!alive) velocity = Vector3.zero;
             UpdateStance();
@@ -168,8 +174,8 @@ namespace UA
                     if (canMove && Controls.JumpPressed && s.Phase == Phase.Playing)
                     {
                         if (crouch || prone) { crouch = false; prone = false; }
-                        // a running jump goes a little higher and further than one from standing
-                        else verticalSpeed = 6.4f + 0.8f * Mathf.Clamp01(new Vector2(velocity.x, velocity.z).magnitude / SprintSpeed);
+                        // a jump of a metre, at most one a second
+                        else if (Time.time >= nextJump) { verticalSpeed = JumpSpeed; nextJump = Time.time + JumpEvery; }
                     }
                 }
                 // ladders: push towards the ladder to climb, pull back to climb down, let go to hold on
@@ -184,7 +190,7 @@ namespace UA
                     // on the ladder the body stays on it (along its lean); over the top the push carries it onto the landing
                     if (climbing && transform.position.y < ladder.Top - 0.1f) velocity = ladder.Steer(transform.position, verticalSpeed, towards ? 1.2f : 0.3f);
                 }
-                if (!climbing) verticalSpeed -= 20f * dt;
+                if (!climbing) verticalSpeed -= Gravity * dt;
                 var before = transform.position;
                 cc.Move((velocity + Vector3.up * verticalSpeed) * dt);
                 // walking into a wall: do not keep pushing (keeps the animation honest)
@@ -229,12 +235,12 @@ namespace UA
             // write our state for the network and the animations
             state.Pos = transform.position;
             state.Yaw = rig.Yaw;
-            state.Pitch = rig.Pitch;
-            // animation follows the real speed: 1 = running, 2 = sprinting
+            state.Pitch = rig.AimPitch;
+            // animation follows the real speed: 1 = running (0.4 = the walk while aiming or shooting)
             var local = Quaternion.Inverse(transform.rotation) * velocity;
             float norm = baseSpeed * def.MoveSpeed;
             state.MoveX = alive ? Mathf.Clamp(local.x / norm, -1f, 1f) : 0f;
-            state.MoveY = !alive ? 0f : local.z > norm * 1.02f ? 1f + Mathf.Clamp01((local.z - norm) / Mathf.Max(0.1f, (SprintSpeed - RunSpeed) * def.MoveSpeed)) : Mathf.Clamp(local.z / norm, -1f, 1f);
+            state.MoveY = alive ? Mathf.Clamp(local.z / norm, -1f, 1f) : 0f;
             state.Crouch = crouch;
             state.Prone = prone;
             state.Grounded = !cc.enabled || cc.isGrounded;
@@ -286,6 +292,18 @@ namespace UA
                 boltAt = Time.time + 0.42f;
             }
             if (Mag[Slot] == 0) StartReload();
+        }
+
+        /// <summary>One axis of the stick as in Battle Warfare: past half way it runs to full at 5 a second.</summary>
+        private static void Smooth(ref float value, float input, float dt)
+        {
+            if (input > 0.5f) value = Mathf.Min(1f, value + 5f * dt);
+            else if (input < -0.5f) value = Mathf.Max(-1f, value - 5f * dt);
+            else
+            {
+                value = Mathf.MoveTowards(value, 0f, 5f * dt);
+                if (Mathf.Abs(value) < 0.2f) value = 0f;
+            }
         }
 
         /// <summary>

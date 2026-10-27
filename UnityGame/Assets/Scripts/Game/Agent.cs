@@ -161,7 +161,6 @@ namespace UA
         private void AimArms()
         {
             if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
-            if (State.MoveY > 1.2f) return;   // sprinting: the gun is carried, not aimed
             if (Ready < 0.5f) return;   // carried low
             var muzzle = Muzzles[weapon];
             var forward = Quaternion.Euler(-State.Pitch, State.Yaw, 0) * Vector3.forward;
@@ -428,7 +427,7 @@ namespace UA
             Anim.SetFloat(MoveYId, animMoveY);
             // shorter, quicker steps when running (same speed over the ground)
             float move = new Vector2(animMoveX, Mathf.Min(1f, animMoveY)).magnitude;
-            // a real walk at half the stick (eight directions); running and sprinting take a little longer strides
+            // a real walk at half the stick (eight directions); running takes a little longer strides
             Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 0.96f : move < 0.7f ? 1.05f : 1.0f);
             Steps(s, move);
             Anim.SetBool(CrouchId, s.Crouch);
@@ -448,28 +447,25 @@ namespace UA
             if (Anim.layerCount > 1 && (!s.Alive || s.Prone)) Anim.SetLayerWeight(1, 0f);
         }
 
-        /// <summary>Footsteps (walking, running, sprinting, crouching) and the rustle of crawling.</summary>
+        /// <summary>
+        /// Footsteps as in Battle Warfare (fire.s_play): one step every 0.3 s at a run, every 0.5 s at a walk
+        /// (aiming, shooting, crouched); the rustle of crawling.
+        /// </summary>
         private void Steps(PlayerState s, float move)
         {
             if (!s.Alive || !s.Grounded || move < 0.25f) { stepTimer = Mathf.Min(stepTimer, 0.06f); return; }
             stepTimer -= Time.deltaTime;
             if (stepTimer > 0f) return;
-            bool sprint = animMoveY > 1.2f;
-            stepTimer = s.Prone ? 0.8f : s.Crouch ? 0.45f : sprint ? 0.26f : move < 0.6f ? 0.42f : 0.3f;
-            bool running = !s.Crouch && (sprint || move > 0.8f);
+            bool running = !s.Crouch && !s.Prone && move > 0.8f;
+            stepTimer = s.Prone ? 0.8f : running ? 0.3f : 0.5f;
             // the same loudness for everyone: Sfx.Step lowers the others' steps with their distance
-            float volume = 0.42f * (s.Crouch ? 0.45f : 1f) * (sprint ? 1.15f : 1f);
-            // recorded steps (Fantozzi, CC0): soft ground in the village, stone and concrete elsewhere;
-            // the made-up ones only when the recordings are missing
-            // the player's own footstep recording first, then the recorded ones by ground
-            string surface = Sfx.Count("step_b2_") > 0 ? "step_b2_"
-                : World.I != null && World.I.Layout != null && World.I.Layout.Name == "VILLAGE" ? "fs_sand_" : "fs_stone_";
-            int recorded = Sfx.Count(surface);
+            float volume = 0.42f * (s.Crouch ? 0.45f : 1f) * (running ? 0.9f : 0.75f);
+            // the player's own footstep recordings, else the made-up ones
+            int recorded = Sfx.Count("step_b2_");
             string clip = s.Prone ? "crawl_" + (stepIndex++ % 2)
-                : recorded > 0 ? surface + (stepIndex++ % recorded)
+                : recorded > 0 ? "step_b2_" + (stepIndex++ % recorded)
                 : running ? "step_run_" + (stepIndex++ % 3)
                 : "step_" + (stepIndex++ % 4);
-            if (recorded > 0 && !s.Prone) volume *= running ? 0.9f : 0.75f;
             Sfx.Step(clip, transform.position, s.Prone ? volume * 0.8f : volume, IsLocal);
         }
 

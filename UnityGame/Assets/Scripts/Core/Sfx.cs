@@ -29,13 +29,13 @@ namespace UA
         private static readonly List<AudioSource> steps = new List<AudioSource>();
 
         /// <summary>Beyond this distance nobody's footsteps are heard.</summary>
-        public const float StepHearing = 26f;
+        public const float StepHearing = 50f;
 
         /// <summary>
         /// Footsteps and other small body sounds, on their own few voices (they never take one from a
         /// gunshot). Rules: one's own steps play at their volume; nobody else's is ever louder than that,
-        /// only as loud when standing right at one's feet (within 1 m), then fading the further away they
-        /// are, to nothing at 26 m.
+        /// only as loud when standing right at one's feet (within 1 m), then as 1 / distance (as in Battle
+        /// Warfare: logarithmic from 1 m), to nothing at 50 m.
         /// </summary>
         public static void Step(string name, Vector3 position, float volume, bool own)
         {
@@ -47,8 +47,7 @@ namespace UA
                 var me = LocalPlayer.I != null ? LocalPlayer.I.transform.position : CameraRig.I != null ? CameraRig.I.transform.position : position;
                 float d = Vector3.Distance(me, position);
                 if (d >= StepHearing) return;
-                float k = Mathf.Clamp01(1f - (d - 1f) / (StepHearing - 1f));
-                volume *= k * k;
+                volume /= Mathf.Max(1f, d);
                 if (volume < 0.01f) return;
             }
             if (root == null) Next();

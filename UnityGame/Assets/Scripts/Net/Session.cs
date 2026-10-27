@@ -526,6 +526,12 @@ namespace UA
                 if (!p.Alive) p.RespawnAt += seconds;
         }
 
+        /// <summary>Host, auto test only: one player kills another outright with the gun in their hands.</summary>
+        public void TestKill(byte killer, byte victim)
+        {
+            if (IsHost && Players.TryGetValue(killer, out var a) && Players.TryGetValue(victim, out var b)) Damage(a, b, Weapons.Get(a.Weapon), false, 1000f);
+        }
+
         public void EndMatch()
         {
             if (!IsHost || Phase == Phase.Lobby || Phase == Phase.Ended) return;
