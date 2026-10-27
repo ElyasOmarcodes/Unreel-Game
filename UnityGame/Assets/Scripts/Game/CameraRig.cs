@@ -33,7 +33,8 @@ namespace UA
             Settings.ApplyCamera(Cam);
         }
 
-        public Ray AimRay() => new Ray(transform.position + transform.forward * 0.3f, transform.forward);
+        // from in front of the near plane: a camera behind the wall at the player's back does not shoot that wall
+        public Ray AimRay() => new Ray(transform.position + transform.forward * Mathf.Max(0.3f, Cam.nearClipPlane + 0.05f), transform.forward);
 
         private float shake;
         private Quaternion smoothRotation = Quaternion.identity;
@@ -74,13 +75,14 @@ namespace UA
         // and the camera keeps at least this far behind that point, even through the wall at the back: a
         // camera level with the head cannot see the body at all (it only looks forward, so nothing
         // behind the wall is shown)
-        private const float MinBehind = 0.55f;
+        private const float MinBehind = 1.1f;
+        public const float NearClip = 0.15f;   // as the map builder sets it (depth precision: no flicker far away)
         /// <summary>Where the crosshair really points (the camera's pitch): the agent's arms and the network.</summary>
         public float AimPitch => Pitch - LookDown;
         // distance behind the shoulder point: normally, while shooting, while aiming (Battle Warfare
         // puts it on the shoulder with arms of their own; here the agent's own body holds the gun, so it
         // stays a little behind it), with a scope
-        private const float Behind = 2f, BehindFiring = 0.8f, BehindAiming = 0.55f;
+        private const float Behind = 2f, BehindFiring = 1.25f, BehindAiming = 0.7f;
 
         /// <summary>Short random camera shake (explosions), in degrees.</summary>
         public void Shake(float degrees) => shake = Mathf.Max(shake, degrees);
@@ -157,10 +159,11 @@ namespace UA
             // point as close as the wall is, and moves up over the shoulder beside the head in proportion,
             // never nearer than MinBehind (the body stays in the picture)
             var back = -(rotation * Vector3.forward);
-            float room = behind, k = 0f;
+            float room = behind, k = 0f, wallAt = float.MaxValue;
             if (!Scope && behind > 0f && Cast(target, back * behind, out float wall))
             {
                 room = Mathf.Max(0f, wall - 0.2f);
+                wallAt = wall;
                 k = Mathf.Clamp01(1f - room / Mathf.Min(CloseFrom, behind));
             }
             // pulled in quickly (not into the wall), let out slowly (no pumping past posts and corners)
@@ -172,13 +175,17 @@ namespace UA
                 var up = Vector3.Lerp(target, over, kk) - target;
                 if (up.sqrMagnitude > 1e-4f && Cast(target, up, out float roof)) up = up.normalized * Mathf.Max(0f, roof - 0.05f);
                 target += up;
-                if (!Scope && behind > 0f && Cast(target, back * behind, out wall)) room = Mathf.Max(0f, wall - 0.2f);
+                if (!Scope && behind > 0f && Cast(target, back * behind, out wall)) { room = Mathf.Max(0f, wall - 0.2f); wallAt = wall; }
+                else wallAt = float.MaxValue;
             }
             float want = Scope ? 0f : Mathf.Max(room, Mathf.Min(MinBehind, behind) * kk);
             reach = want < reach || !reachSet ? Mathf.Lerp(reach, want, reachSet ? 1f - Mathf.Exp(-25f * dt) : 1f) : Mathf.MoveTowards(reach, want, 2.5f * dt);
             if (Scope) reach = 0f;
             reachSet = true;
             var desired = target + back * reach;
+            // the camera behind the wall at the back: everything nearer than the wall's face on the player's
+            // side is left out of the picture (the wall itself), the player in front stays
+            Cam.nearClipPlane = reach > wallAt ? Mathf.Clamp(reach - wallAt + 0.08f, NearClip, Mathf.Max(NearClip, reach - 0.35f)) : NearClip;
             if (shake > 0.01f)
             {
                 rotation *= Quaternion.Euler(Random.Range(-shake, shake), Random.Range(-shake, shake), Random.Range(-shake, shake) * 0.5f);
