@@ -33,8 +33,9 @@ namespace UA
             Settings.ApplyCamera(Cam);
         }
 
-        // from in front of the near plane: a camera behind the wall at the player's back does not shoot that wall
-        public Ray AimRay() => new Ray(transform.position + transform.forward * Mathf.Max(0.3f, Cam.nearClipPlane + 0.05f), transform.forward);
+        // from the player's side of the cut (a camera behind the wall at the player's back does not shoot that wall)
+        public Ray AimRay() => new Ray(transform.position + transform.forward * aimFrom, transform.forward);
+        private float aimFrom = 0.3f;
 
         private float shake;
         private Quaternion smoothRotation = Quaternion.identity;
@@ -50,16 +51,19 @@ namespace UA
         /// lamps, poles, railings under 0.35 m across) do not count: the camera goes past them instead of
         /// jumping in front of them.
         /// </summary>
-        private static bool Cast(Vector3 from, Vector3 way, out float distance)
+        private static bool Cast(Vector3 from, Vector3 way, out float distance) => Cast(from, way, out distance, out _);
+
+        private static bool Cast(Vector3 from, Vector3 way, out float distance, out RaycastHit first)
         {
             distance = way.magnitude;
+            first = default;
             if (distance < 1e-4f) return false;
             bool found = false;
             foreach (var h in Physics.SphereCastAll(from, 0.12f, way / distance, distance, World.EnvMask, QueryTriggerInteraction.Ignore))
             {
                 var size = h.collider.bounds.size;
                 if (Mathf.Max(size.x, size.z) < 0.35f) continue;
-                if (h.distance < distance || !found) { distance = Mathf.Min(distance, h.distance); found = true; }
+                if (!found || h.distance < distance) { distance = h.distance; first = h; found = true; }
             }
             return found;
         }
@@ -112,6 +116,7 @@ namespace UA
                 transform.position = pos;
                 transform.rotation = Quaternion.LookRotation(center + Vector3.up * 4f - pos);
                 fov = 55f;
+                Cam.ResetProjectionMatrix();
                 Cam.fieldOfView = fov;
                 return;
             }
@@ -160,7 +165,8 @@ namespace UA
             // never nearer than MinBehind (the body stays in the picture)
             var back = -(rotation * Vector3.forward);
             float room = behind, k = 0f, wallAt = float.MaxValue;
-            if (!Scope && behind > 0f && Cast(target, back * behind, out float wall))
+            RaycastHit wallHit = default;
+            if (!Scope && behind > 0f && Cast(target, back * behind, out float wall, out wallHit))
             {
                 room = Mathf.Max(0f, wall - 0.2f);
                 wallAt = wall;
@@ -175,7 +181,7 @@ namespace UA
                 var up = Vector3.Lerp(target, over, kk) - target;
                 if (up.sqrMagnitude > 1e-4f && Cast(target, up, out float roof)) up = up.normalized * Mathf.Max(0f, roof - 0.05f);
                 target += up;
-                if (!Scope && behind > 0f && Cast(target, back * behind, out wall)) { room = Mathf.Max(0f, wall - 0.2f); wallAt = wall; }
+                if (!Scope && behind > 0f && Cast(target, back * behind, out wall, out wallHit)) { room = Mathf.Max(0f, wall - 0.2f); wallAt = wall; }
                 else wallAt = float.MaxValue;
             }
             float want = Scope ? 0f : Mathf.Max(room, Mathf.Min(MinBehind, behind) * kk);
@@ -183,9 +189,11 @@ namespace UA
             if (Scope) reach = 0f;
             reachSet = true;
             var desired = target + back * reach;
-            // the camera behind the wall at the back: everything nearer than the wall's face on the player's
-            // side is left out of the picture (the wall itself), the player in front stays
-            Cam.nearClipPlane = reach > wallAt ? Mathf.Clamp(reach - wallAt + 0.08f, NearClip, Mathf.Max(NearClip, reach - 0.35f)) : NearClip;
+            // the camera behind the wall at the player's back: the picture is cut along that wall's face on the
+            // player's side (an oblique near plane, whatever the wall's angle), so the wall is not drawn and the
+            // player in front of it is seen whole
+            bool cut = reach > wallAt + 0.05f && wallHit.collider != null;
+            Vector3 cutPoint = cut ? wallHit.point + wallHit.normal * 0.03f : Vector3.zero, cutNormal = cut ? wallHit.normal : Vector3.up;
             if (shake > 0.01f)
             {
                 rotation *= Quaternion.Euler(Random.Range(-shake, shake), Random.Range(-shake, shake), Random.Range(-shake, shake) * 0.5f);
@@ -197,7 +205,20 @@ namespace UA
 
             // a field of view of 60, aiming too; a scope zooms in at 500 degrees a second
             fov = Mathf.MoveTowards(fov, Scope ? AimFov : 60f, 500f * dt);
+            Cam.ResetProjectionMatrix();
+            Cam.nearClipPlane = NearClip;
             Cam.fieldOfView = fov;
+            aimFrom = 0.3f;
+            if (cut && Vector3.Dot(desired - cutPoint, cutNormal) < -0.02f)
+            {
+                var view = Cam.worldToCameraMatrix;
+                var n = view.MultiplyVector(cutNormal).normalized;
+                var p = view.MultiplyPoint(cutPoint);
+                Cam.projectionMatrix = Cam.CalculateObliqueMatrix(new Vector4(n.x, n.y, n.z, -Vector3.Dot(p, n)));
+                // the shot starts where the aim crosses that face
+                float across = Vector3.Dot(transform.forward, cutNormal);
+                if (across > 0.05f) aimFrom = Mathf.Max(0.3f, -Vector3.Dot(desired - cutPoint, cutNormal) / across + 0.05f);
+            }
         }
     }
 }

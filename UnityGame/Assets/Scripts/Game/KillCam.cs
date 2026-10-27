@@ -237,6 +237,7 @@ namespace UA
             }
             cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(look - eye));
             cam.Cam.fieldOfView = fov;
+            cam.Cam.ResetProjectionMatrix();
             cam.Cam.nearClipPlane = CameraRig.NearClip;
         }
 
