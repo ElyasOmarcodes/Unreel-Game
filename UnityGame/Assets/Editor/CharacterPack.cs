@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UA;
 using UnityEditor;
 using UnityEngine;
@@ -11,11 +13,12 @@ using UnityEngine;
 /// character in one OBJ, in a T-pose, metres, feet at 0, facing +Z; one packed texture each under
 /// Assets/Characters) put on the agent's own skeleton, so they play every animation:
 ///  - the model is scaled to the body's height and stood where the body stands at rest;
-///  - the arms are mapped bone by bone: the character's shoulder, elbow, wrist and finger tips are
-///    found on its mesh, and the arm bones are bound in that pose (their bind poses turned from the
-///    body's rest pose onto the character's arms), so a T-pose model fits an A-pose skeleton;
-///  - the skin weights of the trunk, legs and head come from the nearest point of the body, the
-///    arms are weighted along their own bones with soft elbows and wrists.
+///  - every bone is mapped on the player's Mixamo skeleton (Models/Characters/mixamo_skeleton.json, made
+///    on Char3, fitted to the others: as tall as each, the arms to its finger tips): the agent's bones are
+///    bound where the same joints of the character are (their bind poses turned from the body's rest
+///    pose onto the character's bones), so a T-pose model fits an A-pose skeleton;
+///  - the skin weights come from the distance to those bones out of their flesh, blended where two
+///    meet, never from a bone of the other side: no seam at the shoulders, elbows, hips or knees.
 /// Each character is a part of the look (Wardrobe.Slot.Character); a team armband goes with them.
 /// </summary>
 public static class CharacterPack
@@ -97,69 +100,193 @@ public static class CharacterPack
         return model;
     }
 
+    /// <summary>
+    /// The agent's bones on the pack's Mixamo skeleton: the agent bone, the agent bone its direction points
+    /// to (null: only moved, not turned), the Mixamo joints of the same bone in the character, and how thick
+    /// the flesh round it is (for the weights). '*' is the side: l / r for the agent, Left / Right for Mixamo.
+    /// </summary>
+    private static readonly (string bone, string toward, string from, string to, float radius)[] Bones =
+    {
+        ("pelvis", "spine_01", "Hips", "Spine", 0.12f), ("spine_01", "spine_02", "Spine", "Spine1", 0.13f),
+        ("spine_02", "spine_03", "Spine1", "Spine2", 0.14f), ("spine_03", "neck_01", "Spine2", "Neck", 0.14f),
+        ("neck_01", "head", "Neck", "Head", 0.05f), ("head", null, "Head", "HeadTop_End", 0.09f),
+        ("clavicle_*", "upperarm_*", "*Shoulder", "*Arm", 0.06f), ("upperarm_*", "lowerarm_*", "*Arm", "*ForeArm", 0.05f),
+        ("lowerarm_*", "hand_*", "*ForeArm", "*Hand", 0.04f), ("hand_*", "middle_01_*", "*Hand", "*HandMiddle1", 0.03f),
+        ("thumb_01_*", "thumb_02_*", "*HandThumb1", "*HandThumb2", 0.01f), ("thumb_02_*", "thumb_03_*", "*HandThumb2", "*HandThumb3", 0.01f), ("thumb_03_*", null, "*HandThumb3", "*HandThumb4", 0.01f),
+        ("index_01_*", "index_02_*", "*HandIndex1", "*HandIndex2", 0.01f), ("index_02_*", "index_03_*", "*HandIndex2", "*HandIndex3", 0.01f), ("index_03_*", null, "*HandIndex3", "*HandIndex4", 0.01f),
+        ("middle_01_*", "middle_02_*", "*HandMiddle1", "*HandMiddle2", 0.01f), ("middle_02_*", "middle_03_*", "*HandMiddle2", "*HandMiddle3", 0.01f), ("middle_03_*", null, "*HandMiddle3", "*HandMiddle4", 0.01f),
+        ("ring_01_*", "ring_02_*", "*HandRing1", "*HandRing2", 0.01f), ("ring_02_*", "ring_03_*", "*HandRing2", "*HandRing3", 0.01f), ("ring_03_*", null, "*HandRing3", "*HandRing4", 0.01f),
+        ("pinky_01_*", "pinky_02_*", "*HandPinky1", "*HandPinky2", 0.01f), ("pinky_02_*", "pinky_03_*", "*HandPinky2", "*HandPinky3", 0.01f), ("pinky_03_*", null, "*HandPinky3", "*HandPinky4", 0.01f),
+        ("thigh_*", "calf_*", "*UpLeg", "*Leg", 0.08f), ("calf_*", "foot_*", "*Leg", "*Foot", 0.05f),
+        ("foot_*", "ball_*", "*Foot", "*ToeBase", 0.04f), ("ball_*", null, "*ToeBase", "*Toe_End", 0.03f),
+    };
+
+    private class Stats { public float Low, High, TipNeg, TipPos; }
+    private static readonly Dictionary<string, Stats> stats = new Dictionary<string, Stats>();
+
+    private static Stats Measure(string key, Model m)
+    {
+        if (!stats.TryGetValue(key, out var st))
+            stats[key] = st = new Stats { Low = m.P.Min(p => p.y), High = m.P.Max(p => p.y), TipNeg = m.P.Max(p => -p.x), TipPos = m.P.Max(p => p.x) };
+        return st;
+    }
+
+    /// <summary>
+    /// The joints of a Mixamo skeleton JSON (the player's mixamo_skeleton.json: name, parent, local position
+    /// and rotation, bind pose of every bone) where they sit in the T-pose mesh, in the loaded space; a bone
+    /// without a bind pose is placed from its parent. 'madeOn' is the character it was made on.
+    /// </summary>
+    private static Dictionary<string, Vector3> ReadJoints(string file, out string madeOn)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var text = File.ReadAllText(file);
+        madeOn = Regex.Match(text, "\"character\"\\s*:\\s*\"([^\"]*)\"").Groups[1].Value;
+        float[] Numbers(string part) => Regex.Matches(part, @"-?\d+(\.\d+)?([eE][-+]?\d+)?").Cast<Match>().Select(x => float.Parse(x.Value, inv)).ToArray();
+        string Between(string block, string a, string b)
+        {
+            int i = block.IndexOf(a, StringComparison.Ordinal);
+            if (i < 0) return "";
+            i += a.Length;
+            int j = b == null ? -1 : block.IndexOf(b, i, StringComparison.Ordinal);
+            return j < 0 ? block.Substring(i) : block.Substring(i, j - i);
+        }
+        string Short(string name) => name.Substring(name.LastIndexOf(':') + 1);   // mixamorig:LeftArm -> LeftArm
+        var world = new Dictionary<string, Matrix4x4>();
+        var joints = new Dictionary<string, Vector3>();
+        foreach (var block in text.Split(new[] { "\"name\"" }, StringSplitOptions.None).Skip(1))
+        {
+            string name = Short(Regex.Match(block, "^\\s*:\\s*\"([^\"]+)\"").Groups[1].Value);
+            var parentMatch = Regex.Match(block, "\"parent\"\\s*:\\s*\"([^\"]+)\"");
+            string parent = parentMatch.Success ? Short(parentMatch.Groups[1].Value) : null;
+            float[] pos = Numbers(Between(block, "\"local_position\"", "\"local_rotation\""));
+            float[] rot = Numbers(Between(block, "\"local_rotation\"", "\"local_scale\""));
+            float[] bind = Numbers(Between(block, "\"bind_pose\"", null));
+            Matrix4x4 w;
+            if (bind.Length >= 16)
+            {
+                var b = Matrix4x4.identity;
+                for (int r = 0; r < 4; r++) b.SetRow(r, new Vector4(bind[r * 4], bind[r * 4 + 1], bind[r * 4 + 2], bind[r * 4 + 3]));
+                w = b.inverse;
+            }
+            else if (pos.Length >= 3 && rot.Length >= 4)
+            {
+                var local = Matrix4x4.TRS(new Vector3(pos[0], pos[1], pos[2]), new Quaternion(rot[0], rot[1], rot[2], rot[3]).normalized, Vector3.one);
+                w = parent != null && world.TryGetValue(parent, out var pw) ? pw * local : local;
+            }
+            else continue;
+            world[name] = w;
+            joints[name] = w.MultiplyPoint3x4(Vector3.zero);
+        }
+        return joints;
+    }
+
+    /// <summary>
+    /// The skeleton of a character: its own (Key_skeleton.json) when there is one, else the shared one fitted
+    /// to it: as tall as the character, the arms stretched to its finger tips.
+    /// </summary>
+    private static Dictionary<string, Vector3> Skeleton(string key, Model m)
+    {
+        string own = Path.Combine(Folder, key + "_skeleton.json"), shared = Path.Combine(Folder, "mixamo_skeleton.json");
+        string file = File.Exists(own) ? own : shared;
+        if (!File.Exists(file)) return null;
+        var joints = ReadJoints(file, out string madeOn);
+        if (file == own || madeOn == key || !File.Exists(Path.Combine(Folder, madeOn + ".obj"))) return joints;
+        if (!stats.ContainsKey(madeOn)) Measure(madeOn, Load(Path.Combine(Folder, madeOn + ".obj")));
+        Stats r = stats[madeOn], c = Measure(key, m);
+        float hr = (c.High - c.Low) / Mathf.Max(0.5f, r.High - r.Low);
+        var fitted = new Dictionary<string, Vector3>();
+        foreach (var kv in joints)
+        {
+            var p = kv.Value;
+            var q = new Vector3(p.x, c.Low + (p.y - r.Low) * hr, p.z);
+            string side = kv.Key.StartsWith("Left") ? "Left" : kv.Key.StartsWith("Right") ? "Right" : null;
+            if (side != null && (kv.Key.Contains("Arm") || kv.Key.Contains("Hand")) && joints.TryGetValue(side + "Arm", out var shoulder))
+            {
+                float sg = Mathf.Sign(shoulder.x), ax = Mathf.Abs(shoulder.x);
+                float k = ((sg < 0 ? c.TipNeg : c.TipPos) - ax) / Mathf.Max(0.1f, (sg < 0 ? r.TipNeg : r.TipPos) - ax);
+                q.x = sg * (ax + (Mathf.Abs(p.x) - ax) * k);
+            }
+            fitted[kv.Key] = q;
+        }
+        return fitted;
+    }
+
+    private static float ToSegment(Vector3 p, Vector3 a, Vector3 b)
+    {
+        var ab = b - a;
+        float t = Mathf.Clamp01(Vector3.Dot(p - a, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
+        return (p - (a + ab * t)).magnitude;
+    }
+
     private static GameObject Build(Outfit.Body body, string key)
     {
         string file = Path.Combine(Folder, key + ".obj");
         if (!File.Exists(file)) { Debug.LogWarning("[Setup] character missing: " + file); return null; }
         var m = Load(file);
+        var skeleton = Skeleton(key, m);
+        if (skeleton == null) { Debug.LogWarning("[Setup] no Mixamo skeleton for the characters in " + Folder); return null; }
 
-        // stand it where the body stands, as tall as the body
+        // stand it where the body stands, as tall as the body (the skeleton with it)
         float bodyLow = body.Points.Min(p => p.y), bodyHigh = body.Points.Max(p => p.y);
         float low = m.P.Min(p => p.y), high = m.P.Max(p => p.y);
         var pelvis = body.At("pelvis", "spine_01");
         float s = (bodyHigh - bodyLow) / Mathf.Max(0.5f, high - low);
-        for (int i = 0; i < m.P.Count; i++)
-            m.P[i] = new Vector3(pelvis.x + m.P[i].x * s, bodyLow + (m.P[i].y - low) * s, pelvis.z + m.P[i].z * s);
+        Vector3 Place(Vector3 p) => new Vector3(pelvis.x + p.x * s, bodyLow + (p.y - low) * s, pelvis.z + p.z * s);
+        for (int i = 0; i < m.P.Count; i++) m.P[i] = Place(m.P[i]);
+        var joint = skeleton.ToDictionary(kv => kv.Key, kv => Place(kv.Value));
 
+        // every agent bone bound where the same bone of the character is (the character's T-pose is turned
+        // onto the agent's rest pose bone by bone), and its piece of the body for the weights
         var bindposes = (Matrix4x4[])body.Bindposes.Clone();
-        var weights = new BoneWeight[m.P.Count];
-        var arm = new bool[m.P.Count];
-        foreach (string side in new[] { "l", "r" })
+        var pieces = new List<(int bone, Vector3 a, Vector3 b, float radius, float side)>();
+        var missing = new List<string>();
+        var lastTurn = new Dictionary<string, Quaternion>();   // per side: the turn of the bone before (for the ends)
+        foreach (var (bone0, toward0, from0, to0, radius) in Bones)
         {
-            int up = body.Bone("upperarm_" + side), low1 = body.Bone("lowerarm_" + side), hand = body.Bone("hand_" + side);
-            if (up < 0 || low1 < 0 || hand < 0) { Debug.LogWarning($"[Setup] {key}: no arm bones on side {side}"); continue; }
-            Vector3 shR = body.At("upperarm_" + side), elR = body.At("lowerarm_" + side), wrR = body.At("hand_" + side);
-            float sign = Mathf.Sign(shR.x - pelvis.x), reach0 = Mathf.Abs(shR.x - pelvis.x);
-            // the finger tip at rest: the body's hand point furthest from the wrist
-            var tipR = body.PointsIn(Outfit.Region.Hands).Where(p => Mathf.Sign(p.x - pelvis.x) == sign).OrderByDescending(p => (p - wrR).sqrMagnitude).FirstOrDefault();
-            // the character's arm: its line just outside the shoulder, its finger tip furthest out
-            var near = m.P.Where(p => sign * (p.x - pelvis.x) > reach0 + 0.08f && sign * (p.x - pelvis.x) < reach0 + 0.2f).ToList();
-            var tip = m.P.OrderByDescending(p => sign * (p.x - pelvis.x)).First();
-            if (near.Count == 0 || tipR == Vector3.zero) continue;
-            var shC = new Vector3(shR.x, near.Average(p => p.y), near.Average(p => p.z));
-            var dir = (tip - shC).normalized;
-            float l1 = (elR - shR).magnitude, l2 = (wrR - elR).magnitude, l3 = (tipR - wrR).magnitude;
-            float k = (tip - shC).magnitude / Mathf.Max(0.1f, l1 + l2 + l3);
-            var elC = shC + dir * l1 * k;
-            var wrC = elC + dir * l2 * k;
-            Matrix4x4 Map(Vector3 restFrom, Vector3 restTo, Vector3 from, Vector3 to) =>
-                Matrix4x4.Translate(from) * Matrix4x4.Rotate(Quaternion.FromToRotation(restTo - restFrom, to - from)) * Matrix4x4.Translate(-restFrom);
-            var upper = Map(shR, elR, shC, elC);
-            var lower = Map(elR, wrR, elC, wrC);
-            var palm = Map(wrR, tipR, wrC, tip);
-            // every bone of this arm bound in the character's pose
-            for (int b = 0; b < bindposes.Length; b++)
+            foreach (string side in bone0.Contains("*") ? new[] { "l", "r" } : new[] { "" })
             {
-                var bone = body.Renderer.bones[b];
-                if (bone == null || !bone.name.ToLowerInvariant().EndsWith("_" + side)) continue;
-                string n = bone.name.ToLowerInvariant();
-                Matrix4x4? map = n.StartsWith("upperarm") ? upper : n.StartsWith("lowerarm") ? lower : Outfit.Of(n) == Outfit.Region.Hands ? palm : (Matrix4x4?)null;
-                if (map.HasValue) bindposes[b] = (map.Value * body.Bind(b)).inverse * body.ToWorld;
-            }
-            // the arm's vertices along its bones: soft at the elbow and the wrist
-            float e1 = l1 * k, e2 = (l1 + l2) * k;
-            for (int i = 0; i < m.P.Count; i++)
-            {
-                var p = m.P[i];
-                if (sign * (p.x - pelvis.x) <= reach0 + 0.03f) continue;
-                arm[i] = true;
-                float t = Vector3.Dot(p - shC, dir);
-                float toLower = Mathf.Clamp01((t - (e1 - 0.05f)) / 0.1f), toHand = Mathf.Clamp01((t - (e2 - 0.03f)) / 0.06f);
-                weights[i] = Outfit.Weight((up, 1f - toLower), (low1, toLower * (1f - toHand)), (hand, toHand));
+                string Ours(string n) => n?.Replace("*", side);
+                string name = Ours(bone0);
+                int own = body.Bone(name);
+                // no finger or neck bones on the agent: the hand / the head carry those parts of the character
+                string standIn = name.StartsWith("neck") ? "head" : Outfit.Of(name) == Outfit.Region.Hands && !name.StartsWith("hand") ? Ours("hand_*") : null;
+                int bone = own >= 0 ? own : standIn != null ? body.Bone(standIn) : -1;
+                if (bone < 0) { missing.Add(name); continue; }
+                float sign = side == "" ? 0f : Mathf.Sign(body.At(Ours("upperarm_*")).x - pelvis.x);
+                // the Mixamo side on the same side of the body
+                string mix = side == "" ? "" : joint.TryGetValue("LeftArm", out var la) && Mathf.Sign(la.x - pelvis.x) == sign ? "Left" : "Right";
+                if (!joint.TryGetValue(from0.Replace("*", mix), out var a) || !joint.TryGetValue(to0.Replace("*", mix), out var b)) { missing.Add(from0.Replace("*", mix)); continue; }
+                pieces.Add((bone, a, b, radius * s, sign));
+                if (own < 0) continue;   // only stands in: bound as the bone it stands in for
+                var rest = body.At(name);
+                int toward = toward0 == null ? -1 : body.Bone(Ours(toward0));
+                // the agent's bone turned onto the character's; an end bone (head, finger tips, toes) turns as the one before it
+                var turn = toward >= 0 ? Quaternion.FromToRotation(body.At(Ours(toward0)) - rest, b - a)
+                    : lastTurn.TryGetValue(side, out var before) ? before : Quaternion.identity;
+                lastTurn[side] = turn;
+                var map = Matrix4x4.Translate(a) * Matrix4x4.Rotate(turn) * Matrix4x4.Translate(-rest);
+                bindposes[bone] = (map * body.Bind(bone)).inverse * body.ToWorld;
             }
         }
+        if (missing.Count > 0) Debug.Log($"[Setup] {key}: bones not mapped: {string.Join(", ", missing)}");
+
+        // the weights: the nearest bones by the distance out of their flesh, never a bone of the other side
+        // (no thigh pulls the other leg), blended softly where two meet (shoulders, elbows, hips, knees)
+        var weights = new BoneWeight[m.P.Count];
+        var near = new List<(int bone, float weight)>(pieces.Count);
         for (int i = 0; i < m.P.Count; i++)
-            if (!arm[i]) weights[i] = body.Nearest(m.P[i], Outfit.Region.Torso, Outfit.Region.Legs, Outfit.Region.Head, Outfit.Region.Feet);
+        {
+            var p = m.P[i];
+            float dx = p.x - pelvis.x, vside = Mathf.Abs(dx) < 0.02f ? 0f : Mathf.Sign(dx);
+            near.Clear();
+            foreach (var piece in pieces)
+            {
+                if (piece.side != 0f && vside != 0f && piece.side != vside) continue;
+                float d = Mathf.Max(0f, ToSegment(p, piece.a, piece.b) - piece.radius) + 0.02f;
+                near.Add((piece.bone, 1f / (d * d * d * d)));
+            }
+            weights[i] = Outfit.Weight(near.OrderByDescending(x => x.weight).Take(4).ToArray());
+        }
 
         var g = new Outfit.Garment();
         for (int i = 0; i < m.P.Count; i++) g.Add(m.P[i], m.N[i], m.UV[i], weights[i]);
@@ -173,7 +300,7 @@ public static class CharacterPack
         mat.SetOverrideTag("RenderType", "TransparentCutout");
         mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
         var go = Outfit.Wear(body, g, "Character_" + key, bindposes, mat);
-        Debug.Log($"[Setup] character {key}: {m.P.Count} vertices, scale {s:0.00}");
+        Debug.Log($"[Setup] character {key}: {m.P.Count} vertices, scale {s:0.00}, {pieces.Count} bones from the Mixamo skeleton");
         return go;
     }
 

@@ -385,14 +385,12 @@ namespace UA
             passwordField = UIKit.Input(passRow, "", "Optional - empty = open", 30, 12);
             passwordField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 560, 74, 1f, 0.5f);
             byte[] minutes = { 3, 5, 8, 10, 15, 20, 30, 45, 60 };
-            // GAME MODE: SOLO (everyone alone) or the team this player plays in, TEAM 1 .. TEAM 10 (the others
-            // choose theirs when they join); MAP and TIME OF DAY apart; no player limit
-            UIKit.Stepper(panel, "GAME MODE", -130, () => Draft.Mode == Mode.FreeForAll ? "SOLO - NO TEAMS" : "TEAM " + (Settings.Team + 1), d =>
+            // TEAM NUMBER: one number, 0 by default = everyone fights alone; the players who pick the same
+            // number (here, when joining or in the lobby) are one team; MAP and TIME OF DAY apart; no player limit
+            UIKit.Stepper(panel, "TEAM NUMBER", -130, () => TeamLabel(Settings.Team), d =>
             {
-                int v = (Draft.Mode == Mode.FreeForAll ? 0 : Settings.Team + 1) + d;
-                v = (v + MatchConfig.MaxTeams + 1) % (MatchConfig.MaxTeams + 1);
-                Draft.Mode = v == 0 ? Mode.FreeForAll : Mode.TeamDeathmatch;
-                if (v > 0) Settings.Team = (byte)(v - 1);
+                Settings.Team = (byte)((Settings.Team + d + MatchConfig.MaxTeams + 1) % (MatchConfig.MaxTeams + 1));
+                Draft.Mode = Settings.Team > 0 ? Mode.TeamDeathmatch : Mode.FreeForAll;
             }, 1080);
             UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapTitles[MapSlot(Draft.Map)], d =>
             {
@@ -451,15 +449,15 @@ namespace UA
             UIKit.Title(s, "JOIN GROUP", -40, 66);
             var panel = UIKit.Panel(s, 1500, 610, 40);
             joinList = UIKit.Node(panel, "List").Fill(24);
-            // the team to play in (for groups with teams): TEAM 1 .. TEAM 10, changeable in the lobby too
+            // the team number to play in: 0 alone, 1 .. 10 with whoever picks the same; changeable in the lobby too
             var teamRow = UIKit.Node(s, "TeamRow").At(0.5f, 1f, 0, -116, 900, 58, 0.5f, 1f);
             var teamText = UIKit.Txt(teamRow, "", 34, TextAnchor.MiddleCenter, UIKit.Accent);
             teamText.rectTransform.Fill();
-            System.Action showTeam = () => teamText.text = "MY TEAM:  " + MatchConfig.TeamName(Settings.Team);
+            System.Action showTeam = () => teamText.text = "TEAM NUMBER:  " + TeamLabel(Settings.Team);
             showTeam();
-            var teamPrev = UIKit.Btn(teamRow, "<", () => { Settings.Team = (byte)((Settings.Team + MatchConfig.MaxTeams - 1) % MatchConfig.MaxTeams); showTeam(); }, 38);
+            var teamPrev = UIKit.Btn(teamRow, "<", () => { Settings.Team = (byte)((Settings.Team + MatchConfig.MaxTeams) % (MatchConfig.MaxTeams + 1)); showTeam(); }, 38);
             teamPrev.GetComponent<RectTransform>().At(0f, 0.5f, 0, 0, 90, 66, 0f, 0.5f);
-            var teamNext = UIKit.Btn(teamRow, ">", () => { Settings.Team = (byte)((Settings.Team + 1) % MatchConfig.MaxTeams); showTeam(); }, 38);
+            var teamNext = UIKit.Btn(teamRow, ">", () => { Settings.Team = (byte)((Settings.Team + 1) % (MatchConfig.MaxTeams + 1)); showTeam(); }, 38);
             teamNext.GetComponent<RectTransform>().At(1f, 0.5f, 0, 0, 90, 66, 1f, 0.5f);
             joinStatus = UIKit.Txt(panel, "", 32, TextAnchor.MiddleCenter, UIKit.Muted);
             joinStatus.rectTransform.Fill(60);
@@ -592,8 +590,8 @@ namespace UA
 
             var leave = UIKit.Btn(s, "LEAVE", LeaveGroup, 34, null, "exit_to_app");
             leave.GetComponent<RectTransform>().At(0.5f, 0f, -560, 50, 320, 96, 0.5f, 0f);
-            // tap: the next team (TEAM 1 .. TEAM 10)
-            lobbyTeam = UIKit.Btn(s, "MY TEAM: 1", () => { var me = Session.I.Local; if (me != null) Session.I.SetTeam((byte)((me.Team + 1) % MatchConfig.MaxTeams)); RefreshLobby(); }, 32, null, "swap_horiz");
+            // tap: the next team number (0 alone, 1 .. 10)
+            lobbyTeam = UIKit.Btn(s, "TEAM: 0", () => { var me = Session.I.Local; if (me != null) Session.I.SetTeam((byte)((me.Team + 1) % (MatchConfig.MaxTeams + 1))); RefreshLobby(); }, 32, null, "swap_horiz");
             lobbyTeam.GetComponent<RectTransform>().At(0.5f, 0f, -160, 50, 400, 96, 0.5f, 0f);
             lobbyStart = UIKit.Btn(s, "START MATCH", () => Session.I.StartMatch(), 38, UIKit.AccentDark, "play_arrow");
             lobbyStart.GetComponent<RectTransform>().At(0.5f, 0f, 340, 50, 560, 96, 0.5f, 0f);
@@ -626,6 +624,9 @@ namespace UA
             return v;
         }
 
+        /// <summary>A team number as the menus show it: 0 is fighting alone.</summary>
+        private static string TeamLabel(int team) => team == 0 ? "0  -  ALONE (NO TEAM)" : team + "  -  " + MatchConfig.TeamName(team);
+
         private void RefreshLobby()
         {
             var s = Session.I;
@@ -645,7 +646,7 @@ namespace UA
                 return;
             }
             lobbyTitle.text = s.Practice ? "PRACTICE" : Rtl.Shape(s.Config.GroupName.ToUpperInvariant());
-            lobbyInfo.text = $"{(s.Config.Mode == Mode.TeamDeathmatch ? "TEAMS 1-10" : MatchConfig.ModeNames[(int)s.Config.Mode])}   -   {MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length]}   -   {s.Config.Minutes} MIN   -   BOTS: {s.Config.Bots} ({MatchConfig.SkillNames[s.Config.BotSkill % 3]})";
+            lobbyInfo.text = $"{(tdm ? "TEAMS" : "EVERYONE ALONE")}   -   {MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length]}   -   {s.Config.Minutes} MIN   -   BOTS: {s.Config.Bots} ({MatchConfig.SkillNames[s.Config.BotSkill % 3]})";
             lobbyIp.text = s.Practice ? "Only you and the bots - no network used" :
                 s.IsHost ? "Friends: JOIN GROUP, or type this IP:  " + (s.HostAddresses.Length > 0 ? s.HostAddresses : "(no Wi-Fi found)")
                     + (string.IsNullOrEmpty(s.Config.Password) ? "" : "   -   PASSWORD: " + s.Config.Password) : "Connected - " + s.Players.Count(p => !p.Value.IsBot) + " players in the group";
@@ -659,7 +660,7 @@ namespace UA
             {
                 // every team in use with its players under its name, in its colour; the teams split over the two panels
                 var lines = new List<string>();
-                foreach (var g in ordered.GroupBy(p => p.Team % MatchConfig.MaxTeams).OrderBy(g => g.Key))
+                foreach (var g in ordered.GroupBy(p => (int)p.Team).OrderBy(g => g.Key == 0 ? 99 : g.Key))
                 {
                     lines.Add($"<color={MatchConfig.TeamHex(g.Key)}>{MatchConfig.TeamName(g.Key)}</color>");
                     lines.AddRange(g.Select(p => "   " + Line(p)));
@@ -676,8 +677,8 @@ namespace UA
             primaryText.text = Weapons.Get(Settings.Primary).Name;
             secondaryText.text = Weapons.Get(Settings.Secondary).Name;
             lobbyStart.gameObject.SetActive(s.IsHost && s.Phase == Phase.Lobby);
-            lobbyTeam.gameObject.SetActive(tdm && s.Phase == Phase.Lobby);
-            if (me != null) lobbyTeam.SetLabel("MY TEAM: " + (me.Team % MatchConfig.MaxTeams + 1));
+            lobbyTeam.gameObject.SetActive(s.Phase == Phase.Lobby);
+            if (me != null) lobbyTeam.SetLabel(me.Team == 0 ? "TEAM: 0 ALONE" : "TEAM: " + me.Team);
             lobbyWait.text = s.IsHost ? "" : s.Phase == Phase.Lobby ? "Waiting for the host to start ..." : "Match in progress - joining ...";
         }
 
@@ -749,39 +750,16 @@ namespace UA
             pausePanel.gameObject.SetActive(false);
         }
 
-        private RectTransform resultsRows;
-
-        // results table columns: header, x of the left edge, width
-        private static readonly (string head, float x, float w)[] ResultColumns =
-        {
-            ("#", 20, 60), ("PLAYER", 90, 400), ("KILLS", 490, 120), ("DEATHS", 610, 130), ("K/D", 740, 110),
-            ("DAMAGE", 850, 150), ("HEAD", 1000, 110), ("ACCURACY", 1110, 170), ("SCORE", 1280, 140), ("RATING", 1420, 160),
-        };
+        private ResultsTable resultsTable;
+        public ResultsTable Results => resultsTable;
 
         private void BuildResults()
         {
             var s = MakeScreen("results");
             resultsTitle = UIKit.Title(s, "MATCH OVER", -30, 70);
             var panel = UIKit.Panel(s, 1640, 700, 10);
-            var head = UIKit.Img(panel, new Color(1, 1, 1, 0.06f), UIKit.Rounded);
-            head.rectTransform.At(0.5f, 1f, 0, -24, 1600, 64, 0.5f, 1f);
-            foreach (var c in ResultColumns)
-                Cell(head.transform, c.head, c.x, c.w, 24, UIKit.Muted);
-            // the rows scroll when there are many players; the table stays until the player closes it
-            var view = UIKit.Img(panel, new Color(0, 0, 0, 0.01f), null, true);
-            view.rectTransform.At(0.5f, 1f, 0, -96, 1600, 580, 0.5f, 1f);
-            view.gameObject.AddComponent<RectMask2D>();
-            resultsRows = UIKit.Node(view.transform, "Rows");
-            resultsRows.anchorMin = new Vector2(0, 1);
-            resultsRows.anchorMax = new Vector2(1, 1);
-            resultsRows.pivot = new Vector2(0.5f, 1);
-            resultsRows.anchoredPosition = Vector2.zero;
-            var scroll = view.gameObject.AddComponent<ScrollRect>();
-            scroll.content = resultsRows;
-            scroll.viewport = view.rectTransform;
-            scroll.horizontal = false;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 40;
+            // every player, or every team; the table stays until the player closes it
+            resultsTable = new ResultsTable(panel, 680);
             resultsInfo = UIKit.Txt(s, "", 26, TextAnchor.MiddleCenter, UIKit.Muted);
             resultsInfo.rectTransform.At(0.5f, 0f, 0, 158, 1600, 40);
             var leave = UIKit.Btn(s, "LEAVE GROUP", LeaveGroup, 34, null, "exit_to_app");
@@ -792,44 +770,22 @@ namespace UA
             resultsLobby.GetComponent<RectTransform>().At(0.5f, 0f, 520, 40, 500, 96, 0.5f, 0f);
         }
 
-        private static Text Cell(Transform row, string text, float x, float w, int size, Color? color = null)
-        {
-            var t = UIKit.Txt(row, text, size, x < 100 || x > 400 ? TextAnchor.MiddleCenter : TextAnchor.MiddleLeft, color);
-            t.rectTransform.anchorMin = new Vector2(0, 0);
-            t.rectTransform.anchorMax = new Vector2(0, 1);
-            t.rectTransform.pivot = new Vector2(0, 0.5f);
-            t.rectTransform.anchoredPosition = new Vector2(x, 0);
-            t.rectTransform.sizeDelta = new Vector2(w, 0);
-            t.horizontalOverflow = HorizontalWrapMode.Overflow;
-            return t;
-        }
-
-        /// <summary>
-        /// A fair match score, not kills alone: kills, the damage done (help on kills others finished),
-        /// headshots and accuracy count for, deaths count against; the winning team gets a bonus.
-        /// </summary>
-        public static float MatchScore(PlayerState p, Session s)
-        {
-            float accuracy = p.Shots > 0 ? (float)p.ShotHits / p.Shots : 0f;
-            float score = p.Kills * 100f + p.DamageDone * 0.5f + p.Heads * 15f - p.Deaths * 40f;
-            if (p.Shots >= 15) score += accuracy * 150f;
-            if (s.Config.Mode == Mode.TeamDeathmatch && s.TeamScore[p.Team % MatchConfig.MaxTeams] > 0 && s.TeamScore[p.Team % MatchConfig.MaxTeams] == s.TeamScore.Max()) score += 60f;
-            return Mathf.Max(0f, score);
-        }
-
         private void FillResults()
         {
             var s = Session.I;
             string title;
-            if (s.Config.Mode == Mode.TeamDeathmatch)
+            if (ResultsTable.HasTeams(s))
             {
-                var teams = Enumerable.Range(0, MatchConfig.MaxTeams).Where(t => s.Players.Values.Any(p => p.Team == t)).OrderByDescending(t => s.TeamScore[t]).ToList();
-                bool draw = teams.Count < 2 || s.TeamScore[teams[0]] == s.TeamScore[teams[1]];
-                title = draw ? "DRAW" : $"<color={MatchConfig.TeamHex(teams[0])}>{MatchConfig.TeamName(teams[0])} WINS</color>";
-                title += "  <size=40>" + string.Join(" : ", teams.Select(t => $"<color={MatchConfig.TeamHex(t)}>{s.TeamScore[t]}</color>")) + "</size>";
+                // the best side (a team, or a player alone) wins
+                var sides = ResultsTable.Sides(s);
+                int Kills(int i) => sides[i].members.Sum(p => p.Kills);
+                bool draw = sides.Count < 2 || Kills(0) == Kills(1);
+                string Name(int i) => sides[i].team > 0 ? $"<color={MatchConfig.TeamHex(sides[i].team)}>{MatchConfig.TeamName(sides[i].team)}</color>" : Rtl.Shape(sides[i].members[0].Name.ToUpperInvariant());
+                title = draw ? "DRAW" : Name(0) + " WINS";
+                title += "  <size=40>" + string.Join(" : ", Enumerable.Range(0, Mathf.Min(4, sides.Count)).Select(i => sides[i].team > 0 ? $"<color={MatchConfig.TeamHex(sides[i].team)}>{Kills(i)}</color>" : Kills(i).ToString())) + "</size>";
                 var me = s.Local;
                 if (me != null && !draw)
-                    title += me.Team == teams[0] ? "  <size=40>VICTORY</size>" : "  <size=40>DEFEAT</size>";
+                    title += sides[0].members.Contains(me) ? "  <size=40>VICTORY</size>" : "  <size=40>DEFEAT</size>";
             }
             else
             {
@@ -839,40 +795,8 @@ namespace UA
             resultsTitle.text = title;
 
             // a snapshot of this match: the numbers stay while the next one starts behind it
-            foreach (Transform child in resultsRows) Destroy(child.gameObject);
-            var players = s.Players.Values.Select(p => (p, score: MatchScore(p, s))).OrderByDescending(x => x.score).ThenByDescending(x => x.p.Kills).ToList();
-            float top = players.Count > 0 ? Mathf.Max(1f, players[0].score) : 1f;
-            const float RowHeight = 66;
-            for (int i = 0; i < players.Count; i++)
-            {
-                var (p, score) = players[i];
-                bool mine = p.Id == s.LocalId;
-                var row = UIKit.Img(resultsRows, mine ? new Color(1f, 0.6f, 0.1f, 0.16f) : new Color(1, 1, 1, i % 2 == 0 ? 0.035f : 0.015f), UIKit.Rounded);
-                row.rectTransform.At(0.5f, 1f, 0, -i * RowHeight, 1600, RowHeight - 6, 0.5f, 1f);
-                if (s.Config.Mode == Mode.TeamDeathmatch)
-                {
-                    var team = UIKit.Img(row.transform, MatchConfig.TeamColors[p.Team % MatchConfig.MaxTeams], UIKit.Rounded);
-                    team.rectTransform.At(0f, 0.5f, 4, 0, 8, RowHeight - 18, 0f, 0.5f);
-                }
-                float kd = p.Deaths > 0 ? (float)p.Kills / p.Deaths : p.Kills;
-                int accuracy = p.Shots > 0 ? Mathf.RoundToInt(100f * p.ShotHits / p.Shots) : 0;
-                int rating = Mathf.RoundToInt(100f * score / top);
-                string name = Rtl.Shape(p.Name.Length > 16 ? p.Name.Substring(0, 16) : p.Name) + (p.IsBot ? "  <size=20><color=#8a94a0>BOT</color></size>" : "");
-                Color text = mine ? UIKit.Accent : UIKit.TextColor;
-                string[] values =
-                {
-                    i == 0 ? "MVP" : (i + 1).ToString(), name, p.Kills.ToString(), p.Deaths.ToString(), kd.ToString("0.0"),
-                    p.DamageDone.ToString(), p.Heads.ToString(), p.Shots > 0 ? accuracy + "%" : "-", Mathf.RoundToInt(score).ToString(), rating + "%",
-                };
-                for (int c = 0; c < values.Length; c++)
-                {
-                    var col = ResultColumns[c];
-                    var cell = Cell(row.transform, values[c], col.x, col.w, c == 1 ? 30 : 28, c == 0 && i == 0 ? UIKit.Accent : text);
-                    if (c == values.Length - 1) cell.color = Color.Lerp(UIKit.Red, UIKit.Green, rating / 100f);
-                }
-            }
-            resultsRows.sizeDelta = new Vector2(0, players.Count * RowHeight);
-            resultsRows.anchoredPosition = Vector2.zero;
+            resultsTable.ByTeam = ResultsTable.HasTeams(s);
+            resultsTable.Fill(s);
             resultsLobby.gameObject.SetActive(s.IsHost);
         }
 

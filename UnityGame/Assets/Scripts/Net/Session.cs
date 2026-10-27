@@ -29,6 +29,10 @@ namespace UA
             "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT", "OLD TOWN - DAY", "OLD TOWN - SUNSET", "OLD TOWN - NIGHT",
         };
         public static readonly string[] ModeNames = { "TEAMS", "SOLO - NO TEAMS" };
+        /// <summary>
+        /// Team numbers: 0 is nobody's team (each fights alone), 1 .. 10 are teams: players who pick the
+        /// same number are on one side.
+        /// </summary>
         public const int MaxTeams = 10;
         /// <summary>The ten teams: TEAM 1 .. TEAM 10, each its own colour (the vest, the names, the tables).</summary>
         public static readonly Color[] TeamColors =
@@ -36,15 +40,20 @@ namespace UA
             new Color(0.18f, 0.42f, 0.95f), new Color(0.92f, 0.22f, 0.18f), new Color(0.2f, 0.75f, 0.3f), new Color(0.98f, 0.78f, 0.12f), new Color(0.62f, 0.3f, 0.9f),
             new Color(0.1f, 0.8f, 0.85f), new Color(0.98f, 0.5f, 0.1f), new Color(0.95f, 0.4f, 0.7f), new Color(0.55f, 0.4f, 0.25f), new Color(0.85f, 0.88f, 0.92f),
         };
-        public static string TeamName(int team) => "TEAM " + (team % MaxTeams + 1);
-        public static string TeamHex(int team) => "#" + ColorUtility.ToHtmlStringRGB(TeamColors[team % MaxTeams]);
+        public static string TeamName(int team) => team <= 0 ? "ALONE" : "TEAM " + team;
+        public static Color TeamColor(int team) => team <= 0 ? new Color(0.85f, 0.88f, 0.92f) : TeamColors[(team - 1) % MaxTeams];
+        public static string TeamHex(int team) => "#" + ColorUtility.ToHtmlStringRGB(TeamColor(team));
+        /// <summary>The same side: both picked the same team number, and it is not 0 (alone).</summary>
+        public static bool Mates(PlayerState a, PlayerState b) => a != null && b != null && a != b && a.Team != 0 && a.Team == b.Team;
+        public static byte ClampTeam(int team) => (byte)Mathf.Clamp(team, 0, MaxTeams);
         /// <summary>The maps in the order of the menu (base layout of each; + 0 day, 1 afternoon, 2 evening).</summary>
         public static readonly int[] MapOrder = { 0, 3, 6, 9 };
         public static readonly string[] MapTitles = { "STEEL CITY", "AL-ZAHRA", "VILLAGE", "OLD TOWN" };
         public static readonly string[] TimeNames = { "DAY", "AFTERNOON", "EVENING" };
         public static readonly string[] SkillNames = { "EASY", "NORMAL", "HARD" };
 
-        public int KillLimit => Mode == Mode.FreeForAll ? 25 : 50;
+        public const int SoloKillLimit = 25;
+        public int KillLimit => Mode == Mode.FreeForAll ? SoloKillLimit : 50;
 
         public void Write(BinaryWriter w)
         {
@@ -112,7 +121,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 12;
+        public const byte Version = 13;
         public const byte NoPlayer = 255;
         public const string PasswordNeeded = "This group is locked: type its password";
         public const string WrongPassword = "Wrong password for this group";
@@ -123,7 +132,7 @@ namespace UA
         /// <summary>Counts the matches played in this session (each countdown starts a new one).</summary>
         public int MatchNumber;
         public float TimeLeft;
-        public readonly int[] TeamScore = new int[MatchConfig.MaxTeams];
+        public readonly int[] TeamScore = new int[MatchConfig.MaxTeams + 1];   // by team number (0, alone, never counts)
         public readonly Dictionary<byte, PlayerState> Players = new Dictionary<byte, PlayerState>();
         public byte LocalId;
         public readonly List<KillEvent> KillFeed = new List<KillEvent>();
@@ -194,9 +203,11 @@ namespace UA
             }
             Active = true;
             Players.Clear();
-            Players[0] = new PlayerState { Id = 0, Name = Settings.PlayerName, Team = (byte)(team % MatchConfig.MaxTeams), Primary = Settings.Primary, Secondary = Settings.Secondary, Look = Settings.Look };
+            Players[0] = new PlayerState { Id = 0, Name = Settings.PlayerName, Team = MatchConfig.ClampTeam(team), Primary = Settings.Primary, Secondary = Settings.Secondary, Look = Settings.Look };
             LocalId = 0;
             SyncBots();
+            UpdateMode();
+            BalanceBots();
             HostAddresses = string.Join("   ", LanUtil.LocalAddresses());
             if (HostPort != GamePort) HostAddresses += "  (port " + HostPort + ")";
             SetPhase(Phase.Lobby);
@@ -435,20 +446,27 @@ namespace UA
 
         private bool LimitReached()
         {
-            if (Config.Mode == Mode.TeamDeathmatch) return TeamScore.Any(t => t >= Config.KillLimit);
-            return Players.Values.Any(p => p.Kills >= Config.KillLimit);
+            // a team by its kills together, a player alone by their own
+            return TeamScore.Any(t => t >= Config.KillLimit) || Players.Values.Any(p => p.Team == 0 && p.Kills >= MatchConfig.SoloKillLimit);
         }
 
         /// <summary>
-        /// The team with the fewest players among the teams the people chose (at least two teams: if
-        /// everyone is in one, the next team number is the other side); bots and late comers go there.
+        /// Where a bot goes: alone (0) when no person picked a team; else the team with the fewest players
+        /// among the numbers the people chose (at least two teams: if everyone is in one, the next team
+        /// number is the other side).
         /// </summary>
         private byte SmallerTeam()
         {
-            var teams = Players.Values.Where(p => !p.IsBot && p.Team < MatchConfig.MaxTeams).Select(p => (int)p.Team).Distinct().ToList();
-            if (teams.Count == 0) teams.Add(0);
-            if (teams.Count < 2) teams.Add((teams[0] + 1) % MatchConfig.MaxTeams);
+            var teams = Players.Values.Where(p => !p.IsBot && p.Team > 0 && p.Team <= MatchConfig.MaxTeams).Select(p => (int)p.Team).Distinct().ToList();
+            if (teams.Count == 0) return 0;
+            if (teams.Count < 2) teams.Add(teams[0] % MatchConfig.MaxTeams + 1);
             return (byte)teams.OrderBy(t => Players.Values.Count(p => p.Team == t)).ThenBy(t => t).First();
+        }
+
+        /// <summary>Host: a match of teams as soon as one person picked a team number, else everyone alone.</summary>
+        private void UpdateMode()
+        {
+            Config.Mode = Players.Values.Any(p => !p.IsBot && p.Team > 0) ? Mode.TeamDeathmatch : Mode.FreeForAll;
         }
 
         /// <summary>The bots spread over the teams the people are in, the smallest filled first.</summary>
@@ -485,9 +503,10 @@ namespace UA
         public void SetTeam(byte team)
         {
             var me = Local;
-            if (me == null || Phase != Phase.Lobby || Config.Mode != Mode.TeamDeathmatch) return;
-            me.Team = (byte)(team % MatchConfig.MaxTeams);
+            if (me == null || Phase != Phase.Lobby) return;
+            me.Team = MatchConfig.ClampTeam(team);
             Settings.Team = me.Team;
+            if (IsHost) { UpdateMode(); BalanceBots(); }
         }
 
         public void SetLoadout(byte primary, byte secondary)
@@ -505,12 +524,12 @@ namespace UA
             if (!IsHost || Phase != Phase.Lobby) return;
             Array.Clear(TeamScore, 0, TeamScore.Length);
             KillFeed.Clear();
-            if (Config.Mode == Mode.TeamDeathmatch) BalanceBots();
+            UpdateMode();
+            BalanceBots();
             foreach (var p in Players.Values)
             {
                 p.Kills = p.Deaths = 0;
                 p.Shots = p.ShotHits = p.Heads = p.DamageDone = 0;
-                if (Config.Mode == Mode.FreeForAll) p.Team = (byte)(p.Id % 2);
                 Respawn(p);
             }
             phaseEnd = Time.unscaledTime + 3.5f;
@@ -594,11 +613,12 @@ namespace UA
                 while (Players.ContainsKey(id)) id++;
                 player = new PlayerState
                 {
-                    Id = id, Token = tok, Name = name, Team = wanted < MatchConfig.MaxTeams ? wanted : SmallerTeam(), Primary = (byte)(primary % Weapons.Count),
+                    Id = id, Token = tok, Name = name, Team = MatchConfig.ClampTeam(wanted), Primary = (byte)(primary % Weapons.Count),
                     Secondary = (byte)(secondary % Weapons.Count), Weapon = (byte)(primary % Weapons.Count), Look = look,
                 };
                 if (Phase == Phase.Playing || Phase == Phase.Countdown) player.RespawnAt = now + 1f;
                 Players[id] = player;
+                if (Phase == Phase.Lobby) { UpdateMode(); BalanceBots(); }
                 App.Log($"client-joined id={id} name={name} from={from}");
             }
             player.EndPoint = from;
@@ -620,7 +640,7 @@ namespace UA
             byte team = r.ReadByte(), primary = r.ReadByte(), secondary = r.ReadByte();
             if (Phase == Phase.Lobby)
             {
-                if (Config.Mode == Mode.TeamDeathmatch) p.Team = (byte)(team % MatchConfig.MaxTeams);
+                if (p.Team != MatchConfig.ClampTeam(team)) { p.Team = MatchConfig.ClampTeam(team); UpdateMode(); BalanceBots(); }
                 p.Primary = (byte)(primary % Weapons.Count);
                 p.Secondary = (byte)(secondary % Weapons.Count);
             }
@@ -721,7 +741,7 @@ namespace UA
         private float Damage(PlayerState shooter, PlayerState victim, WeaponDef def, bool head, float amount)
         {
             if (!victim.Alive) return 0f;
-            if (Config.Mode == Mode.TeamDeathmatch && victim.Team == shooter.Team && victim != shooter) return 0f;
+            if (MatchConfig.Mates(victim, shooter)) return 0f;
             float dealt = Mathf.Min(victim.Health, amount * (head ? def.HeadMultiplier : 1f));
             victim.Health -= amount * (head ? def.HeadMultiplier : 1f);
             victim.LastDamageTime = Time.unscaledTime;
@@ -738,7 +758,7 @@ namespace UA
             if (victim != shooter)
             {
                 shooter.Kills++;
-                if (Config.Mode == Mode.TeamDeathmatch) TeamScore[shooter.Team % MatchConfig.MaxTeams]++;
+                if (shooter.Team > 0 && shooter.Team <= MatchConfig.MaxTeams) TeamScore[shooter.Team]++;
             }
             var kill = new KillEvent { Seq = ++killSeq, Killer = shooter.Id, Victim = victim.Id, Weapon = def.Id, Headshot = head };
             KillFeed.Add(kill);
@@ -767,7 +787,7 @@ namespace UA
             var w = pw.Begin(Msg.Snapshot);
             w.Write((byte)Phase);
             w.Write(TimeLeft);
-            for (int t = 0; t < MatchConfig.MaxTeams; t++) w.Write((short)TeamScore[t]);
+            for (int t = 0; t < TeamScore.Length; t++) w.Write((short)TeamScore[t]);
             w.Write((byte)Players.Count);
             foreach (var p in Players.Values)
             {
@@ -912,7 +932,7 @@ namespace UA
         {
             var phase = (Phase)r.ReadByte();
             TimeLeft = r.ReadSingle();
-            for (int t = 0; t < MatchConfig.MaxTeams; t++) TeamScore[t] = r.ReadInt16();
+            for (int t = 0; t < TeamScore.Length; t++) TeamScore[t] = r.ReadInt16();
             int count = r.ReadByte();
             for (int i = 0; i < count; i++)
             {
@@ -1015,7 +1035,7 @@ namespace UA
         {
             if (Phase != Phase.Playing || !Players.TryGetValue(giverId, out var giver) || !Players.TryGetValue(targetId, out var target) || !giver.Alive || !target.Alive) return;
             // only blood, only for a badly wounded team mate standing close by (a little slack for the network)
-            if (kind != 1 || giver == target || Config.Mode != Mode.TeamDeathmatch || giver.Team != target.Team) return;
+            if (kind != 1 || !MatchConfig.Mates(giver, target)) return;
             if ((giver.Pos - target.Pos).sqrMagnitude > HealRange * HealRange * 2f || target.Health >= BloodThreshold + 2f) return;
             float amount = Mathf.Min(BloodGift, 100f - target.Health);
             if (amount <= 0f) return;

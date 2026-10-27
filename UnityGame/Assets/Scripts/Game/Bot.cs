@@ -56,12 +56,12 @@ namespace UA
             var def = Weapons.Get(st.Primary);
             st.Weapon = def.Id;
             // nobody in the sights and a badly wounded team mate next to it: blood for the team mate
-            if (playing && target == null && Time.time >= nextHeal && s.Config.Mode == Mode.TeamDeathmatch)
+            if (playing && target == null && Time.time >= nextHeal && st.Team > 0)
             {
                 nextHeal = Time.time + 1f;
                 foreach (var a in world.Agents.Values)
                 {
-                    if (a == null || a == agent || a.State == null || !a.State.Alive || a.State.Team != st.Team || a.State.Health >= Session.BloodThreshold) continue;
+                    if (a == null || a == agent || a.State == null || !a.State.Alive || !MatchConfig.Mates(a.State, st) || a.State.Health >= Session.BloodThreshold) continue;
                     if ((a.transform.position - transform.position).sqrMagnitude > Session.HealRange * Session.HealRange) continue;
                     nextHeal = Time.time + Session.BloodCooldown;
                     agent.PlayReload();

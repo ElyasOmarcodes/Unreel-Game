@@ -196,8 +196,7 @@ namespace UA
 
         public static Color TeamColor(PlayerState p, Session s)
         {
-            if (s.Config.Mode == Mode.TeamDeathmatch)
-                return MatchConfig.TeamColors[p.Team % MatchConfig.MaxTeams];
+            if (p.Team > 0) return MatchConfig.TeamColor(p.Team);
             var palette = new[]
             {
                 new Color(0.95f, 0.75f, 0.15f), new Color(0.2f, 0.8f, 0.4f), new Color(0.6f, 0.3f, 0.9f), new Color(0.95f, 0.45f, 0.1f),
@@ -208,8 +207,7 @@ namespace UA
 
         public bool IsEnemy(PlayerState a, PlayerState b, Session s)
         {
-            if (a == b) return false;
-            return s.Config.Mode == Mode.FreeForAll || a.Team != b.Team;
+            return a != b && !MatchConfig.Mates(a, b);
         }
 
         /// <summary>Ray against walls and agent hitboxes, ignoring the shooter.</summary>

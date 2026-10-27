@@ -17,7 +17,7 @@ namespace UA
         public static bool AmmoAvailable, HealAvailable;
         public static Vector2 Move;
         public static Vector2 Look;
-        public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, PronePressed, GrenadePressed, AmmoPressed, HealPressed;
+        public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, ScorePressed, PronePressed, GrenadePressed, AmmoPressed, HealPressed;
 
         // automated test input
         public static Vector2 SimMove, SimLook;
@@ -222,6 +222,7 @@ namespace UA
             ReloadPressed = reload;
             SwapPressed = swap;
             PausePressed = pause;
+            ScorePressed = Held.Contains(Button.Score) && !ScoreHeld;
             ScoreHeld = Held.Contains(Button.Score);
             PronePressed = prone;
             GrenadePressed = grenade;

@@ -101,7 +101,9 @@ namespace UA
         private readonly Image[] hpFill = new Image[5];
         private RectTransform rankBox, stopBox;
         private RectTransform scoreboard;
-        private Text scoreboardText;
+        private ResultsTable board;
+        private float boardUntil, boardFilled;
+        private const float BoardSeconds = 8f;
         private readonly List<Text> names = new List<Text>();
         private float hitMarkerUntil, damageAlpha, lastHealth = 100, fpsTimer, fpsValue;
         private ushort lastHits;
@@ -225,12 +227,11 @@ namespace UA
             AddButton(Controls.Button.Pause, "pause", "");
             AddButton(Controls.Button.Score, "leaderboard", "");
 
-            scoreboard = UIKit.Panel(root, 1300, 760);
-            var sbTitle = UIKit.Txt(scoreboard, "SCOREBOARD", 44, TextAnchor.UpperCenter, UIKit.Accent);
-            sbTitle.rectTransform.At(0.5f, 1f, 0, -24, 1200, 60, 0.5f, 1f);
-            scoreboardText = UIKit.Txt(scoreboard, "", 32, TextAnchor.UpperLeft);
-            scoreboardText.rectTransform.Fill(60);
-            scoreboardText.rectTransform.offsetMax = new Vector2(-60, -100);
+            // RANK: the standings as on the results page, for a while (tap again to close)
+            scoreboard = UIKit.Panel(root, 1640, 720, -20);
+            var sbTitle = UIKit.Txt(scoreboard, "STANDINGS", 40, TextAnchor.MiddleLeft, UIKit.Accent);
+            sbTitle.rectTransform.At(0f, 1f, 20, 62, 600, 64, 0f, 0f);
+            board = new ResultsTable(scoreboard, 700);
             scoreboard.gameObject.SetActive(false);
 
             for (int i = 0; i < 12; i++)
@@ -329,15 +330,15 @@ namespace UA
             // timer and scores
             int seconds = Mathf.CeilToInt(s.TimeLeft);
             timer.text = $"{seconds / 60}:{seconds % 60:00}";
-            if (tdm)
+            if (tdm && me != null && me.Team > 0)
             {
                 // my team and the best of the others, each in its own colour
-                int mine = me != null ? me.Team % MatchConfig.MaxTeams : 0;
-                int rival = Enumerable.Range(0, MatchConfig.MaxTeams).Where(t => t != mine && s.Players.Values.Any(p => p.Team == t)).OrderByDescending(t => s.TeamScore[t]).DefaultIfEmpty((mine + 1) % MatchConfig.MaxTeams).First();
-                scoreBlue.text = $"T{mine + 1}  {s.TeamScore[mine]}";
-                scoreBlue.color = MatchConfig.TeamColors[mine];
-                scoreRed.text = $"T{rival + 1}  {s.TeamScore[rival]}";
-                scoreRed.color = MatchConfig.TeamColors[rival];
+                int mine = me.Team;
+                int rival = Enumerable.Range(1, MatchConfig.MaxTeams).Where(t => t != mine && s.Players.Values.Any(p => p.Team == t)).OrderByDescending(t => s.TeamScore[t]).DefaultIfEmpty(mine % MatchConfig.MaxTeams + 1).First();
+                scoreBlue.text = $"T{mine}  {s.TeamScore[mine]}";
+                scoreBlue.color = MatchConfig.TeamColor(mine);
+                scoreRed.text = $"T{rival}  {s.TeamScore[rival]}";
+                scoreRed.color = MatchConfig.TeamColor(rival);
             }
             else
             {
@@ -490,9 +491,15 @@ namespace UA
             UpdateNames(s, me);
 
             // scoreboard
-            bool showBoard = Controls.ScoreHeld;
+            // scoreboard: a tap on RANK shows it for a while, another tap closes it; held, it stays
+            if (Controls.ScorePressed)
+            {
+                boardUntil = now < boardUntil ? 0f : now + BoardSeconds;
+                if (boardUntil > 0f) board.ByTeam = ResultsTable.HasTeams(s);
+            }
+            bool showBoard = Controls.ScoreHeld || now < boardUntil;
+            if (showBoard && (!scoreboard.gameObject.activeSelf || now - boardFilled > 0.5f)) { board.Fill(s); boardFilled = now; }
             scoreboard.gameObject.SetActive(showBoard);
-            if (showBoard) scoreboardText.text = ScoreboardText(s);
 
             // fps
             fpsTimer += Time.unscaledDeltaTime;
@@ -526,34 +533,6 @@ namespace UA
                 }
             }
             for (int i = used; i < names.Count; i++) names[i].enabled = false;
-        }
-
-        /// <summary>
-        /// The standings while the match runs (RANK held): the teams by their kills, then every player
-        /// ranked by the match score as on the results page, with place, team, kills, deaths and score.
-        /// </summary>
-        public static string ScoreboardText(Session s)
-        {
-            var sb = new System.Text.StringBuilder();
-            bool tdm = s.Config.Mode == Mode.TeamDeathmatch;
-            if (tdm)
-            {
-                var teams = Enumerable.Range(0, MatchConfig.MaxTeams).Where(t => s.Players.Values.Any(p => p.Team == t)).OrderByDescending(t => s.TeamScore[t]).ToList();
-                sb.AppendLine(string.Join("     ", teams.Select((t, i) => $"<color={MatchConfig.TeamHex(t)}>{i + 1}. {MatchConfig.TeamName(t)}  {s.TeamScore[t]}</color>")));
-                sb.AppendLine();
-            }
-            sb.AppendLine("<color=#9aa4b0>#    PLAYER                     " + (tdm ? "TEAM     " : "") + "KILLS   DEATHS   SCORE</color>");
-            var ranked = s.Players.Values.Select(p => (p, score: App.MatchScore(p, s))).OrderByDescending(x => x.score).ThenByDescending(x => x.p.Kills).ToList();
-            for (int i = 0; i < ranked.Count; i++)
-            {
-                var (p, score) = ranked[i];
-                string name = Rtl.Shape(p.Name.Length > 16 ? p.Name.Substring(0, 16) : p.Name);
-                string line = (i + 1).ToString().PadRight(5) + name.PadRight(27)
-                              + (tdm ? $"<color={MatchConfig.TeamHex(p.Team)}>{("T" + (p.Team % MatchConfig.MaxTeams + 1)).PadRight(9)}</color>" : "")
-                              + p.Kills.ToString().PadLeft(5) + p.Deaths.ToString().PadLeft(9) + Mathf.RoundToInt(score).ToString().PadLeft(8);
-                sb.AppendLine(p.Id == s.LocalId ? $"<color=#ffb040>{line}</color>" : line);
-            }
-            return sb.ToString();
         }
     }
 }

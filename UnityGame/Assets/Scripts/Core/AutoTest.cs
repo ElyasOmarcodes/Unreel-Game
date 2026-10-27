@@ -177,6 +177,7 @@ namespace UA
         {
             var app = App.I;
             Settings.PlayerName = "ستوری ښه";   // a Pashto name: checks the joined right-to-left text
+            Settings.Team = 1;   // the host in team 1, the bots split over 1 and 2, the client alone (0)
             yield return Wait(1.5f);
             // the first start: the name and character page (no splash of our own any more)
             if (app.Current == "welcome")
@@ -228,7 +229,7 @@ namespace UA
             yield return Shot("08-match-start");
             // the first kill of the match, for the film: the host shoots the nearest enemy bot
             var me = Session.I.Local;
-            var prey = Session.I.Players.Values.Where(p => p.IsBot && p.Alive && p.Team != me.Team).OrderBy(p => (p.Pos - me.Pos).sqrMagnitude).FirstOrDefault();
+            var prey = Session.I.Players.Values.Where(p => p.IsBot && p.Alive && !MatchConfig.Mates(p, me)).OrderBy(p => (p.Pos - me.Pos).sqrMagnitude).FirstOrDefault();
             if (prey != null)
             {
                 CameraRig.I.Yaw = Quaternion.LookRotation(prey.Pos - me.Pos).eulerAngles.y;
@@ -260,6 +261,11 @@ namespace UA
             yield return Wait(0.3f);
             yield return Shot("11-scoreboard");
             Controls.SimScore = false;
+            // a second tap on RANK closes it
+            yield return Wait(0.1f);
+            Controls.SimScore = true;
+            yield return Wait(0.1f);
+            Controls.SimScore = false;
             app.SetPaused(true);
             yield return Wait(0.5f);
             yield return Shot("12-pause");
@@ -270,6 +276,10 @@ namespace UA
             yield return Until(() => app.Current == "results", 5);
             yield return Wait(1.5f);
             yield return Shot("15-results");
+            app.Results.ByTeam = !app.Results.ByTeam;
+            app.Results.Fill(Session.I);
+            yield return Wait(0.5f);
+            yield return Shot("15b-results-other-view");
             yield return Wait(8f); // give the client time to see the results too
             app.LeaveGroup();
             yield return Wait(1f);
@@ -679,6 +689,7 @@ namespace UA
             yield return Until(() => app.Current == "menu", 15);
             yield return Wait(1f);
             Settings.Primary = 7;   // the client plays the SVD: a look through the PSO-1 scope
+            Settings.Team = 0;   // the client fights alone
             app.ShowScreen("join");
             yield return Until(() => Session.I.Groups.Count > 0, 90);
             yield return Wait(1.5f);

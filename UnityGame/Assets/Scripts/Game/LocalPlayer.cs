@@ -314,13 +314,13 @@ namespace UA
         /// <summary>The nearest living team mate within reach whose health is below the blood threshold.</summary>
         private Agent WoundedMate(Session s)
         {
-            if (s == null || s.Config.Mode != Mode.TeamDeathmatch || World.I == null) return null;
+            if (s == null || World.I == null || agent.State == null || agent.State.Team == 0) return null;
             var me = agent.State;
             Agent mate = null;
             float best = Session.HealRange;
             foreach (var a in World.I.Agents.Values)
             {
-                if (a == null || a == agent || a.State == null || !a.State.Alive || a.State.Team != me.Team || a.State.Health >= Session.BloodThreshold) continue;
+                if (a == null || a == agent || a.State == null || !a.State.Alive || !MatchConfig.Mates(a.State, me) || a.State.Health >= Session.BloodThreshold) continue;
                 float d = Vector3.Distance(a.transform.position, transform.position);
                 if (d < best) { best = d; mate = a; }
             }
