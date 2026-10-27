@@ -870,7 +870,7 @@ public static class AssetSetup
         cc.height = 1.8f;
         cc.radius = 0.33f;
         cc.center = new Vector3(0, 0.92f, 0);
-        cc.stepOffset = 0.45f;
+        cc.stepOffset = 0.52f;   // a step of half a metre is climbed without a jump
         cc.slopeLimit = 50f;
         cc.skinWidth = 0.04f;
 

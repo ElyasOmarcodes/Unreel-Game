@@ -69,6 +69,7 @@ namespace UA
         // the other weapon of the loadout, carried: a rifle slung across the back, a pistol at the hip
         private GameObject backCopy;
         private int backId = -1;
+        private bool bagOn;   // an assault pack on the back: the slung rifle goes outside it
         private float swapStart = -10f;
         private float throwStart = -10f, stepTimer;
         private int stepIndex;
@@ -140,17 +141,41 @@ namespace UA
             handBone.rotation = Quaternion.Slerp(Quaternion.identity, turn, 1f - Ready) * handBone.rotation;
         }
 
-        /// <summary>Grenade throw: the right arm winds up behind the head, swings over and follows through.</summary>
-        public void PlayThrow() => throwStart = Time.time;
+        /// <summary>
+        /// Grenade throw: the gun goes down out of the hand, the grenade is in it; the arm winds up behind
+        /// the head (the body turning away), swings over at the release and follows through across the body.
+        /// </summary>
+        public const float ThrowRelease = 0.35f;
+        private const float ThrowLength = 0.75f;
+        private GameObject handGrenade;
+
+        /// <summary>The thrower's own throw from the button: the grenade leaves at ThrowRelease.</summary>
+        public void StartThrow() => throwStart = Time.time;
+
+        /// <summary>A grenade has left this player's hand (seen by everyone): from the release on, unless already playing.</summary>
+        public void PlayThrow()
+        {
+            if (Time.time - throwStart < ThrowLength) return;
+            throwStart = Time.time - ThrowRelease;
+        }
+
+        private bool throwing;
 
         private void ThrowArm()
         {
-            const float length = 0.65f;
             float t = Time.time - throwStart;
-            if (t < 0f || t > length || upperArmBone == null || State == null || !Alive) return;
-            float angle = t < 0.25f ? Mathf.SmoothStep(0f, -150f, t / 0.25f)
-                : t < 0.4f ? Mathf.Lerp(-150f, 40f, (t - 0.25f) / 0.15f)
-                : Mathf.SmoothStep(40f, 0f, (t - 0.4f) / (length - 0.4f));
+            bool now = t >= 0f && t <= ThrowLength && upperArmBone != null && State != null && Alive;
+            if (now != throwing)
+            {
+                throwing = now;
+                ShowGunInHand(!now);
+            }
+            if (handGrenade == null && handBone != null) handGrenade = MakeHandGrenade();
+            if (handGrenade != null) handGrenade.SetActive(now && visible && t < ThrowRelease + 0.02f);
+            if (!now) return;
+            float angle = t < ThrowRelease ? Mathf.SmoothStep(0f, -150f, t / ThrowRelease)
+                : t < ThrowRelease + 0.12f ? Mathf.Lerp(-150f, 35f, (t - ThrowRelease) / 0.12f)
+                : Mathf.SmoothStep(35f, 0f, (t - ThrowRelease - 0.12f) / (ThrowLength - ThrowRelease - 0.12f));
             var right = transform.right;
             // the body turns into the throw: away while winding up, towards the target on release
             if (chestBone != null && !State.Prone) chestBone.rotation = Quaternion.AngleAxis(angle / 150f * 28f, Vector3.up) * chestBone.rotation;
@@ -158,9 +183,31 @@ namespace UA
             if (lowerArmBone != null) lowerArmBone.rotation = Quaternion.AngleAxis(Mathf.Min(0f, angle) * 0.35f, right) * lowerArmBone.rotation;
         }
 
+        /// <summary>The gun in the hand shown or put away (a throw, a change of weapon).</summary>
+        private void ShowGunInHand(bool show)
+        {
+            if (weapon >= 0 && weapon < WeaponModels.Length && WeaponModels[weapon] != null) WeaponModels[weapon].SetActive(show && visible);
+        }
+
+        private GameObject MakeHandGrenade()
+        {
+            var g = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Destroy(g.GetComponent<Collider>());
+            g.name = "HandGrenade";
+            g.layer = World.AgentLayer;
+            g.transform.SetParent(handBone, false);
+            float k = 1f / Mathf.Max(0.01f, handBone.lossyScale.x);
+            g.transform.localScale = new Vector3(0.08f, 0.1f, 0.08f) * k;
+            g.transform.position = handBone.position + transform.forward * 0.06f + transform.up * 0.02f;
+            g.GetComponent<Renderer>().sharedMaterial = new Material(Shader.Find("Standard")) { color = new Color(0.22f, 0.26f, 0.16f) };
+            g.SetActive(false);
+            return g;
+        }
+
         private void AimArms()
         {
             if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
+            if (State.MoveY > 1.2f) return;   // sprinting: the gun is carried, not aimed
             if (Ready < 0.5f) return;   // carried low
             var muzzle = Muzzles[weapon];
             var forward = Quaternion.Euler(-State.Pitch, State.Yaw, 0) * Vector3.forward;
@@ -277,6 +324,8 @@ namespace UA
         public void SetLook(int look)
         {
             female = Wardrobe.Female(look);
+            bool bag = Wardrobe.Get(look, Wardrobe.Slot.Bag) == 1 && Wardrobe.Get(look, Wardrobe.Slot.Character) == 0;
+            if (bag != bagOn) { bagOn = bag; backId = -1; CarryOther(); }
             // a ready-made character of the pack (when this body has it) in place of the body and its clothes
             int character = Wardrobe.Get(look, Wardrobe.Slot.Character);
             bool ready = false;
@@ -324,7 +373,7 @@ namespace UA
             // a change of weapon while alive: the hand goes to the back (or the hip) and comes up with the other
             if (id != weapon && weapon >= 0 && State != null && Alive && Time.time - swapStart > 0.3f) swapStart = Time.time;
             weapon = id;
-            bool inHand = visible && Time.time - swapStart > 0.22f;
+            bool inHand = visible && Time.time - swapStart > SwapLength * 0.5f && !throwing;
             for (int i = 0; i < WeaponModels.Length; i++)
                 if (WeaponModels[i] != null) WeaponModels[i].SetActive(i == weapon && inHand);
             CarryOther();
@@ -380,10 +429,13 @@ namespace UA
             }
             else
             {
-                // slung across the back: the barrel up over the left shoulder, the top of the gun outwards
-                var dir = (transform.up * 0.72f - transform.right * 0.69f).normalized;
-                want = Quaternion.LookRotation(dir, -transform.forward) * fromGun;
-                at = (chestBone != null ? chestBone.position : transform.position + transform.up * 1.3f) - transform.forward * 0.24f - transform.up * 0.05f;
+                // slung as a sling holds it: diagonally across the back, the muzzle up over the left shoulder,
+                // the butt at the right hip, lying flat with its side on the back (the magazine along the
+                // back, not sticking out), close behind the spine, or outside the pack when one is worn
+                var dir = (transform.up * 0.8f - transform.right * 0.6f).normalized;
+                want = Quaternion.LookRotation(dir, Vector3.Cross(dir, -transform.forward)) * fromGun;
+                at = (chestBone != null ? chestBone.position : transform.position + transform.up * 1.3f) - transform.up * 0.12f
+                     - transform.forward * (bagOn ? 0.3f : 0.17f);
             }
             copy.transform.SetParent(bone, true);
             copy.transform.rotation = want;
@@ -391,21 +443,22 @@ namespace UA
             return copy;
         }
 
-        /// <summary>Weapon change: the right hand goes back over the shoulder (or down to the hip), then forward with the other gun.</summary>
+        /// <summary>
+        /// Weapon change: the gun is lowered, turning down along the body, and put away; the other comes up
+        /// the same way (the arm stays in front of the body: no twisting of the shoulder).
+        /// </summary>
+        private const float SwapLength = 0.5f;
+
         private void SwapArm()
         {
-            const float length = 0.5f;
             float t = Time.time - swapStart;
-            if (t < 0f || t > length + 0.05f || upperArmBone == null || State == null || !Alive) return;
-            // the gun in the hand appears halfway, when the hand comes back up
-            if (weapon >= 0 && weapon < WeaponModels.Length && WeaponModels[weapon] != null && WeaponModels[weapon].activeSelf != (visible && t > 0.22f))
-                WeaponModels[weapon].SetActive(visible && t > 0.22f);
-            if (t > length) return;
-            bool pistol = !Weapons.Get(weapon).Primary;
-            float reach = pistol ? 55f : -125f;   // down to the hip / back over the shoulder
-            float angle = t < 0.22f ? Mathf.SmoothStep(0f, reach, t / 0.22f) : Mathf.SmoothStep(reach, 0f, (t - 0.22f) / (length - 0.22f));
-            upperArmBone.rotation = Quaternion.AngleAxis(angle, transform.right) * upperArmBone.rotation;
-            if (lowerArmBone != null) lowerArmBone.rotation = Quaternion.AngleAxis(Mathf.Abs(angle) * -0.4f, transform.right) * lowerArmBone.rotation;
+            if (t < 0f || t > SwapLength + 0.05f || upperArmBone == null || handBone == null || State == null || !Alive) return;
+            // the other gun in the hand from the middle on
+            if (!throwing) ShowGunInHand(t > SwapLength * 0.5f);
+            if (t > SwapLength) return;
+            float k = Mathf.Sin(Mathf.Clamp01(t / SwapLength) * Mathf.PI);   // 0 -> 1 (lowest) -> 0
+            upperArmBone.rotation = Quaternion.AngleAxis(28f * k, transform.right) * upperArmBone.rotation;
+            handBone.rotation = Quaternion.AngleAxis(55f * k, transform.right) * handBone.rotation;
         }
 
         public void SetVisible(bool value)
@@ -427,7 +480,7 @@ namespace UA
             Anim.SetFloat(MoveYId, animMoveY);
             // shorter, quicker steps when running (same speed over the ground)
             float move = new Vector2(animMoveX, Mathf.Min(1f, animMoveY)).magnitude;
-            // a real walk at half the stick (eight directions); running takes a little longer strides
+            // a real walk at half the stick (eight directions); running and sprinting take a little longer strides
             Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 0.96f : move < 0.7f ? 1.05f : 1.0f);
             Steps(s, move);
             Anim.SetBool(CrouchId, s.Crouch);
@@ -447,25 +500,28 @@ namespace UA
             if (Anim.layerCount > 1 && (!s.Alive || s.Prone)) Anim.SetLayerWeight(1, 0f);
         }
 
-        /// <summary>
-        /// Footsteps as in Battle Warfare (fire.s_play): one step every 0.3 s at a run, every 0.5 s at a walk
-        /// (aiming, shooting, crouched); the rustle of crawling.
-        /// </summary>
+        /// <summary>Footsteps (walking, running, sprinting, crouching) and the rustle of crawling.</summary>
         private void Steps(PlayerState s, float move)
         {
             if (!s.Alive || !s.Grounded || move < 0.25f) { stepTimer = Mathf.Min(stepTimer, 0.06f); return; }
             stepTimer -= Time.deltaTime;
             if (stepTimer > 0f) return;
-            bool running = !s.Crouch && !s.Prone && move > 0.8f;
-            stepTimer = s.Prone ? 0.8f : running ? 0.3f : 0.5f;
+            bool sprint = animMoveY > 1.2f;
+            stepTimer = s.Prone ? 0.8f : s.Crouch ? 0.45f : sprint ? 0.26f : move < 0.6f ? 0.42f : 0.3f;
+            bool running = !s.Crouch && (sprint || move > 0.8f);
             // the same loudness for everyone: Sfx.Step lowers the others' steps with their distance
-            float volume = 0.42f * (s.Crouch ? 0.45f : 1f) * (running ? 0.9f : 0.75f);
-            // the player's own footstep recordings, else the made-up ones
-            int recorded = Sfx.Count("step_b2_");
+            float volume = 0.42f * (s.Crouch ? 0.45f : 1f) * (sprint ? 1.15f : 1f);
+            // recorded steps (Fantozzi, CC0): soft ground in the village, stone and concrete elsewhere;
+            // the made-up ones only when the recordings are missing
+            // the player's own footstep recording first, then the recorded ones by ground
+            string surface = Sfx.Count("step_b2_") > 0 ? "step_b2_"
+                : World.I != null && World.I.Layout != null && World.I.Layout.Name == "VILLAGE" ? "fs_sand_" : "fs_stone_";
+            int recorded = Sfx.Count(surface);
             string clip = s.Prone ? "crawl_" + (stepIndex++ % 2)
-                : recorded > 0 ? "step_b2_" + (stepIndex++ % recorded)
+                : recorded > 0 ? surface + (stepIndex++ % recorded)
                 : running ? "step_run_" + (stepIndex++ % 3)
                 : "step_" + (stepIndex++ % 4);
+            if (recorded > 0 && !s.Prone) volume *= running ? 0.9f : 0.75f;
             Sfx.Step(clip, transform.position, s.Prone ? volume * 0.8f : volume, IsLocal);
         }
 

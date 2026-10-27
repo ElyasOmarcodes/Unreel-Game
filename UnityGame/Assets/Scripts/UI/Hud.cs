@@ -19,7 +19,7 @@ namespace UA
         private Image[] cross = new Image[4];
         private Image scopeLine1, scopeLine2;
 
-        // ---- PSO-1 reticle of the SVD, drawn in thousandths (1/6000 of a circle) at the real angle:
+        // ---- PSO-1 reticle of the SVD, drawn in thousandths (1/6000 of a circle) as in the real eyepiece:
         // the main chevron (where the bullet goes: shots fly straight), three holdover chevrons below it, the
         // windage scale with a tick each thousandth (longer at 5 and 10) and the rangefinder at the
         // lower left: put the feet of a man (1.7 m) on the bottom line, where his head touches the
@@ -40,7 +40,7 @@ namespace UA
             }
             void Label(string text, Vector2 at)
             {
-                var t = UIKit.Txt(pso, text, 17, TextAnchor.MiddleCenter, ReticleInk);
+                var t = UIKit.Txt(pso, text, 22, TextAnchor.MiddleCenter, ReticleInk);
                 psoLabels.Add((t.rectTransform, at));
             }
             void Chevron(float y, float halfWidth, float height)
@@ -48,10 +48,10 @@ namespace UA
                 Line(new Vector2(-halfWidth, y - height), new Vector2(0, y), 3f);
                 Line(new Vector2(halfWidth, y - height), new Vector2(0, y), 3f);
             }
-            Chevron(0f, 0.75f, 1.5f);
-            Chevron(-3.2f, 0.5f, 1f);
-            Chevron(-5.6f, 0.5f, 1f);
-            Chevron(-8f, 0.5f, 1f);
+            Chevron(0f, 1f, 2f);
+            Chevron(-3.2f, 0.6f, 1.2f);
+            Chevron(-5.6f, 0.6f, 1.2f);
+            Chevron(-8f, 0.6f, 1.2f);
             foreach (int side in new[] { -1, 1 })
             {
                 Line(new Vector2(side * 1.6f, 0f), new Vector2(side * 10f, 0f), 1.8f);
@@ -60,7 +60,7 @@ namespace UA
                     float h = i % 5 == 0 ? 1.2f : 0.6f;
                     Line(new Vector2(side * i, 0f), new Vector2(side * i, -h), 2f);
                 }
-                Label("10", new Vector2(side * 10f, 1.1f));
+                Label("10", new Vector2(side * 10f, 1.6f));
             }
             // rangefinder: 1.7 m tall at 200 to 1000 m, from left to right
             const float baseY = -13f, left = -18f, right = -6f;
@@ -73,13 +73,16 @@ namespace UA
                 Label((d / 100).ToString(), new Vector2(X(d), Y(d) + 1f));
         }
 
-        /// <summary>Places the reticle for the camera's field of view (one thousandth = 1/6000 of a turn).</summary>
+        /// <summary>
+        /// Places the reticle as it sits in the real sight: the PSO-1 sees 6 degrees, about 52 thousandths
+        /// from the middle to the edge of the eyepiece, so the reticle keeps its size in the scope circle
+        /// (500 canvas units to its edge) whatever the zoom of the game.
+        /// </summary>
         private void LayoutPso1(float fov)
         {
-            if (Mathf.Abs(fov - psoFov) < 0.01f) return;
+            if (psoFov > 0f) return;
             psoFov = fov;
-            // the canvas is 1080 units high whatever the screen
-            float k = 540f / Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad) * (Mathf.PI * 2f / 6000f);
+            const float k = 500f / 52f;
             foreach (var (rt, a, b, width) in psoLines)
             {
                 var d = (b - a) * k;

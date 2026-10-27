@@ -47,10 +47,10 @@ namespace UA
         public const int Count = 12;
 
         /// <summary>
-        /// The maps are small: a scope magnifies its real power divided by this (PSO-1 and ZF39 4x -> 2.7x,
-        /// the 6x of the L96 -> 4x), so a target across the map still fills the sight sensibly.
+        /// The maps are small: a scope magnifies its real power divided by this (PSO-1 and ZF39 4x -> 3.2x,
+        /// the 6x of the L96 -> 4.8x), so a target across the map still fills the sight sensibly.
         /// </summary>
-        public const float ScopeScale = 1.5f;
+        public const float ScopeScale = 1.25f;
 
         /// <summary>Field of view of a scope of this real magnification (the hip view is 62 degrees).</summary>
         public static float ScopeFov(float magnification) =>
@@ -65,11 +65,11 @@ namespace UA
             new WeaponDef { Id = 4, Name = "GLOCK 17", Climb = 0.35f, Primary = false, Damage = 15, HeadMultiplier = 2.5f, FireRate = 6.5f, Range = 150, Spread = 2.2f, AimSpread = 0.8f, Recoil = 0.9f, ReloadTime = 1.5f, MagSize = 17, Reserve = 85, AimFov = 50, Sound = "shot_pistol", MoveSpeed = 1.05f, Caliber = "9×19 mm", MuzzleVelocity = 375, EffectiveRange = 50, Action = "SEMI-AUTO" },
             new WeaponDef { Id = 5, Name = "DESERT EAGLE", Climb = 1.0f, Primary = false, Damage = 35, HeadMultiplier = 2.5f, FireRate = 2.6f, Range = 150, Spread = 2.6f, AimSpread = 0.7f, Recoil = 3.2f, ReloadTime = 1.9f, MagSize = 7, Reserve = 35, AimFov = 48, Sound = "shot_deagle", MoveSpeed = 1.03f, Caliber = ".50 AE", MuzzleVelocity = 470, EffectiveRange = 50, Action = "SEMI-AUTO" },
             new WeaponDef { Id = 6, Name = "MP5K", Climb = 0.25f, Primary = false, Damage = 14, HeadMultiplier = 2.2f, FireRate = 15f, Range = 180, Spread = 2.8f, AimSpread = 1f, Recoil = 0.8f, ReloadTime = 2f, MagSize = 30, Reserve = 180, Auto = true, AimFov = 46, Sound = "shot_smg", MoveSpeed = 1.02f, Caliber = "9×19 mm", MuzzleVelocity = 375, EffectiveRange = 100, Action = "AUTO 900 RPM" },
-            new WeaponDef { Id = 7, Name = "SVD DRAGUNOV", Climb = 0.9f, Primary = true, Damage = 52, HeadMultiplier = 2.4f, FireRate = 3f, Range = 700, Spread = 4f, AimSpread = 0.1f, Recoil = 3f, ReloadTime = 2.6f, MagSize = 10, Reserve = 40, Scope = true, AimFov = ScopeFov(4f), Sound = "shot_marksman", MoveSpeed = 0.92f, Caliber = "7.62×54 mm R", MuzzleVelocity = 830, EffectiveRange = 800, Action = "SEMI-AUTO" },
+            new WeaponDef { Id = 7, Name = "SVD DRAGUNOV", Climb = 0.9f, Primary = true, Damage = 52, HeadMultiplier = 2.4f, FireRate = 3f, Range = 700, Spread = 4f, AimSpread = 0.1f, Recoil = 3f, ReloadTime = 2.6f, MagSize = 10, Reserve = 40, Scope = true, AimFov = ScopeFov(4f), Sound = "shot_sniper", MoveSpeed = 0.92f, Caliber = "7.62×54 mm R", MuzzleVelocity = 830, EffectiveRange = 800, Action = "SEMI-AUTO" },
             new WeaponDef { Id = 8, Name = "PKM", Climb = 0.45f, Primary = true, Damage = 19, HeadMultiplier = 2.4f, FireRate = 12.5f, Range = 500, Spread = 3.4f, AimSpread = 1.2f, Recoil = 1.9f, ReloadTime = 5.5f, MagSize = 100, Reserve = 200, Auto = true, AimFov = 45, Sound = "shot_ak", SoundPitch = 0.86f, MoveSpeed = 0.85f, Caliber = "7.62×54 mm R", MuzzleVelocity = 825, EffectiveRange = 1000, Action = "AUTO 750 RPM, BELT 100" },
             new WeaponDef { Id = 9, Name = "SCAR-L", Climb = 0.4f, Primary = true, Damage = 19, HeadMultiplier = 2.7f, FireRate = 10.4f, Range = 450, Spread = 2.3f, AimSpread = 0.45f, Recoil = 1.2f, ReloadTime = 2.3f, MagSize = 30, Reserve = 150, Auto = true, AimFov = 44, Sound = "shot_scar", MoveSpeed = 0.96f, Caliber = "5.56×45 mm NATO", MuzzleVelocity = 870, EffectiveRange = 500, Action = "AUTO 625 RPM" },
             new WeaponDef { Id = 10, Name = "UMP-45", Climb = 0.3f, Primary = true, Damage = 17, HeadMultiplier = 2.2f, FireRate = 10f, Range = 200, Spread = 2.6f, AimSpread = 0.9f, Recoil = 0.9f, ReloadTime = 2.1f, MagSize = 25, Reserve = 150, Auto = true, AimFov = 46, Sound = "shot_ump", MoveSpeed = 1.02f, Caliber = ".45 ACP", MuzzleVelocity = 285, EffectiveRange = 100, Action = "AUTO 600 RPM" },
-            new WeaponDef { Id = 11, Name = "KAR98K", Climb = 1.0f, Primary = true, Damage = 80, HeadMultiplier = 3f, FireRate = 0.75f, Range = 800, Spread = 7f, AimSpread = 0f, Recoil = 5f, ReloadTime = 3.2f, MagSize = 5, Reserve = 25, Scope = true, BoltAction = true, AimFov = ScopeFov(4f), Sound = "shot_kar98", MoveSpeed = 0.9f, Caliber = "7.92×57 mm MAUSER", MuzzleVelocity = 760, EffectiveRange = 800, Action = "BOLT ACTION, ZF39 4x" },
+            new WeaponDef { Id = 11, Name = "KAR98K", Climb = 1.0f, Primary = true, Damage = 80, HeadMultiplier = 3f, FireRate = 0.75f, Range = 800, Spread = 7f, AimSpread = 0f, Recoil = 5f, ReloadTime = 3.2f, MagSize = 5, Reserve = 25, Scope = true, BoltAction = true, AimFov = ScopeFov(4f), Sound = "shot_sniper", MoveSpeed = 0.9f, Caliber = "7.92×57 mm MAUSER", MuzzleVelocity = 760, EffectiveRange = 800, Action = "BOLT ACTION, ZF39 4x" },
         };
 
         /// <summary>Weapons the bots pick from.</summary>

@@ -97,12 +97,18 @@ namespace UA
             var body = Quaternion.Euler(0, Target.transform.eulerAngles.y, 0);
             var target = Target.transform.position + body * ShoulderPoint - Vector3.up * drop;
             float behind = Scope ? 0f : Aim ? BehindAiming : Target.Firing && !dead ? Mathf.Min(Behind, BehindFiring) : Behind;
-            var desired = target - rotation * Vector3.forward * behind;
-            // a wall behind: from the head towards that point, the camera stops 0.2 m short of the wall
+            // a wall behind (as in Battle Warfare): the camera stays on the line back from the shoulder point and
+            // only comes closer along it, as close as the wall is, at most up to the shoulder itself; it
+            // never goes round into the head, so the body stays in sight. The shoulder point itself is
+            // kept out of a wall on the right (from the head out to it)
             var head = Target.transform.position + Vector3.up * (1.6f - drop);
-            var toCam = desired - head;
-            if (!Scope && Physics.SphereCast(head, 0.1f, toCam.normalized, out var wall, toCam.magnitude, World.EnvMask, QueryTriggerInteraction.Ignore))
-                desired = head + toCam.normalized * Mathf.Max(0f, wall.distance - 0.2f);
+            var side = target - head;
+            if (side.sqrMagnitude > 1e-4f && Physics.SphereCast(head, 0.12f, side.normalized, out var sh, side.magnitude, World.EnvMask, QueryTriggerInteraction.Ignore))
+                target = head + side.normalized * Mathf.Max(0f, sh.distance - 0.05f);
+            var back = -(rotation * Vector3.forward);
+            if (!Scope && behind > 0f && Physics.SphereCast(target, 0.12f, back, out var wall, behind, World.EnvMask, QueryTriggerInteraction.Ignore))
+                behind = Mathf.Max(0f, wall.distance - 0.2f);
+            var desired = target + back * behind;
             desired = Vector3.Lerp(transform.position, desired, Mathf.Clamp01(50f * dt));
             if (shake > 0.01f)
             {
@@ -110,8 +116,8 @@ namespace UA
                 shake = Mathf.MoveTowards(shake, 0f, dt * 4f);
             }
             transform.SetPositionAndRotation(desired, rotation);
-            // a wall pushed the camera up to the head: hide the body instead of looking out through it
-            Close = !dead && !Scope && (desired - head).magnitude < 0.35f;
+            // the body is hidden only when the camera has nowhere to go but into the head
+            Close = !dead && !Scope && (desired - head).magnitude < 0.2f;
 
             // a field of view of 60, aiming too; a scope zooms in at 500 degrees a second
             fov = Mathf.MoveTowards(fov, Scope ? AimFov : 60f, 500f * dt);
