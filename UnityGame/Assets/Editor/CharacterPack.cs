@@ -327,9 +327,18 @@ public static class CharacterPack
             if (!sides.TryGetValue(sign, out var sd)) w = Trunk(p.y);
             else if (p.y >= neckY + 0.02f && ax < 0.16f) w = Trunk(p.y);
             else if (ax > sd.armX + 0.1f || ax > sd.armX - 0.03f && Mathf.Abs(p.y - sd.armY) < 0.11f)
-                w = Mix(Near(p, "arm", sign), Trunk(p.y), Mathf.Clamp01((sd.armX + 0.06f - ax) / 0.09f));
+            {
+                // a wide soft shoulder: the top of the arm shares with the trunk (it does not jut out when running)
+                float t = Mathf.Clamp01((sd.armX + 0.1f - ax) / 0.16f);
+                w = Mix(Near(p, "arm", sign), Trunk(p.y), t * t * (3f - 2f * t));
+            }
             else if (p.y < sd.legY + 0.02f && ax > 0.02f)
-                w = Mix(Near(p, "leg", sign), Trunk(p.y), Mathf.Clamp01((p.y - (sd.legY - 0.1f)) / 0.12f));
+            {
+                float t = Mathf.Clamp01((p.y - (sd.legY - 0.1f)) / 0.12f);
+                // the seat stays with the hips (it does not push out behind with each stride)
+                if (p.z < pelvis.z - 0.03f) t = Mathf.Max(t, 0.6f * Mathf.Clamp01((p.y - (sd.legY - 0.22f)) / 0.22f));
+                w = Mix(Near(p, "leg", sign), Trunk(p.y), t);
+            }
             else
             {
                 w = Trunk(p.y);
@@ -340,9 +349,19 @@ public static class CharacterPack
             weights[i] = Outfit.Weight(w);
         }
 
+        // no coat tails: what hangs below the hips away from the legs (the skirt of a jacket or a coat) is left out
+        var thighs = pieces.Where(x => x.limb == "leg" && x.radius >= 0.075f * s).ToList();
+        float hipY = sides.Count > 0 ? sides.Values.Min(v => v.legY) : pelvis.y;
+        bool Tail(Vector3 p) => p.y < hipY - 0.04f && p.y > hipY - 0.6f && thighs.Count > 0 && thighs.Min(x => ToSegment(p, x.a, x.b)) > 0.16f * s;
         var g = new Outfit.Garment();
         for (int i = 0; i < m.P.Count; i++) g.Add(m.P[i], m.N[i], m.UV[i], weights[i]);
-        for (int i = 0; i + 2 < m.T.Count; i += 3) g.Tri(m.T[i], m.T[i + 1], m.T[i + 2]);
+        int cut = 0;
+        for (int i = 0; i + 2 < m.T.Count; i += 3)
+        {
+            if (Tail(m.P[m.T[i]]) && Tail(m.P[m.T[i + 1]]) && Tail(m.P[m.T[i + 2]])) { cut++; continue; }
+            g.Tri(m.T[i], m.T[i + 1], m.T[i + 2]);
+        }
+        if (cut > 0) Debug.Log($"[Setup] character {key}: {cut} triangles of coat tails left out");
         Texture2D T(string kind) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Textures}/{key}/Body_{kind}.png");
         var mat = AssetSetup.Mat("Char_" + key, Color.white, 0.3f, 0f, T("Albedo"), T("Normal"));
         // hair, lashes and beards are cut out of the texture's alpha

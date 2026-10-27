@@ -184,7 +184,10 @@ namespace UA
                 if (!Scope && behind > 0f && Cast(target, back * behind, out wall, out wallHit)) { room = Mathf.Max(0f, wall - 0.2f); wallAt = wall; }
                 else wallAt = float.MaxValue;
             }
-            float want = Scope ? 0f : Mathf.Max(room, Mathf.Min(MinBehind, behind) * kk);
+            // only a wall square at the back may be passed through and cut away; a wall at the side, a hedge or
+            // a corner on a slant (narrow alleys, garden walks) only brings the camera in (no cut, no odd slices)
+            bool square = wallHit.collider != null && Vector3.Dot(wallHit.normal, -back) > 0.8f && Mathf.Abs(wallHit.normal.y) < 0.3f;
+            float want = Scope ? 0f : square ? Mathf.Max(room, Mathf.Min(MinBehind, behind) * kk) : room;
             reach = want < reach || !reachSet ? Mathf.Lerp(reach, want, reachSet ? 1f - Mathf.Exp(-25f * dt) : 1f) : Mathf.MoveTowards(reach, want, 2.5f * dt);
             if (Scope) reach = 0f;
             reachSet = true;
@@ -192,7 +195,7 @@ namespace UA
             // the camera behind the wall at the player's back: the picture is cut along that wall's face on the
             // player's side (an oblique near plane, whatever the wall's angle), so the wall is not drawn and the
             // player in front of it is seen whole
-            bool cut = reach > wallAt + 0.05f && wallHit.collider != null;
+            bool cut = square && reach > wallAt + 0.05f;
             Vector3 cutPoint = cut ? wallHit.point + wallHit.normal * 0.03f : Vector3.zero, cutNormal = cut ? wallHit.normal : Vector3.up;
             if (shake > 0.01f)
             {

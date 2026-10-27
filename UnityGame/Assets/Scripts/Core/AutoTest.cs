@@ -482,7 +482,7 @@ namespace UA
             yield return Until(() => World.I.MapReady, 30);
             int sign = 0;
             foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
-                         .Where(x => x.name.StartsWith("Board ") || x.name == "Plate C-1" || x.name == "Plate A-2").OrderBy(x => x.name).ToList())
+                         .Where(x => x.name.StartsWith("Board ") || new[] { "Plate C-1", "Plate A-2", "Plate D-3", "Plate A-4", "Plate C-4", "Plate C-5" }.Contains(x.name)).OrderBy(x => x.name).ToList())
             {
                 // back from the board as far as nothing stands in between (at most 7 m)
                 var eye = t.position + Vector3.up * (t.name.StartsWith("Board") ? 2f : 0f);
@@ -491,6 +491,15 @@ namespace UA
                 cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(eye - from));
                 yield return Wait(0.6f);
                 yield return Shot($"90{(char)('a' + sign++)}-citylord-{t.name.Replace(' ', '-').ToLowerInvariant()}");
+            }
+            // the buildings of the hidden ways, from high above (where they stand, what is round them)
+            foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                         .Where(x => new[] { "Plate D-3", "Plate C-1", "Plate A-4", "Plate C-4", "Plate C-5" }.Contains(x.name)).OrderBy(x => x.name).ToList())
+            {
+                var above = t.position - t.forward * 14f + Vector3.up * 22f;
+                cam.transform.SetPositionAndRotation(above, Quaternion.LookRotation(t.position + t.forward * 6f - above));
+                yield return Wait(0.5f);
+                yield return Shot($"91-citylord-above-{t.name.Substring(6).ToLowerInvariant()}");
             }
             // the new double pipe from the roof of the pipe works over to the warehouse D-4
             var pipe = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "RoofPipe");

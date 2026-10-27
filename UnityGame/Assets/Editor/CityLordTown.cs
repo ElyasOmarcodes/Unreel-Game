@@ -312,6 +312,7 @@ public static partial class CityLordBuilder
                 Plate(signs, path, b, side, open ? main.top + 0.7f : tank ? 3.2f : 3.6f, tank ? "د تېلو ټانک" : open ? "ګودام - خلاص" : "ګودام", $"{group.Key}-{number}",
                       open ? (main.from + main.to) / 2f : (float?)null);
                 numbered[$"{group.Key}-{number}"] = b;
+                Debug.Log($"[Map] CityLord {group.Key}-{number}: {path.Substring(path.LastIndexOf('/') + 1)} centre {b.center} size {b.size}{(open ? " open" : "")}");
                 count++;
             }
         }
