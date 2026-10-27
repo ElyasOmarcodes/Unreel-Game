@@ -6,7 +6,8 @@ namespace UA
     /// Over-the-shoulder third person camera after Battle Warfare's (CameraController): over the right
     /// shoulder, 2 m behind it (0.8 m while shooting), on the shoulder to aim, lowered 0.4 m crouched,
     /// stopped 0.2 m short of a wall behind and brought up over the shoulder beside the head as the wall
-    /// comes closer (never into the arm or the head); slowly orbits the city while in the menus.
+    /// comes closer (never into the arm or the head), at least 0.55 m behind it so the body stays in the
+    /// picture; over the left shoulder when the right is walled; slowly orbits the city in the menus.
     /// </summary>
     public class CameraRig : MonoBehaviour
     {
@@ -46,8 +47,12 @@ namespace UA
         private const float LookDown = 10f, LookRight = 6f;
         // with the back against a wall: over the right shoulder beside the head (above the arm that holds the
         // gun, out of the head and the headdress), reached in proportion as the wall comes closer
-        private static readonly Vector3 CloseShoulderPoint = new Vector3(0.36f, 1.8f, -0.08f);
+        private static readonly Vector3 CloseShoulderPoint = new Vector3(0.3f, 1.75f, -0.05f);
         private const float CloseFrom = 1f;   // the wall nearer than this behind the shoulder point starts it
+        // and the camera keeps at least this far behind that point, even through the wall at the back: a
+        // camera level with the head cannot see the body at all (it only looks forward, so nothing
+        // behind the wall is shown)
+        private const float MinBehind = 0.55f;
         /// <summary>Where the crosshair really points (the camera's pitch): the agent's arms and the network.</summary>
         public float AimPitch => Pitch - LookDown;
         // distance behind the shoulder point: normally, while shooting, while aiming (Battle Warfare
@@ -133,18 +138,11 @@ namespace UA
                 if (up.sqrMagnitude > 1e-4f && Physics.SphereCast(target, 0.12f, up.normalized, out var roof, up.magnitude, World.EnvMask, QueryTriggerInteraction.Ignore))
                     raised = target + up.normalized * Mathf.Max(0f, roof.distance - 0.05f);
                 target = raised;
+                float full = behind;
                 behind = Physics.SphereCast(target, 0.12f, back, out wall, behind, World.EnvMask, QueryTriggerInteraction.Ignore) ? Mathf.Max(0f, wall.distance - 0.2f) : behind;
+                behind = Mathf.Max(behind, Mathf.Min(MinBehind, full) * k);
             }
             var desired = target + back * behind;
-            // boxed in on every side (a corner, a narrow passage): up over the head looking past it, never
-            // inside it, so the body stays in sight
-            if (!Scope && !dead && (desired - head).magnitude < 0.35f)
-            {
-                var top = head + Vector3.up * 0.5f;
-                if (Physics.SphereCast(head, 0.12f, Vector3.up, out var lid, 0.5f, World.EnvMask, QueryTriggerInteraction.Ignore))
-                    top = head + Vector3.up * Mathf.Max(0.2f, lid.distance - 0.05f);
-                desired = top + back * 0.1f;
-            }
             desired = Vector3.Lerp(transform.position, desired, Mathf.Clamp01(50f * dt));
             if (shake > 0.01f)
             {

@@ -181,16 +181,13 @@ namespace UA
             float fov = 50f;
             if (t < Intro)
             {
-                // the wide shot: both players, from the side and above, the camera drifting slowly in
+                // the wide shot: from behind and above the killer, the victim ahead, the camera drifting slowly in
                 float f = t / Intro;
-                var mid = (killer.transform.position + victim.transform.position) * 0.5f + Vector3.up * 1f;
-                float span = Vector3.Distance(killer.transform.position, victim.transform.position);
-                float back = Mathf.Lerp(span * 0.75f + 5f, span * 0.65f + 4f, f);
-                look = mid;
-                float high = 2.5f + span * 0.25f;
-                // from the side; a wall there: the other side, else from high above behind the killer
-                eye = Best(look, mid + right * back + Vector3.up * high, mid - right * back + Vector3.up * high,
-                    mid - flat * back * 0.6f + Vector3.up * back * 0.9f, mid + Vector3.up * back * 1.2f - flat * 2f);
+                var head = killer.transform.position + Vector3.up * 1.7f;
+                float pull = Mathf.Lerp(3.4f, 2.8f, f);
+                look = Vector3.Lerp(killer.transform.position, victim.transform.position, 0.45f) + Vector3.up * 1f;
+                eye = Best(head, head - flat * pull + right * 1.1f + Vector3.up * 2.2f, head - flat * pull - right * 1.1f + Vector3.up * 2.2f,
+                    head - flat * 1.4f + Vector3.up * 3.5f);
                 fov = 55f;
             }
             else if (t < Intro + Aim)
@@ -202,7 +199,7 @@ namespace UA
                 float pull = Mathf.Lerp(1.5f, 1.2f, f);
                 // over the right shoulder, or the left one when a wall is on the right
                 eye = Best(head, head - flat * pull + right * 0.55f + Vector3.up * 0.1f, head - flat * pull - right * 0.55f + Vector3.up * 0.1f,
-                    head - flat * 0.6f + Vector3.up * 0.7f);
+                    head - flat * 1.2f + Vector3.up * 0.45f);
                 fov = Mathf.Lerp(50f, 44f, f);
             }
             else if (t < Intro + Aim + Flight)
