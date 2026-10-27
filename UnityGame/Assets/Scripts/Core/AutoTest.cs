@@ -97,7 +97,8 @@ namespace UA
                 for (int i = 0; i < 5; i++)
                 {
                     int style = half * 5 + i;
-                    int look = Wardrobe.Apply(Wardrobe.Set(0, Wardrobe.Slot.Body, (style >= 8 ? 2 : 0) + i % 2), Wardrobe.Styles[style]);
+                    if (style >= Wardrobe.Styles.Length) break;
+                    int look = Wardrobe.Apply(Wardrobe.Set(0, Wardrobe.Slot.Body, i % 2), Wardrobe.Styles[style]);
                     look = Wardrobe.Set(look, Wardrobe.Slot.TopColor, (style * 3) % 8);
                     look = Wardrobe.Set(look, Wardrobe.Slot.BottomColor, Wardrobe.Get(look, Wardrobe.Slot.Top) == 0 ? (style * 3) % 8 : style % 3);
                     look = Wardrobe.Set(look, Wardrobe.Slot.HeadColor, style % 4);
@@ -129,10 +130,10 @@ namespace UA
             yield return Shot("00-feet-side");
             foreach (var go in row) Destroy(go);
             row.Clear();
-            // the five characters of the player's pack on the game's skeleton: front, back, and close
-            for (int i = 0; i < 5; i++)
+            // the four characters of the player's pack on the game's skeleton: front, back, and close
+            for (int i = 0; i < 4; i++)
             {
-                var go = Dress(Wardrobe.PresetLook(Wardrobe.Presets.Length - 5 + i), new Vector3(i * 1.1f, 300, 0), 180);
+                var go = Dress(Wardrobe.PresetLook(Wardrobe.Presets.Length - 4 + i), new Vector3(i * 1.1f, 300, 0), 180);
                 if (go != null) go.GetComponent<Agent>().SetWeapon(9 + i % 3);
             }
             cam.Cam.fieldOfView = 34;
@@ -148,12 +149,12 @@ namespace UA
             yield return Shot("00-pack-characters-close");
             foreach (var go in row) Destroy(go);
             row.Clear();
-            // head wear close-ups: 12 options on alternating bodies
-            for (int i = 0; i < 12; i++)
+            // head wear close-ups: the 11 offered on alternating bodies
+            for (int i = 0; i < 11; i++)
             {
-                int head = i + 1;
-                int look = Wardrobe.Set(0, Wardrobe.Slot.Body, head == 8 ? 2 + i % 2 : i % 2);
-                look = Wardrobe.Set(Wardrobe.Set(look, Wardrobe.Slot.Head, head), Wardrobe.Slot.Top, head == 8 ? 6 : i % 6);
+                int head = i + 1 >= 8 ? i + 2 : i + 1;   // no hijab
+                int look = Wardrobe.Set(0, Wardrobe.Slot.Body, i % 2);
+                look = Wardrobe.Set(Wardrobe.Set(look, Wardrobe.Slot.Head, head), Wardrobe.Slot.Top, i % 6);
                 look = Wardrobe.Set(Wardrobe.Set(look, Wardrobe.Slot.Beard, i % 3 == 0 ? 0 : 1), Wardrobe.Slot.HeadColor, i % 4);
                 Dress(look, new Vector3((i % 6) * 0.62f + (i / 6) * 6f, 300, 0), 160);
             }
