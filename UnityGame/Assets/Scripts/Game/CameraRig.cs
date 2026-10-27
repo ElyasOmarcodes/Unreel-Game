@@ -43,6 +43,8 @@ namespace UA
         private float drop;   // how far the shoulder point is lowered (crouched, lying, dead)
         private float shoulder = 1f;   // over the right shoulder (1) or the left (-1) when a wall is on the right
         private float sideWanted = 1f;
+        private Vector3 deadEye;
+        private bool deadSet;
         private float followY, closeK, reach;
         private bool followSet, reachSet;
 
@@ -195,7 +197,23 @@ namespace UA
             // the camera behind the wall at the player's back: the picture is cut along that wall's face on the
             // player's side (an oblique near plane, whatever the wall's angle), so the wall is not drawn and the
             // player in front of it is seen whole
-            bool cut = square && reach > wallAt + 0.05f;
+            bool cut = square && reach > wallAt + 0.05f && !dead;
+            // dead: up and back from the body, looking down at it, kept clear of walls and roofs (no slice
+            // through a wall beside the body)
+            if (dead)
+            {
+                var body0 = Target.transform.position + Vector3.up * 0.4f;
+                var flat = Quaternion.Euler(0, Yaw, 0);
+                var away = (flat * new Vector3(0.6f, 3.2f, -2.4f));
+                float far = away.magnitude;
+                if (Cast(body0, away, out float block)) far = Mathf.Max(0.8f, block - 0.25f);
+                var spot = body0 + away.normalized * far;
+                deadEye = deadSet ? Vector3.Lerp(deadEye, spot, 1f - Mathf.Exp(-6f * dt)) : spot;
+                deadSet = true;
+                desired = deadEye;
+                rotation = Quaternion.LookRotation(body0 - desired);
+            }
+            else deadSet = false;
             Vector3 cutPoint = cut ? wallHit.point + wallHit.normal * 0.03f : Vector3.zero, cutNormal = cut ? wallHit.normal : Vector3.up;
             if (shake > 0.01f)
             {
