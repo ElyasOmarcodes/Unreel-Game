@@ -158,11 +158,11 @@ namespace UA
             gunHint.rectTransform.Fill(10);
             gunTitle = UIKit.Txt(weaponTab, "", 34, TextAnchor.MiddleLeft, UIKit.Accent);
             gunTitle.rectTransform.At(0f, 1f, 356, -482, 680, 46, 0f, 1f);
-            gunStats = UIKit.Txt(weaponTab, "", 21, TextAnchor.UpperLeft, UIKit.Muted);
+            gunStats = UIKit.Txt(weaponTab, "", 18, TextAnchor.UpperLeft, UIKit.Muted);
             gunStats.rectTransform.At(0f, 1f, 356, -526, 680, 30, 0f, 1f);
             for (int i = 0; i < WeaponBars.Length; i++)
             {
-                float y = -562 - i * 30;
+                float y = -556 - i * 27;
                 var name = UIKit.Txt(weaponTab, WeaponBars[i].name, 21, TextAnchor.MiddleLeft, UIKit.TextColor);
                 name.rectTransform.At(0f, 1f, 356, y, 160, 26, 0f, 1f);
                 var track = UIKit.Img(weaponTab, new Color(1, 1, 1, 0.08f), UIKit.Rounded);
@@ -174,9 +174,9 @@ namespace UA
                 weaponBars.Add((fill.rectTransform, value));
             }
             var asFirst = UIKit.Btn(weaponTab, "AS WEAPON 1", () => { Settings.Primary = (byte)previewWeapon; RefreshProfile(); }, 26, null, "looks_one");
-            asFirst.GetComponent<RectTransform>().At(0f, 0f, 356, 16, 330, 58, 0f, 0f);
+            asFirst.GetComponent<RectTransform>().At(0f, 0f, 356, 10, 330, 52, 0f, 0f);
             var asSecond = UIKit.Btn(weaponTab, "AS WEAPON 2", () => { Settings.Secondary = (byte)previewWeapon; RefreshProfile(); }, 26, null, "looks_two");
-            asSecond.GetComponent<RectTransform>().At(0f, 0f, 704, 16, 330, 58, 0f, 0f);
+            asSecond.GetComponent<RectTransform>().At(0f, 0f, 704, 10, 330, 52, 0f, 0f);
             ShowTab(true);
 
             var back = UIKit.Btn(s, "SAVE", () => { Settings.PlayerName = profileName.text; ShowScreen("menu"); }, 36, UIKit.AccentDark, "play_arrow");
@@ -216,7 +216,7 @@ namespace UA
             int headShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets * w.HeadMultiplier));
             float scope = w.Scope ? Mathf.Tan(31f * Mathf.Deg2Rad) * Weapons.ScopeScale / Mathf.Tan(w.AimFov * 0.5f * Mathf.Deg2Rad) : 0f;
             gunTitle.text = w.Name + $"  <size=22><color=#9aa4b0>{(w.Primary ? "RIFLE CLASS" : "SIDEARM CLASS")}</color></size>";
-            gunStats.text = $"{w.Caliber}  ·  {w.MuzzleVelocity} m/s  ·  {w.Action}  ·  scope {(w.Scope ? $"{scope / Weapons.ScopeScale:0}x" : "none")}  ·  kill: {bodyShots} body / {headShots} head";
+            gunStats.text = $"{w.Caliber} · {w.MuzzleVelocity} m/s · {w.Action}{(w.Scope ? $" · scope {scope:0}x" : "")} · kills in {bodyShots} (head {headShots})";
             for (int i = 0; i < weaponBars.Count; i++)
             {
                 float v = Mathf.Clamp01(WeaponBars[i].value(w));

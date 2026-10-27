@@ -625,7 +625,7 @@ namespace UA
         }
 
         /// <summary>A team number as the menus show it: 0 is fighting alone.</summary>
-        private static string TeamLabel(int team) => team == 0 ? "0  -  ALONE (NO TEAM)" : team + "  -  " + MatchConfig.TeamName(team);
+        private static string TeamLabel(int team) => team == 0 ? "0 = ALONE" : team + " = " + MatchConfig.TeamName(team);
 
         private void RefreshLobby()
         {

@@ -38,6 +38,7 @@ namespace UA
         private Quaternion smoothRotation = Quaternion.identity;
         private bool rotationSet;
         private float drop;   // how far the shoulder point is lowered (crouched, lying, dead)
+        private float shoulder = 1f;   // over the right shoulder (1) or the left (-1) when a wall is on the right
 
         // the camera of Battle Warfare (CameraController): it looks at a point over the right shoulder
         // from behind, turned 10 degrees down and 6 to the right of the body's aim
@@ -100,13 +101,23 @@ namespace UA
             // crouched the camera comes down 0.4 m, lying down and dead lower still
             drop = Mathf.Lerp(drop, dead ? 0.8f : Prone ? 0.95f : Crouch ? 0.4f : 0f, Mathf.Clamp01(10f * dt));
             var body = Quaternion.Euler(0, Target.transform.eulerAngles.y, 0);
-            var target = Target.transform.position + body * ShoulderPoint - Vector3.up * drop;
+            Vector3 Side(Vector3 p, float s) => new Vector3(p.x * s, p.y, p.z);
+            var head = Target.transform.position + Vector3.up * (1.6f - drop);
+            // the room out to each shoulder point (a wall on one side: over the other shoulder)
+            float Room(float s)
+            {
+                var d = Target.transform.position + body * Side(ShoulderPoint, s) - Vector3.up * drop - head;
+                return Physics.SphereCast(head, 0.12f, d.normalized, out var h, d.magnitude, World.EnvMask, QueryTriggerInteraction.Ignore) ? h.distance / d.magnitude : 1f;
+            }
+            float rightRoom = Room(1f);
+            float want = rightRoom >= 0.7f ? 1f : Room(-1f) > rightRoom + 0.2f ? -1f : 1f;
+            shoulder = Mathf.MoveTowards(shoulder, want, 5f * dt);
+            var target = Target.transform.position + body * Side(ShoulderPoint, shoulder) - Vector3.up * drop;
             float behind = Scope ? 0f : Aim ? BehindAiming : Target.Firing && !dead ? Mathf.Min(Behind, BehindFiring) : Behind;
             // a wall behind (as in Battle Warfare): the camera stays on the line back from the shoulder point and
             // only comes closer along it, as close as the wall is, at most up to the shoulder itself; it
             // never goes round into the head, so the body stays in sight. The shoulder point itself is
             // kept out of a wall on the right (from the head out to it)
-            var head = Target.transform.position + Vector3.up * (1.6f - drop);
             var side = target - head;
             if (side.sqrMagnitude > 1e-4f && Physics.SphereCast(head, 0.12f, side.normalized, out var sh, side.magnitude, World.EnvMask, QueryTriggerInteraction.Ignore))
                 target = head + side.normalized * Mathf.Max(0f, sh.distance - 0.05f);
@@ -116,7 +127,7 @@ namespace UA
                 float room = Mathf.Max(0f, wall.distance - 0.2f);
                 // the nearer the wall, the more the point moves up over the shoulder beside the head
                 float k = Mathf.Clamp01(1f - room / Mathf.Min(CloseFrom, behind));
-                var over = Target.transform.position + body * CloseShoulderPoint - Vector3.up * drop;
+                var over = Target.transform.position + body * Side(CloseShoulderPoint, shoulder) - Vector3.up * drop;
                 var raised = Vector3.Lerp(target, over, k * k * (3f - 2f * k));
                 var up = raised - target;
                 if (up.sqrMagnitude > 1e-4f && Physics.SphereCast(target, 0.12f, up.normalized, out var roof, up.magnitude, World.EnvMask, QueryTriggerInteraction.Ignore))
@@ -125,6 +136,15 @@ namespace UA
                 behind = Physics.SphereCast(target, 0.12f, back, out wall, behind, World.EnvMask, QueryTriggerInteraction.Ignore) ? Mathf.Max(0f, wall.distance - 0.2f) : behind;
             }
             var desired = target + back * behind;
+            // boxed in on every side (a corner, a narrow passage): up over the head looking past it, never
+            // inside it, so the body stays in sight
+            if (!Scope && !dead && (desired - head).magnitude < 0.35f)
+            {
+                var top = head + Vector3.up * 0.5f;
+                if (Physics.SphereCast(head, 0.12f, Vector3.up, out var lid, 0.5f, World.EnvMask, QueryTriggerInteraction.Ignore))
+                    top = head + Vector3.up * Mathf.Max(0.2f, lid.distance - 0.05f);
+                desired = top + back * 0.1f;
+            }
             desired = Vector3.Lerp(transform.position, desired, Mathf.Clamp01(50f * dt));
             if (shake > 0.01f)
             {

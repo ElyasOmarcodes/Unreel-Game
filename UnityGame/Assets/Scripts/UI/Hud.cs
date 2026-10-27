@@ -233,8 +233,6 @@ namespace UA
 
             // RANK: the standings as on the results page, for a while (tap again to close)
             scoreboard = UIKit.Panel(root, 1640, 720, -20);
-            var sbTitle = UIKit.Txt(scoreboard, "STANDINGS", 40, TextAnchor.MiddleLeft, UIKit.Accent);
-            sbTitle.rectTransform.At(0f, 1f, 20, 62, 600, 64, 0f, 0f);
             board = new ResultsTable(scoreboard, 700);
             scoreboard.gameObject.SetActive(false);
 

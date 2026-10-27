@@ -54,6 +54,7 @@ namespace UA
             l.intensity = intensity;
             l.range = range;
             l.shadows = LightShadows.None;
+            l.renderMode = LightRenderMode.ForcePixel;   // lit per pixel: the few large faces of a gun are not left black
         }
 
         private void Build()

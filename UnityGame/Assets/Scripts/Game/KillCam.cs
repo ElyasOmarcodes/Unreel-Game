@@ -148,6 +148,21 @@ namespace UA
             return eye;
         }
 
+        /// <summary>Of several camera places, the one that keeps most of its distance once walls are in the way.</summary>
+        private static Vector3 Best(Vector3 look, params Vector3[] eyes)
+        {
+            Vector3 best = eyes[0];
+            float score = -1f;
+            foreach (var e in eyes)
+            {
+                var c = Clear(look, e);
+                float kept = (c - look).magnitude / Mathf.Max(0.01f, (e - look).magnitude);
+                if (kept > score + 0.05f) { score = kept; best = c; }
+                if (kept > 0.98f) break;
+            }
+            return best;
+        }
+
         private void LateUpdate()
         {
             if (!playing) return;
@@ -172,10 +187,10 @@ namespace UA
                 float span = Vector3.Distance(killer.transform.position, victim.transform.position);
                 float back = Mathf.Lerp(span * 0.75f + 5f, span * 0.65f + 4f, f);
                 look = mid;
-                eye = Clear(look, mid + right * back + Vector3.up * (2.5f + span * 0.25f));
-                // a wall at the side: from the other side, else from high above
-                if ((eye - mid).magnitude < back * 0.6f) eye = Clear(look, mid - right * back + Vector3.up * (2.5f + span * 0.25f));
-                if ((eye - mid).magnitude < back * 0.6f) eye = Clear(look, mid - flat * back * 0.5f + Vector3.up * (back * 0.9f));
+                float high = 2.5f + span * 0.25f;
+                // from the side; a wall there: the other side, else from high above behind the killer
+                eye = Best(look, mid + right * back + Vector3.up * high, mid - right * back + Vector3.up * high,
+                    mid - flat * back * 0.6f + Vector3.up * back * 0.9f, mid + Vector3.up * back * 1.2f - flat * 2f);
                 fov = 55f;
             }
             else if (t < Intro + Aim)
@@ -184,7 +199,10 @@ namespace UA
                 float f = (t - Intro) / Aim;
                 var head = killer.transform.position + Vector3.up * 1.7f;
                 look = to;
-                eye = Clear(head, head - flat * Mathf.Lerp(1.5f, 1.2f, f) + right * 0.55f + Vector3.up * 0.1f);
+                float pull = Mathf.Lerp(1.5f, 1.2f, f);
+                // over the right shoulder, or the left one when a wall is on the right
+                eye = Best(head, head - flat * pull + right * 0.55f + Vector3.up * 0.1f, head - flat * pull - right * 0.55f + Vector3.up * 0.1f,
+                    head - flat * 0.6f + Vector3.up * 0.7f);
                 fov = Mathf.Lerp(50f, 44f, f);
             }
             else if (t < Intro + Aim + Flight)
@@ -217,7 +235,8 @@ namespace UA
                 var center = victim.transform.position + Vector3.up * 0.7f;
                 var around = Quaternion.AngleAxis(Mathf.Lerp(-20f, 25f, f), Vector3.up) * right;
                 look = center;
-                eye = Clear(center, center + around * Mathf.Lerp(3.6f, 3f, f) + Vector3.up * 0.9f);
+                float dist = Mathf.Lerp(3.6f, 3f, f);
+                eye = Best(center, center + around * dist + Vector3.up * 0.9f, center - around * dist + Vector3.up * 0.9f, center + Vector3.up * dist);
             }
             cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(look - eye));
             cam.Cam.fieldOfView = fov;
