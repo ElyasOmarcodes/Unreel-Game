@@ -202,6 +202,9 @@ public static class Outfit
         AssetSetup.Folder(Folder);
         string path = $"{Folder}/{key}_{name}.asset";
         AssetDatabase.DeleteAsset(path);
+        // stored smaller in the APK (the characters and garments are a large part of it); light
+        // compression keeps faces and seams exact
+        MeshUtility.SetMeshCompression(mesh, ModelImporterMeshCompression.Low);
         AssetDatabase.CreateAsset(mesh, path);
         return mesh;
     }
