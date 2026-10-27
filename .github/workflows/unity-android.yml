@@ -37,16 +37,29 @@ jobs:
       # CC0 assets by Quaternius (Universal Animation Library, Downtown City MegaKit), pinned to one commit
       # of a public mirror. Textures are downscaled to 1024 and the ORM maps converted for Unity's
       # Standard shader (metallic in R, smoothness in A).
-      - name: Cache the 3D assets
+      # the assets are downloaded once: the newest saved copy comes back (also when the script changed),
+      # the script fetches only the parts it does not find there (each part leaves a marker), and a new
+      # copy is saved right away (not at the end of the job: a cancelled build keeps its downloads too)
+      - name: Restore the 3D assets
         id: assets-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: UnityGame/Assets/ThirdParty
-          key: cc0-assets-v1-85064399-${{ hashFiles('.github/scripts/fetch-assets.sh') }}
+          key: cc0-assets-v2-${{ hashFiles('.github/scripts/fetch-assets.sh') }}
+          restore-keys: |
+            cc0-assets-v2-
+            cc0-assets-v1-85064399-
 
-      - name: Download the 3D assets
+      - name: Download the missing 3D assets
         if: steps.assets-cache.outputs.cache-hit != 'true'
         run: bash .github/scripts/fetch-assets.sh UnityGame/Assets/ThirdParty
+
+      - name: Save the 3D assets
+        if: steps.assets-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: UnityGame/Assets/ThirdParty
+          key: cc0-assets-v2-${{ hashFiles('.github/scripts/fetch-assets.sh') }}
 
       - name: Cache the Unity Library folder
         uses: actions/cache@v4

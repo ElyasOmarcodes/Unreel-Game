@@ -7,6 +7,15 @@ REPO=https://github.com/tilakpatell/tilakverse-assets
 COMMIT=85064399bbdacc0e8cc50807179490314bc4ff1c
 WORK="${RUNNER_TEMP:-/tmp}/cc0-assets"
 rm -rf "$WORK" && mkdir -p "$WORK" && cd "$WORK"
+mkdir -p "$DEST"
+# every part is downloaded once: its marker goes into the cached folder with it, so later builds skip it
+# (a part whose list changes gets a new marker name and is fetched again, once)
+# need <part> <a file the part makes>: also a copy saved before the markers (the file is there) counts
+need() { if [ -f "$DEST/.done-$1" ] || { [ -n "${2:-}" ] && [ -e "$DEST/$2" ]; }; then echo "already here: $1"; touch "$DEST/.done-$1"; return 1; fi; }
+mark() { touch "$DEST/.done-$1"; }
+python3 -m pip install -q pillow
+
+if need quaternius-v1 UAL/UAL1.fbx; then
 git init -q
 git remote add origin "$REPO"
 git sparse-checkout set --no-cone \
@@ -48,7 +57,6 @@ cp "$Q/downtown-city-megakit/License_Standard.txt" "$DEST/City/License.txt"
 mkdir -p "$DEST/Nature"
 cp "$Q/stylized-nature-megakit/FBX (Unity)/"*.fbx "$DEST/Nature/"
 cp "$Q/stylized-nature-megakit/glTF/"*.png "$DEST/Nature/"
-python3 -m pip install -q pillow
 python3 - "$DEST/Nature" <<'PY'
 import sys, glob
 from PIL import Image
@@ -58,7 +66,6 @@ for f in glob.glob(sys.argv[1] + "/*.png"):
         im.resize((1024, 1024), Image.LANCZOS).save(f)
 PY
 cp "$Q/stylized-nature-megakit/License_Source.txt" "$DEST/Nature/License.txt"
-python3 -m pip install -q pillow
 python3 - "$Q/downtown-city-megakit/Textures" "$DEST/City/Textures" <<'PY'
 import sys, os
 from PIL import Image
@@ -79,17 +86,23 @@ for name in sorted(os.listdir(src)):
     im.save(os.path.join(dst, name))
     print("texture", name, im.size)
 PY
-du -sh "$DEST"/*
 ls "$DEST/City/Models" | wc -l
+mark quaternius-v1
+fi
 
 # ---------------------------------------------------------------- weapons: Quaternius Ultimate Gun Pack (CC0)
+if need guns-v1 Guns; then
 cd "$WORK"
 for i in 1 2 3; do curl -sfL https://opengameart.org/sites/default/files/ultimate_gun_pack_by_quaternius.zip -o guns.zip && break || sleep 10; done
 mkdir -p "$DEST/Guns" && unzip -q -o guns.zip "Ultimate Gun Pack - July 2019/FBX/*" -d guns
 cp guns/Ultimate*/FBX/*.fbx "$DEST/Guns/"
 ls "$DEST/Guns" | wc -l
+mark guns-v1
+fi
 
 # ---------------------------------------------------------------- PBR textures: ambientCG (CC0)
+if need textures-v2 Port/Textures/PavingStones070_BaseColor.jpg; then
+cd "$WORK"
 mkdir -p "$DEST/Port/Textures" tex
 for id in Concrete034 Concrete042A Metal032 MetalPlates013 Bricks076A Wood049 Planks037A Grass001 Grass004 PavingStones070 WoodFloor051 Plaster001 Clay007 Ground104 Gravel036L Rock055 RoofingTiles006; do
   rm -f t.zip
@@ -116,6 +129,8 @@ for folder in sorted(glob.glob(tex + "/*")):
         ms(Image.open(f("Roughness")), Image.open(f("Metalness")) if f("Metalness") else None).save(f"{dst}/{pid}_MS.png")
     print("material", pid)
 PY
+mark textures-v2
+fi
 # ---------------------------------------------------------------- characters: Quaternius Universal Base Characters (CC0)
 # Free (pay what you want, $0) download from itch.io: the same skeleton as the animation library,
 # realistic skin with a face, eyes, eyebrows, hair and beard. Skipped (mannequin fallback) if itch.io fails.
@@ -139,6 +154,7 @@ itch() {
   curl -sfL "$FILE" -o "$2" && unzip -q -o "$2" -d "$3"
 }
 ubc() { itch https://quaternius.itch.io/universal-base-characters ubc.zip ubc; }
+if need ubc-v1 UBC/Superhero_Male_FullBody.fbx; then
 for i in 1 2 3; do ubc && break || { echo "UBC download attempt $i failed"; sleep 10; }; done
 if [ -d ubc ]; then
   U=$(find ubc -maxdepth 1 -type d -name "Universal*" | head -1)
@@ -189,11 +205,14 @@ for who in ("Male", "Female"):
         ms(Image.open(p)).save(f"{dst}/T_{who}_MS.png")
 PY
   ls -la "$DEST/UBC" "$DEST/UBC/Hair" "$DEST/UBC/Textures"
+  mark ubc-v1
 else
   echo "::warning::Universal Base Characters could not be downloaded; the mannequins are used"
 fi
+fi
 
 # ---------------------------------------------------------------- cars: Quaternius Realistic Car Pack (CC0, itch.io)
+if need cars-v1 Cars; then
 cd "$WORK"
 for i in 1 2 3; do itch https://quaternius.itch.io/lowpoly-cars cars.zip cars && break || { echo "car pack attempt $i failed"; sleep 10; }; done
 if [ -d cars ]; then
@@ -202,12 +221,15 @@ if [ -d cars ]; then
   find cars -iname "*.png" -exec cp {} "$DEST/Cars/" \; || true
   find cars -iname "*license*" -exec cp {} "$DEST/Cars/License.txt" \; || true
   ls -la "$DEST/Cars"
+  mark cars-v1
 else
   echo "::warning::the car pack could not be downloaded; simple cars are used"
+fi
 fi
 
 # ---------------------------------------------------------------- sounds (OpenGameArt): footsteps recorded on sand/grass
 # and stone by Fantozzi (CC0), pain and death voices by Michel Baradari (CC-BY 3.0, credited in the game)
+if need sounds-v2 Sounds/Resources/Audio/death_0.wav; then
 cd "$WORK"
 mkdir -p snd && cd snd
 command -v ffmpeg >/dev/null && command -v 7z >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg p7zip-full >/dev/null; } || true
@@ -298,5 +320,7 @@ if f:
             print("sound", name, "<-", f, f"at {i / 44100:.2f}s")
 PY
 ls -la "$DEST/Sounds/Resources/Audio" || true
+mark sounds-v2
+fi
 
 du -sh "$DEST"/*
