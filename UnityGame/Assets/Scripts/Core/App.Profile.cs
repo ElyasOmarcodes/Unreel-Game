@@ -12,6 +12,21 @@ namespace UA
         private RawImage characterView, gunView;
         private Text gunTitle, gunStats;
         private int previewWeapon;
+        private readonly System.Collections.Generic.List<(Button button, Text tag)> weaponRows = new System.Collections.Generic.List<(Button, Text)>();
+        private readonly System.Collections.Generic.List<(RectTransform fill, Text value)> weaponBars = new System.Collections.Generic.List<(RectTransform, Text)>();
+        private const float BarWidth = 330f;
+
+        /// <summary>The weapon's bars, 0 .. 1 against the strongest of all the weapons, and the number beside each.</summary>
+        private static readonly (string name, System.Func<WeaponDef, float> value, System.Func<WeaponDef, string> text)[] WeaponBars =
+        {
+            ("POWER", w => w.Damage * w.Pellets / 117f, w => (w.Damage * w.Pellets).ToString("0") + (w.Pellets > 1 ? $" ({w.Pellets}×{w.Damage:0})" : "")),
+            ("FIRE RATE", w => w.FireRate / 15f, w => Mathf.RoundToInt(w.FireRate * 60f) + " RPM"),
+            ("RANGE", w => w.EffectiveRange / 1000f, w => w.EffectiveRange + " m"),
+            ("ACCURACY", w => 1f - Mathf.Clamp01(w.AimSpread / 4.5f * 0.75f + w.Spread / 7f * 0.25f), w => w.AimSpread <= 0.05f ? "PIN-POINT" : w.AimSpread.ToString("0.0") + "° aimed"),
+            ("CONTROL", w => 1f - Mathf.Clamp01(w.Recoil / 5.5f), w => w.Recoil < 1.2f ? "LOW RECOIL" : w.Recoil < 3f ? "MEDIUM RECOIL" : "HEAVY RECOIL"),
+            ("MOBILITY", w => Mathf.Clamp01((w.MoveSpeed - 0.8f) / 0.26f), w => Mathf.RoundToInt(w.MoveSpeed * 100f) + "% speed"),
+            ("MAGAZINE", w => Mathf.Sqrt(w.MagSize / 100f), w => w.MagSize + " / " + w.Reserve),
+        };
 
         private RectTransform characterTab, weaponTab;
         private Button characterTabButton, weaponTabButton;
@@ -20,7 +35,13 @@ namespace UA
         private class RotateDrag : MonoBehaviour, IDragHandler
         {
             public PreviewStage Stage;
-            public void OnDrag(PointerEventData e) { if (Stage != null) Stage.CharacterYaw -= e.delta.x * 0.4f; }
+            public bool Gun;
+            public void OnDrag(PointerEventData e)
+            {
+                if (Stage == null) return;
+                if (Gun) Stage.GunYaw -= e.delta.x * 0.4f;
+                else Stage.CharacterYaw -= e.delta.x * 0.4f;
+            }
         }
 
         private static void ChangeLook(Wardrobe.Slot slot, int delta)
@@ -109,29 +130,53 @@ namespace UA
             Look(Wardrobe.Slot.Feet, 0, 5); Look(Wardrobe.Slot.Gloves, 1, 5);
             Look(Wardrobe.Slot.Kit, 0, 6); Look(Wardrobe.Slot.Beard, 1, 6);
 
-            // weapons: both slots take any weapon, with the real data of the one shown
+            // weapons: every weapon in a list; the one picked turns in 3D with its real data and its bars
+            // against the others, and goes into either slot (any weapon in either)
             weaponTab = UIKit.Node(right, "WeaponTab");
             weaponTab.Fill();
-            UIKit.Stepper(weaponTab, "WEAPON 1", -190, () => Weapons.Get(Settings.Primary).Name, d =>
+            weaponRows.Clear();
+            weaponBars.Clear();
+            for (int i = 0; i < Weapons.Count; i++)
             {
-                Settings.Primary = (byte)((Settings.Primary + Weapons.Count + d) % Weapons.Count);
-                previewWeapon = Settings.Primary;
-                RefreshProfile();
-            }, 980);
-            UIKit.Stepper(weaponTab, "WEAPON 2", -284, () => Weapons.Get(Settings.Secondary).Name, d =>
-            {
-                Settings.Secondary = (byte)((Settings.Secondary + Weapons.Count + d) % Weapons.Count);
-                previewWeapon = Settings.Secondary;
-                RefreshProfile();
-            }, 980);
-            var gunBox = UIKit.Img(weaponTab, new Color(0, 0, 0, 0.35f), UIKit.Rounded);
-            gunBox.rectTransform.At(0.5f, 0f, -190, 30, 580, 380, 0.5f, 0f);
+                int id = i;
+                var row = UIKit.Btn(weaponTab, Weapons.Get(id).Name, () => { previewWeapon = id; RefreshProfile(); }, 24);
+                row.GetComponent<RectTransform>().At(0f, 1f, 20, -186 - i * 52, 310, 46, 0f, 1f);
+                var label = row.GetComponentInChildren<Text>();
+                label.alignment = TextAnchor.MiddleLeft;
+                label.rectTransform.offsetMin = new Vector2(16, 0);
+                var tag = UIKit.Txt(row.transform, "", 20, TextAnchor.MiddleRight, UIKit.Accent);
+                tag.rectTransform.Fill();
+                tag.rectTransform.offsetMax = new Vector2(-12, 0);
+                weaponRows.Add((row, tag));
+            }
+            var gunBox = UIKit.Img(weaponTab, new Color(0, 0, 0, 0.35f), UIKit.Rounded, true);
+            gunBox.rectTransform.At(0f, 1f, 350, -186, 690, 290, 0f, 1f);
             gunView = UIKit.Node(gunBox.transform, "Gun").gameObject.AddComponent<RawImage>();
             gunView.rectTransform.Fill(6);
-            gunTitle = UIKit.Txt(weaponTab, "", 34, TextAnchor.UpperLeft, UIKit.Accent);
-            gunTitle.rectTransform.At(1f, 0f, -16, 350, 370, 50, 1f, 0f);
-            gunStats = UIKit.Txt(weaponTab, "", 23, TextAnchor.UpperLeft, UIKit.TextColor);
-            gunStats.rectTransform.At(1f, 0f, -16, 30, 370, 310, 1f, 0f);
+            gunView.gameObject.AddComponent<RotateDrag>().Gun = true;
+            var gunHint = UIKit.Txt(gunBox.transform, "drag to turn", 20, TextAnchor.LowerRight, UIKit.Muted);
+            gunHint.rectTransform.Fill(10);
+            gunTitle = UIKit.Txt(weaponTab, "", 34, TextAnchor.MiddleLeft, UIKit.Accent);
+            gunTitle.rectTransform.At(0f, 1f, 356, -482, 680, 46, 0f, 1f);
+            gunStats = UIKit.Txt(weaponTab, "", 21, TextAnchor.UpperLeft, UIKit.Muted);
+            gunStats.rectTransform.At(0f, 1f, 356, -526, 680, 30, 0f, 1f);
+            for (int i = 0; i < WeaponBars.Length; i++)
+            {
+                float y = -562 - i * 30;
+                var name = UIKit.Txt(weaponTab, WeaponBars[i].name, 21, TextAnchor.MiddleLeft, UIKit.TextColor);
+                name.rectTransform.At(0f, 1f, 356, y, 160, 26, 0f, 1f);
+                var track = UIKit.Img(weaponTab, new Color(1, 1, 1, 0.08f), UIKit.Rounded);
+                track.rectTransform.At(0f, 1f, 520, y - 6, BarWidth, 14, 0f, 1f);
+                var fill = UIKit.Img(track.transform, UIKit.Accent, UIKit.Rounded);
+                fill.rectTransform.At(0f, 0.5f, 0, 0, BarWidth, 14, 0f, 0.5f);
+                var value = UIKit.Txt(weaponTab, "", 20, TextAnchor.MiddleLeft, UIKit.Muted);
+                value.rectTransform.At(0f, 1f, 864, y, 180, 26, 0f, 1f);
+                weaponBars.Add((fill.rectTransform, value));
+            }
+            var asFirst = UIKit.Btn(weaponTab, "AS WEAPON 1", () => { Settings.Primary = (byte)previewWeapon; RefreshProfile(); }, 26, null, "looks_one");
+            asFirst.GetComponent<RectTransform>().At(0f, 0f, 356, 16, 330, 58, 0f, 0f);
+            var asSecond = UIKit.Btn(weaponTab, "AS WEAPON 2", () => { Settings.Secondary = (byte)previewWeapon; RefreshProfile(); }, 26, null, "looks_two");
+            asSecond.GetComponent<RectTransform>().At(0f, 0f, 704, 16, 330, 58, 0f, 0f);
             ShowTab(true);
 
             var back = UIKit.Btn(s, "SAVE", () => { Settings.PlayerName = profileName.text; ShowScreen("menu"); }, 36, UIKit.AccentDark, "play_arrow");
@@ -143,11 +188,20 @@ namespace UA
             if (stage == null) stage = PreviewStage.Create();
             characterView.texture = stage.CharacterTexture;
             characterView.GetComponent<RotateDrag>().Stage = stage;   // dragging turns the character
+            gunView.GetComponent<RotateDrag>().Stage = stage;         // and the gun
             gunView.texture = stage.GunTexture;
             profileName.text = Settings.PlayerName;
             previewWeapon = Settings.Primary;
             ShowScreen("profile");
             stage.SetActive(true);
+            RefreshProfile();
+        }
+
+        /// <summary>The weapons page with one weapon shown (the auto test).</summary>
+        public void ShowWeapons(int weapon)
+        {
+            ShowTab(false);
+            previewWeapon = Mathf.Clamp(weapon, 0, Weapons.Count - 1);
             RefreshProfile();
         }
 
@@ -160,8 +214,21 @@ namespace UA
             var w = Weapons.Get(previewWeapon);
             int bodyShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets));
             int headShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets * w.HeadMultiplier));
-            gunTitle.text = w.Name;
-            gunStats.text = $"{w.Caliber}\n{w.MuzzleVelocity} m/s muzzle velocity\n{w.Action}\n{1000f / w.FireRate:0} ms between shots\nRange {w.EffectiveRange} m  ·  Mag {w.MagSize}\nScope {(w.Scope ? $"{60f / w.AimFov:0.#}x" : "none")}\nDamage {w.Damage * w.Pellets:0}\nKill: {bodyShots} body / {headShots} head";
+            float scope = w.Scope ? Mathf.Tan(31f * Mathf.Deg2Rad) * Weapons.ScopeScale / Mathf.Tan(w.AimFov * 0.5f * Mathf.Deg2Rad) : 0f;
+            gunTitle.text = w.Name + $"  <size=22><color=#9aa4b0>{(w.Primary ? "RIFLE CLASS" : "SIDEARM CLASS")}</color></size>";
+            gunStats.text = $"{w.Caliber}  ·  {w.MuzzleVelocity} m/s  ·  {w.Action}  ·  scope {(w.Scope ? $"{scope / Weapons.ScopeScale:0}x" : "none")}  ·  kill: {bodyShots} body / {headShots} head";
+            for (int i = 0; i < weaponBars.Count; i++)
+            {
+                float v = Mathf.Clamp01(WeaponBars[i].value(w));
+                weaponBars[i].fill.sizeDelta = new Vector2(Mathf.Max(6f, BarWidth * v), weaponBars[i].fill.sizeDelta.y);
+                weaponBars[i].fill.GetComponent<Image>().color = Color.Lerp(UIKit.Red, UIKit.Green, v);
+                weaponBars[i].value.text = WeaponBars[i].text(w);
+            }
+            for (int i = 0; i < weaponRows.Count; i++)
+            {
+                weaponRows[i].button.GetComponent<Image>().color = i == previewWeapon ? UIKit.AccentDark : UIKit.ButtonColor;
+                weaponRows[i].tag.text = (i == Settings.Primary ? "W1 " : "") + (i == Settings.Secondary ? "W2" : "");
+            }
             var me = Session.I.Local;
             if (me != null && Session.I.Phase == Phase.Lobby) { me.Look = Settings.Look; Session.I.SetLoadout(Settings.Primary, Settings.Secondary); }
         }

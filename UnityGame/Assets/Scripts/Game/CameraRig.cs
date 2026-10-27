@@ -5,7 +5,8 @@ namespace UA
     /// <summary>
     /// Over-the-shoulder third person camera after Battle Warfare's (CameraController): over the right
     /// shoulder, 2 m behind it (0.8 m while shooting), on the shoulder to aim, lowered 0.4 m crouched,
-    /// stopped 0.2 m short of a wall behind; slowly orbits the city while in the menus.
+    /// stopped 0.2 m short of a wall behind and brought up over the shoulder beside the head as the wall
+    /// comes closer (never into the arm or the head); slowly orbits the city while in the menus.
     /// </summary>
     public class CameraRig : MonoBehaviour
     {
@@ -42,6 +43,10 @@ namespace UA
         // from behind, turned 10 degrees down and 6 to the right of the body's aim
         private static readonly Vector3 ShoulderPoint = new Vector3(0.488f, 1.367f, 0.062f);
         private const float LookDown = 10f, LookRight = 6f;
+        // with the back against a wall: over the right shoulder beside the head (above the arm that holds the
+        // gun, out of the head and the headdress), reached in proportion as the wall comes closer
+        private static readonly Vector3 CloseShoulderPoint = new Vector3(0.36f, 1.8f, -0.08f);
+        private const float CloseFrom = 1f;   // the wall nearer than this behind the shoulder point starts it
         /// <summary>Where the crosshair really points (the camera's pitch): the agent's arms and the network.</summary>
         public float AimPitch => Pitch - LookDown;
         // distance behind the shoulder point: normally, while shooting, while aiming (Battle Warfare
@@ -107,7 +112,18 @@ namespace UA
                 target = head + side.normalized * Mathf.Max(0f, sh.distance - 0.05f);
             var back = -(rotation * Vector3.forward);
             if (!Scope && behind > 0f && Physics.SphereCast(target, 0.12f, back, out var wall, behind, World.EnvMask, QueryTriggerInteraction.Ignore))
-                behind = Mathf.Max(0f, wall.distance - 0.2f);
+            {
+                float room = Mathf.Max(0f, wall.distance - 0.2f);
+                // the nearer the wall, the more the point moves up over the shoulder beside the head
+                float k = Mathf.Clamp01(1f - room / Mathf.Min(CloseFrom, behind));
+                var over = Target.transform.position + body * CloseShoulderPoint - Vector3.up * drop;
+                var raised = Vector3.Lerp(target, over, k * k * (3f - 2f * k));
+                var up = raised - target;
+                if (up.sqrMagnitude > 1e-4f && Physics.SphereCast(target, 0.12f, up.normalized, out var roof, up.magnitude, World.EnvMask, QueryTriggerInteraction.Ignore))
+                    raised = target + up.normalized * Mathf.Max(0f, roof.distance - 0.05f);
+                target = raised;
+                behind = Physics.SphereCast(target, 0.12f, back, out wall, behind, World.EnvMask, QueryTriggerInteraction.Ignore) ? Mathf.Max(0f, wall.distance - 0.2f) : behind;
+            }
             var desired = target + back * behind;
             desired = Vector3.Lerp(transform.position, desired, Mathf.Clamp01(50f * dt));
             if (shake > 0.01f)
@@ -117,7 +133,7 @@ namespace UA
             }
             transform.SetPositionAndRotation(desired, rotation);
             // the body is hidden only when the camera has nowhere to go but into the head
-            Close = !dead && !Scope && (desired - head).magnitude < 0.2f;
+            Close = !dead && !Scope && (desired - head).magnitude < 0.25f;
 
             // a field of view of 60, aiming too; a scope zooms in at 500 degrees a second
             fov = Mathf.MoveTowards(fov, Scope ? AimFov : 60f, 500f * dt);

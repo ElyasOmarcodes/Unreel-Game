@@ -28,7 +28,8 @@ namespace UA
         private readonly List<(RectTransform rt, Vector2 a, Vector2 b, float width)> psoLines = new List<(RectTransform, Vector2, Vector2, float)>();
         private readonly List<(RectTransform rt, Vector2 at)> psoLabels = new List<(RectTransform, Vector2)>();
         private float psoFov = -1f;
-        private static readonly Color ReticleInk = new Color(0.04f, 0.04f, 0.04f, 0.95f);
+        // lit red as the PSO-1's own reticle lamp, with a thin dark edge: seen on a bright wall and at night
+        private static readonly Color ReticleInk = new Color(1f, 0.16f, 0.08f, 1f);
 
         private void BuildPso1()
         {
@@ -36,11 +37,14 @@ namespace UA
             void Line(Vector2 a, Vector2 b, float width = 2.6f)
             {
                 var img = UIKit.Img(pso, ReticleInk);
-                psoLines.Add((img.rectTransform, a, b, width));
+                img.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.55f);
+                psoLines.Add((img.rectTransform, a, b, width * 1.5f));
             }
             void Label(string text, Vector2 at)
             {
-                var t = UIKit.Txt(pso, text, 22, TextAnchor.MiddleCenter, ReticleInk);
+                var t = UIKit.Txt(pso, text, 30, TextAnchor.MiddleCenter, ReticleInk);
+                t.fontStyle = FontStyle.Bold;
+                t.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.6f);
                 psoLabels.Add((t.rectTransform, at));
             }
             void Chevron(float y, float halfWidth, float height)
@@ -74,15 +78,15 @@ namespace UA
         }
 
         /// <summary>
-        /// Places the reticle as it sits in the real sight: the PSO-1 sees 6 degrees, about 52 thousandths
-        /// from the middle to the edge of the eyepiece, so the reticle keeps its size in the scope circle
-        /// (500 canvas units to its edge) whatever the zoom of the game.
+        /// Places the reticle in the scope circle (500 canvas units to its edge), the same size whatever the
+        /// zoom of the game: drawn larger than in the real eyepiece (52 thousandths to the edge) so the
+        /// scale, the chevrons and the rangefinder read on a phone.
         /// </summary>
         private void LayoutPso1(float fov)
         {
             if (psoFov > 0f) return;
             psoFov = fov;
-            const float k = 500f / 52f;
+            const float k = 500f / 30f;
             foreach (var (rt, a, b, width) in psoLines)
             {
                 var d = (b - a) * k;
@@ -93,7 +97,7 @@ namespace UA
             foreach (var (rt, at) in psoLabels)
             {
                 rt.anchoredPosition = at * k;
-                rt.sizeDelta = new Vector2(44, 24);
+                rt.sizeDelta = new Vector2(60, 34);
             }
         }
         private Image hitMarker, crossDot;

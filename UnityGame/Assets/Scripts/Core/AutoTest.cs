@@ -204,6 +204,12 @@ namespace UA
             app.OpenProfile();
             yield return Wait(2f);
             yield return Shot("03c-profile");
+            app.ShowWeapons(7);   // the weapons page on the SVD
+            yield return Wait(1.5f);
+            yield return Shot("03d-weapons");
+            app.ShowWeapons(2);
+            yield return Wait(1f);
+            yield return Shot("03e-weapons-shotgun");
             app.ShowScreen("menu");
             yield return Wait(0.5f);
             app.ShowScreen("wifi");
@@ -724,7 +730,7 @@ namespace UA
             yield return Until(() => KillCam.Active, 150);
             if (!KillCam.Active) { App.Log("no first kill film"); yield break; }
             float start = Time.realtimeSinceStartup;
-            foreach (var (at, name) in new[] { (0.2f, "a-aim"), (0.75f, "b-bullet"), (1.45f, "c-bullet-near"), (2.1f, "d-hit"), (3.2f, "e-fall") })
+            foreach (var (at, name) in new[] { (0.6f, "0-title"), (1.35f, "a-aim"), (1.9f, "b-bullet"), (2.75f, "c-bullet-near"), (3.2f, "d-hit"), (4.3f, "e-fall") })
             {
                 while (Time.realtimeSinceStartup - start < at) yield return null;
                 yield return Shot($"{prefix}{name}-first-kill");

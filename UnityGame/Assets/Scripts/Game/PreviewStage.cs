@@ -9,7 +9,7 @@ namespace UA
     public class PreviewStage : MonoBehaviour
     {
         public RenderTexture CharacterTexture, GunTexture;
-        public float CharacterYaw = 20f;
+        public float CharacterYaw = 20f, GunYaw;
 
         private Camera characterCam, gunCam;
         private GameObject character, gun;
@@ -59,7 +59,7 @@ namespace UA
         private void Build()
         {
             CharacterTexture = new RenderTexture(768, 1024, 24) { antiAliasing = 2 };
-            GunTexture = new RenderTexture(1024, 400, 24) { antiAliasing = 2 };
+            GunTexture = new RenderTexture(1024, 430, 24) { antiAliasing = 2 };
             characterCam = MakeCamera("CharacterCam", CharacterTexture, Origin + new Vector3(0, 1.2f, 3.6f), Origin + new Vector3(0, 0.95f, 0), 38f);
             gunCam = MakeCamera("GunCam", GunTexture, Origin + new Vector3(20f, 0.05f, 1.6f), Origin + new Vector3(20f, 0f, 0), 30f);
             Light(Origin + new Vector3(1.5f, 2.5f, 2.5f), new Color(1f, 0.95f, 0.88f), 3f, 8f);
@@ -138,7 +138,7 @@ namespace UA
         {
             if (character != null) character.transform.rotation = Quaternion.Euler(0, CharacterYaw, 0);
             // swing around the side view so the whole gun stays readable
-            gunPivot.localRotation = Quaternion.Euler(0, Mathf.Sin(Time.unscaledTime * 0.7f) * 40f, 0);
+            gunPivot.localRotation = Quaternion.Euler(0, GunYaw + Mathf.Sin(Time.unscaledTime * 0.7f) * 40f, 0);
         }
     }
 }
