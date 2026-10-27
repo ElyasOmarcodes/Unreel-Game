@@ -19,7 +19,8 @@ public static partial class CityLordBuilder
     /// </summary>
     private static readonly (string path, (char side, float from, float to, float top)[] doors)[] Opened =
     {
-        ("Map_v1/Static/Hangar_v4", new[] { ('E', -16.3f, -10.39f, 4.22f), ('E', -0.89f, 0.53f, 2.6f) }),
+        // C-1: shut (its doors stay closed), only the hidden tunnel leads in
+        ("Map_v1/Static/Hangar_v4", new (char side, float from, float to, float top)[0]),
         ("Map_v1/Static/Hangar_v3_basic", new[] { ('E', 27.33f, 32.5f, 3.84f), ('S', 45.25f, 47.39f, 2.49f) }),
         ("Map_v1/Static/Hangar_v3_basic (2)", new[] { ('W', -32.35f, -27.17f, 3.84f), ('N', -9.6f, -7.46f, 2.49f) }),
         ("Map_v1/Static/Hangar_v1_full", new[] { ('N', 8.55f, 11.29f, 3.14f) }),
@@ -118,8 +119,8 @@ public static partial class CityLordBuilder
                 go.transform.SetParent(colliders, false);
                 go.AddComponent<MeshCollider>().sharedMesh = mesh;
             }
-            var main = doorList[0];
-            Furnish(insides, b, Outward(main.side), boxes[0].min.y - 0.04f);
+            // a shut building is furnished as if its door were on the east (crates at the west wall)
+            Furnish(insides, b, Outward(doorList.Length > 0 ? doorList[0].side : 'E'), boxes.Count > 0 ? boxes[0].min.y - 0.04f : Ground(b.center, b.min.y + 1.5f, b.min.y) - 0.04f);
             opened++;
         }
         Physics.SyncTransforms();
@@ -304,7 +305,7 @@ public static partial class CityLordBuilder
             {
                 number++;
                 var opened = Opened.FirstOrDefault(o => o.path == path);
-                bool open = opened.path != null;
+                bool open = opened.path != null && opened.doors.Length > 0;
                 var main = open ? opened.doors[0] : default;
                 char side = open ? main.side : FacingSide(b);
                 bool tank = path.Contains("Oil_tank");

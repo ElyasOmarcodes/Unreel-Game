@@ -501,6 +501,36 @@ namespace UA
                 yield return Wait(0.5f);
                 yield return Shot($"91-citylord-above-{t.name.Substring(6).ToLowerInvariant()}");
             }
+            // the hidden ways: the trapdoor in D-3, the tunnel, the stair in C-1, the crates at C-5, the plank walk, the ladder
+            var hidden = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "HiddenWays");
+            if (hidden != null)
+            {
+                Bounds Of(string name, bool highest = false)
+                {
+                    var rs = hidden.GetComponentsInChildren<Renderer>().Where(r => r.name == name).ToList();
+                    if (rs.Count == 0) return new Bounds(hidden.position, Vector3.zero);
+                    return (highest ? rs.OrderByDescending(r => r.bounds.center.y) : rs.OrderBy(r => r.bounds.center.y)).First().bounds;
+                }
+                var views = new (string shot, string name, bool highest, Vector3 offset, float lookUp)[]
+                {
+                    ("91h-hidden-hatch-d3", "Shade", false, new Vector3(-1.5f, 1.7f, 5f), 0f),
+                    ("91i-hidden-tunnel", "Floor", false, new Vector3(0f, 1.6f, 0f), 1.4f),
+                    ("91j-c1-stair-to-roof", "Landing", true, new Vector3(-4.5f, -1.2f, -3f), 0f),
+                    ("91k-c5-climb-crates", "ClimbCrate", true, new Vector3(-5f, 2.5f, -3f), 0f),
+                    ("91l-plank-walk", "PlankWalk", false, new Vector3(5f, 4f, -9f), 0f),
+                    ("91m-ladder-c4", "Ladder", false, new Vector3(6f, 3f, -2f), 0.5f),
+                };
+                foreach (var (shot, name, highest, offset, lookUp) in views)
+                {
+                    var b = Of(name, highest);
+                    var eye = b.center + offset;
+                    var look = b.center + Vector3.up * lookUp;
+                    if (name == "Floor") { eye = new Vector3(b.min.x + 1.5f, b.max.y + 1.6f, b.center.z); look = new Vector3(b.max.x, b.max.y + 1.4f, b.center.z); }
+                    cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(look - eye));
+                    yield return Wait(0.5f);
+                    yield return Shot(shot);
+                }
+            }
             // the new double pipe from the roof of the pipe works over to the warehouse D-4
             var pipe = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "RoofPipe");
             if (pipe != null)
