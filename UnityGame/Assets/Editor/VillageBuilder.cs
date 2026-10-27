@@ -185,11 +185,12 @@ public static class VillageBuilder
         mat.SetVector("_Tiles", new Vector4(5f, 4f, 3f, 8f));
         // the paths paved with field stones
         var paths = new Rect(-Half, -Half, Half * 2f, Half * 2f);
-        mat.SetTexture("_Path", T("MonasteryFloorSand_BaseColor.jpg") ?? T("PavingStones070_BaseColor.jpg"));
+        // the field stones of the Old Town's walls
+        mat.SetTexture("_Path", T("DryRiverbed_BaseColor.jpg") ?? T("MonasteryFloorSand_BaseColor.jpg"));
         mat.SetTexture("_PathMask", PathMask(paths, 512));
         mat.SetVector("_PathArea", new Vector4(paths.xMin, paths.yMin, paths.width, 2.4f));
         // the field stones in the colours of the village's earth (the texture alone is near white here)
-        mat.SetColor("_PathTint", new Color(0.72f, 0.62f, 0.5f));
+        mat.SetColor("_PathTint", new Color(0.86f, 0.78f, 0.66f));
         AssetDatabase.CreateAsset(mat, matPath);
 
         var go = new GameObject("Ground");

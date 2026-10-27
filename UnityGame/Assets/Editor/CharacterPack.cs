@@ -26,7 +26,7 @@ public static class CharacterPack
     public static string Folder => Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Models", "Characters"));
     private const string Textures = "Assets/Characters";
 
-    /// <summary>Characters by their value in the look (1 ..): file, female.</summary>
+    /// <summary>Characters by their value in the look (1 ..): file, female (the woman is no longer built).</summary>
     public static readonly (string key, bool female)[] All =
     {
         ("Char3", false), ("Char6", false), ("Fem1", true), ("male2F", false), ("male3F", false),
@@ -38,7 +38,7 @@ public static class CharacterPack
         int mask = 0;
         for (int i = 0; i < All.Length; i++)
         {
-            if (All[i].female != female) continue;
+            if (All[i].female || female) continue;
             var go = Build(body, All[i].key);
             if (go == null) continue;
             parts.Add(new Agent.OutfitPart { Object = go, Slot = Wardrobe.Slot.Character, Mask = 1 << (i + 1) });
@@ -238,7 +238,7 @@ public static class CharacterPack
         // every agent bone bound where the same bone of the character is (the character's T-pose is turned
         // onto the agent's rest pose bone by bone), and its piece of the body for the weights
         var bindposes = (Matrix4x4[])body.Bindposes.Clone();
-        var pieces = new List<(int bone, Vector3 a, Vector3 b, float radius, float side)>();
+        var pieces = new List<(int bone, Vector3 a, Vector3 b, float radius, float side, string limb)>();
         var missing = new List<string>();
         var lastTurn = new Dictionary<string, Quaternion>();   // per side: the turn of the bone before (for the ends)
         foreach (var (bone0, toward0, from0, to0, radius) in Bones)
@@ -256,7 +256,9 @@ public static class CharacterPack
                 // the Mixamo side on the same side of the body
                 string mix = side == "" ? "" : joint.TryGetValue("LeftArm", out var la) && Mathf.Sign(la.x - pelvis.x) == sign ? "Left" : "Right";
                 if (!joint.TryGetValue(from0.Replace("*", mix), out var a) || !joint.TryGetValue(to0.Replace("*", mix), out var b)) { missing.Add(from0.Replace("*", mix)); continue; }
-                pieces.Add((bone, a, b, radius * s, sign));
+                string limb = name.StartsWith("thigh") || name.StartsWith("calf") || name.StartsWith("foot") || name.StartsWith("ball") ? "leg"
+                    : side != "" ? "arm" : "trunk";
+                pieces.Add((bone, a, b, radius * s, sign, limb));
                 if (own < 0) continue;   // only stands in: bound as the bone it stands in for
                 var rest = body.At(name);
                 int toward = toward0 == null ? -1 : body.Bone(Ours(toward0));
@@ -270,22 +272,72 @@ public static class CharacterPack
         }
         if (missing.Count > 0) Debug.Log($"[Setup] {key}: bones not mapped: {string.Join(", ", missing)}");
 
-        // the weights: the nearest bones by the distance out of their flesh, never a bone of the other side
-        // (no thigh pulls the other leg), blended softly where two meet (shoulders, elbows, hips, knees)
+        // the weights region by region, as a body is skinned by hand: the head rides on the head bone alone
+        // (the face keeps its shape; only the throat is shared with the neck), the trunk on the spine by
+        // its height (with the collar bones on top of the shoulders), each arm and hand on its own bones
+        // by the distance to them (soft at the armpit, the elbow, the wrist and every finger joint), each
+        // leg on its own (soft at the hip, the knee and the ankle); never a bone of the other side
+        int Of(params string[] names) { foreach (var n in names) { int i = body.Bone(n); if (i >= 0) return i; } return -1; }
+        var spine = new List<(int bone, float y)>();
+        void Link(string mix, params string[] ours) { int b0 = Of(ours); if (b0 >= 0 && joint.TryGetValue(mix, out var j)) spine.Add((b0, j.y)); }
+        Link("Hips", "pelvis", "spine_01"); Link("Spine", "spine_01"); Link("Spine1", "spine_02", "spine_01"); Link("Spine2", "spine_03", "spine_02");
+        Link("Neck", "neck_01", "head");
+        int headBone = Of("head");
+        float neckY = joint.TryGetValue("Neck", out var nj) ? nj.y : spine[spine.Count - 1].y;
+        float spine2Y = joint.TryGetValue("Spine2", out var s2) ? s2.y : neckY - 0.13f;
+        (int bone, float weight)[] Trunk(float y)
+        {
+            if (y <= spine[0].y) return new[] { (spine[0].bone, 1f) };
+            for (int k = 0; k + 1 < spine.Count; k++)
+                if (y < spine[k + 1].y)
+                {
+                    float u = (y - spine[k].y) / Mathf.Max(0.01f, spine[k + 1].y - spine[k].y);
+                    return new[] { (spine[k].bone, 1f - u), (spine[k + 1].bone, u) };
+                }
+            // the neck, then the head from just above it
+            float h = Mathf.Clamp01((y - neckY) / 0.04f);
+            return new[] { (spine[spine.Count - 1].bone, 1f - h), (headBone, h) };
+        }
+        (int bone, float weight)[] Near(Vector3 p, string limb, float side)
+        {
+            return pieces.Where(x => x.limb == limb && x.side == side)
+                .Select(x => { float d = Mathf.Max(0f, ToSegment(p, x.a, x.b) - x.radius) + 0.02f; return (x.bone, 1f / (d * d * d * d)); })
+                .OrderByDescending(x => x.Item2).Take(4).ToArray();
+        }
+        (int bone, float weight)[] Mix((int bone, float weight)[] a0, (int bone, float weight)[] b0, float t)
+        {
+            float sa = Mathf.Max(1e-6f, a0.Sum(x => x.weight)), sb = Mathf.Max(1e-6f, b0.Sum(x => x.weight));
+            return a0.Select(x => (x.bone, x.weight / sa * (1f - t))).Concat(b0.Select(x => (x.bone, x.weight / sb * t))).ToArray();
+        }
+        // each side: where its arm and its leg start, its collar bone
+        var sides = new Dictionary<float, (float armX, float armY, float legY, int clavicle)>();
+        foreach (string side in new[] { "l", "r" })
+        {
+            float sign = Mathf.Sign(body.At("upperarm_" + side).x - pelvis.x);
+            string mix = joint.TryGetValue("LeftArm", out var la) && Mathf.Sign(la.x - pelvis.x) == sign ? "Left" : "Right";
+            if (!joint.TryGetValue(mix + "Arm", out var arm) || !joint.TryGetValue(mix + "UpLeg", out var leg)) continue;
+            sides[sign] = (Mathf.Abs(arm.x - pelvis.x), arm.y, leg.y, Of("clavicle_" + side));
+        }
         var weights = new BoneWeight[m.P.Count];
-        var near = new List<(int bone, float weight)>(pieces.Count);
         for (int i = 0; i < m.P.Count; i++)
         {
             var p = m.P[i];
-            float dx = p.x - pelvis.x, vside = Mathf.Abs(dx) < 0.02f ? 0f : Mathf.Sign(dx);
-            near.Clear();
-            foreach (var piece in pieces)
+            float dx = p.x - pelvis.x, ax = Mathf.Abs(dx), sign = dx < 0f ? -1f : 1f;
+            (int bone, float weight)[] w;
+            if (!sides.TryGetValue(sign, out var sd)) w = Trunk(p.y);
+            else if (p.y >= neckY + 0.02f && ax < 0.16f) w = Trunk(p.y);
+            else if (ax > sd.armX + 0.1f || ax > sd.armX - 0.03f && Mathf.Abs(p.y - sd.armY) < 0.11f)
+                w = Mix(Near(p, "arm", sign), Trunk(p.y), Mathf.Clamp01((sd.armX + 0.06f - ax) / 0.09f));
+            else if (p.y < sd.legY + 0.02f && ax > 0.02f)
+                w = Mix(Near(p, "leg", sign), Trunk(p.y), Mathf.Clamp01((p.y - (sd.legY - 0.1f)) / 0.12f));
+            else
             {
-                if (piece.side != 0f && vside != 0f && piece.side != vside) continue;
-                float d = Mathf.Max(0f, ToSegment(p, piece.a, piece.b) - piece.radius) + 0.02f;
-                near.Add((piece.bone, 1f / (d * d * d * d)));
+                w = Trunk(p.y);
+                // the top of the shoulder goes with the collar bone
+                float c = Mathf.Clamp01((ax - 0.08f) / Mathf.Max(0.05f, sd.armX - 0.08f)) * Mathf.Clamp01((p.y - spine2Y) / Mathf.Max(0.05f, neckY - spine2Y));
+                if (sd.clavicle >= 0 && c > 0f) w = Mix(w, new[] { (sd.clavicle, 1f) }, c * 0.8f);
             }
-            weights[i] = Outfit.Weight(near.OrderByDescending(x => x.weight).Take(4).ToArray());
+            weights[i] = Outfit.Weight(w);
         }
 
         var g = new Outfit.Garment();

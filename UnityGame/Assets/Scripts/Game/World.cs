@@ -69,7 +69,7 @@ namespace UA
         private void Awake()
         {
             I = this;
-            agentPrefabs = new[] { Resources.Load<GameObject>("Agent"), Resources.Load<GameObject>("Agent_F") }.Where(p => p != null).ToArray();
+            agentPrefabs = new[] { Resources.Load<GameObject>("Agent") };
             ApplyLighting(0);
         }
 
@@ -175,7 +175,7 @@ namespace UA
         {
             // every player is dressed as they built their character (Wardrobe)
             int look = p.Look;
-            var prefab = agentPrefabs[(Wardrobe.Female(look) ? 1 : 0) % agentPrefabs.Length];
+            var prefab = agentPrefabs[0];
             var go = Instantiate(prefab, p.Pos, Quaternion.Euler(0, p.Yaw, 0));
             go.name = "Agent " + p.Name;
             var agent = go.GetComponent<Agent>();

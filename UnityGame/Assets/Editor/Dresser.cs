@@ -247,6 +247,14 @@ public static class Dresser
             var robe = Outfit.Robe(body, drape, clear, option * 31 + 7);
             shell.Append(robe);
             var go = Outfit.Wear(body, shell, "Top_" + name, material);
+            // a long skirt (thobe, perahan, chapan, long coat) hangs as real cloth near the camera
+            float soles = body.Points.Min(q => q.y);
+            if (go != null && drape.Top - drape.Hem > 0.35f)
+            {
+                var skirt = go.AddComponent<ClothDrape>();
+                skirt.Waist = drape.Top - soles;
+                skirt.Hem = drape.Hem - soles;
+            }
             var part = Part(result, go, Slot.Top, M(option));
             if (colors != null) Tint(part, Slot.TopColor, colors);
             else Swap(part, Slot.TopColor, camos);

@@ -93,7 +93,7 @@ namespace UA
             if (look != shownLook)
             {
                 if (character != null) Destroy(character);
-                var prefab = Resources.Load<GameObject>(Wardrobe.Female(look) ? "Agent_F" : "Agent") ?? Resources.Load<GameObject>("Agent");
+                var prefab = Resources.Load<GameObject>("Agent");
                 character = Instantiate(prefab, Origin, Quaternion.Euler(0, CharacterYaw, 0), transform);
                 character.GetComponent<CharacterController>().enabled = false;
                 var agent = character.GetComponent<Agent>();

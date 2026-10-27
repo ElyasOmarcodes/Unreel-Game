@@ -15,10 +15,8 @@ public static class AssetSetup
     public const string UalPath = "Assets/ThirdParty/UAL/UAL1.fbx";
     // the second library, same skeleton: walks in eight directions
     public const string Ual2Path = "Assets/ThirdParty/UAL/UAL2.fbx";
-    public const string FemalePath = "Assets/ThirdParty/UAL/Mannequin_F.fbx";
     // Quaternius Universal Base Characters (realistic skin, face, eyes, hair), same skeleton as the UAL
     public const string UbcMale = "Assets/ThirdParty/UBC/Superhero_Male_FullBody.fbx";
-    public const string UbcFemale = "Assets/ThirdParty/UBC/Superhero_Female_FullBody.fbx";
     public const string UbcHair = "Assets/ThirdParty/UBC/Hair";
     public const string UbcTextures = "Assets/ThirdParty/UBC/Textures";
     public const string GunsPath = "Assets/ThirdParty/Guns";
@@ -77,9 +75,8 @@ public static class AssetSetup
         bool realistic = AssetDatabase.LoadAssetAtPath<GameObject>(UbcMale) != null;
         Debug.Log("[Setup] characters: " + (realistic ? "Universal Base Characters" : "mannequins"));
         BuildAgent(controller, realistic ? UbcMale : UalPath, "Agent");
-        if (realistic && AssetDatabase.LoadAssetAtPath<GameObject>(UbcFemale) != null) BuildAgent(controller, UbcFemale, "Agent_F");
-        else if (AssetDatabase.LoadAssetAtPath<GameObject>(FemalePath) != null) BuildAgent(controller, FemalePath, "Agent_F");
-        else AssetDatabase.DeleteAsset("Assets/Resources/Agent_F.prefab");
+        // men only: no women's body (nor its clothes) in the game or the APK
+        AssetDatabase.DeleteAsset("Assets/Resources/Agent_F.prefab");
         BuildGunLineup();
         BuildWeaponPrefabs();
         AssetDatabase.SaveAssets();
@@ -432,7 +429,9 @@ public static class AssetSetup
         for (int i = 0; i < mask.transformCount; i++)
         {
             string p = mask.GetTransformPath(i);
-            mask.SetTransformActive(i, p.Contains("spine_02") || p.Contains("spine_03"));
+            // the whole upper body from the lowest spine bone up: the run's twist does not swing the
+            // shoulders while the gun is held
+            mask.SetTransformActive(i, p.Contains("spine_01") || p.Contains("spine_02") || p.Contains("spine_03"));
         }
         AssetDatabase.CreateAsset(mask, path);
         return mask;

@@ -302,6 +302,7 @@ namespace UA
             Controller.enabled = false;
             transform.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
             Controller.enabled = cc;
+            foreach (var drape in GetComponentsInChildren<ClothDrape>()) drape.Settle();
         }
 
         /// <summary>Tint only the materials named "Team..." (vest, helmet), not the suit, skin or weapons.</summary>
@@ -323,7 +324,6 @@ namespace UA
         /// <summary>Dress the agent as the look says (see Wardrobe).</summary>
         public void SetLook(int look)
         {
-            female = Wardrobe.Female(look);
             bool bag = Wardrobe.Get(look, Wardrobe.Slot.Bag) == 1 && Wardrobe.Get(look, Wardrobe.Slot.Character) == 0;
             if (bag != bagOn) { bagOn = bag; backId = -1; CarryOther(); }
             // a ready-made character of the pack (when this body has it) in place of the body and its clothes
@@ -480,8 +480,9 @@ namespace UA
             Anim.SetFloat(MoveYId, animMoveY);
             // shorter, quicker steps when running (same speed over the ground)
             float move = new Vector2(animMoveX, Mathf.Min(1f, animMoveY)).magnitude;
-            // a real walk at half the stick (eight directions); running and sprinting take a little longer strides
-            Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 0.96f : move < 0.7f ? 1.05f : 1.0f);
+            // a real walk at half the stick (eight directions); running takes short quick steps (the jog played
+            // faster for the same speed over the ground: shorter strides), sprinting a little longer ones
+            Anim.SetFloat(CadenceId, s.Crouch || s.Prone ? 1f : animMoveY > 1.2f ? 1.25f : 1.05f + 0.37f * Mathf.Clamp01((move - 0.55f) / 0.45f));
             Steps(s, move);
             Anim.SetBool(CrouchId, s.Crouch);
             Anim.SetBool(ProneId, s.Prone);
@@ -526,7 +527,6 @@ namespace UA
         }
 
         private float lastHealth = 100f, nextPain, nextBreath;
-        private bool female;
 
         /// <summary>A cry when hit and when killed (Michel Baradari, CC-BY 3.0), heard around the body.</summary>
         private void Voice(PlayerState s)
@@ -534,15 +534,15 @@ namespace UA
             if (s.Alive && s.Health < lastHealth - 0.5f && Time.time >= nextPain && Sfx.Count("pain_") > 0)
             {
                 nextPain = Time.time + 0.6f;
-                Sfx.PlayAt("pain_" + Random.Range(0, Sfx.Count("pain_")), Chest, IsLocal ? 0.55f : 0.8f, female ? 1.22f : 1f);
+                Sfx.PlayAt("pain_" + Random.Range(0, Sfx.Count("pain_")), Chest, IsLocal ? 0.55f : 0.8f, 1f);
             }
             if (!s.Alive && Alive && Sfx.Count("death_") > 0)
-                Sfx.PlayAt("death_" + Random.Range(0, Sfx.Count("death_")), Chest, 0.9f, female ? 1.22f : 1f);
+                Sfx.PlayAt("death_" + Random.Range(0, Sfx.Count("death_")), Chest, 0.9f, 1f);
             // badly hurt: one's own heavy breathing until healed (or dead)
             if (IsLocal && s.Alive && s.Health < 30f && Time.time >= nextBreath && Sfx.Has("breath_0"))
             {
                 nextBreath = Time.time + 5.4f;
-                Sfx.Play("breath_0", 0.4f, female ? 1.15f : 1f);
+                Sfx.Play("breath_0", 0.4f, 1f);
             }
             lastHealth = s.Health;
         }

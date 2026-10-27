@@ -44,7 +44,8 @@ public static class TownBuilder
     private static Material Stone => AssetSetup.Stone(Mats.Pbr("T_Stone", "PavingStones070", new Color(0.74f, 0.72f, 0.8f), 0.25f), 2.5f);
     // field stone (dry_riverbed_rock) for the town wall, its towers, the parapets and the plinths;
     // flagstones (monastery_stone_floor) for steps and stairs: the houses and the church keep their stone
-    private static Material FieldStone => AssetSetup.Stone(Mats.Pbr("T_FieldStone", "DryRiverbed", new Color(0.88f, 0.86f, 0.9f), 0.15f), 2.5f);
+    // the town's stone walls in the stone of Al-Zahra's walls (and of this town's streets), in a grey of its own
+    private static Material FieldStone => AssetSetup.Stone(Mats.Pbr("T_FieldStone", "PavingStones070", new Color(0.86f, 0.83f, 0.82f), 0.2f), 2.5f);
     private static Material Flagstone => AssetSetup.Stone(Mats.Pbr("T_Flagstone", "MonasteryFloor", new Color(0.9f, 0.88f, 0.94f), 0.25f), 2.5f);
     private static Material Timber => Mats.Pbr("T_Timber", "Wood049", new Color(0.45f, 0.27f, 0.18f), 0.35f);
     private static Material DoorWood => Mats.Pbr("T_Door", "Planks037A", new Color(0.62f, 0.36f, 0.22f), 0.35f);

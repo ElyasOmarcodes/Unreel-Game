@@ -82,7 +82,7 @@ namespace UA
             var row = new System.Collections.Generic.List<GameObject>();
             GameObject Dress(int look, Vector3 pos, float yaw)
             {
-                var prefab = Resources.Load<GameObject>(Wardrobe.Female(look) ? "Agent_F" : "Agent");
+                var prefab = Resources.Load<GameObject>("Agent");
                 if (prefab == null) return null;
                 var go = Instantiate(prefab, pos, Quaternion.Euler(0, yaw, 0));
                 var agent = go.GetComponent<Agent>();

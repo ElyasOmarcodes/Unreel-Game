@@ -40,6 +40,28 @@ namespace UA
         private bool rotationSet;
         private float drop;   // how far the shoulder point is lowered (crouched, lying, dead)
         private float shoulder = 1f;   // over the right shoulder (1) or the left (-1) when a wall is on the right
+        private float sideWanted = 1f;
+        private float followY, closeK, reach;
+        private bool followSet, reachSet;
+
+        /// <summary>
+        /// A sphere 0.12 m wide sent along 'way': the distance to the first wall in it. Thin things (posts,
+        /// lamps, poles, railings under 0.35 m across) do not count: the camera goes past them instead of
+        /// jumping in front of them.
+        /// </summary>
+        private static bool Cast(Vector3 from, Vector3 way, out float distance)
+        {
+            distance = way.magnitude;
+            if (distance < 1e-4f) return false;
+            bool found = false;
+            foreach (var h in Physics.SphereCastAll(from, 0.12f, way / distance, distance, World.EnvMask, QueryTriggerInteraction.Ignore))
+            {
+                var size = h.collider.bounds.size;
+                if (Mathf.Max(size.x, size.z) < 0.35f) continue;
+                if (h.distance < distance || !found) { distance = Mathf.Min(distance, h.distance); found = true; }
+            }
+            return found;
+        }
 
         // the camera of Battle Warfare (CameraController): it looks at a point over the right shoulder
         // from behind, turned 10 degrees down and 6 to the right of the body's aim
@@ -79,7 +101,7 @@ namespace UA
             var world = World.I;
             if (Target == null)
             {
-                rotationSet = false;
+                rotationSet = followSet = reachSet = false;
                 // menu: slow orbit around the middle of the city
                 orbit += dt * 3.5f;
                 var center = world != null ? world.Center : Vector3.zero;
@@ -96,54 +118,67 @@ namespace UA
             Pitch -= recover;
             kick -= recover;
 
-            // the rotation follows the aim at 30 per second (steadies the small shakes of the finger); the
-            // shot leaves along the camera's own forward axis, so it always goes through the crosshair
+            // the rotation follows the aim at 20 per second (evens out the uneven steps of a finger on the
+            // glass); the shot leaves along the camera's own forward axis, so it always goes through the crosshair
             var wanted = Quaternion.Euler(-Pitch + LookDown, Yaw + LookRight, 0);
-            smoothRotation = rotationSet && Quaternion.Angle(smoothRotation, wanted) < 45f ? Quaternion.Slerp(smoothRotation, wanted, Mathf.Clamp01(30f * dt)) : wanted;
+            smoothRotation = rotationSet && Quaternion.Angle(smoothRotation, wanted) < 45f ? Quaternion.Slerp(smoothRotation, wanted, 1f - Mathf.Exp(-20f * dt)) : wanted;
             rotationSet = true;
             var rotation = smoothRotation;
             bool dead = Target.State != null && !Target.State.Alive;
             // crouched the camera comes down 0.4 m, lying down and dead lower still
             drop = Mathf.Lerp(drop, dead ? 0.8f : Prone ? 0.95f : Crouch ? 0.4f : 0f, Mathf.Clamp01(10f * dt));
-            var body = Quaternion.Euler(0, Target.transform.eulerAngles.y, 0);
+            // the body's height followed softly: a step or a stair does not jolt the picture
+            var at = Target.transform.position;
+            if (!followSet || Mathf.Abs(at.y - followY) > 2f) followY = at.y;
+            followSet = true;
+            followY = Mathf.Lerp(followY, at.y, 1f - Mathf.Exp(-14f * dt));
+            at.y = followY;
+            var body = Quaternion.Euler(0, Yaw, 0);
             Vector3 Side(Vector3 p, float s) => new Vector3(p.x * s, p.y, p.z);
-            var head = Target.transform.position + Vector3.up * (1.6f - drop);
-            // the room out to each shoulder point (a wall on one side: over the other shoulder)
+            var head = at + Vector3.up * (1.6f - drop);
+            // over the left shoulder only when the right one is clearly walled and the left is free, back
+            // when the right is free again (no flicking from side to side beside a wall)
             float Room(float s)
             {
-                var d = Target.transform.position + body * Side(ShoulderPoint, s) - Vector3.up * drop - head;
-                return Physics.SphereCast(head, 0.12f, d.normalized, out var h, d.magnitude, World.EnvMask, QueryTriggerInteraction.Ignore) ? h.distance / d.magnitude : 1f;
+                var d = at + body * Side(ShoulderPoint, s) - Vector3.up * drop - head;
+                return Cast(head, d, out float hit) ? hit / d.magnitude : 1f;
             }
             float rightRoom = Room(1f);
-            float want = rightRoom >= 0.7f ? 1f : Room(-1f) > rightRoom + 0.2f ? -1f : 1f;
-            shoulder = Mathf.MoveTowards(shoulder, want, 5f * dt);
-            var target = Target.transform.position + body * Side(ShoulderPoint, shoulder) - Vector3.up * drop;
+            if (sideWanted > 0f && rightRoom < 0.5f && Room(-1f) > rightRoom + 0.3f) sideWanted = -1f;
+            else if (sideWanted < 0f && rightRoom > 0.85f) sideWanted = 1f;
+            shoulder = Mathf.MoveTowards(shoulder, sideWanted, 4f * dt);
+            var target = at + body * Side(ShoulderPoint, shoulder) - Vector3.up * drop;
             float behind = Scope ? 0f : Aim ? BehindAiming : Target.Firing && !dead ? Mathf.Min(Behind, BehindFiring) : Behind;
-            // a wall behind (as in Battle Warfare): the camera stays on the line back from the shoulder point and
-            // only comes closer along it, as close as the wall is, at most up to the shoulder itself; it
-            // never goes round into the head, so the body stays in sight. The shoulder point itself is
-            // kept out of a wall on the right (from the head out to it)
+            // the shoulder point kept out of a wall at the side (from the head out to it)
             var side = target - head;
-            if (side.sqrMagnitude > 1e-4f && Physics.SphereCast(head, 0.12f, side.normalized, out var sh, side.magnitude, World.EnvMask, QueryTriggerInteraction.Ignore))
-                target = head + side.normalized * Mathf.Max(0f, sh.distance - 0.05f);
+            if (side.sqrMagnitude > 1e-4f && Cast(head, side, out float sh))
+                target = head + side.normalized * Mathf.Max(0f, sh - 0.05f);
+            // a wall behind (as in Battle Warfare): the camera comes closer along the line back from the shoulder
+            // point as close as the wall is, and moves up over the shoulder beside the head in proportion,
+            // never nearer than MinBehind (the body stays in the picture)
             var back = -(rotation * Vector3.forward);
-            if (!Scope && behind > 0f && Physics.SphereCast(target, 0.12f, back, out var wall, behind, World.EnvMask, QueryTriggerInteraction.Ignore))
+            float room = behind, k = 0f;
+            if (!Scope && behind > 0f && Cast(target, back * behind, out float wall))
             {
-                float room = Mathf.Max(0f, wall.distance - 0.2f);
-                // the nearer the wall, the more the point moves up over the shoulder beside the head
-                float k = Mathf.Clamp01(1f - room / Mathf.Min(CloseFrom, behind));
-                var over = Target.transform.position + body * Side(CloseShoulderPoint, shoulder) - Vector3.up * drop;
-                var raised = Vector3.Lerp(target, over, k * k * (3f - 2f * k));
-                var up = raised - target;
-                if (up.sqrMagnitude > 1e-4f && Physics.SphereCast(target, 0.12f, up.normalized, out var roof, up.magnitude, World.EnvMask, QueryTriggerInteraction.Ignore))
-                    raised = target + up.normalized * Mathf.Max(0f, roof.distance - 0.05f);
-                target = raised;
-                float full = behind;
-                behind = Physics.SphereCast(target, 0.12f, back, out wall, behind, World.EnvMask, QueryTriggerInteraction.Ignore) ? Mathf.Max(0f, wall.distance - 0.2f) : behind;
-                behind = Mathf.Max(behind, Mathf.Min(MinBehind, full) * k);
+                room = Mathf.Max(0f, wall - 0.2f);
+                k = Mathf.Clamp01(1f - room / Mathf.Min(CloseFrom, behind));
             }
-            var desired = target + back * behind;
-            desired = Vector3.Lerp(transform.position, desired, Mathf.Clamp01(50f * dt));
+            // pulled in quickly (not into the wall), let out slowly (no pumping past posts and corners)
+            closeK = k > closeK ? Mathf.Lerp(closeK, k, 1f - Mathf.Exp(-18f * dt)) : Mathf.MoveTowards(closeK, k, 1.5f * dt);
+            float kk = closeK * closeK * (3f - 2f * closeK);
+            if (kk > 0.001f)
+            {
+                var over = at + body * Side(CloseShoulderPoint, shoulder) - Vector3.up * drop;
+                var up = Vector3.Lerp(target, over, kk) - target;
+                if (up.sqrMagnitude > 1e-4f && Cast(target, up, out float roof)) up = up.normalized * Mathf.Max(0f, roof - 0.05f);
+                target += up;
+                if (!Scope && behind > 0f && Cast(target, back * behind, out wall)) room = Mathf.Max(0f, wall - 0.2f);
+            }
+            float want = Scope ? 0f : Mathf.Max(room, Mathf.Min(MinBehind, behind) * kk);
+            reach = want < reach || !reachSet ? Mathf.Lerp(reach, want, reachSet ? 1f - Mathf.Exp(-25f * dt) : 1f) : Mathf.MoveTowards(reach, want, 2.5f * dt);
+            if (Scope) reach = 0f;
+            reachSet = true;
+            var desired = target + back * reach;
             if (shake > 0.01f)
             {
                 rotation *= Quaternion.Euler(Random.Range(-shake, shake), Random.Range(-shake, shake), Random.Range(-shake, shake) * 0.5f);

@@ -16,7 +16,7 @@ namespace UA
 
         public static readonly string[][] Names =
         {
-            new[] { "MAN - LIGHT", "MAN - DARK", "WOMAN - LIGHT", "WOMAN - DARK" },
+            new[] { "MAN - LIGHT", "MAN - DARK" },   // men only (the women's bodies are gone)
             new[] { "COMBAT JACKET", "AFGHAN PERAHAN", "ARAB THOBE", "FORMAL SUIT", "LONG SHIRT", "AFGHAN CHAPAN", "ABAYA", "LONG COAT" },
             new[] { "CARGO TROUSERS", "AFGHAN TUNBAN", "SUIT TROUSERS", "JEANS" },
             new[] { "NONE", "COMBAT HELMET", "HELMET + HEADSET", "HELMET + NIGHT VISION", "PAKOL", "TURBAN", "GHUTRA + AGAL", "SHEMAGH + AGAL", "HIJAB", "PRAYER CAP", "BERET", "BALACLAVA", "FIELD CAP" },
@@ -30,8 +30,11 @@ namespace UA
             // a ready-made character of the player's pack in place of all the pieces (0: built piece by piece)
             new[] { "OWN BUILD", "MERCENARY", "POLICE OFFICER", "FIELD AGENT", "OPERATIVE", "BODYGUARD" },
         };
-        /// <summary>The pack characters that are women (their value in the Character slot).</summary>
-        public static bool FemaleCharacter(int character) => character == 3;
+        /// <summary>
+        /// Pieces no longer offered (women's: the abaya, the hijab, the pack's woman FIELD AGENT): skipped by the
+        /// profile and never drawn for bots; an old look with the woman of the pack is built piece by piece.
+        /// </summary>
+        public static bool Offered(Slot slot, int value) => !(slot == Slot.Top && value == 6 || slot == Slot.Head && value == 8 || slot == Slot.Character && value == 3);
 
         public static readonly string[] SlotNames = { "AGENT", "TOP", "BOTTOM", "HEAD", "VEST", "SHOES", "GLOVES", "BELT", "BEARD", "BAG", "TOP COLOUR", "BOTTOM COLOUR", "HEAD COLOUR", "CHARACTER" };
 
@@ -87,8 +90,6 @@ namespace UA
             new Style { Name = "STATESMAN", Top = 3, Bottom = 2, Head = 0, Vest = 0, Feet = 2 },
             new Style { Name = "EVERYDAY", Top = 4, Bottom = 3, Head = 9, Vest = 0, Feet = 0, Beard = 1 },
             new Style { Name = "AFGHAN GUARD", Top = 1, Bottom = 1, Head = 5, Vest = 2, Feet = 1, Beard = 1, Bag = 1 },
-            new Style { Name = "WOMAN - ABAYA", Top = 6, Bottom = 1, Head = 8, Vest = 0, Feet = 2 },
-            new Style { Name = "WOMAN - SOLDIER", Top = 7, Bottom = 0, Head = 8, Vest = 1, Feet = 0, Gloves = 1, Kit = 1 },
         };
 
         public static int Count(Slot slot)
@@ -109,7 +110,12 @@ namespace UA
             return shift;
         }
 
-        public static int Get(int look, Slot slot) => Mathf.Min((look >> Shift(slot)) & ((1 << Bits[(int)slot]) - 1), Count(slot) - 1);
+        public static int Get(int look, Slot slot)
+        {
+            int v = Mathf.Min((look >> Shift(slot)) & ((1 << Bits[(int)slot]) - 1), Count(slot) - 1);
+            // an old look with a piece no longer offered: the thobe for the abaya, nothing for the others
+            return Offered(slot, v) ? v : slot == Slot.Top ? 2 : 0;
+        }
 
         public static int Set(int look, Slot slot, int value)
         {
@@ -118,7 +124,6 @@ namespace UA
             return (look & ~mask) | (value << shift);
         }
 
-        public static bool Female(int look) => Get(look, Slot.Body) >= 2;
 
         /// <summary>Text for one slot of a look (colour slots name the colour of the chosen garment).</summary>
         public static string Label(int look, Slot slot)
@@ -186,12 +191,9 @@ namespace UA
             new Preset("GUARD", 1, 7, 4, 2, 3, 1),      // Afghan guard: grey perahan, turban, chest rig
             new Preset("BLACK TURBAN", 0, 2, 7, 7, 1, 1, (Slot.Head, 5)),   // cream perahan, black turban, waistcoat
             new Preset("STATESMAN", 0, 5, 1, 1, 1, 0),       // statesman: navy suit
-            new Preset("ABAYA", 2, 8, 0, 0, 1, 0),      // abaya and hijab
-            new Preset("WOMAN SOLDIER", 3, 9, 4, 4, 3, 0),       // woman soldier
             // the player's character pack
             new Preset("MERCENARY", 0, 0, 0, 0, 0, 0, (Slot.Character, 1)),
             new Preset("POLICE OFFICER", 0, 0, 0, 0, 0, 0, (Slot.Character, 2)),
-            new Preset("FIELD AGENT", 2, 9, 0, 0, 0, 0, (Slot.Character, 3)),
             new Preset("OPERATIVE", 0, 0, 0, 0, 0, 0, (Slot.Character, 4)),
             new Preset("BODYGUARD", 0, 0, 0, 0, 0, 0, (Slot.Character, 5)),
         };
@@ -212,21 +214,16 @@ namespace UA
         /// <summary>A believable random outfit (bots, first start).</summary>
         public static int Random()
         {
-            bool female = UnityEngine.Random.value < 0.25f;
-            int look = Set(0, Slot.Body, (female ? 2 : 0) + UnityEngine.Random.Range(0, 2));
-            int style = female ? UnityEngine.Random.Range(8, 10) : UnityEngine.Random.Range(0, 8);
-            look = Apply(look, Styles[style]);
+            int look = Set(0, Slot.Body, UnityEngine.Random.Range(0, 2));
+            look = Apply(look, Styles[UnityEngine.Random.Range(0, Styles.Length)]);
             look = Set(look, Slot.TopColor, UnityEngine.Random.Range(0, 8));
             look = Set(look, Slot.BottomColor, UnityEngine.Random.Range(0, 8));
             look = Set(look, Slot.HeadColor, UnityEngine.Random.Range(0, HeadColors.Length));
-            if (!female) look = Set(look, Slot.Beard, UnityEngine.Random.value < 0.7f ? 1 : 0);
+            look = Set(look, Slot.Beard, UnityEngine.Random.value < 0.7f ? 1 : 0);
             if (Get(look, Slot.Top) == 0) look = Set(look, Slot.BottomColor, Get(look, Slot.TopColor));
-            // now and then one of the pack characters (of the same sex)
+            // now and then one of the pack characters
             if (UnityEngine.Random.value < 0.35f)
-            {
-                int character = female ? 3 : new[] { 1, 2, 4, 5 }[UnityEngine.Random.Range(0, 4)];
-                look = Set(look, Slot.Character, character);
-            }
+                look = Set(look, Slot.Character, new[] { 1, 2, 4, 5 }[UnityEngine.Random.Range(0, 4)]);
             return look;
         }
     }
