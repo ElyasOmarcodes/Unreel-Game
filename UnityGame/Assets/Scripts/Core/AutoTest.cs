@@ -505,13 +505,13 @@ namespace UA
             var hidden = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "HiddenWays");
             if (hidden != null)
             {
-                Bounds Of(string name, bool highest = false)
+                Bounds Part(string part, bool top = false)
                 {
-                    var rs = hidden.GetComponentsInChildren<Renderer>().Where(r => r.name == name).ToList();
+                    var rs = hidden.GetComponentsInChildren<Renderer>().Where(r => r.name == part).ToList();
                     if (rs.Count == 0) return new Bounds(hidden.position, Vector3.zero);
-                    return (highest ? rs.OrderByDescending(r => r.bounds.center.y) : rs.OrderBy(r => r.bounds.center.y)).First().bounds;
+                    return (top ? rs.OrderByDescending(r => r.bounds.center.y) : rs.OrderBy(r => r.bounds.center.y)).First().bounds;
                 }
-                var views = new (string shot, string name, bool highest, Vector3 offset, float lookUp)[]
+                var hiddenViews = new (string shot, string name, bool highest, Vector3 offset, float lookUp)[]
                 {
                     ("91h-hidden-hatch-d3", "Shade", false, new Vector3(-1.5f, 1.7f, 5f), 0f),
                     ("91i-hidden-tunnel", "Floor", false, new Vector3(0f, 1.6f, 0f), 1.4f),
@@ -520,15 +520,15 @@ namespace UA
                     ("91l-plank-walk", "PlankWalk", false, new Vector3(5f, 4f, -9f), 0f),
                     ("91m-ladder-c4", "Ladder", false, new Vector3(6f, 3f, -2f), 0.5f),
                 };
-                foreach (var (shot, name, highest, offset, lookUp) in views)
+                foreach (var (hShot, hName, hTop, hOffset, hLook) in hiddenViews)
                 {
-                    var b = Of(name, highest);
-                    var eye = b.center + offset;
-                    var look = b.center + Vector3.up * lookUp;
-                    if (name == "Floor") { eye = new Vector3(b.min.x + 1.5f, b.max.y + 1.6f, b.center.z); look = new Vector3(b.max.x, b.max.y + 1.4f, b.center.z); }
-                    cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(look - eye));
+                    var hb = Part(hName, hTop);
+                    var hEye = hb.center + hOffset;
+                    var hAt = hb.center + Vector3.up * hLook;
+                    if (hName == "Floor") { hEye = new Vector3(hb.min.x + 1.5f, hb.max.y + 1.6f, hb.center.z); hAt = new Vector3(hb.max.x, hb.max.y + 1.4f, hb.center.z); }
+                    cam.transform.SetPositionAndRotation(hEye, Quaternion.LookRotation(hAt - hEye));
                     yield return Wait(0.5f);
-                    yield return Shot(shot);
+                    yield return Shot(hShot);
                 }
             }
             // the new double pipe from the roof of the pipe works over to the warehouse D-4
