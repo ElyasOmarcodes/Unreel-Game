@@ -15,6 +15,7 @@ Shader "UA/Ground"
         _Path ("Path stones", 2D) = "gray" {}
         _PathMask ("Path mask (r)", 2D) = "black" {}
         _PathArea ("Path mask area: x0, z0, size; stone tile (m)", Vector) = (0,0,1,2.5)
+        _PathTint ("Path stone tint", Color) = (1,1,1,1)
     }
     SubShader
     {
@@ -26,7 +27,7 @@ Shader "UA/Ground"
         #pragma target 3.0
 
         sampler2D _Grass, _Dirt, _Gravel, _Rock, _Path, _PathMask;
-        fixed4 _GrassTint;
+        fixed4 _GrassTint, _PathTint;
         float4 _Tiles, _PathArea;
 
         struct Input
@@ -47,7 +48,7 @@ Shader "UA/Ground"
             float sum = max(0.001, w.r + w.g + w.b + w.a);
             fixed3 ground = (dirt * w.r + grass * w.g + gravel * w.b + rock * w.a) / sum;
             float mask = tex2D(_PathMask, (p - _PathArea.xy) / _PathArea.z).r;
-            fixed3 stone = tex2D(_Path, p / _PathArea.w).rgb;
+            fixed3 stone = tex2D(_Path, p / _PathArea.w).rgb * _PathTint.rgb;
             float lum = dot(stone, fixed3(0.3, 0.59, 0.11));
             float paved = saturate((mask - 0.5) * 3.0 + (lum - 0.45) * 2.0 + 0.5);
             o.Albedo = lerp(ground, stone, paved * step(0.01, mask));
