@@ -174,7 +174,7 @@ public static partial class CityLordBuilder
         const float lane = 1.3f, landing = 1.5f, stepRun = 0.36f, stepH = 0.2f;
         int steps = Mathf.CeilToInt(rise / stepH);
         float run = steps * stepRun;
-        var steel = Mats.Pbr("CL_StairSteel", "MetalPlates013", new Color(0.4f, 0.4f, 0.42f), 0.4f, 0.5f);
+        var steel = Mats.Pbr("CL_StairSteel", "MetalPlates013", new Color(0.78f, 0.76f, 0.7f), 0.35f, 0.2f);   // light enough to read in the dim hall
         float laneX(int k) => b.max.x - 0.6f - lane * (k % 2 + 0.5f);
         for (int k = 0; k < flights; k++)
         {
