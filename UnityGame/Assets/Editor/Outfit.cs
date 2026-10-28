@@ -577,7 +577,10 @@ public static class Outfit
                 // hanging folds: deeper towards the hem, a little irregular
                 float fold = d.Folds * depth * (0.6f * Mathf.Sin(a * 7f + phase[0]) + 0.3f * Mathf.Sin(a * 11f + phase[1]) + 0.25f * Mathf.Sin(a * 4f + phase[2]));
                 r[k] = h[k] + 0.006f + d.Ease * Mathf.Clamp01(depth * 4f) + d.Flare * below * below + Mathf.Max(0, fold + d.Folds * depth * 0.5f);
-                if (last != null && y < hip.y) r[k] = Mathf.Max(r[k], radii[i - 1][k] - 0.002f + d.Flare * 0.02f);
+                // the cloth falls from where it starts and is not drawn in under it (no waist, no skirt flaring
+                // out from a waist); the top edge lies just under the garment above, one piece with it
+                if (i > 0) r[k] = Mathf.Max(r[k], radii[i - 1][k] - 0.002f + d.Flare * 0.02f);
+                else r[k] = h[k] - 0.003f;
             }
             radii[i] = r;
             last = h;
@@ -603,11 +606,13 @@ public static class Outfit
                 float r = radii[i][k % Segments];
                 float side = Mathf.Clamp(Mathf.Cos(a) * 1.5f, -1f, 1f) * (rightPlusX ? 1 : -1);
                 float right = 0.5f + 0.5f * side;
-                var w = Weight((pelvis, (1 - follow) * (1 - up)), (spine, (1 - follow) * up),
-                    (thighR, follow * right * (1 - shin)), (thighL, follow * (1 - right) * (1 - shin)),
-                    (calfR, follow * right * shin), (calfL, follow * (1 - right) * shin));
-                var uv = new Vector2(k / (float)Segments * circumference / d.Tile, y / d.Tile);
                 var c = new Vector3(cx, y, cz);
+                // above the hips it moves as the body under it does (as the garment above it), below with the legs
+                var w = follow <= 0f && y > hip.y ? body.Nearest(c + dir * r, Region.Torso)
+                    : Weight((pelvis, (1 - follow) * (1 - up)), (spine, (1 - follow) * up),
+                        (thighR, follow * right * (1 - shin)), (thighL, follow * (1 - right) * (1 - shin)),
+                        (calfR, follow * right * shin), (calfL, follow * (1 - right) * shin));
+                var uv = new Vector2(k / (float)Segments * circumference / d.Tile, y / d.Tile);
                 outer[i, k] = g.Add(c + dir * r, dir, uv, w);
                 inner[i, k] = g.Add(c + dir * (r - 0.005f), -dir, uv, w);
             }

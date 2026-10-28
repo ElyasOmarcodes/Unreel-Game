@@ -217,6 +217,7 @@ public static class Dresser
         Tint(Part(result, Outfit.Wear(body, trousers[2], "Bottom_Suit", wool), Slot.Bottom, M(2)), Slot.BottomColor, Wardrobe.BottomColors[2]);
         Tint(Part(result, Outfit.Wear(body, trousers[3], "Bottom_Jeans", denim), Slot.Bottom, M(3)), Slot.BottomColor, Wardrobe.BottomColors[3]);
         // cargo pockets on the thighs
+        var pockets = new List<Garment>();
         foreach (string side in new[] { "l", "r" })
         {
             var a = body.At("thigh_" + side);
@@ -225,12 +226,13 @@ public static class Dresser
             var outward = Vector3.ProjectOnPlane(new Vector3(Mathf.Sign(a.x - hip.x), 0, 0.15f), axis).normalized;
             var center = a + (b - a) * 0.5f + outward * (0.09f * slim + 0.012f + 0.016f);
             var pocket = Box(center, Quaternion.LookRotation(outward, -axis), new Vector3(0.14f, 0.17f, 0.03f));
+            pockets.Add(pocket);
             Swap(Part(result, Outfit.Attach(body, pocket, "thigh_" + side, "Bottom_CargoPocket_" + side, camos[0]), Slot.Bottom, M(0)), Slot.BottomColor, camos);
         }
 
         // what a hanging garment must clear: the body below the arms and every pair of trousers
         var under = new List<Vector3>(body.PointsIn(Region.Torso, Region.Legs, Region.Feet));
-        foreach (var worn in trousers.Where(g => g != null)) under.AddRange(worn.P);
+        foreach (var worn in trousers.Concat(pockets).Where(g => g != null)) under.AddRange(worn.P);
 
         // ---- tops: sleeves to the wrist and a cloth that hangs from the waist over the hips and thighs
         var topShells = new Garment[8];
@@ -242,8 +244,11 @@ public static class Dresser
             topShells[option] = shell;
             float waist = shell.P.Where(p => Mathf.Abs(p.x - hip.x) < 0.25f).Min(p => p.y);
             drape.Top = Mathf.Max(waist + 0.07f, hip.y + 0.05f);
+            // a shirt that goes on over the head (perahan, thobe, long shirt) is one cloth from the chest down,
+            // hanging loose over the waist: its skirt starts high up and falls straight; coats keep their waist
+            if (!drape.FrontOpen) drape.Top = Mathf.Max(drape.Top, spine2.y + 0.03f);
             var clear = new List<Vector3>(under);
-            clear.AddRange(shell.P.Where(p => p.y < drape.Top + 0.05f && Mathf.Abs(p.x - hip.x) < 0.3f));
+            clear.AddRange(shell.P.Where(p => p.y < drape.Top + 0.05f && Mathf.Abs(p.x - hip.x) < (p.y > hip.y ? 0.24f : 0.3f)));
             var robe = Outfit.Robe(body, drape, clear, option * 31 + 7);
             shell.Append(robe);
             var go = Outfit.Wear(body, shell, "Top_" + name, material);
@@ -252,7 +257,7 @@ public static class Dresser
             if (go != null && drape.Top - drape.Hem > 0.35f)
             {
                 var skirt = go.AddComponent<ClothDrape>();
-                skirt.Waist = drape.Top - soles;
+                skirt.Waist = Mathf.Min(drape.Top, hip.y + 0.05f) - soles;
                 skirt.Hem = drape.Hem - soles;
             }
             var part = Part(result, go, Slot.Top, M(option));
@@ -285,17 +290,17 @@ public static class Dresser
         Top(0, "CombatJacket", new Cut { Thickness = 0.014f, Smooth = 12, UpperArm = 0.066f * slim, LowerArm = 0.055f * slim, Tile = 0.5f },
             new Drape { Hem = hemThigh(0.45f), FrontOpen = true, OpenFrom = 0.1f, Ease = 0.012f, Flare = 0.015f, Folds = 0.006f, Tile = 0.5f }, camos[0], null);
         Top(1, "Perahan", new Cut { Thickness = 0.016f, Smooth = 16, UpperArm = 0.076f * slim, LowerArm = 0.067f * slim },
-            new Drape { Hem = knee.y - 0.03f, SideSlits = true, OpenFrom = 0.2f, Ease = 0.026f, Flare = 0.05f, Folds = 0.013f }, cloth, Wardrobe.TopColors[1]);
+            new Drape { Hem = knee.y - 0.03f, SideSlits = true, OpenFrom = 0.32f, Ease = 0.022f, Flare = 0.035f, Folds = 0.013f }, cloth, Wardrobe.TopColors[1]);
         Top(2, "Thobe", new Cut { Thickness = 0.014f, Smooth = 16, UpperArm = 0.071f * slim, LowerArm = 0.063f * slim },
-            new Drape { Hem = ankle.y + 0.05f, Ease = 0.045f, Flare = 0.025f, Folds = 0.012f, Follow = 0.95f }, cloth, Wardrobe.TopColors[2]);
+            new Drape { Hem = ankle.y + 0.05f, Ease = 0.03f, Flare = 0.015f, Folds = 0.012f, Follow = 0.95f }, cloth, Wardrobe.TopColors[2]);
         Top(3, "Suit", new Cut { Thickness = 0.016f, Smooth = 12, UpperArm = 0.062f * slim, LowerArm = 0.052f * slim, Tile = 0.25f },
             new Drape { Hem = hemThigh(0.4f), FrontOpen = true, OpenFrom = 0.03f, Ease = 0.01f, Flare = 0.012f, Folds = 0.004f, Tile = 0.25f }, wool, Wardrobe.TopColors[3]);
         Top(4, "LongShirt", new Cut { Thickness = 0.012f, Smooth = 12, UpperArm = 0.062f * slim, LowerArm = 0.054f * slim },
-            new Drape { Hem = hemThigh(0.58f), SideSlits = true, OpenFrom = 0.13f, Ease = 0.016f, Flare = 0.022f, Folds = 0.008f }, cloth, Wardrobe.TopColors[4]);
+            new Drape { Hem = hemThigh(0.58f), SideSlits = true, OpenFrom = 0.25f, Ease = 0.016f, Flare = 0.022f, Folds = 0.008f }, cloth, Wardrobe.TopColors[4]);
         Top(5, "Chapan", new Cut { Thickness = 0.022f, Smooth = 16, UpperArm = 0.084f * slim, LowerArm = 0.08f * slim, Tile = 0.35f },
             new Drape { Hem = knee.y - 0.16f, FrontOpen = true, OpenFrom = 0.02f, Ease = 0.036f, Flare = 0.07f, Folds = 0.016f, Tile = 0.35f }, stripes, Wardrobe.TopColors[5]);
         Top(6, "Abaya", new Cut { Thickness = 0.016f, Smooth = 16, UpperArm = 0.075f * slim, LowerArm = 0.071f * slim },
-            new Drape { Hem = ankle.y + 0.03f, Ease = 0.05f, Flare = 0.045f, Folds = 0.015f, Follow = 0.95f }, cloth, Wardrobe.TopColors[6]);
+            new Drape { Hem = ankle.y + 0.03f, Ease = 0.035f, Flare = 0.03f, Folds = 0.015f, Follow = 0.95f }, cloth, Wardrobe.TopColors[6]);
         Top(7, "LongCoat", new Cut { Thickness = 0.016f, Smooth = 12, UpperArm = 0.066f * slim, LowerArm = 0.058f * slim, Tile = 0.25f },
             new Drape { Hem = knee.y - 0.06f, FrontOpen = true, SideSlits = true, OpenFrom = 0.14f, Ease = 0.02f, Flare = 0.045f, Folds = 0.01f, Tile = 0.25f }, wool, Wardrobe.TopColors[7]);
 
