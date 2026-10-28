@@ -23,6 +23,8 @@ namespace UA
         public Renderer[] SkinRenderers = new Renderer[0];
         [Tooltip("Every piece of clothing and gear; SetLook shows the ones the look picks")]
         public OutfitPart[] Parts = new OutfitPart[0];
+        /// <summary>The body itself (skin, eyes, brows): hidden under a ready-made character of the pack.</summary>
+        public GameObject[] BaseBody = new GameObject[0];
 
         /// <summary>One wardrobe piece: shown when the look's value in Slot is one of Mask (and in Slot2 one of Mask2).</summary>
         [System.Serializable]
@@ -275,11 +277,19 @@ namespace UA
         /// <summary>Dress the agent as the look says (see Wardrobe).</summary>
         public void SetLook(int look)
         {
+            // a ready-made character of the pack (when this body has it) in place of the body and its clothes
+            int character = Wardrobe.Get(look, Wardrobe.Slot.Character);
+            bool ready = false;
+            foreach (var p in Parts)
+                ready |= character > 0 && p.Object != null && p.Slot == Wardrobe.Slot.Character && ((p.Mask >> character) & 1) == 1;
+            foreach (var go in BaseBody)
+                if (go != null) go.SetActive(!ready);
             foreach (var part in Parts)
             {
                 if (part.Object == null) continue;
                 bool on = ((part.Mask >> Wardrobe.Get(look, part.Slot)) & 1) == 1
-                          && (!part.HasSecond || ((part.Mask2 >> Wardrobe.Get(look, part.Slot2)) & 1) == 1);
+                          && (!part.HasSecond || ((part.Mask2 >> Wardrobe.Get(look, part.Slot2)) & 1) == 1)
+                          && (part.Slot == Wardrobe.Slot.Character ? ready : !ready);
                 part.Object.SetActive(on);
                 if (!on || !part.Coloured) continue;
                 int c = Wardrobe.Get(look, part.ColorSlot);

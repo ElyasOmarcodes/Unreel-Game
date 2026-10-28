@@ -130,6 +130,21 @@ namespace UA
             yield return Shot("00-feet-side");
             foreach (var go in row) Destroy(go);
             row.Clear();
+            // the four characters of the player's pack on the game's skeleton: front, back, and close
+            for (int i = 0; i < 4; i++)
+            {
+                var go = Dress(Wardrobe.PresetLook(Wardrobe.Presets.Length - 4 + i), new Vector3(i * 1.1f, 300, 0), 180);
+                if (go != null) go.GetComponent<Agent>().SetWeapon(9 + i % 3);
+            }
+            cam.Cam.fieldOfView = 34;
+            cam.transform.SetPositionAndRotation(new Vector3(2.2f, 301.0f, -5.6f), Quaternion.Euler(3, 0, 0));
+            yield return Wait(1f);
+            yield return Shot("00-pack-characters");
+            foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 0, 0);
+            yield return Wait(0.3f);
+            yield return Shot("00-pack-characters-back");
+            foreach (var go in row) Destroy(go);
+            row.Clear();
             // the clothes in motion (running): no gap in them anywhere, front and side
             for (int i = 0; i < 5 && i < Wardrobe.Styles.Length; i++)
             {

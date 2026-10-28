@@ -210,10 +210,13 @@ public static class Outfit
     }
 
     /// <summary>Put on a garment: a skinned mesh on the body's bones.</summary>
-    public static GameObject Wear(Body body, Garment g, string name, params Material[] materials)
+    public static GameObject Wear(Body body, Garment g, string name, params Material[] materials) => Wear(body, g, name, body.Bindposes, materials);
+
+    /// <summary>The same with bind poses of its own (a model in another pose than the body's rest pose).</summary>
+    public static GameObject Wear(Body body, Garment g, string name, Matrix4x4[] bindposes, params Material[] materials)
     {
         if (g == null || g.P.Count == 0) return null;
-        var mesh = Save(ToMesh(g, $"{body.Key}_{name}", body.ToMesh, body.Mirrored, body.Bindposes), body.Key, name);
+        var mesh = Save(ToMesh(g, $"{body.Key}_{name}", body.ToMesh, body.Mirrored, bindposes), body.Key, name);
         var src = body.Renderer;
         var go = new GameObject(name);
         go.transform.SetParent(src.transform.parent, false);
