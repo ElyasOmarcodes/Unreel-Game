@@ -86,12 +86,13 @@ namespace UA
                 coefficients[i].collisionSphereDistance = 0f;
             }
             cloth.coefficients = coefficients;
-            // the legs push the cloth aside
+            // the legs push the cloth aside: as thick as the widest trousers under it (loose tunban), else
+            // the cloth falls onto the leg and the trousers show through it
             var legs = new System.Collections.Generic.List<CapsuleCollider>();
             foreach (string side in new[] { "l", "r" })
             {
-                Leg(legs, "thigh_" + side, "calf_" + side, 0.09f);
-                Leg(legs, "calf_" + side, "foot_" + side, 0.065f);
+                Leg(legs, "thigh_" + side, "calf_" + side, 0.135f);
+                Leg(legs, "calf_" + side, "foot_" + side, 0.105f);
             }
             cloth.capsuleColliders = legs.ToArray();
         }
