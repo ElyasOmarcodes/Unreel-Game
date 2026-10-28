@@ -137,12 +137,15 @@ namespace UA
         private void Upright()
         {
             if (State == null || !Alive || State.Prone || State.Crouch || spineBones == null) return;
+            // only on the feet: not while the body is still getting up from the ground or going down to it
+            if (Anim != null && (Anim.IsInTransition(0) || !Anim.GetCurrentAnimatorStateInfo(0).IsName("Locomotion"))) return;
             float allowed = 5f + Mathf.Max(0f, -State.Pitch) * 0.6f + (State.MoveY > 1.2f ? 8f : 0f);
             for (int i = 0; i + 1 < spineBones.Length; i++)
             {
                 var d = spineBones[i + 1].position - spineBones[i].position;
                 float lean = Mathf.Atan2(Vector3.Dot(d, transform.forward), Vector3.Dot(d, transform.up)) * Mathf.Rad2Deg;
-                if (lean > allowed) spineBones[i].rotation = Quaternion.AngleAxis(allowed - lean, transform.right) * spineBones[i].rotation;
+                // a back bent far over is not a standing pose: left as it is
+                if (lean > allowed && lean < 50f) spineBones[i].rotation = Quaternion.AngleAxis(allowed - lean, transform.right) * spineBones[i].rotation;
             }
         }
 
@@ -157,8 +160,9 @@ namespace UA
             {
                 if (upperArms[i] == null || lowerArms[i] == null) continue;
                 var d = lowerArms[i].position - upperArms[i].position;
+                if (Vector3.Dot(d, transform.up) > 0f) continue;   // a raised arm is not a swinging one
                 float back = Mathf.Atan2(-Vector3.Dot(d, transform.forward), -Vector3.Dot(d, transform.up)) * Mathf.Rad2Deg;
-                if (back > 12f) upperArms[i].rotation = Quaternion.AngleAxis((12f - back) * (1f - Ready), transform.right) * upperArms[i].rotation;
+                if (back > 12f && back < 90f) upperArms[i].rotation = Quaternion.AngleAxis((12f - back) * (1f - Ready), transform.right) * upperArms[i].rotation;
             }
         }
 
@@ -509,7 +513,10 @@ namespace UA
         {
             var src = WeaponModels[id];
             bool pistol = !Weapons.Get(id).Primary;
-            var bone = pistol ? (thighBone != null ? thighBone : transform) : (chestBone != null ? chestBone : transform);
+            // a rifle rides on the middle of the back: the chest bends with the aim (up, down) and would
+            // swing a rifle on it into the hips and the back
+            var back = spineBones != null ? spineBones[1] : chestBone;
+            var bone = pistol ? (thighBone != null ? thighBone : transform) : (back != null ? back : transform);
             bool was = src.activeSelf;
             src.SetActive(true);
             var copy = Instantiate(src, src.transform.position, src.transform.rotation, src.transform.parent);
@@ -553,7 +560,7 @@ namespace UA
                 var dir = (transform.up * 0.8f - transform.right * 0.6f).normalized;
                 want = Quaternion.LookRotation(dir, Vector3.Cross(dir, -transform.forward)) * fromGun;
                 at = (chestBone != null ? chestBone.position : transform.position + transform.up * 1.3f) - transform.up * 0.12f
-                     - transform.forward * (bagOn ? 0.3f : 0.17f);
+                     - transform.forward * (bagOn ? 0.31f : 0.19f);
             }
             copy.transform.SetParent(bone, true);
             copy.transform.rotation = want;
@@ -661,6 +668,8 @@ namespace UA
             Steps(s, move);
             Anim.SetBool(CrouchId, s.Crouch);
             Anim.SetBool(ProneId, s.Prone);
+            // never left in the crawl once up again (a transition missed): straight back to the feet
+            if (!s.Prone && s.Alive && !Anim.IsInTransition(0) && Anim.GetCurrentAnimatorStateInfo(0).IsName("Prone")) Anim.CrossFade("Locomotion", 0.25f, 0);
             if (s.Prone != proneBox && Hitboxes.Length > 0 && Hitboxes[0].GetComponent<CapsuleCollider>() is CapsuleCollider body)
             {
                 // body hitbox lies flat while prone
