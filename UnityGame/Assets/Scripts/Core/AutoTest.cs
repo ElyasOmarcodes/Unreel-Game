@@ -247,7 +247,10 @@ namespace UA
             yield return Play(10f, "09-running-firing", "10-fight");
             Controls.SimMove = Vector2.zero;
             Controls.SimGrenade = true;
-            yield return Wait(3.25f);
+            // the left arm wound up behind the head, the gun still in the right hand
+            yield return Wait(0.28f);
+            yield return Shot("10a-grenade-left-hand");
+            yield return Wait(2.97f);
             yield return Shot("10b-grenade");
             yield return Wait(1f);
             // weapon change in the open (the body in sight): the hand goes back for the other gun
@@ -256,13 +259,24 @@ namespace UA
             yield return Until(() => Session.I.Local != null && Session.I.Local.Alive, 8f);
             yield return Wait(1f);
             Controls.SimSwap = true;
-            yield return Wait(0.15f);
+            yield return Wait(0.2f);
             yield return Shot("10f-weapon-swap");
             yield return Wait(0.8f);
             yield return Shot("10g-pistol-rifle-on-back");
+            // crouched, the rifle back in the hand, standing up again: the pistol stays in its holster
+            Controls.SimCrouch = true;
+            yield return Wait(0.8f);
             Controls.SimSwap = true;
             yield return Wait(0.9f);
+            yield return Shot("10h0-crouched-pistol-at-hip");
+            Controls.SimCrouch = true;
+            yield return Wait(0.9f);
             yield return Shot("10h-rifle-pistol-at-hip");
+            // a jump: both hands stay on the gun
+            Controls.SimJump = true;
+            yield return Wait(0.25f);
+            yield return Shot("10i-jump-arms");
+            yield return Wait(1f);
             yield return BackToWall();
             Controls.SimScore = true;
             yield return Wait(0.3f);
@@ -501,25 +515,19 @@ namespace UA
                 yield return Wait(0.5f);
                 yield return Shot($"91-citylord-above-{t.name.Substring(6).ToLowerInvariant()}");
             }
-            // the hidden ways (their pieces are merged with the map, so seen from fixed places): the trapdoor in
-            // D-3, the tunnel, the stair in C-1 and its roof hatch, the way up behind A-4, the crates at C-5,
-            // the plank walk along C-4 and the ladder to its roof
-            foreach (var (shot, eyeAt, lookAt) in new (string, Vector3, Vector3)[]
-                     {
-                         ("91h-hidden-hatch-d3", new Vector3(10.5f, 3.3f, -31.8f), new Vector3(12.8f, 1.5f, -38.4f)),
-                         ("91h2-hidden-hatch-close", new Vector3(11.4f, 4.2f, -35.3f), new Vector3(12.8f, 1.0f, -38.6f)),
-                         ("91i-hidden-tunnel", new Vector3(16f, -3.6f, -51.05f), new Vector3(40f, -3.9f, -51.05f)),
-                         ("91j-c1-stair-to-roof", new Vector3(65.5f, 4.8f, -13f), new Vector3(72.3f, 6.5f, -6f)),
-                         ("91j2-c1-roof-hatch", new Vector3(65f, 16.5f, -12f), new Vector3(72.3f, 11.4f, -5f)),
-                         ("91j3-a4-way-up", new Vector3(3f, 4.6f, -23.5f), new Vector3(-2.4f, 1.3f, -31f)),
-                         ("91k-c5-climb-crates", new Vector3(85.5f, 4f, -47f), new Vector3(92.6f, 3.5f, -40.4f)),
-                         ("91l-plank-walk", new Vector3(96.5f, 12.5f, -43f), new Vector3(101.2f, 7.9f, -30f)),
-                         ("91m-ladder-c4", new Vector3(95.5f, 14.5f, -35f), new Vector3(101.2f, 9.6f, -23.5f)),
-                     })
+            // the whole town from straight above, north up (the map of the names): x 29 +- 110, z -6 +- 62
             {
-                cam.transform.SetPositionAndRotation(eyeAt, Quaternion.LookRotation(lookAt - eyeAt));
-                yield return Wait(0.5f);
-                yield return Shot(shot);
+                bool wasOrtho = cam.Cam.orthographic;
+                float wasFar = cam.Cam.farClipPlane, wasSize = cam.Cam.orthographicSize;
+                cam.Cam.orthographic = true;
+                cam.Cam.orthographicSize = 62f;
+                cam.Cam.farClipPlane = 400f;
+                cam.transform.SetPositionAndRotation(new Vector3(29f, 150f, -6f), Quaternion.LookRotation(Vector3.down, Vector3.forward));
+                yield return Wait(0.8f);
+                yield return Shot("91z-citylord-top-view");
+                cam.Cam.orthographic = wasOrtho;
+                cam.Cam.orthographicSize = wasSize;
+                cam.Cam.farClipPlane = wasFar;
             }
             // the new double pipe from the roof of the pipe works over to the warehouse D-4
             var pipe = UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).FirstOrDefault(x => x.name == "RoofPipe");

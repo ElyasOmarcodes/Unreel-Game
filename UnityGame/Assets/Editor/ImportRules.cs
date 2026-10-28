@@ -115,6 +115,16 @@ public class ImportRules : AssetPostprocessor
         // colour keeps the finer 6x6 blocks; normal and roughness maps can be coarser (smaller APK)
         android.format = file.EndsWith("_Normal") || file.EndsWith("_MS") ? TextureImporterFormat.ASTC_8x8 : TextureImporterFormat.ASTC_6x6;
         android.compressionQuality = 50;
+        if (assetPath.Contains("Assets/Characters/") && !file.EndsWith("_Normal"))
+        {
+            // the characters' faces are small on their 1024 texture: the finest blocks, sharper mip maps, and
+            // never halved by the low quality setting
+            importer.anisoLevel = 4;
+            importer.mipMapBias = -0.3f;
+            importer.ignoreMipmapLimit = true;
+            android.format = TextureImporterFormat.ASTC_4x4;
+            android.compressionQuality = 100;
+        }
         importer.SetPlatformTextureSettings(android);
     }
 

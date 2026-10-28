@@ -523,7 +523,32 @@ public static class Outfit
         return h;
     }
 
-    /// <summary>Cloth hanging from the waist around the body and the clothes under it.</summary>
+    /// <summary>
+    /// The outline that support distances enclose (the tightest convex outline around the points): its
+    /// distance from the centre in each direction. Placing a ring at the support distances themselves
+    /// rounds every outline out into a circle (wider than the body on the diagonals).
+    /// </summary>
+    public static float[] Hull(float[] support)
+    {
+        var r = new float[Segments];
+        for (int k = 0; k < Segments; k++)
+        {
+            float best = support[k];
+            for (int j = 0; j < Segments; j++)
+            {
+                float c = Mathf.Cos(Angle(k) - Angle(j));
+                if (c > 0.25f) best = Mathf.Min(best, support[j] / c);
+            }
+            r[k] = best;
+        }
+        return r;
+    }
+
+    /// <summary>
+    /// Cloth hanging from the waist around the body and the clothes under it: at the top it lies on the
+    /// garment above (one piece with it, no ring standing off the body), below it falls over the hips and
+    /// the legs as cloth does, bridging the hollows, not as a round skirt.
+    /// </summary>
     public static Garment Robe(Body body, Drape d, List<Vector3> under, int seed)
     {
         var hip = body.At("pelvis");
@@ -541,7 +566,8 @@ public static class Outfit
         for (int i = 0; i < rings; i++)
         {
             float y = Mathf.Lerp(d.Top, d.Hem, i / (rings - 1f));
-            var h = Support(under, y, 0.025f, cx, cz) ?? (last != null ? (float[])last.Clone() : Enumerable.Repeat(0.18f, Segments).ToArray());
+            var support = Support(under, y, 0.025f, cx, cz);
+            var h = support != null ? Hull(support) : last != null ? (float[])last.Clone() : Enumerable.Repeat(0.18f, Segments).ToArray();
             float depth = i / (rings - 1f);
             float below = Mathf.Clamp01((hip.y - y) / Mathf.Max(0.1f, hip.y - knee.y));
             var r = new float[Segments];

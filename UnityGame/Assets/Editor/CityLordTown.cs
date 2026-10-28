@@ -19,8 +19,7 @@ public static partial class CityLordBuilder
     /// </summary>
     private static readonly (string path, (char side, float from, float to, float top)[] doors)[] Opened =
     {
-        // C-1: shut (its doors stay closed), only the hidden tunnel leads in
-        ("Map_v1/Static/Hangar_v4", new (char side, float from, float to, float top)[0]),
+        ("Map_v1/Static/Hangar_v4", new[] { ('E', -16.3f, -10.39f, 4.22f), ('E', -0.89f, 0.53f, 2.6f) }),
         ("Map_v1/Static/Hangar_v3_basic", new[] { ('E', 27.33f, 32.5f, 3.84f), ('S', 45.25f, 47.39f, 2.49f) }),
         ("Map_v1/Static/Hangar_v3_basic (2)", new[] { ('W', -32.35f, -27.17f, 3.84f), ('N', -9.6f, -7.46f, 2.49f) }),
         ("Map_v1/Static/Hangar_v1_full", new[] { ('N', 8.55f, 11.29f, 3.14f) }),
@@ -36,6 +35,48 @@ public static partial class CityLordBuilder
         ('C', "د هنګرونو کتار", "HANGAR ROW", new Vector2(80f, -2f)),
         ('D', "سویلي فابریکې", "SOUTH FACTORIES", new Vector2(22f, -30f)),
     };
+
+    /// <summary>
+    /// A short name for every building (by its object in the scene), written on its plate over the number,
+    /// so a place can be named in a few words: Pashto, English.
+    /// </summary>
+    private static readonly Dictionary<string, (string pashto, string english)> BuildingNames = new Dictionary<string, (string, string)>
+    {
+        ["Oil_tank_v1 (7)"] = ("لوېدیځ ټانک", "West Tank"),
+        ["Hangar_v4 (4)"] = ("لوېدیځ تالار", "West Hall"),
+        ["Hangar_v4 (9)"] = ("د کانټینرو تالار", "Container Hall"),
+        ["Hangar_v3_basic (2)"] = ("شین ګودام", "Blue Barn"),
+        ["Oil_tank_v1 (4)"] = ("لوېدیځ جوړه ټانک", "Twin Tank West"),
+        ["Oil_tank_v1 (3)"] = ("ختیځ جوړه ټانک", "Twin Tank East"),
+        ["Hangar_v4 (1)"] = ("د نلونو تالار", "Pipe Hall"),
+        ["Hangar_v3_basic"] = ("شمالي ګودام", "North Barn"),
+        ["Hangar_v4"] = ("د برج تالار", "Tower Hall"),
+        ["Hangar_v1_full (1)"] = ("کوچنی ګودام", "Little Shed"),
+        ["Hangar_v2_basic (1)"] = ("شمالي فابریکه", "North Factory"),
+        ["Hangar_v4 (6)"] = ("ختیځ تالار", "East Hall"),
+        ["Hangar_v2_outbuilding"] = ("ضمیمه", "Annex"),
+        ["Hangar_v4 (5)"] = ("د ټانکونو تالار", "Tank Hall"),
+        ["Hangar_v4 (3)"] = ("سویل لوېدیځ تالار", "South-West Hall"),
+        ["Hangar_v4 (2)"] = ("سویلي تالار", "South Hall"),
+        ["Hangar_v1_full"] = ("سور ګودام", "Red Shed"),
+        ["Hangar_v2_basic (2)"] = ("د نل فابریکه", "Pipe Factory"),
+        ["Oil_tank_v1 (1)"] = ("د نل ټانک", "Pipe Tank"),
+        ["Hangar_v2_basic (3)"] = ("سویلي فابریکه", "South Factory"),
+        ["Oil_tank_v1 (2)"] = ("سویل ختیځ ټانک", "South-East Tank"),
+        // the two works made of several pieces
+        ["Hangar_v2/Object084"] = ("د نلونو کارخانه", "Pipe Works"),
+        ["Hangar_v2/Object085"] = ("د کارخانې دفتر", "Works Office"),
+        ["Hangar_v3/Object086"] = ("زړه کارخانه", "Old Works"),
+        ["Hangar_v3/Object089"] = ("د زړې کارخانې ضمیمه", "Old Works Annex"),
+        ["Hangar_v3/Object1040"] = ("ګدام خونه", "Store Room"),
+    };
+
+    /// <summary>The name key of a building's object path: its own name, or its group and name for the works.</summary>
+    private static string NameKey(string path)
+    {
+        var parts = path.Split('/');
+        return parts.Length >= 2 && parts[parts.Length - 2].StartsWith("Hangar_") ? parts[parts.Length - 2] + "/" + parts[parts.Length - 1] : parts[parts.Length - 1];
+    }
 
     /// <summary>The middle of the yards (scene coordinates): boards and plates face it.</summary>
     private static readonly Vector3 TownMiddle = new Vector3(30f, -11f, -6f);
@@ -119,8 +160,8 @@ public static partial class CityLordBuilder
                 go.transform.SetParent(colliders, false);
                 go.AddComponent<MeshCollider>().sharedMesh = mesh;
             }
-            // a shut building is furnished as if its door were on the east (crates at the west wall)
-            Furnish(insides, b, Outward(doorList.Length > 0 ? doorList[0].side : 'E'), boxes.Count > 0 ? boxes[0].min.y - 0.04f : Ground(b.center, b.min.y + 1.5f, b.min.y) - 0.04f);
+            var main = doorList[0];
+            Furnish(insides, b, Outward(main.side), boxes[0].min.y - 0.04f);
             opened++;
         }
         Physics.SyncTransforms();
@@ -296,24 +337,27 @@ public static partial class CityLordBuilder
             string name = kv.Key.Substring(kv.Key.LastIndexOf('/') + 1);
             return (name.StartsWith("Hangar_") || name.StartsWith("Oil_tank_v1")) && kv.Value.size.x > 3f && kv.Value.size.z > 3f;
         }).ToList();
+        // and the pieces of the two works (numbered after the others of their part of town, so no number changes)
+        var works = outlines.Where(kv => (kv.Key.Contains("/Hangar_v2/") || kv.Key.Contains("/Hangar_v3/")) && kv.Value.size.x > 3f && kv.Value.size.z > 3f && kv.Value.size.y > 2.5f).ToList();
         int count = 0;
         numbered.Clear();
-        foreach (var group in buildings.GroupBy(kv => DistrictOf(kv.Value.center)).OrderBy(g => g.Key))
+        foreach (var group in buildings.Concat(works).GroupBy(kv => DistrictOf(kv.Value.center)).OrderBy(g => g.Key))
         {
             int number = 0;
-            foreach (var (path, b) in group.OrderBy(kv => Mathf.Round(kv.Value.center.x / 10f)).ThenBy(kv => kv.Value.center.z).Select(kv => (kv.Key, kv.Value)))
+            foreach (var (path, b) in group.OrderBy(kv => works.Contains(kv) ? 1 : 0).ThenBy(kv => Mathf.Round(kv.Value.center.x / 10f)).ThenBy(kv => kv.Value.center.z).Select(kv => (kv.Key, kv.Value)))
             {
                 number++;
                 var opened = Opened.FirstOrDefault(o => o.path == path);
-                bool open = opened.path != null && opened.doors.Length > 0;
+                bool open = opened.path != null;
                 var main = open ? opened.doors[0] : default;
                 char side = open ? main.side : FacingSide(b);
                 bool tank = path.Contains("Oil_tank");
                 // on an opened building: right over its main door
-                Plate(signs, path, b, side, open ? main.top + 0.7f : tank ? 3.2f : 3.6f, tank ? "د تېلو ټانک" : open ? "ګودام - خلاص" : "ګودام", $"{group.Key}-{number}",
+                var name = BuildingNames.TryGetValue(NameKey(path), out var n) ? n : (tank ? "د تېلو ټانک" : "ګودام", tank ? "Oil Tank" : "Warehouse");
+                Plate(signs, path, b, side, open ? main.top + 0.7f : tank ? 3.2f : 3.6f, open ? name.pashto + " - خلاص" : name.pashto, $"{group.Key}-{number}",
                       open ? (main.from + main.to) / 2f : (float?)null);
                 numbered[$"{group.Key}-{number}"] = b;
-                Debug.Log($"[Map] CityLord {group.Key}-{number}: {path.Substring(path.LastIndexOf('/') + 1)} centre {b.center} size {b.size}{(open ? " open" : "")}");
+                Debug.Log($"[Map] CityLord {group.Key}-{number}: {name.english} ({name.pashto}) - {NameKey(path)} centre {b.center} size {b.size}{(open ? " open" : "")}");
                 count++;
             }
         }

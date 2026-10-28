@@ -211,7 +211,6 @@ public static partial class CityLordBuilder
         Physics.SyncTransforms();
         int numbered = NameTown(outlines);
         RoofPipe(outlines);
-        HiddenWays();
         int lampCount = StreetLamps();
         Debug.Log($"[Map] CityLord: {lampCount} street lamps");
         foreach (var tr in root.GetComponentsInChildren<Transform>(true))

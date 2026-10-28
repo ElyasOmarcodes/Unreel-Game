@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 
 namespace UA
@@ -65,12 +66,20 @@ namespace UA
 
         /// <summary>Where the local player's crosshair points this frame (others aim along their yaw / pitch).</summary>
         [System.NonSerialized] public Vector3? AimPoint;
-        private Transform chestBone, handBone, upperArmBone, lowerArmBone, thighBone;
-        // the other weapon of the loadout, carried: a rifle slung across the back, a pistol at the hip
-        private GameObject backCopy;
-        private int backId = -1;
+        private Transform chestBone, handBone, upperArmBone, lowerArmBone, thighBone, kneeBone;
+        // the left arm throws the grenades (the gun stays in the right hand)
+        private Transform throwUpper, throwLower, throwHand, throwFingers;
+        private Transform[] spineBones, upperArms, lowerArms;
+        // every bone as the agent was made (standing at rest): the carried guns are placed on the body in it
+        private readonly System.Collections.Generic.Dictionary<Transform, (Vector3 pos, Quaternion rot)> rest =
+            new System.Collections.Generic.Dictionary<Transform, (Vector3, Quaternion)>();
+        // both weapons of the loadout, carried while not in the hand: a rifle slung across the back, a pistol
+        // in a holster on the right thigh; where the wrist holds it and how the hand turns to take it
+        private readonly System.Collections.Generic.Dictionary<int, (GameObject copy, Vector3 wrist, Quaternion hand)> carried =
+            new System.Collections.Generic.Dictionary<int, (GameObject, Vector3, Quaternion)>();
         private bool bagOn;   // an assault pack on the back: the slung rifle goes outside it
         private float swapStart = -10f;
+        private int swapFrom = -1;
         private float throwStart = -10f, stepTimer;
         private int stepIndex;
         private static readonly int CadenceId = Animator.StringToHash("Cadence");
@@ -81,15 +90,27 @@ namespace UA
 
         private void Awake()
         {
+            var named = new System.Collections.Generic.Dictionary<string, Transform>();
             foreach (var t in GetComponentsInChildren<Transform>(true))
             {
-                string n = t.name.ToLowerInvariant();
-                if (n == "spine_03") chestBone = t;
-                else if (n == "hand_r") handBone = t;
-                else if (n == "upperarm_r") upperArmBone = t;
-                else if (n == "lowerarm_r") lowerArmBone = t;
-                else if (n == "thigh_r") thighBone = t;
+                named[t.name.ToLowerInvariant()] = t;
+                rest[t] = (t.localPosition, t.localRotation);
             }
+            Transform Bone(string n) => named.TryGetValue(n, out var t) ? t : null;
+            chestBone = Bone("spine_03");
+            handBone = Bone("hand_r");
+            upperArmBone = Bone("upperarm_r");
+            lowerArmBone = Bone("lowerarm_r");
+            thighBone = Bone("thigh_r");
+            kneeBone = Bone("calf_r");
+            throwUpper = Bone("upperarm_l");
+            throwLower = Bone("lowerarm_l");
+            throwHand = Bone("hand_l");
+            throwFingers = Bone("middle_01_l");
+            var spine = new[] { Bone("spine_01"), Bone("spine_02"), Bone("spine_03"), Bone("neck_01") };
+            spineBones = spine.All(b => b != null) ? spine : null;
+            upperArms = new[] { Bone("upperarm_l"), Bone("upperarm_r") };
+            lowerArms = new[] { Bone("lowerarm_l"), Bone("lowerarm_r") };
         }
 
         /// <summary>
@@ -98,12 +119,47 @@ namespace UA
         /// </summary>
         private void LateUpdate()
         {
+            Upright();
             CarryArms();
+            ArmSwing();
             AimArms();
             SwapArm();
             ThrowArm();
             HoldSyringe();
             FitBodyHitbox();
+        }
+
+        /// <summary>
+        /// Standing straight: the aim and run poses bend the back forwards. Each spine bone is turned back so
+        /// the back leans forwards no more than a little (more when looking down or sprinting); its twist and
+        /// side lean stay as the animation has them. Not crouched or lying down.
+        /// </summary>
+        private void Upright()
+        {
+            if (State == null || !Alive || State.Prone || State.Crouch || spineBones == null) return;
+            float allowed = 5f + Mathf.Max(0f, -State.Pitch) * 0.6f + (State.MoveY > 1.2f ? 8f : 0f);
+            for (int i = 0; i + 1 < spineBones.Length; i++)
+            {
+                var d = spineBones[i + 1].position - spineBones[i].position;
+                float lean = Mathf.Atan2(Vector3.Dot(d, transform.forward), Vector3.Dot(d, transform.up)) * Mathf.Rad2Deg;
+                if (lean > allowed) spineBones[i].rotation = Quaternion.AngleAxis(allowed - lean, transform.right) * spineBones[i].rotation;
+            }
+        }
+
+        /// <summary>
+        /// The gun carried low while running: the elbows swing back no further than a little behind the body,
+        /// so the shoulders are not thrown back with every step.
+        /// </summary>
+        private void ArmSwing()
+        {
+            if (State == null || !Alive || State.Prone || Ready > 0.99f || upperArms == null) return;
+            for (int i = 0; i < upperArms.Length; i++)
+            {
+                if (upperArms[i] == null || lowerArms[i] == null) continue;
+                var d = lowerArms[i].position - upperArms[i].position;
+                float back = Mathf.Atan2(-Vector3.Dot(d, transform.forward), -Vector3.Dot(d, transform.up)) * Mathf.Rad2Deg;
+                if (back > 12f) upperArms[i].rotation = Quaternion.AngleAxis((12f - back) * (1f - Ready), transform.right) * upperArms[i].rotation;
+            }
         }
 
         /// <summary>
@@ -131,7 +187,8 @@ namespace UA
         private void CarryArms()
         {
             if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
-            bool up = State.Aiming || Time.time - lastFire < 1.1f || State.Prone;
+            // in the air too: both hands stay on the gun (the jump's own arms fly wide)
+            bool up = State.Aiming || Time.time - lastFire < 1.1f || State.Prone || !State.Grounded;
             Ready = Mathf.MoveTowards(Ready, up ? 1f : 0f, Time.deltaTime * (up ? 7f : 2.5f));
             if (Anim != null && Anim.layerCount > 1) Anim.SetLayerWeight(1, State.Prone ? 0f : Ready);
             if (Ready > 0.99f) return;
@@ -142,8 +199,9 @@ namespace UA
         }
 
         /// <summary>
-        /// Grenade throw: the gun goes down out of the hand, the grenade is in it; the arm winds up behind
-        /// the head (the body turning away), swings over at the release and follows through across the body.
+        /// Grenade throw with the left hand, the gun kept in the right: the left arm winds up out to the side
+        /// and behind the head (the elbow bent, the grenade by the ear, the left shoulder turned back), comes
+        /// over the top at the release and follows through across the body.
         /// </summary>
         public const float ThrowRelease = 0.35f;
         private const float ThrowLength = 0.75f;
@@ -159,34 +217,50 @@ namespace UA
             throwStart = Time.time - ThrowRelease;
         }
 
-        private bool throwing;
-
         private void ThrowArm()
         {
             float t = Time.time - throwStart;
-            bool now = t >= 0f && t <= ThrowLength && upperArmBone != null && State != null && Alive;
-            if (now != throwing)
-            {
-                throwing = now;
-                ShowGunInHand(!now);
-            }
-            if (handGrenade == null && handBone != null) handGrenade = MakeHandGrenade();
+            bool now = t >= 0f && t <= ThrowLength && throwUpper != null && throwLower != null && throwHand != null && State != null && Alive;
+            if (handGrenade == null && throwHand != null) handGrenade = MakeHandGrenade();
             if (handGrenade != null) handGrenade.SetActive(now && visible && t < ThrowRelease + 0.02f);
             if (!now) return;
-            float angle = t < ThrowRelease ? Mathf.SmoothStep(0f, -150f, t / ThrowRelease)
-                : t < ThrowRelease + 0.12f ? Mathf.Lerp(-150f, 35f, (t - ThrowRelease) / 0.12f)
-                : Mathf.SmoothStep(35f, 0f, (t - ThrowRelease - 0.12f) / (ThrowLength - ThrowRelease - 0.12f));
-            var right = transform.right;
-            // the body turns into the throw: away while winding up, towards the target on release
-            if (chestBone != null && !State.Prone) chestBone.rotation = Quaternion.AngleAxis(angle / 150f * 28f, Vector3.up) * chestBone.rotation;
-            upperArmBone.rotation = Quaternion.AngleAxis(angle, right) * upperArmBone.rotation;
-            if (lowerArmBone != null) lowerArmBone.rotation = Quaternion.AngleAxis(Mathf.Min(0f, angle) * 0.35f, right) * lowerArmBone.rotation;
+            // directions in the body's own frame (x out to the left side, y up, z forwards)
+            Vector3 Dir(float x, float y, float z) => transform.TransformDirection(new Vector3(-x, y, z).normalized);
+            Vector3 cockUpper = Dir(0.6f, 0.25f, -0.55f), cockFore = Dir(0.05f, 1f, -0.25f);
+            Vector3 overUpper = Dir(0.3f, 0.75f, 0.45f), overFore = Dir(0.05f, 0.55f, 0.85f);
+            Vector3 through = Dir(-0.35f, -0.45f, 0.8f);
+            Vector3 upper, fore;
+            float w, twist;
+            const float swing = 0.12f;
+            if (t < ThrowRelease)
+            {
+                w = Mathf.SmoothStep(0f, 1f, t / ThrowRelease);
+                upper = cockUpper; fore = cockFore; twist = -28f * w;
+            }
+            else if (t < ThrowRelease + swing)
+            {
+                float u = (t - ThrowRelease) / swing;
+                w = 1f;
+                upper = u < 0.5f ? Vector3.Slerp(cockUpper, overUpper, u * 2f) : Vector3.Slerp(overUpper, through, u * 2f - 1f);
+                fore = u < 0.5f ? Vector3.Slerp(cockFore, overFore, u * 2f) : Vector3.Slerp(overFore, through, u * 2f - 1f);
+                twist = Mathf.Lerp(-28f, 20f, u);
+            }
+            else
+            {
+                w = 1f - Mathf.SmoothStep(0f, 1f, (t - ThrowRelease - swing) / (ThrowLength - ThrowRelease - swing));
+                upper = through; fore = through; twist = 20f * w;
+            }
+            // the body turns into the throw first (the arm moves with it), then the arm takes its line
+            if (chestBone != null && !State.Prone) chestBone.rotation = Quaternion.AngleAxis(twist, transform.up) * chestBone.rotation;
+            Point(throwUpper, throwLower.position - throwUpper.position, upper, w);
+            Point(throwLower, throwHand.position - throwLower.position, fore, w);
         }
 
-        /// <summary>The gun in the hand shown or put away (a throw, a change of weapon).</summary>
-        private void ShowGunInHand(bool show)
+        /// <summary>A bone turned (by w) so that the line it now has points along 'want'.</summary>
+        private static void Point(Transform bone, Vector3 now, Vector3 want, float w)
         {
-            if (weapon >= 0 && weapon < WeaponModels.Length && WeaponModels[weapon] != null) WeaponModels[weapon].SetActive(show && visible);
+            if (w <= 0f || now.sqrMagnitude < 1e-8f) return;
+            bone.rotation = Quaternion.Slerp(Quaternion.identity, Quaternion.FromToRotation(now, want), w) * bone.rotation;
         }
 
         private GameObject MakeHandGrenade()
@@ -195,10 +269,13 @@ namespace UA
             Destroy(g.GetComponent<Collider>());
             g.name = "HandGrenade";
             g.layer = World.AgentLayer;
-            g.transform.SetParent(handBone, false);
-            float k = 1f / Mathf.Max(0.01f, handBone.lossyScale.x);
+            g.transform.SetParent(throwHand, false);
+            float k = 1f / Mathf.Max(0.01f, throwHand.lossyScale.x);
             g.transform.localScale = new Vector3(0.08f, 0.1f, 0.08f) * k;
-            g.transform.position = handBone.position + transform.forward * 0.06f + transform.up * 0.02f;
+            // in the palm, from the hand's own bones (the same whatever the pose now): towards the knuckles
+            var along = throwFingers != null ? throwFingers.position - throwHand.position
+                : (throwHand.position - throwLower.position).normalized * 0.09f;
+            g.transform.position = throwHand.position + along * 0.7f;
             g.GetComponent<Renderer>().sharedMaterial = new Material(Shader.Find("Standard")) { color = new Color(0.22f, 0.26f, 0.16f) };
             g.SetActive(false);
             return g;
@@ -325,7 +402,7 @@ namespace UA
         public void SetLook(int look)
         {
             bool bag = Wardrobe.Get(look, Wardrobe.Slot.Bag) == 1 && Wardrobe.Get(look, Wardrobe.Slot.Character) == 0;
-            if (bag != bagOn) { bagOn = bag; backId = -1; CarryOther(); }
+            if (bag != bagOn) { bagOn = bag; DropCarried(); ShowWeapons(); }
             // a ready-made character of the pack (when this body has it) in place of the body and its clothes
             int character = Wardrobe.Get(look, Wardrobe.Slot.Character);
             bool ready = false;
@@ -370,31 +447,65 @@ namespace UA
         public void SetWeapon(int id)
         {
             id = Mathf.Clamp(id, 0, Weapons.Count - 1);
-            // a change of weapon while alive: the hand goes to the back (or the hip) and comes up with the other
-            if (id != weapon && weapon >= 0 && State != null && Alive && Time.time - swapStart > 0.3f) swapStart = Time.time;
-            weapon = id;
-            bool inHand = visible && Time.time - swapStart > SwapLength * 0.5f && !throwing;
-            for (int i = 0; i < WeaponModels.Length; i++)
-                if (WeaponModels[i] != null) WeaponModels[i].SetActive(i == weapon && inHand);
-            CarryOther();
-        }
-
-        /// <summary>The weapon not in the hand, carried on the body: rifles across the back, pistols at the right hip.</summary>
-        private void CarryOther()
-        {
-            int other = State == null ? -1 : weapon == State.Primary ? State.Secondary : weapon == State.Secondary ? State.Primary : -1;
-            if (other == weapon) other = -1;
-            if (other != backId)
+            // a change of weapon while alive: the hand puts the gun away (on the back, in the holster) and draws the other
+            if (id != weapon && weapon >= 0 && State != null && Alive && Time.time - swapStart > 0.3f)
             {
-                if (backCopy != null) Destroy(backCopy);
-                backCopy = null;
-                backId = other;
-                if (other >= 0 && other < WeaponModels.Length && WeaponModels[other] != null && other < Muzzles.Length && Muzzles[other] != null) backCopy = MakeCarried(other);
+                swapStart = Time.time;
+                swapFrom = weapon;
             }
-            if (backCopy != null) backCopy.SetActive(visible);
+            weapon = id;
+            ShowWeapons();
         }
 
-        private GameObject MakeCarried(int id)
+        /// <summary>
+        /// Weapon change: the right hand goes to the gun's place on the body (the holster on the right thigh,
+        /// the sling across the back) and leaves it there, moves to the other gun and draws it, and comes up
+        /// with it. The wrist goes exactly where it holds the gun, so the gun passes from hand to body in place.
+        /// </summary>
+        private const float SwapLength = 0.6f, PutAway = 0.22f, Draw = 0.32f;
+        private int carriedPrimary = -1, carriedSecondary = -1, shownHand = -2;
+
+        /// <summary>The gun in the hand now: during a change the old one until it is put away, then none, then the new one.</summary>
+        private int InHand()
+        {
+            float t = Time.time - swapStart;
+            if (t < 0f || t >= Draw || swapFrom < 0) return weapon;
+            return t < PutAway ? swapFrom : -1;
+        }
+
+        /// <summary>The gun in the hand, and the loadout's others on the body, as the moment of a change has them.</summary>
+        private void ShowWeapons()
+        {
+            int hand = shownHand = InHand();
+            for (int i = 0; i < WeaponModels.Length; i++)
+                if (WeaponModels[i] != null) WeaponModels[i].SetActive(i == hand && visible);
+            if (State != null && (State.Primary != carriedPrimary || State.Secondary != carriedSecondary))
+            {
+                DropCarried();
+                carriedPrimary = State.Primary;
+                carriedSecondary = State.Secondary;
+                foreach (int id in new[] { carriedPrimary, carriedSecondary })
+                    if (!carried.ContainsKey(id) && id < WeaponModels.Length && WeaponModels[id] != null && id < Muzzles.Length && Muzzles[id] != null)
+                        carried[id] = MakeCarried(id);
+            }
+            foreach (var c in carried)
+                if (c.Value.copy != null) c.Value.copy.SetActive(visible && c.Key != hand);
+        }
+
+        private void DropCarried()
+        {
+            foreach (var c in carried.Values)
+                if (c.copy != null) Destroy(c.copy);
+            carried.Clear();
+            carriedPrimary = carriedSecondary = -1;
+        }
+
+        /// <summary>
+        /// A copy of a gun of the loadout on the body: pistols in a holster on the right thigh, rifles slung
+        /// across the back. Placed as the body stands at rest, whatever the pose now (crouched, lying down,
+        /// mid-step), then it moves with its bone and stays where it belongs.
+        /// </summary>
+        private (GameObject, Vector3, Quaternion) MakeCarried(int id)
         {
             var src = WeaponModels[id];
             bool pistol = !Weapons.Get(id).Primary;
@@ -412,20 +523,27 @@ namespace UA
                 r.gameObject.layer = World.AgentLayer;
                 if (r.name.ToLowerInvariant().Contains("flash")) r.enabled = false;
             }
-            // which way its barrel points and where its middle is, in the gun's own space
+            // which way its barrel points, where its middle is and where the wrist holds it, in the gun's own space
             var muzzleDir = src.transform.InverseTransformDirection(Muzzles[id].forward);
             var bounds = new Bounds(Muzzles[id].position, Vector3.zero);
             foreach (var r in src.GetComponentsInChildren<MeshRenderer>(true)) bounds.Encapsulate(r.bounds);
             var middle = src.transform.InverseTransformPoint(bounds.center);
+            var wrist = handBone != null ? src.transform.InverseTransformPoint(handBone.position) : middle;
+            var hand = handBone != null ? Quaternion.Inverse(src.transform.rotation) * handBone.rotation : Quaternion.identity;
             var gunUp = Vector3.ProjectOnPlane(Vector3.up, muzzleDir).normalized;
             var fromGun = Quaternion.Inverse(Quaternion.LookRotation(muzzleDir, gunUp));
+            var posed = AtRest(bone);
             Quaternion want;
             Vector3 at;
             if (pistol)
             {
-                // muzzle down along the thigh, the grip up and back
-                want = Quaternion.LookRotation(-transform.up, transform.forward) * fromGun;
-                at = transform.position + transform.up * 0.92f + transform.right * 0.2f - transform.forward * 0.02f;
+                // in the holster on the outside of the right thigh: the muzzle down along the thigh, the grip
+                // up and back by the hip, ready for the right hand
+                var hip = bone.position;
+                var axis = kneeBone != null ? (kneeBone.position - hip).normalized : -transform.up;
+                var outward = Vector3.ProjectOnPlane(transform.right, axis).normalized;
+                want = Quaternion.LookRotation(axis, Vector3.ProjectOnPlane(transform.forward, axis)) * fromGun;
+                at = hip + axis * 0.1f + outward * 0.125f - transform.forward * 0.015f;
             }
             else
             {
@@ -440,25 +558,82 @@ namespace UA
             copy.transform.SetParent(bone, true);
             copy.transform.rotation = want;
             copy.transform.position += at - copy.transform.TransformPoint(middle);
-            return copy;
+            foreach (var (t, pos, rot) in posed) { t.localPosition = pos; t.localRotation = rot; }
+            return (copy, wrist, hand);
         }
 
-        /// <summary>
-        /// Weapon change: the gun is lowered, turning down along the body, and put away; the other comes up
-        /// the same way (the arm stays in front of the body: no twisting of the shoulder).
-        /// </summary>
-        private const float SwapLength = 0.5f;
+        /// <summary>The bone and those above it put back as the agent was made (standing at rest); returns their pose now, to put back after.</summary>
+        private System.Collections.Generic.List<(Transform, Vector3, Quaternion)> AtRest(Transform bone)
+        {
+            var now = new System.Collections.Generic.List<(Transform, Vector3, Quaternion)>();
+            for (var t = bone; t != null && t != transform; t = t.parent)
+            {
+                if (!rest.TryGetValue(t, out var r)) continue;
+                now.Add((t, t.localPosition, t.localRotation));
+                t.localPosition = r.pos;
+                t.localRotation = r.rot;
+            }
+            return now;
+        }
 
         private void SwapArm()
         {
+            if (InHand() != shownHand || (State != null && (State.Primary != carriedPrimary || State.Secondary != carriedSecondary))) ShowWeapons();
             float t = Time.time - swapStart;
-            if (t < 0f || t > SwapLength + 0.05f || upperArmBone == null || handBone == null || State == null || !Alive) return;
-            // the other gun in the hand from the middle on
-            if (!throwing) ShowGunInHand(t > SwapLength * 0.5f);
-            if (t > SwapLength) return;
-            float k = Mathf.Sin(Mathf.Clamp01(t / SwapLength) * Mathf.PI);   // 0 -> 1 (lowest) -> 0
-            upperArmBone.rotation = Quaternion.AngleAxis(28f * k, transform.right) * upperArmBone.rotation;
-            handBone.rotation = Quaternion.AngleAxis(55f * k, transform.right) * handBone.rotation;
+            if (t < 0f || t > SwapLength || upperArmBone == null || lowerArmBone == null || handBone == null || State == null || !Alive) return;
+            Spot(swapFrom, out var fromAt, out var fromTurn);
+            Spot(weapon, out var toAt, out var toTurn);
+            Vector3 at;
+            Quaternion turn;
+            float w;
+            if (t < PutAway)
+            {
+                w = Mathf.SmoothStep(0f, 1f, t / PutAway);
+                at = fromAt; turn = fromTurn;
+            }
+            else if (t < Draw)
+            {
+                float u = Mathf.SmoothStep(0f, 1f, (t - PutAway) / (Draw - PutAway));
+                w = 1f;
+                at = Vector3.Lerp(fromAt, toAt, u); turn = Quaternion.Slerp(fromTurn, toTurn, u);
+            }
+            else
+            {
+                w = 1f - Mathf.SmoothStep(0f, 1f, (t - Draw) / (SwapLength - Draw));
+                at = toAt; turn = toTurn;
+            }
+            Reach(at, w);
+            handBone.rotation = Quaternion.Slerp(handBone.rotation, turn, w);
+        }
+
+        /// <summary>Where the wrist goes to take a gun from the body and how the hand turns: from its carried copy, else low by the right hip.</summary>
+        private void Spot(int id, out Vector3 at, out Quaternion turn)
+        {
+            if (carried.TryGetValue(id, out var c) && c.copy != null)
+            {
+                at = c.copy.transform.TransformPoint(c.wrist);
+                turn = c.copy.transform.rotation * c.hand;
+                return;
+            }
+            at = transform.position + transform.up * 0.95f + transform.right * 0.28f + transform.forward * 0.05f;
+            turn = handBone.rotation;
+        }
+
+        /// <summary>The right arm reaching (by w) so the wrist comes to 'target', the elbow out to the side and back.</summary>
+        private void Reach(Vector3 target, float w)
+        {
+            if (w <= 0f) return;
+            Vector3 a = upperArmBone.position, b = lowerArmBone.position, c = handBone.position;
+            float ab = (b - a).magnitude, bc = (c - b).magnitude;
+            if (ab < 1e-4f || bc < 1e-4f) return;
+            var dir = (target - a).normalized;
+            float d = Mathf.Clamp((target - a).magnitude, Mathf.Abs(ab - bc) + 0.01f, (ab + bc) * 0.999f);
+            float cos = Mathf.Clamp((ab * ab + d * d - bc * bc) / (2f * ab * d), -1f, 1f);
+            var pole = Vector3.ProjectOnPlane(transform.right * 0.6f - transform.forward * 0.8f, dir).normalized;
+            var elbow = a + (dir * cos + pole * Mathf.Sqrt(1f - cos * cos)) * ab;
+            Point(upperArmBone, b - a, elbow - a, w);
+            var wrist = Vector3.Lerp(c, a + dir * d, w);
+            Point(lowerArmBone, handBone.position - lowerArmBone.position, wrist - lowerArmBone.position, 1f);
         }
 
         public void SetVisible(bool value)

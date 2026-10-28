@@ -21,7 +21,7 @@ namespace UA
 
         // automated test input
         public static Vector2 SimMove, SimLook;
-        public static bool SimFire, SimScore, SimGrenade, SimSwap;
+        public static bool SimFire, SimScore, SimGrenade, SimSwap, SimCrouch, SimJump;
 
         // for drawing the stick
         public static bool StickActive;
@@ -211,6 +211,8 @@ namespace UA
             if (SimScore) Held.Add(Button.Score);
             if (SimGrenade) { grenade = true; SimGrenade = false; }
             if (SimSwap) { swap = true; SimSwap = false; }
+            if (SimCrouch) { crouch = true; SimCrouch = false; }
+            if (SimJump) { jump = true; SimJump = false; }
             if (SimFire && !lastFireHeld) fireTap = true;
 
             FireHeld = fireHeld;

@@ -354,7 +354,7 @@ namespace UA
             s.HealLocal(healTarget, 1);
         }
 
-        /// <summary>Throw a frag grenade along the crosshair, a little upwards, from the right shoulder.</summary>
+        /// <summary>Throw a frag grenade along the crosshair, a little upwards, from the left shoulder (the left hand throws).</summary>
         private float throwAt;   // the grenade leaves the hand at the release of the arm swing
 
         /// <summary>The button: the arm winds up (Agent.StartThrow), the grenade leaves at the release.</summary>
@@ -371,7 +371,7 @@ namespace UA
         {
             throwAt = 0f;
             var rig = CameraRig.I;
-            var origin = agent.Eye + Quaternion.Euler(0, rig.Yaw, 0) * new Vector3(0.3f, 0.15f, 0.45f);
+            var origin = agent.Eye + Quaternion.Euler(0, rig.Yaw, 0) * new Vector3(-0.3f, 0.15f, 0.45f);
             if (Physics.Linecast(agent.Eye, origin, World.EnvMask, QueryTriggerInteraction.Ignore)) origin = agent.Eye;
             // thrown a little above the crosshair (a 14 degree loft): level aim lands some 11 m off (4 m more
             // than before) and rolls on; aiming higher throws further, as a real throw does (up to ~45 degrees)

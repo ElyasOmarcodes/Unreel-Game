@@ -429,9 +429,9 @@ public static class AssetSetup
         for (int i = 0; i < mask.transformCount; i++)
         {
             string p = mask.GetTransformPath(i);
-            // the whole upper body from the lowest spine bone up: the run's twist does not swing the
-            // shoulders while the gun is held
-            mask.SetTransformActive(i, p.Contains("spine_01") || p.Contains("spine_02") || p.Contains("spine_03"));
+            // the chest up (not the lowest spine bone, whose forward bend in the aim pose curved the back);
+            // Agent.Upright keeps the back straight and Agent.ArmSwing the shoulders from going back
+            mask.SetTransformActive(i, p.Contains("spine_02") || p.Contains("spine_03"));
         }
         AssetDatabase.CreateAsset(mask, path);
         return mask;

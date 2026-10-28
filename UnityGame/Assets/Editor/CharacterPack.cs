@@ -211,6 +211,93 @@ public static class CharacterPack
         return fitted;
     }
 
+    /// <summary>A stretch by 'factor' along the direction 'dir' only (nothing across it).</summary>
+    private static Matrix4x4 Along(Vector3 dir, float factor)
+    {
+        var m = Matrix4x4.identity;
+        if (dir.sqrMagnitude < 1e-8f || Mathf.Abs(factor - 1f) < 1e-4f) return m;
+        var d = dir.normalized;
+        for (int r = 0; r < 3; r++)
+            for (int c = 0; c < 3; c++)
+                m[r, c] = (r == c ? 1f : 0f) + (factor - 1f) * d[r] * d[c];
+        return m;
+    }
+
+    /// <summary>
+    /// The skin weights of the agent's body near a point (its rest pose), from the few nearest body vertices
+    /// of the same part and side, mixed by nearness (a grid of 5 cm cells to find them quickly).
+    /// </summary>
+    private class BodySampler
+    {
+        private const float Cell = 0.05f;
+        private readonly Outfit.Body body;
+        private readonly Vector3 middle;
+        private readonly Dictionary<Vector3Int, List<int>> grid = new Dictionary<Vector3Int, List<int>>();
+
+        public BodySampler(Outfit.Body body, Vector3 middle)
+        {
+            this.body = body;
+            this.middle = middle;
+            for (int i = 0; i < body.Points.Length; i++)
+            {
+                var c = CellOf(body.Points[i]);
+                if (!grid.TryGetValue(c, out var list)) grid[c] = list = new List<int>();
+                list.Add(i);
+            }
+        }
+
+        private static Vector3Int CellOf(Vector3 p) => new Vector3Int(Mathf.FloorToInt(p.x / Cell), Mathf.FloorToInt(p.y / Cell), Mathf.FloorToInt(p.z / Cell));
+
+        private bool Allowed(int i, char part, float side)
+        {
+            var region = body.Regions[i];
+            float dx = body.Points[i].x - middle.x;
+            bool sameSide = Mathf.Abs(dx) < 0.03f || Mathf.Sign(dx) == side;
+            switch (part)
+            {
+                case 'H': return region == Outfit.Region.Head || region == Outfit.Region.Torso;
+                case 'A': return sameSide && (region == Outfit.Region.Arms || region == Outfit.Region.Hands || region == Outfit.Region.Torso);
+                case 'L': return sameSide && (region == Outfit.Region.Legs || region == Outfit.Region.Feet);
+                default: return region == Outfit.Region.Torso || region == Outfit.Region.Legs || region == Outfit.Region.Head;
+            }
+        }
+
+        public BoneWeight? Weights(Vector3 p, char part, float side)
+        {
+            var c = CellOf(p);
+            var found = new List<(int index, float distance)>();
+            int reach = 1;
+            for (int ring = 1; ring <= 8; ring++)
+            {
+                found.Clear();
+                for (int x = -ring; x <= ring; x++)
+                    for (int y = -ring; y <= ring; y++)
+                        for (int z = -ring; z <= ring; z++)
+                        {
+                            if (!grid.TryGetValue(new Vector3Int(c.x + x, c.y + y, c.z + z), out var list)) continue;
+                            foreach (int i in list)
+                                if (Allowed(i, part, side)) found.Add((i, (body.Points[i] - p).magnitude));
+                        }
+                // enough found, and the nearest well inside the searched cube
+                if (found.Count >= 4 && found.Min(f => f.distance) < (ring - 0.5f) * Cell) { reach = ring; break; }
+            }
+            if (found.Count == 0) return null;
+            var nearest = found.OrderBy(f => f.distance).Take(6).ToList();
+            float limit = nearest[0].distance * 1.5f + 0.01f;
+            var sum = new Dictionary<int, float>();
+            void Add(int bone, float w) { if (w <= 0f) return; sum.TryGetValue(bone, out float had); sum[bone] = had + w; }
+            foreach (var (index, distance) in nearest)
+            {
+                if (distance > limit) continue;
+                float k = 1f / (distance * distance + 1e-4f);
+                var bw = body.Weights[index];
+                Add(bw.boneIndex0, bw.weight0 * k); Add(bw.boneIndex1, bw.weight1 * k);
+                Add(bw.boneIndex2, bw.weight2 * k); Add(bw.boneIndex3, bw.weight3 * k);
+            }
+            return sum.Count == 0 ? (BoneWeight?)null : Outfit.Weight(sum.Select(kv => (kv.Key, kv.Value)).ToArray());
+        }
+    }
+
     private static float ToSegment(Vector3 p, Vector3 a, Vector3 b)
     {
         var ab = b - a;
@@ -238,6 +325,7 @@ public static class CharacterPack
         // every agent bone bound where the same bone of the character is (the character's T-pose is turned
         // onto the agent's rest pose bone by bone), and its piece of the body for the weights
         var bindposes = (Matrix4x4[])body.Bindposes.Clone();
+        var maps = new Dictionary<int, Matrix4x4>();   // agent bone: its rest pose onto the character's T-pose
         var pieces = new List<(int bone, Vector3 a, Vector3 b, float radius, float side, string limb)>();
         var missing = new List<string>();
         var lastTurn = new Dictionary<string, Quaternion>();   // per side: the turn of the bone before (for the ends)
@@ -262,15 +350,38 @@ public static class CharacterPack
                 if (own < 0) continue;   // only stands in: bound as the bone it stands in for
                 var rest = body.At(name);
                 int toward = toward0 == null ? -1 : body.Bone(Ours(toward0));
-                // the agent's bone turned onto the character's; an end bone (head, finger tips, toes) turns as the one before it
-                var turn = toward >= 0 ? Quaternion.FromToRotation(body.At(Ours(toward0)) - rest, b - a)
+                // the agent's bone turned onto the character's and stretched to its length (the character's
+                // knees, elbows and wrists come exactly onto the agent's: no stretched or thickened joints); an
+                // end bone (head, finger tips, toes) turns as the one before it
+                var restDir = toward >= 0 ? body.At(Ours(toward0)) - rest : Vector3.zero;
+                var turn = toward >= 0 ? Quaternion.FromToRotation(restDir, b - a)
                     : lastTurn.TryGetValue(side, out var before) ? before : Quaternion.identity;
                 lastTurn[side] = turn;
-                var map = Matrix4x4.Translate(a) * Matrix4x4.Rotate(turn) * Matrix4x4.Translate(-rest);
+                float stretch = toward >= 0 && restDir.magnitude > 1e-3f ? Mathf.Clamp((b - a).magnitude / restDir.magnitude, 0.7f, 1.4f) : 1f;
+                var map = Matrix4x4.Translate(a) * Matrix4x4.Rotate(turn) * Along(restDir, stretch) * Matrix4x4.Translate(-rest);
+                maps[bone] = map;
                 bindposes[bone] = (map * body.Bind(bone)).inverse * body.ToWorld;
             }
         }
         if (missing.Count > 0) Debug.Log($"[Setup] {key}: bones not mapped: {string.Join(", ", missing)}");
+        // every other bone of the body (twist bones, extra spine or neck bones) moves as the nearest mapped
+        // bone above it, so weights taken from the body on them keep the character in one piece
+        var bones = body.Renderer.bones;
+        var indexOf = new Dictionary<Transform, int>();
+        for (int i = 0; i < bones.Length; i++) if (bones[i] != null && !indexOf.ContainsKey(bones[i])) indexOf[bones[i]] = i;
+        int inherited = 0;
+        for (int i = 0; i < bones.Length; i++)
+        {
+            if (bones[i] == null || maps.ContainsKey(i)) continue;
+            for (var up = bones[i].parent; up != null; up = up.parent)
+                if (indexOf.TryGetValue(up, out int above) && maps.TryGetValue(above, out var am))
+                {
+                    maps[i] = am;
+                    bindposes[i] = (am * body.Bind(i)).inverse * body.ToWorld;
+                    inherited++;
+                    break;
+                }
+        }
 
         // the weights region by region, as a body is skinned by hand: the head rides on the head bone alone
         // (the face keeps its shape; only the throat is shared with the neck), the trunk on the spine by
@@ -318,26 +429,35 @@ public static class CharacterPack
             if (!joint.TryGetValue(mix + "Arm", out var arm) || !joint.TryGetValue(mix + "UpLeg", out var leg)) continue;
             sides[sign] = (Mathf.Abs(arm.x - pelvis.x), arm.y, leg.y, Of("clavicle_" + side));
         }
-        var weights = new BoneWeight[m.P.Count];
+        // first a rough skin by regions: enough to find where each vertex sits on the agent at rest
+        var provisional = new (int bone, float weight)[m.P.Count][];
+        var kind = new char[m.P.Count];      // H head, A arm, L leg, T trunk
+        var legOf = new float[m.P.Count];    // the side of its arm or leg
         for (int i = 0; i < m.P.Count; i++)
         {
             var p = m.P[i];
             float dx = p.x - pelvis.x, ax = Mathf.Abs(dx), sign = dx < 0f ? -1f : 1f;
             (int bone, float weight)[] w;
+            kind[i] = 'T';
+            legOf[i] = sign;
             if (!sides.TryGetValue(sign, out var sd)) w = Trunk(p.y);
-            else if (p.y >= neckY + 0.02f && ax < 0.16f) w = Trunk(p.y);
+            else if (p.y >= neckY + 0.02f && ax < 0.16f) { w = Trunk(p.y); kind[i] = 'H'; }
             else if (ax > sd.armX + 0.1f || ax > sd.armX - 0.03f && Mathf.Abs(p.y - sd.armY) < 0.11f)
             {
+                kind[i] = 'A';
                 // a wide soft shoulder: the top of the arm shares with the trunk (it does not jut out when running)
                 float t = Mathf.Clamp01((sd.armX + 0.1f - ax) / 0.16f);
                 w = Mix(Near(p, "arm", sign), Trunk(p.y), t * t * (3f - 2f * t));
             }
-            else if (p.y < sd.legY + 0.02f && ax > 0.02f)
+            else if (p.y < sd.legY + 0.02f)
             {
+                // the leg it belongs to by distance (not by which side of the middle it is: the inner seam of
+                // trousers made in one piece lies on the middle line down to the knees)
+                float legSide = sides.Keys.OrderBy(k => pieces.Where(x => x.limb == "leg" && x.side == k).Select(x => ToSegment(p, x.a, x.b)).DefaultIfEmpty(9f).Min()).First();
                 float t = Mathf.Clamp01((p.y - (sd.legY - 0.1f)) / 0.12f);
-                // the seat stays with the hips (it does not push out behind with each stride)
-                if (p.z < pelvis.z - 0.03f) t = Mathf.Max(t, 0.6f * Mathf.Clamp01((p.y - (sd.legY - 0.22f)) / 0.22f));
-                w = Mix(Near(p, "leg", sign), Trunk(p.y), t);
+                w = Mix(Near(p, "leg", legSide), Trunk(p.y), t);
+                kind[i] = 'L';
+                legOf[i] = legSide;
             }
             else
             {
@@ -346,23 +466,51 @@ public static class CharacterPack
                 float c = Mathf.Clamp01((ax - 0.08f) / Mathf.Max(0.05f, sd.armX - 0.08f)) * Mathf.Clamp01((p.y - spine2Y) / Mathf.Max(0.05f, neckY - spine2Y));
                 if (sd.clavicle >= 0 && c > 0f) w = Mix(w, new[] { (sd.clavicle, 1f) }, c * 0.8f);
             }
-            weights[i] = Outfit.Weight(w);
+            provisional[i] = w;
         }
 
-        // no coat tails: what hangs below the hips away from the legs (the skirt of a jacket or a coat) is left out
-        var thighs = pieces.Where(x => x.limb == "leg" && x.radius >= 0.075f * s).ToList();
-        float hipY = sides.Count > 0 ? sides.Values.Min(v => v.legY) : pelvis.y;
-        bool Tail(Vector3 p) => p.y < hipY - 0.04f && p.y > hipY - 0.6f && thighs.Count > 0 && thighs.Min(x => ToSegment(p, x.a, x.b)) > 0.16f * s;
+        // then the real skin: each vertex taken back to where it sits on the agent at rest (through the bones
+        // of its rough skin) and given the weights of the agent's own body there, as its artist skinned it:
+        // the shoulders, hips, knees and every finger bend as the body itself does. Only body points of the
+        // same part (head, arm, leg, trunk) and the same side are used: no thigh pulls the other leg, no
+        // shoulder takes the chest along.
+        var weights = new BoneWeight[m.P.Count];
+        var sampler = new BodySampler(body, pelvis);
+        int fromBody = 0;
+        for (int i = 0; i < m.P.Count; i++)
+        {
+            var p = m.P[i];
+            var rest = Vector3.zero;
+            float total = 0f;
+            foreach (var (bone, weight) in provisional[i])
+            {
+                if (weight <= 0f) continue;
+                rest += (maps.TryGetValue(bone, out var mp) ? mp.inverse.MultiplyPoint3x4(p) : p) * weight;
+                total += weight;
+            }
+            rest = total > 0f ? rest / total : p;
+            var sampled = sampler.Weights(rest, kind[i], legOf[i]);
+            if (sampled != null) { weights[i] = sampled.Value; fromBody++; }
+            else weights[i] = Outfit.Weight(provisional[i]);
+        }
+        Debug.Log($"[Setup] character {key}: {fromBody} of {m.P.Count} vertices skinned from the body, {inherited} bones moving with the bone above");
+
         var g = new Outfit.Garment();
         for (int i = 0; i < m.P.Count; i++) g.Add(m.P[i], m.N[i], m.UV[i], weights[i]);
-        int cut = 0;
-        for (int i = 0; i + 2 < m.T.Count; i += 3)
+        for (int i = 0; i + 2 < m.T.Count; i += 3) g.Tri(m.T[i], m.T[i + 1], m.T[i + 2]);
+        Texture2D T(string kind)
         {
-            if (Tail(m.P[m.T[i]]) && Tail(m.P[m.T[i + 1]]) && Tail(m.P[m.T[i + 2]])) { cut++; continue; }
-            g.Tri(m.T[i], m.T[i + 1], m.T[i + 2]);
+            string path = $"{Textures}/{key}/Body_{kind}.png";
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            // a Library imported with the older rules: the colour texture again with the finest blocks (ImportRules)
+            if (texture != null && kind == "Albedo" && texture.format != TextureFormat.ASTC_4x4
+                && EditorUserBuildSettings.activeBuildTarget == BuildTarget.Android)
+            {
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+                texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            }
+            return texture;
         }
-        if (cut > 0) Debug.Log($"[Setup] character {key}: {cut} triangles of coat tails left out");
-        Texture2D T(string kind) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Textures}/{key}/Body_{kind}.png");
         var mat = AssetSetup.Mat("Char_" + key, Color.white, 0.3f, 0f, T("Albedo"), T("Normal"));
         // hair, lashes and beards are cut out of the texture's alpha
         mat.SetFloat("_Mode", 1f);
