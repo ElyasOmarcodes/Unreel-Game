@@ -300,7 +300,7 @@ public static class Dresser
         Top(0, "CombatJacket", new Cut { Thickness = 0.014f, Smooth = 12, UpperArm = 0.066f * slim, LowerArm = 0.055f * slim, Tile = 0.5f },
             new Drape { Hem = hemThigh(0.45f), FrontOpen = true, OpenFrom = 0.1f, Ease = 0.012f, Flare = 0.015f, Folds = 0.006f, Tile = 0.5f }, camos[0], null);
         Top(1, "Perahan", new Cut { Thickness = 0.016f, Smooth = 16, UpperArm = 0.076f * slim, LowerArm = 0.067f * slim },
-            new Drape { Hem = knee.y - 0.03f, SideSlits = true, OpenFrom = 0.32f, Ease = 0.012f, Flare = 0.03f, Folds = 0.013f }, cloth, Wardrobe.TopColors[1]);
+            new Drape { Hem = knee.y - 0.03f, SideSlits = true, OpenFrom = 0.32f, Ease = 0.018f, Flare = 0.03f, Folds = 0.013f }, cloth, Wardrobe.TopColors[1]);
         Top(2, "Thobe", new Cut { Thickness = 0.014f, Smooth = 16, UpperArm = 0.071f * slim, LowerArm = 0.063f * slim },
             new Drape { Hem = ankle.y + 0.05f, Ease = 0.015f, Flare = 0.012f, Folds = 0.012f, Follow = 0.95f }, cloth, Wardrobe.TopColors[2]);
         Top(3, "Suit", new Cut { Thickness = 0.016f, Smooth = 12, UpperArm = 0.062f * slim, LowerArm = 0.052f * slim, Tile = 0.25f },

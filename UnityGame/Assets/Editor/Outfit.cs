@@ -553,9 +553,7 @@ public static class Outfit
     {
         var hip = body.At("pelvis");
         var knee = (body.At("calf_l") + body.At("calf_r")) / 2f;
-        int pelvis = body.Bone("pelvis"), spine = body.Bone("spine_01"), thighL = body.Bone("thigh_l"), thighR = body.Bone("thigh_r");
-        int calfL = body.Bone("calf_l"), calfR = body.Bone("calf_r");
-        bool rightPlusX = body.At("thigh_r").x > hip.x;
+        int pelvis = body.Bone("pelvis");
         float cx = hip.x, cz = hip.z;
         int rings = Mathf.Max(3, Mathf.CeilToInt((d.Top - d.Hem) / 0.04f) + 1);
         var radii = new float[rings][];
@@ -593,25 +591,25 @@ public static class Outfit
         for (int i = 0; i < rings; i++)
         {
             float y = Mathf.Lerp(d.Top, d.Hem, i / (rings - 1f));
-            // the cloth follows the thighs from the top of the legs on (else the legs show through
-            // when a leg goes forward), below the knee partly the shins too
-            float below = Mathf.Clamp01((hip.y - 0.02f - y) / Mathf.Max(0.1f, (hip.y - knee.y) * 0.55f));
+            // the cloth follows the legs from the top of the thighs on, each part as the leg under it moves
+            // (as the trousers there do), else a leg going forward shows through
+            float below = Mathf.Clamp01((hip.y - 0.02f - y) / Mathf.Max(0.1f, (hip.y - knee.y) * 0.35f));
             float follow = d.Follow * Mathf.SmoothStep(0, 1, below);
-            float shin = 0.45f * Mathf.SmoothStep(0, 1, Mathf.InverseLerp(knee.y + 0.02f, knee.y - 0.3f, y));
-            float up = y > hip.y ? Mathf.Clamp01((y - hip.y) / Mathf.Max(0.01f, d.Top - hip.y)) * 0.5f : 0f;
             for (int k = 0; k <= Segments; k++)
             {
                 float a = Angle(k % Segments);
                 var dir = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
                 float r = radii[i][k % Segments];
-                float side = Mathf.Clamp(Mathf.Cos(a) * 1.5f, -1f, 1f) * (rightPlusX ? 1 : -1);
-                float right = 0.5f + 0.5f * side;
                 var c = new Vector3(cx, y, cz);
-                // above the hips it moves as the body under it does (as the garment above it), below with the legs
-                var w = follow <= 0f && y > hip.y ? body.Nearest(c + dir * r, Region.Torso)
-                    : Weight((pelvis, (1 - follow) * (1 - up)), (spine, (1 - follow) * up),
-                        (thighR, follow * right * (1 - shin)), (thighL, follow * (1 - right) * (1 - shin)),
-                        (calfR, follow * right * shin), (calfL, follow * (1 - right) * shin));
+                BoneWeight w;
+                // above the hips it moves as the body under it does (as the garment above it)
+                if (follow <= 0f && y > hip.y) w = body.Nearest(c + dir * r, Region.Torso);
+                else
+                {
+                    var leg = body.Nearest(c + dir * r, Region.Legs);
+                    w = Weight((pelvis, 1f - follow), (leg.boneIndex0, follow * leg.weight0), (leg.boneIndex1, follow * leg.weight1),
+                        (leg.boneIndex2, follow * leg.weight2), (leg.boneIndex3, follow * leg.weight3));
+                }
                 var uv = new Vector2(k / (float)Segments * circumference / d.Tile, y / d.Tile);
                 outer[i, k] = g.Add(c + dir * r, dir, uv, w);
                 inner[i, k] = g.Add(c + dir * (r - 0.005f), -dir, uv, w);
