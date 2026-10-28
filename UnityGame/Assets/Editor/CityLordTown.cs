@@ -353,7 +353,7 @@ public static partial class CityLordBuilder
                 char side = open ? main.side : FacingSide(b);
                 bool tank = path.Contains("Oil_tank");
                 // on an opened building: right over its main door
-                var name = BuildingNames.TryGetValue(NameKey(path), out var n) ? n : (tank ? "د تېلو ټانک" : "ګودام", tank ? "Oil Tank" : "Warehouse");
+                (string pashto, string english) name = BuildingNames.TryGetValue(NameKey(path), out var n) ? n : (tank ? "د تېلو ټانک" : "ګودام", tank ? "Oil Tank" : "Warehouse");
                 Plate(signs, path, b, side, open ? main.top + 0.7f : tank ? 3.2f : 3.6f, open ? name.pashto + " - خلاص" : name.pashto, $"{group.Key}-{number}",
                       open ? (main.from + main.to) / 2f : (float?)null);
                 numbered[$"{group.Key}-{number}"] = b;
