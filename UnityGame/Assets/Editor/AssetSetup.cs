@@ -429,8 +429,6 @@ public static class AssetSetup
         for (int i = 0; i < mask.transformCount; i++)
         {
             string p = mask.GetTransformPath(i);
-            // the chest up (not the lowest spine bone, whose forward bend in the aim pose curved the back);
-            // Agent.Upright keeps the back straight and Agent.ArmSwing the shoulders from going back
             mask.SetTransformActive(i, p.Contains("spine_02") || p.Contains("spine_03"));
         }
         AssetDatabase.CreateAsset(mask, path);
@@ -977,8 +975,6 @@ public static class AssetSetup
                 skinned.Where(r => r != bodyRenderer).ToArray(), vestMat);
             parts = dressed.Parts;
             teamRenderers = dressed.Team;
-            // the ready-made characters of the player's pack on the same skeleton
-            parts.AddRange(CharacterPack.Dress(new Outfit.Body(bodyRenderer, prefabName), sex == "Female", vestMat, teamRenderers));
         }
 
         // weapons in the right hand, aligned with the character's forward direction in the aim pose
@@ -1037,7 +1033,6 @@ public static class AssetSetup
         agent.Skins = skins;
         agent.SkinRenderers = realistic && bodyRenderer != null ? new Renderer[] { bodyRenderer } : new Renderer[0];
         agent.Parts = parts.ToArray();
-        agent.BaseBody = skinned.Select(r => r.gameObject).ToArray();
 
         PrefabUtility.SaveAsPrefabAsset(root, $"Assets/Resources/{prefabName}.prefab");
         Object.DestroyImmediate(root);

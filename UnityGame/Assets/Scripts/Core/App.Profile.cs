@@ -46,8 +46,7 @@ namespace UA
 
         private static void ChangeLook(Wardrobe.Slot slot, int delta)
         {
-            // a piece changed: built piece by piece again (not a ready-made character of the pack)
-            int look = Wardrobe.Set(Settings.Look, Wardrobe.Slot.Character, 0);
+            int look = Settings.Look;
             look = Wardrobe.Set(look, slot, Wardrobe.Get(look, slot) + delta);
             while (!Wardrobe.Offered(slot, Wardrobe.Get(look, slot))) look = Wardrobe.Set(look, slot, Wardrobe.Get(look, slot) + (delta < 0 ? -1 : 1));
             // the camo of a combat jacket and cargo trousers match until one is changed on its own
@@ -61,7 +60,7 @@ namespace UA
         {
             int n = Wardrobe.Styles.Length;
             int style = (Wardrobe.StyleOf(Settings.Look) + n + delta) % n;
-            Settings.Look = Wardrobe.Apply(Wardrobe.Set(Settings.Look, Wardrobe.Slot.Character, 0), Wardrobe.Styles[style]);
+            Settings.Look = Wardrobe.Apply(Settings.Look, Wardrobe.Styles[style]);
         }
 
         private void ShowTab(bool character)

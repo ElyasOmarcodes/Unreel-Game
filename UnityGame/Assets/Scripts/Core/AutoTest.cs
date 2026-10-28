@@ -130,23 +130,20 @@ namespace UA
             yield return Shot("00-feet-side");
             foreach (var go in row) Destroy(go);
             row.Clear();
-            // the four characters of the player's pack on the game's skeleton: front, back, and close
-            for (int i = 0; i < 4; i++)
+            // the clothes in motion (running): no gap in them anywhere, front and side
+            for (int i = 0; i < 5 && i < Wardrobe.Styles.Length; i++)
             {
-                var go = Dress(Wardrobe.PresetLook(Wardrobe.Presets.Length - 4 + i), new Vector3(i * 1.1f, 300, 0), 180);
-                if (go != null) go.GetComponent<Agent>().SetWeapon(9 + i % 3);
+                var go = Dress(Wardrobe.Apply(Wardrobe.Set(0, Wardrobe.Slot.Body, i % 2), Wardrobe.Styles[i]), new Vector3(i * 1.1f, 300, 0), 180);
+                var anim = go != null ? go.GetComponent<Agent>().Anim : null;
+                if (anim != null) anim.SetFloat("MoveY", 1f);
             }
             cam.Cam.fieldOfView = 34;
-            cam.transform.SetPositionAndRotation(new Vector3(2.2f, 301.0f, -5.6f), Quaternion.Euler(3, 0, 0));
-            yield return Wait(1f);
-            yield return Shot("00-pack-characters");
-            foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 0, 0);
-            yield return Wait(0.3f);
-            yield return Shot("00-pack-characters-back");
-            foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 150, 0);
-            cam.transform.SetPositionAndRotation(new Vector3(0.6f, 301.5f, -2.4f), Quaternion.Euler(4, 0, 0));
-            yield return Wait(0.3f);
-            yield return Shot("00-pack-characters-close");
+            cam.transform.SetPositionAndRotation(new Vector3(2.2f, 301.0f, -6.2f), Quaternion.Euler(3, 0, 0));
+            yield return Wait(0.6f);
+            yield return Shot("00-running-clothes");
+            foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 90, 0);
+            yield return Wait(0.45f);
+            yield return Shot("00-running-clothes-side");
             foreach (var go in row) Destroy(go);
             row.Clear();
             // head wear close-ups: the 11 offered on alternating bodies

@@ -210,13 +210,10 @@ public static class Outfit
     }
 
     /// <summary>Put on a garment: a skinned mesh on the body's bones.</summary>
-    public static GameObject Wear(Body body, Garment g, string name, params Material[] materials) => Wear(body, g, name, body.Bindposes, materials);
-
-    /// <summary>The same with bind poses of its own (a model in another pose than the body's rest pose).</summary>
-    public static GameObject Wear(Body body, Garment g, string name, Matrix4x4[] bindposes, params Material[] materials)
+    public static GameObject Wear(Body body, Garment g, string name, params Material[] materials)
     {
         if (g == null || g.P.Count == 0) return null;
-        var mesh = Save(ToMesh(g, $"{body.Key}_{name}", body.ToMesh, body.Mirrored, bindposes), body.Key, name);
+        var mesh = Save(ToMesh(g, $"{body.Key}_{name}", body.ToMesh, body.Mirrored, body.Bindposes), body.Key, name);
         var src = body.Renderer;
         var go = new GameObject(name);
         go.transform.SetParent(src.transform.parent, false);
@@ -523,37 +520,14 @@ public static class Outfit
         return h;
     }
 
-    /// <summary>
-    /// The outline that support distances enclose (the tightest convex outline around the points): its
-    /// distance from the centre in each direction. Placing a ring at the support distances themselves
-    /// rounds every outline out into a circle (wider than the body on the diagonals).
-    /// </summary>
-    public static float[] Hull(float[] support)
-    {
-        var r = new float[Segments];
-        for (int k = 0; k < Segments; k++)
-        {
-            float best = support[k];
-            for (int j = 0; j < Segments; j++)
-            {
-                float c = Mathf.Cos(Angle(k) - Angle(j));
-                if (c > 0.25f) best = Mathf.Min(best, support[j] / c);
-            }
-            r[k] = best;
-        }
-        return r;
-    }
-
-    /// <summary>
-    /// Cloth hanging from the waist around the body and the clothes under it: at the top it lies on the
-    /// garment above (one piece with it, no ring standing off the body), below it falls over the hips and
-    /// the legs as cloth does, bridging the hollows, not as a round skirt.
-    /// </summary>
+    /// <summary>Cloth hanging from the waist around the body and the clothes under it.</summary>
     public static Garment Robe(Body body, Drape d, List<Vector3> under, int seed)
     {
         var hip = body.At("pelvis");
         var knee = (body.At("calf_l") + body.At("calf_r")) / 2f;
-        int pelvis = body.Bone("pelvis");
+        int pelvis = body.Bone("pelvis"), spine = body.Bone("spine_01"), thighL = body.Bone("thigh_l"), thighR = body.Bone("thigh_r");
+        int calfL = body.Bone("calf_l"), calfR = body.Bone("calf_r");
+        bool rightPlusX = body.At("thigh_r").x > hip.x;
         float cx = hip.x, cz = hip.z;
         int rings = Mathf.Max(3, Mathf.CeilToInt((d.Top - d.Hem) / 0.04f) + 1);
         var radii = new float[rings][];
@@ -564,8 +538,7 @@ public static class Outfit
         for (int i = 0; i < rings; i++)
         {
             float y = Mathf.Lerp(d.Top, d.Hem, i / (rings - 1f));
-            var support = Support(under, y, 0.025f, cx, cz);
-            var h = support != null ? Hull(support) : last != null ? (float[])last.Clone() : Enumerable.Repeat(0.18f, Segments).ToArray();
+            var h = Support(under, y, 0.025f, cx, cz) ?? (last != null ? (float[])last.Clone() : Enumerable.Repeat(0.18f, Segments).ToArray());
             float depth = i / (rings - 1f);
             float below = Mathf.Clamp01((hip.y - y) / Mathf.Max(0.1f, hip.y - knee.y));
             var r = new float[Segments];
@@ -575,10 +548,7 @@ public static class Outfit
                 // hanging folds: deeper towards the hem, a little irregular
                 float fold = d.Folds * depth * (0.6f * Mathf.Sin(a * 7f + phase[0]) + 0.3f * Mathf.Sin(a * 11f + phase[1]) + 0.25f * Mathf.Sin(a * 4f + phase[2]));
                 r[k] = h[k] + 0.006f + d.Ease * Mathf.Clamp01(depth * 4f) + d.Flare * below * below + Mathf.Max(0, fold + d.Folds * depth * 0.5f);
-                // the cloth falls from where it starts and is not drawn in under it (no waist, no skirt flaring
-                // out from a waist); the top edge lies just under the garment above, one piece with it
-                if (i > 0) r[k] = Mathf.Max(r[k], radii[i - 1][k] - 0.002f + d.Flare * 0.02f);
-                else r[k] = h[k] - 0.003f;
+                if (last != null && y < hip.y) r[k] = Mathf.Max(r[k], radii[i - 1][k] - 0.002f + d.Flare * 0.02f);
             }
             radii[i] = r;
             last = h;
@@ -591,26 +561,24 @@ public static class Outfit
         for (int i = 0; i < rings; i++)
         {
             float y = Mathf.Lerp(d.Top, d.Hem, i / (rings - 1f));
-            // the cloth follows the legs from the top of the thighs on, each part as the leg under it moves
-            // (as the trousers there do), else a leg going forward shows through
-            float below = Mathf.Clamp01((hip.y - 0.02f - y) / Mathf.Max(0.1f, (hip.y - knee.y) * 0.35f));
+            // the cloth follows the thighs from the top of the legs on (else the legs show through
+            // when a leg goes forward), below the knee partly the shins too
+            float below = Mathf.Clamp01((hip.y - 0.02f - y) / Mathf.Max(0.1f, (hip.y - knee.y) * 0.55f));
             float follow = d.Follow * Mathf.SmoothStep(0, 1, below);
+            float shin = 0.45f * Mathf.SmoothStep(0, 1, Mathf.InverseLerp(knee.y + 0.02f, knee.y - 0.3f, y));
+            float up = y > hip.y ? Mathf.Clamp01((y - hip.y) / Mathf.Max(0.01f, d.Top - hip.y)) * 0.5f : 0f;
             for (int k = 0; k <= Segments; k++)
             {
                 float a = Angle(k % Segments);
                 var dir = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
                 float r = radii[i][k % Segments];
-                var c = new Vector3(cx, y, cz);
-                BoneWeight w;
-                // above the hips it moves as the body under it does (as the garment above it)
-                if (follow <= 0f && y > hip.y) w = body.Nearest(c + dir * r, Region.Torso);
-                else
-                {
-                    var leg = body.Nearest(c + dir * r, Region.Legs);
-                    w = Weight((pelvis, 1f - follow), (leg.boneIndex0, follow * leg.weight0), (leg.boneIndex1, follow * leg.weight1),
-                        (leg.boneIndex2, follow * leg.weight2), (leg.boneIndex3, follow * leg.weight3));
-                }
+                float side = Mathf.Clamp(Mathf.Cos(a) * 1.5f, -1f, 1f) * (rightPlusX ? 1 : -1);
+                float right = 0.5f + 0.5f * side;
+                var w = Weight((pelvis, (1 - follow) * (1 - up)), (spine, (1 - follow) * up),
+                    (thighR, follow * right * (1 - shin)), (thighL, follow * (1 - right) * (1 - shin)),
+                    (calfR, follow * right * shin), (calfL, follow * (1 - right) * shin));
                 var uv = new Vector2(k / (float)Segments * circumference / d.Tile, y / d.Tile);
+                var c = new Vector3(cx, y, cz);
                 outer[i, k] = g.Add(c + dir * r, dir, uv, w);
                 inner[i, k] = g.Add(c + dir * (r - 0.005f), -dir, uv, w);
             }

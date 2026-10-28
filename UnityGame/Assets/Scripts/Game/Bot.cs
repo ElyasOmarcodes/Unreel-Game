@@ -188,7 +188,7 @@ namespace UA
         private void ThrowAt(Session s, Vector3 point)
         {
             grenades--;
-            var origin = agent.Eye + transform.forward * 0.4f - transform.right * 0.25f + Vector3.up * 0.1f;   // the left hand throws
+            var origin = agent.Eye + transform.forward * 0.4f + Vector3.up * 0.1f;
             var delta = point + Random.insideUnitSphere * (2.5f - Skill) - origin;
             delta.y = point.y - origin.y;
             float time = Mathf.Clamp(delta.magnitude / 13f, 0.6f, 1.6f);

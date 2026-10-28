@@ -9,10 +9,10 @@ namespace UA
     /// </summary>
     public static class Wardrobe
     {
-        public enum Slot { Body, Top, Bottom, Head, Vest, Feet, Gloves, Kit, Beard, Bag, TopColor, BottomColor, HeadColor, Character }
+        public enum Slot { Body, Top, Bottom, Head, Vest, Feet, Gloves, Kit, Beard, Bag, TopColor, BottomColor, HeadColor }
 
         // bits per slot, in the order of the enum
-        private static readonly int[] Bits = { 2, 3, 2, 4, 2, 2, 1, 1, 1, 1, 3, 3, 2, 3 };
+        private static readonly int[] Bits = { 2, 3, 2, 4, 2, 2, 1, 1, 1, 1, 3, 3, 2 };
 
         public static readonly string[][] Names =
         {
@@ -27,16 +27,13 @@ namespace UA
             new[] { "NONE", "BEARD" },
             new[] { "NONE", "ASSAULT PACK" },
             null, null, null,
-            // a ready-made character of the player's pack in place of all the pieces (0: built piece by piece)
-            new[] { "OWN BUILD", "MERCENARY", "POLICE OFFICER", "FIELD AGENT", "OPERATIVE", "BODYGUARD" },
         };
         /// <summary>
-        /// Pieces no longer offered (women's: the abaya, the hijab, the pack's woman FIELD AGENT): skipped by the
-        /// profile and never drawn for bots; an old look with the woman of the pack is built piece by piece.
+        /// Pieces no longer offered (women's: the abaya, the hijab): skipped by the profile and never drawn for bots.
         /// </summary>
-        public static bool Offered(Slot slot, int value) => !(slot == Slot.Top && value == 6 || slot == Slot.Head && value == 8 || slot == Slot.Character && value == 3);
+        public static bool Offered(Slot slot, int value) => !(slot == Slot.Top && value == 6 || slot == Slot.Head && value == 8);
 
-        public static readonly string[] SlotNames = { "AGENT", "TOP", "BOTTOM", "HEAD", "VEST", "SHOES", "GLOVES", "BELT", "BEARD", "BAG", "TOP COLOUR", "BOTTOM COLOUR", "HEAD COLOUR", "CHARACTER" };
+        public static readonly string[] SlotNames = { "AGENT", "TOP", "BOTTOM", "HEAD", "VEST", "SHOES", "GLOVES", "BELT", "BEARD", "BAG", "TOP COLOUR", "BOTTOM COLOUR", "HEAD COLOUR" };
 
         public struct Swatch
         {
@@ -191,11 +188,6 @@ namespace UA
             new Preset("GUARD", 1, 7, 4, 2, 3, 1),      // Afghan guard: grey perahan, turban, chest rig
             new Preset("BLACK TURBAN", 0, 2, 7, 7, 1, 1, (Slot.Head, 5)),   // cream perahan, black turban, waistcoat
             new Preset("STATESMAN", 0, 5, 1, 1, 1, 0),       // statesman: navy suit
-            // the player's character pack
-            new Preset("MERCENARY", 0, 0, 0, 0, 0, 0, (Slot.Character, 1)),
-            new Preset("POLICE OFFICER", 0, 0, 0, 0, 0, 0, (Slot.Character, 2)),
-            new Preset("OPERATIVE", 0, 0, 0, 0, 0, 0, (Slot.Character, 4)),
-            new Preset("BODYGUARD", 0, 0, 0, 0, 0, 0, (Slot.Character, 5)),
         };
 
         public static int PresetLook(int index)
@@ -221,9 +213,6 @@ namespace UA
             look = Set(look, Slot.HeadColor, UnityEngine.Random.Range(0, HeadColors.Length));
             look = Set(look, Slot.Beard, UnityEngine.Random.value < 0.7f ? 1 : 0);
             if (Get(look, Slot.Top) == 0) look = Set(look, Slot.BottomColor, Get(look, Slot.TopColor));
-            // now and then one of the pack characters
-            if (UnityEngine.Random.value < 0.35f)
-                look = Set(look, Slot.Character, new[] { 1, 2, 4, 5 }[UnityEngine.Random.Range(0, 4)]);
             return look;
         }
     }
