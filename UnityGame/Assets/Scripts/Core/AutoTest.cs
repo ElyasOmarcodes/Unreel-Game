@@ -162,6 +162,17 @@ namespace UA
                 cam.transform.SetPositionAndRotation(new Vector3(2.4f, 301.45f, -1.6f), Quaternion.Euler(4, 0, 0));
                 yield return Wait(0.3f);
                 yield return Shot("00-team1-arm");
+                // standing still (no animation: the pose the prefab was saved in), from the right and the left
+                foreach (var go in row) Destroy(go);
+                row.Clear();
+                for (int i = 0; i < 2 && team1 >= 0; i++)
+                {
+                    var still = Dress(Wardrobe.PresetLook(team1), new Vector3(i * 1.0f, 300, 0), i == 0 ? 90f : 270f);
+                    if (still != null) still.GetComponent<Agent>().Anim.enabled = false;
+                }
+                cam.transform.SetPositionAndRotation(new Vector3(0.5f, 301.25f, -2.6f), Quaternion.Euler(3, 0, 0));
+                yield return Wait(0.3f);
+                yield return Shot("00-team1-still");
                 foreach (var go in row) Destroy(go);
                 row.Clear();
             }

@@ -387,12 +387,13 @@ public static class Dresser
                     var d = q - at;
                     return Vector3.Dot(d, outward) > 0f && Mathf.Abs(Vector3.Dot(d, axis)) < high / 2f && Mathf.Abs(Vector3.Dot(d, across)) < wide / 2f;
                 }, 0.003f);
-                if (piece == null) continue;
+                if (piece == null) { Debug.LogWarning($"[Setup] TEAM 1 patch {side}: nothing of the sleeve at {at} facing {outward}"); continue; }
                 for (int i = 0; i < piece.P.Count; i++)
                 {
                     var d = piece.P[i] - at;
                     piece.UV[i] = new Vector2(Vector3.Dot(d, across) / wide + 0.5f, Vector3.Dot(d, -axis) / high + 0.5f);
                 }
+                Debug.Log($"[Setup] TEAM 1 patch {side}: {piece.P.Count} points at {at} facing {outward}");
                 if (patches == null) patches = piece; else patches.Append(piece);
             }
             var patchPart = Part(result, Outfit.Wear(body, patches, "Top_FlagPatches", flag), Slot.Head, M(13));
