@@ -365,7 +365,8 @@ public static class Dresser
         Top(7, "LongCoat", new Cut { Thickness = 0.016f, Smooth = 12, UpperArm = 0.066f * slim, LowerArm = 0.058f * slim, Tile = 0.25f },
             new Drape { Hem = knee.y - 0.06f, FrontOpen = true, SideSlits = true, OpenFrom = 0.14f, Ease = 0.02f, Flare = 0.045f, Folds = 0.01f, Tile = 0.25f }, wool, Wardrobe.TopColors[7]);
 
-        // the TEAM 1 arm patches on the combat jacket's sleeves, just under the shoulders (with the hood)
+        // the TEAM 1 arm patches on the combat jacket's sleeves, under the team band (the hood and the scarf
+        // cover the top of the shoulders)
         if (topShells[0] != null)
             foreach (string side in new[] { "l", "r" })
             {
@@ -375,7 +376,7 @@ public static class Dresser
                 // the outer side of the sleeve: sideways when the arm hangs, up when it is held out (the rest pose)
                 var outward = Vector3.Cross(Vector3.forward, axis).normalized;
                 if (outward.y < -0.3f || (Mathf.Abs(outward.y) <= 0.3f && Mathf.Sign(outward.x) != Mathf.Sign(a.x - hip.x))) outward = -outward;
-                var at = a + (b - a) * 0.2f;
+                var at = a + (b - a) * 0.6f;
                 // on the sleeve: the farthest point of the jacket out from the arm there
                 float reach = topShells[0].P.Where(q => Mathf.Abs(Vector3.Dot(q - at, axis)) < 0.03f && Vector3.Dot(q - at, outward) > 0f)
                     .Select(q => Vector3.Dot(q - at, outward)).DefaultIfEmpty(0.08f).Max();
