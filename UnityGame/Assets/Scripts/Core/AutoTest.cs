@@ -169,7 +169,7 @@ namespace UA
                     ("idle", a => { }),
                     ("run", a => a.SetFloat("MoveY", 1f)),
                     ("crouch", a => a.SetBool("Crouch", true)),
-                    ("prone", a => a.SetBool("Prone", true)),
+                    ("prone", a => { a.SetBool("Prone", true); if (a.layerCount > 1) a.SetLayerWeight(1, 0f); }),
                     ("jump", a => a.SetBool("Grounded", false)),
                 };
                 for (int half = 0; half < 2; half++)

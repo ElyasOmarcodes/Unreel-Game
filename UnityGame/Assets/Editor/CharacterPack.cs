@@ -35,6 +35,13 @@ public static class CharacterPack
         ("Swat", false), ("Rifleman", false), ("RedBeret", false), ("BlackSquad", false), ("Army", false),
     };
 
+    /// <summary>
+    /// Characters whose hands are made curled or turned (gloves in a fist, a scanned hand): their hands ride on
+    /// the hand bone whole (the fingers do not bend on their own), so they never tear when the game's fingers
+    /// close round a gun.
+    /// </summary>
+    private static readonly HashSet<string> RigidHands = new HashSet<string> { "Rifleman", "RedBeret", "BlackSquad", "Army" };
+
     public static List<Agent.OutfitPart> Dress(Outfit.Body body, bool female, Material team, List<Renderer> teamRenderers)
     {
         var parts = new List<Agent.OutfitPart>();
@@ -511,6 +518,27 @@ public static class CharacterPack
             var sampled = sampler.Weights(rest, kind[i], legOf[i]);
             if (sampled != null) { weights[i] = sampled.Value; fromBody++; }
             else weights[i] = Outfit.Weight(provisional[i]);
+        }
+        if (RigidHands.Contains(from ?? key))
+        {
+            // every finger bone's share given to its hand
+            var toHand = new int[bones.Length];
+            for (int i = 0; i < bones.Length; i++)
+            {
+                toHand[i] = i;
+                string n = bones[i] != null ? bones[i].name.ToLowerInvariant() : "";
+                if (n.Length > 2 && Outfit.Of(n) == Outfit.Region.Hands && !n.StartsWith("hand"))
+                {
+                    int hand = body.Bone("hand_" + n.Substring(n.Length - 1));
+                    if (hand >= 0) toHand[i] = hand;
+                }
+            }
+            for (int i = 0; i < weights.Length; i++)
+            {
+                var w = weights[i];
+                weights[i] = Outfit.Weight(new[] { (toHand[w.boneIndex0], w.weight0), (toHand[w.boneIndex1], w.weight1), (toHand[w.boneIndex2], w.weight2), (toHand[w.boneIndex3], w.weight3) }
+                    .GroupBy(x => x.Item1).Select(g => (g.Key, g.Sum(x => x.Item2))).ToArray());
+            }
         }
         Debug.Log($"[Setup] character {key}: {fromBody} of {m.P.Count} vertices skinned from the body, {inherited} bones moving with the bone above");
 
