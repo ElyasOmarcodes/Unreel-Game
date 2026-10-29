@@ -83,6 +83,7 @@ namespace UA
             root = (RectTransform)canvas.transform;
 
             BuildWelcome();
+            BuildLanguagePick();
             BuildMenu();
             BuildWifi();
             BuildCreate();
@@ -118,7 +119,12 @@ namespace UA
         private IEnumerator Start()
         {
             yield return null;   // the preview stage needs the scene up
-            if (!Settings.Welcomed && !KillSwitch.Blocked) OpenWelcome();
+            if (!Settings.Welcomed && !KillSwitch.Blocked)
+            {
+                // the very first start: the language first, then the name and the character
+                if (!Settings.LanguagePicked) ShowScreen("language");
+                else OpenWelcome();
+            }
         }
 
         // ------------------------------------------------------------------ navigation
@@ -171,7 +177,12 @@ namespace UA
 
         private void Update()
         {
-            if (relanguage) { relanguage = false; Relanguage(); }
+            if (relanguage)
+            {
+                relanguage = false;
+                Relanguage();
+                if (welcomeAfterLanguage) { welcomeAfterLanguage = false; OpenWelcome(); }
+            }
             UpdateBlocked();
             if (KillSwitch.Blocked) return;
             var s = Session.I;

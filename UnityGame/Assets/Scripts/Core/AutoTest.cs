@@ -114,9 +114,9 @@ namespace UA
                 foreach (var go in row) Destroy(go);
                 row.Clear();
             }
-            // the ready-made characters, then their feet from the side (which way the boots point)
-            for (int i = 0; i < Wardrobe.Presets.Length; i++)
-                Dress(Wardrobe.PresetLook(i), new Vector3(i * 0.9f, 300, 0), 180);
+            // the ready-made characters built piece by piece (from TEAM 1 on), then their feet from the side
+            for (int i = Wardrobe.PresetIndex("TEAM 1"), x = 0; i < Wardrobe.Presets.Length; i++, x++)
+                Dress(Wardrobe.PresetLook(i), new Vector3(x * 0.9f, 300, 0), 180);
             // the PKM and the SVD in the hands of the first two
             row[0].GetComponent<Agent>().SetWeapon(8);
             row[1].GetComponent<Agent>().SetWeapon(7);
@@ -134,7 +134,7 @@ namespace UA
             const int packs = 7;
             for (int i = 0; i < packs; i++)
             {
-                var go = Dress(Wardrobe.PresetLook(Wardrobe.Presets.Length - packs + i), new Vector3(i * 1.0f, 300, 0), 180);
+                var go = Dress(Wardrobe.PresetLook(i), new Vector3(i * 1.0f, 300, 0), 180);
                 if (go != null) go.GetComponent<Agent>().SetWeapon(9 + i % 3);
             }
             cam.Cam.fieldOfView = 34;
@@ -147,7 +147,7 @@ namespace UA
             foreach (var go in row) Destroy(go);
             row.Clear();
             // the second pack (SWAT, RIFLEMAN, RED BERET): close, then running from the front and the side
-            for (int i = 0; i < 3; i++) Dress(Wardrobe.PresetLook(Wardrobe.Presets.Length - 3 + i), new Vector3(i * 0.9f, 300, 0), 180);
+            for (int i = 0; i < 3; i++) Dress(Wardrobe.PresetLook(i), new Vector3(i * 0.9f, 300, 0), 180);
             cam.transform.SetPositionAndRotation(new Vector3(0.9f, 301.35f, -2.9f), Quaternion.Euler(4, 0, 0));
             yield return Wait(1f);
             yield return Shot("00-pack2-close");
@@ -162,7 +162,7 @@ namespace UA
             row.Clear();
             // TEAM 1 as on its reference sheet: front, back and right side, then the head and the arm patch close
             {
-                int team1 = System.Array.FindIndex(Wardrobe.Presets, preset => preset.Name == "TEAM 1");
+                int team1 = Wardrobe.PresetIndex("TEAM 1");
                 float[] turns = { 180f, 0f, 90f };
                 for (int i = 0; i < turns.Length && team1 >= 0; i++)
                     Dress(Wardrobe.PresetLook(team1), new Vector3(i * 1.2f, 300, 0), turns[i]);
@@ -238,7 +238,14 @@ namespace UA
             Settings.PlayerName = "ستوری ښه";   // a Pashto name: checks the joined right-to-left text
             Settings.Team = 1;   // the host in team 1, the bots split over 1 and 2, the client alone (0)
             yield return Wait(1.5f);
-            // the first start: the name and character page (no splash of our own any more)
+            // the first start: the language page, then the name and character page
+            if (app.Current == "language")
+            {
+                yield return Shot("01-language");
+                app.PickLanguage(0);
+                yield return Until(() => app.Current == "welcome", 10);
+                yield return Wait(0.5f);
+            }
             if (app.Current == "welcome")
             {
                 yield return Shot("01-welcome");
@@ -803,6 +810,7 @@ namespace UA
         {
             var app = App.I;
             yield return Wait(1.5f);
+            if (app.Current == "language") { app.PickLanguage(0); yield return Until(() => app.Current == "welcome", 10); }
             if (app.Current == "welcome") app.FinishWelcome(false);
             yield return Until(() => app.Current == "menu", 15);
             yield return Wait(1f);
@@ -842,7 +850,7 @@ namespace UA
             yield return Until(() => KillCam.Active, 150);
             if (!KillCam.Active) { App.Log("no first kill film"); yield break; }
             float start = Time.realtimeSinceStartup;
-            foreach (var (at, name) in new[] { (0.6f, "0-title"), (1.35f, "a-aim"), (1.9f, "b-bullet"), (2.75f, "c-bullet-near"), (3.2f, "d-hit"), (4.3f, "e-fall") })
+            foreach (var (at, name) in new[] { (0.6f, "0-title"), (1.5f, "a-aim"), (2.1f, "b-bullet"), (3.1f, "c-bullet-near"), (3.47f, "d-hit"), (4.6f, "e-fall"), (6.1f, "f-killer") })
             {
                 while (Time.realtimeSinceStartup - start < at) yield return null;
                 yield return Shot($"{prefix}{name}-first-kill");

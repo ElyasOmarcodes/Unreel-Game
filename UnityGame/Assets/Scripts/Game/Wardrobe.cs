@@ -180,9 +180,20 @@ namespace UA
             { Name = name; Body = body; Style = style; TopColor = top; BottomColor = bottom; HeadColor = head; Beard = beard; Changes = changes; }
         }
 
-        /// <summary>The characters the profile page offers (each one can be changed piece by piece).</summary>
+        /// <summary>
+        /// The characters the profile page offers, in this order: the player's second pack, the first pack, TEAM 1,
+        /// then the ones built piece by piece (only these can be changed piece by piece).
+        /// </summary>
         public static readonly Preset[] Presets =
         {
+            new Preset("SWAT", 0, 0, 0, 0, 0, 0, (Slot.Character, 6)),
+            new Preset("RIFLEMAN", 0, 0, 0, 0, 0, 0, (Slot.Character, 7)),
+            new Preset("RED BERET", 0, 0, 0, 0, 0, 0, (Slot.Character, 8)),
+            new Preset("MERCENARY", 0, 0, 0, 0, 0, 0, (Slot.Character, 1)),
+            new Preset("POLICE OFFICER", 0, 0, 0, 0, 0, 0, (Slot.Character, 2)),
+            new Preset("OPERATIVE", 0, 0, 0, 0, 0, 0, (Slot.Character, 4)),
+            new Preset("BODYGUARD", 0, 0, 0, 0, 0, 0, (Slot.Character, 5)),
+            new Preset("TEAM 1", 0, 8, 7, 7, 0, 1),       // hexagon camo, hood and scarf, the flag on the arm
             // white ghutra with a black agal, white perahan and tunban, dark waistcoat, sandals, camo pack, no beard
             new Preset("DESERT SCOUT", 0, 2, 0, 0, 2, 0, (Slot.Head, 6), (Slot.Bag, 1)),
             new Preset("ELDER", 1, 3, 1, 1, 2, 1),        // Afghan elder: blue chapan, white turban
@@ -193,16 +204,10 @@ namespace UA
             new Preset("GUARD", 1, 7, 4, 2, 3, 1),      // Afghan guard: grey perahan, turban, chest rig
             new Preset("BLACK TURBAN", 0, 2, 7, 7, 1, 1, (Slot.Head, 5)),   // cream perahan, black turban, waistcoat
             new Preset("STATESMAN", 0, 5, 1, 1, 1, 0),       // statesman: navy suit
-            new Preset("TEAM 1", 0, 8, 7, 7, 0, 1),       // hexagon camo, hood and scarf, the flag on the arm
-            // the player's character pack
-            new Preset("MERCENARY", 0, 0, 0, 0, 0, 0, (Slot.Character, 1)),
-            new Preset("POLICE OFFICER", 0, 0, 0, 0, 0, 0, (Slot.Character, 2)),
-            new Preset("OPERATIVE", 0, 0, 0, 0, 0, 0, (Slot.Character, 4)),
-            new Preset("BODYGUARD", 0, 0, 0, 0, 0, 0, (Slot.Character, 5)),
-            new Preset("SWAT", 0, 0, 0, 0, 0, 0, (Slot.Character, 6)),
-            new Preset("RIFLEMAN", 0, 0, 0, 0, 0, 0, (Slot.Character, 7)),
-            new Preset("RED BERET", 0, 0, 0, 0, 0, 0, (Slot.Character, 8)),
         };
+
+        /// <summary>The preset of that name (-1: none).</summary>
+        public static int PresetIndex(string name) => System.Array.FindIndex(Presets, p => p.Name == name);
 
         public static int PresetLook(int index)
         {

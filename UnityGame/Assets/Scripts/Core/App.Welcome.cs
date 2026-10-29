@@ -30,7 +30,7 @@ namespace UA
             welcomePreset = UIKit.MiniStepper(left, "CHARACTER", 0, -14, 560, presetValue, d =>
             {
                 Settings.Preset += d;
-                welcomePreset.text = presetValue();
+                welcomePreset.text = Loc.T(presetValue());
                 if (stage != null) stage.ShowCharacter(Settings.Look, Settings.Primary);
             });
             var hint = UIKit.Txt(left, "drag to turn", 22, TextAnchor.LowerCenter, UIKit.Muted);
@@ -57,6 +57,33 @@ namespace UA
             credits.rectTransform.At(0.5f, 0f, 0, 24, 940, 150, 0.5f, 0f);
         }
 
+        /// <summary>The very first page: the language, every one named in itself, before anything else is asked.</summary>
+        private void BuildLanguagePick()
+        {
+            var s = MakeScreen("language");
+            if (Logo() != null) Badge(s).At(0.5f, 1f, 0, -60, 220, 220, 0.5f, 1f);
+            var title = UIKit.Txt(s, "LANGUAGE", 56, TextAnchor.MiddleCenter, UIKit.Accent).Shadowed();
+            title.rectTransform.At(0.5f, 1f, 0, -320, 1200, 80, 0.5f, 1f);
+            for (int i = 0; i < Loc.LanguageNames.Length; i++)
+            {
+                int lang = i;
+                var b = UIKit.Btn(s, "", () => PickLanguage(lang), 44, lang == Settings.Language ? UIKit.AccentDark : null, "translate");
+                b.GetComponent<RectTransform>().At(0.5f, 0.5f, (i % 2 == 0 ? -280 : 280), (i < 2 ? -40 : -190), 520, 120);
+                b.GetComponentInChildren<Text>().text = Loc.LanguageName(lang);
+            }
+        }
+
+        private bool welcomeAfterLanguage;
+
+        /// <summary>The language chosen on the first page: every page made again in it, then the welcome page.</summary>
+        public void PickLanguage(int lang)
+        {
+            Settings.Language = lang;
+            Settings.LanguagePicked = true;
+            welcomeAfterLanguage = true;
+            relanguage = true;
+        }
+
         /// <summary>The first page of the first start (afterwards the menu comes straight away).</summary>
         public void OpenWelcome()
         {
@@ -64,7 +91,7 @@ namespace UA
             welcomeView.texture = stage.CharacterTexture;
             welcomeView.GetComponent<RotateDrag>().Stage = stage;
             welcomeName.text = "";
-            welcomePreset.text = Wardrobe.Presets[Settings.Preset].Name;
+            welcomePreset.text = Loc.T(Wardrobe.Presets[Settings.Preset].Name);
             ShowScreen("welcome");
             stage.SetActive(true);
             stage.ShowCharacter(Settings.Look, Settings.Primary);

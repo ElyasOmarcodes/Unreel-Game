@@ -31,6 +31,8 @@ namespace UA
         private RectTransform characterTab, weaponTab;
         private Button characterTabButton, weaponTabButton;
         private readonly System.Collections.Generic.List<(Text text, System.Func<string> value)> lookValues = new System.Collections.Generic.List<(Text, System.Func<string>)>();
+        // the rows of the pieces: shut while a ready-made character of the packs is chosen (made in one piece)
+        private readonly System.Collections.Generic.List<CanvasGroup> partRows = new System.Collections.Generic.List<CanvasGroup>();
 
         private class RotateDrag : MonoBehaviour, IDragHandler
         {
@@ -77,6 +79,7 @@ namespace UA
             var s = MakeScreen("profile");
             UIKit.Title(s, "PROFILE", -30, 64);
             lookValues.Clear();
+            partRows.Clear();
             var left = UIKit.Panel(s, 620, 820, -20);
             left.anchoredPosition = new Vector2(-560, -20);
             characterView = UIKit.Node(left, "Character").gameObject.AddComponent<RawImage>();
@@ -115,10 +118,12 @@ namespace UA
                 System.Func<string> value = () => Wardrobe.Label(Settings.Look, slot);
                 var t = UIKit.MiniStepper(characterTab, Wardrobe.SlotNames[(int)slot], column == 0 ? -257 : 257, -184 - row * 88, 506, value, d => { ChangeLook(slot, d); RefreshProfile(); });
                 lookValues.Add((t, value));
+                partRows.Add(t.transform.parent.gameObject.AddComponent<CanvasGroup>());
             }
             System.Func<string> styleValue = () => Wardrobe.Styles[Wardrobe.StyleOf(Settings.Look)].Name;
             var styleText = UIKit.MiniStepper(characterTab, "STYLE", 257, -184, 506, styleValue, d => { ChangeStyle(d); RefreshProfile(); });
             lookValues.Add((styleText, styleValue));
+            partRows.Add(styleText.transform.parent.gameObject.AddComponent<CanvasGroup>());
             Look(Wardrobe.Slot.Body, 0, 0);
             Look(Wardrobe.Slot.Top, 0, 1); Look(Wardrobe.Slot.TopColor, 1, 1);
             Look(Wardrobe.Slot.Bottom, 0, 2); Look(Wardrobe.Slot.BottomColor, 1, 2);
@@ -207,6 +212,12 @@ namespace UA
             if (stage == null) return;
             stage.ShowCharacter(Settings.Look, previewWeapon);
             foreach (var (text, value) in lookValues) text.text = Loc.T(value());
+            bool madeWhole = Wardrobe.Get(Settings.Look, Wardrobe.Slot.Character) > 0;
+            foreach (var row in partRows)
+            {
+                row.interactable = !madeWhole;
+                row.alpha = madeWhole ? 0.3f : 1f;
+            }
             stage.ShowGun(previewWeapon);
             var w = Weapons.Get(previewWeapon);
             int bodyShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets));

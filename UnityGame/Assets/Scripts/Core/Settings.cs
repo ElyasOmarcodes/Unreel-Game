@@ -47,6 +47,8 @@ namespace UA
             System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
 
         /// <summary>The first-start page (name and character) was seen.</summary>
+        /// <summary>The language was chosen on the first page (asked once, before anything else).</summary>
+        public static bool LanguagePicked { get => PlayerPrefs.GetInt("langPicked", 0) == 1; set { PlayerPrefs.SetInt("langPicked", value ? 1 : 0); PlayerPrefs.Save(); } }
         public static bool Welcomed { get => PlayerPrefs.GetInt("welcomed", 0) == 1; set { PlayerPrefs.SetInt("welcomed", value ? 1 : 0); PlayerPrefs.Save(); } }
 
         /// <summary>0 low, 1 medium, 2 high. The first start picks what the phone can carry.</summary>
@@ -94,17 +96,18 @@ namespace UA
         {
             get
             {
-                string key = "look2_p" + Preset;
+                // kept by the character's name (the list can change order)
+                string key = "look3_" + Wardrobe.Presets[Preset].Name;
                 if (!PlayerPrefs.HasKey(key)) PlayerPrefs.SetInt(key, Wardrobe.PresetLook(Preset));
                 return PlayerPrefs.GetInt(key);
             }
-            set => PlayerPrefs.SetInt("look2_p" + Preset, value);
+            set => PlayerPrefs.SetInt("look3_" + Wardrobe.Presets[Preset].Name, value);
         }
-        /// <summary>Which ready-made character is played (each keeps its own changes).</summary>
+        /// <summary>Which ready-made character is played (each keeps its own changes), kept by its name.</summary>
         public static int Preset
         {
-            get => Mathf.Clamp(PlayerPrefs.GetInt("preset2", 0), 0, Wardrobe.Presets.Length - 1);
-            set => PlayerPrefs.SetInt("preset2", ((value % Wardrobe.Presets.Length) + Wardrobe.Presets.Length) % Wardrobe.Presets.Length);
+            get => Mathf.Max(0, Wardrobe.PresetIndex(PlayerPrefs.GetString("preset3", Wardrobe.Presets[0].Name)));
+            set => PlayerPrefs.SetString("preset3", Wardrobe.Presets[((value % Wardrobe.Presets.Length) + Wardrobe.Presets.Length) % Wardrobe.Presets.Length].Name);
         }
         /// <summary>Back to how the ready-made character came.</summary>
         public static void ResetLook() => Look = Wardrobe.PresetLook(Preset);

@@ -7,14 +7,16 @@ namespace UA
     /// The first kill of every match, shown to everyone as a short film in order: out of black the film
     /// bars close in over a wide shot of both players under a FIRST BLOOD title, then over the killer's
     /// shoulder at the victim, the bullet leaving the barrel and flying slowly to the victim (the camera
-    /// after it), the hit and the victim falling with the camera turning round them, and a dip to black.
+    /// after it, tilted), a white flash at the hit and the victim falling in slow motion with the camera
+    /// turning round them, then the killer from below with their name, and a dip to black. Every shot moves
+    /// smoothly (no jumps when a wall pushes the camera in).
     /// Meanwhile nobody moves or shoots (the host refuses shots and adds the time to the match clock),
     /// then the game goes on where it was.
     /// </summary>
     public class KillCam : MonoBehaviour
     {
-        public const float Length = Intro + Aim + Flight + Fall;
-        private const float Intro = 1f, Aim = 0.6f, Flight = 1.4f, Fall = 1.8f;
+        public const float Length = Intro + Aim + Flight + Fall + Hero;
+        private const float Intro = 1.2f, Aim = 0.7f, Flight = 1.5f, Fall = 1.9f, Hero = 1.3f;
         private const float Bars = 120f;
 
         /// <summary>The film is running (on this machine): no input, no shots.</summary>
@@ -31,7 +33,10 @@ namespace UA
         private Transform bullet;
         private RectTransform cover, barTop, barBottom;
         private Text caption, title;
-        private Image fade;
+        private Image fade, flash;
+        private string killerName;
+        private int shot = -1;            // which shot of the film the camera is in (smoothing starts again at each)
+        private Vector3 smoothEye, smoothLook;
 
         /// <summary>Called for every kill (Hud): plays the film for the first one of the match.</summary>
         public static void OnKill(KillEvent k)
@@ -115,11 +120,17 @@ namespace UA
                 title.rectTransform.At(0.5f, 0.5f, 0, 60, 1800, 160);
                 caption = UIKit.Txt(cover, "", 40, TextAnchor.MiddleCenter, UIKit.TextColor).Shadowed();
                 caption.rectTransform.At(0.5f, 0f, 0, 60, 1800, 100);
+                flash = UIKit.Img(cover, new Color(1f, 1f, 1f, 0f));
+                flash.rectTransform.Fill();
+                flash.raycastTarget = false;
             }
             fade.color = Color.black;
             Cinema(0f);
             var s = Session.I;
             string a = s.Players.TryGetValue(k.Killer, out var pa) ? Rtl.Shape(pa.Name) : "?";
+            killerName = a;
+            title.text = Loc.T("FIRST BLOOD");
+            shot = -1;
             string b = s.Players.TryGetValue(k.Victim, out var pb) ? Rtl.Shape(pb.Name) : "?";
             caption.text = $"{a}  <color=#9aa4b0>[{def.Name}]</color>{(k.Headshot ? "  <color=#ff5040>HEADSHOT</color>" : "")}   {b}";
             cover.gameObject.SetActive(true);
@@ -135,6 +146,16 @@ namespace UA
             fade.color = new Color(0f, 0f, 0f, Mathf.Clamp01(dark));
             // the title grows into place over the wide shot and goes as the story starts
             float showTitle = Mathf.Clamp01((t - 0.15f) / 0.3f) * (1f - Mathf.Clamp01((t - Intro + 0.15f) / 0.25f));
+            // at the end the killer's name in its place, over their picture
+            float heroAt = Length - Hero;
+            if (t > heroAt)
+            {
+                title.text = killerName;
+                showTitle = Mathf.Clamp01((t - heroAt - 0.1f) / 0.3f);
+            }
+            // the white of the hit
+            float sinceHit = t - (Intro + Aim + Flight);
+            flash.color = new Color(1f, 1f, 1f, sinceHit >= 0f && sinceHit < 0.25f ? 0.55f * (1f - sinceHit / 0.25f) : 0f);
             title.color = new Color(title.color.r, title.color.g, title.color.b, showTitle);
             title.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.25f, 1f, Mathf.SmoothStep(0f, 1f, (t - 0.15f) / 0.5f));
             caption.color = new Color(caption.color.r, caption.color.g, caption.color.b, Mathf.Clamp01((t - Intro) / 0.3f));
@@ -218,7 +239,7 @@ namespace UA
                 eye = Clear(at, at - dir * behind + Vector3.up * 0.22f + right * 0.35f);
                 look = at + dir * 4f;
             }
-            else
+            else if (t < Intro + Aim + Flight + Fall)
             {
                 if (!hit)
                 {
@@ -226,16 +247,39 @@ namespace UA
                     if (bullet != null) bullet.gameObject.SetActive(false);
                     Effects.Blood(to, -dir);
                 }
-                if (victim.Anim != null) victim.Anim.speed = 1f;
+                // the fall in slow motion
+                if (victim.Anim != null) victim.Anim.speed = 0.45f;
                 // from the side, a slow turn around the falling body
                 float f = (t - Intro - Aim - Flight) / Fall;
                 var center = victim.transform.position + Vector3.up * 0.7f;
                 var around = Quaternion.AngleAxis(Mathf.Lerp(-20f, 25f, f), Vector3.up) * right;
                 look = center;
-                float dist = Mathf.Lerp(3.6f, 3f, f);
+                float dist = Mathf.Lerp(3.2f, 2.7f, f);
                 eye = Best(center, center + around * dist + Vector3.up * 0.9f, center - around * dist + Vector3.up * 0.9f, center + Vector3.up * dist);
+                fov = Mathf.Lerp(48f, 42f, f);
             }
-            cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(look - eye));
+            else
+            {
+                // the killer from in front and below, the camera turning slowly round them
+                if (victim.Anim != null) victim.Anim.speed = 1f;
+                float f = (t - (Length - Hero)) / Hero;
+                var face = killer.transform.position + Vector3.up * 1.45f;
+                var front = Quaternion.AngleAxis(Mathf.Lerp(-28f, -8f, f), Vector3.up) * flat;
+                look = face + Vector3.up * 0.05f;
+                eye = Best(face, face + front * 2.2f - Vector3.up * 0.55f, face + Quaternion.AngleAxis(56f, Vector3.up) * front * 2.2f - Vector3.up * 0.55f, face - flat * 2f + Vector3.up * 0.3f);
+                fov = Mathf.Lerp(40f, 34f, f);
+            }
+            // each shot moves smoothly (a wall pushing the camera in does not make it jump)
+            int now = t < Intro ? 0 : t < Intro + Aim ? 1 : t < Intro + Aim + Flight ? 2 : t < Length - Hero ? 3 : 4;
+            if (now != shot || now == 2) { shot = now; smoothEye = eye; smoothLook = look; }
+            float k = 1f - Mathf.Exp(-8f * Time.unscaledDeltaTime);
+            smoothEye = Vector3.Lerp(smoothEye, eye, k);
+            smoothLook = Vector3.Lerp(smoothLook, look, k);
+            eye = smoothEye;
+            look = smoothLook;
+            // the camera after the bullet is tilted a little
+            float roll = now == 2 ? 7f : 0f;
+            cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(look - eye) * Quaternion.Euler(0f, 0f, roll));
             cam.Cam.fieldOfView = fov;
             cam.Cam.ResetProjectionMatrix();
             cam.Cam.nearClipPlane = CameraRig.NearClip;

@@ -65,7 +65,7 @@ namespace UA
 
         /// <summary>Where the local player's crosshair points this frame (others aim along their yaw / pitch).</summary>
         [System.NonSerialized] public Vector3? AimPoint;
-        private Transform chestBone, handBone, upperArmBone, lowerArmBone, thighBone;
+        private Transform chestBone, handBone, upperArmBone, lowerArmBone, thighBone, thighLeft, pelvisBone, spineBone, neckBone;
         // the other weapon of the loadout, carried: a rifle slung across the back, a pistol at the hip
         private GameObject backCopy;
         private int backId = -1;
@@ -88,8 +88,19 @@ namespace UA
                 else if (n == "upperarm_r") upperArmBone = t;
                 else if (n == "lowerarm_r") lowerArmBone = t;
                 else if (n == "thigh_r") thighBone = t;
+                else if (n == "thigh_l") thighLeft = t;
+                else if (n == "pelvis") pelvisBone = t;
+                else if (n == "spine_01") spineBone = t;
+                else if (n == "neck_01") neckBone = t;
             }
+            // the body standing (as the prefab was saved): the root's turn and the carry points in the chest's
+            // and the thigh's own space, so a gun made carried while lying or crouching still sits on the back
+            if (chestBone != null) { chestToRoot = Quaternion.Inverse(chestBone.rotation) * transform.rotation; backPoint = chestBone.InverseTransformPoint(chestBone.position - transform.forward * 0.24f - transform.up * 0.05f); }
+            if (thighBone != null) { thighToRoot = Quaternion.Inverse(thighBone.rotation) * transform.rotation; hipPoint = thighBone.InverseTransformPoint(transform.position + transform.up * 0.92f + transform.right * 0.2f - transform.forward * 0.02f); }
         }
+
+        private Quaternion chestToRoot = Quaternion.identity, thighToRoot = Quaternion.identity;
+        private Vector3 backPoint, hipPoint;
 
         /// <summary>
         /// After the animation: turn the chest most of the way and the right hand the rest, so the
@@ -97,12 +108,33 @@ namespace UA
         /// </summary>
         private void LateUpdate()
         {
+            Upright();
             CarryArms();
             AimArms();
             SwapArm();
             ThrowArm();
             HoldSyringe();
             FitBodyHitbox();
+        }
+
+        /// <summary>
+        /// Standing straighter than the clips hold it: the hips tucked under (the seat not pushed out behind,
+        /// the legs kept where they were) and a back bent far over the gun brought up part of the way (the
+        /// shoulders not rounded out behind); the aim is set right after this by AimArms.
+        /// </summary>
+        private void Upright()
+        {
+            if (State == null || !Alive || State.Prone || pelvisBone == null || spineBone == null || neckBone == null) return;
+            var right = transform.right;
+            const float tuck = 9f;
+            pelvisBone.rotation = Quaternion.AngleAxis(-tuck, right) * pelvisBone.rotation;
+            if (thighBone != null) thighBone.rotation = Quaternion.AngleAxis(tuck, right) * thighBone.rotation;
+            if (thighLeft != null) thighLeft.rotation = Quaternion.AngleAxis(tuck, right) * thighLeft.rotation;
+            // how far the back leans forwards (hips to neck), beyond a natural 6 degrees
+            var back = neckBone.position - spineBone.position;
+            float lean = Mathf.Atan2(Vector3.Dot(back, transform.forward), Vector3.Dot(back, transform.up)) * Mathf.Rad2Deg;
+            float straighten = Mathf.Clamp((lean - 6f) * 0.6f, 0f, 14f);
+            spineBone.rotation = Quaternion.AngleAxis(tuck - straighten, right) * spineBone.rotation;
         }
 
         /// <summary>
@@ -372,18 +404,21 @@ namespace UA
             var fromGun = Quaternion.Inverse(Quaternion.LookRotation(muzzleDir, gunUp));
             Quaternion want;
             Vector3 at;
+            // the body's own frame as it stands, carried along by the bone in any pose
+            var frame = bone == chestBone ? chestBone.rotation * chestToRoot : bone == thighBone ? thighBone.rotation * thighToRoot : transform.rotation;
+            Vector3 up = frame * Vector3.up, right = frame * Vector3.right, forward = frame * Vector3.forward;
             if (pistol)
             {
                 // muzzle down along the thigh, the grip up and back
-                want = Quaternion.LookRotation(-transform.up, transform.forward) * fromGun;
-                at = transform.position + transform.up * 0.92f + transform.right * 0.2f - transform.forward * 0.02f;
+                want = Quaternion.LookRotation(-up, forward) * fromGun;
+                at = bone == thighBone ? thighBone.TransformPoint(hipPoint) : transform.position + up * 0.92f + right * 0.2f - forward * 0.02f;
             }
             else
             {
                 // slung across the back: the barrel up over the left shoulder, the top of the gun outwards
-                var dir = (transform.up * 0.72f - transform.right * 0.69f).normalized;
-                want = Quaternion.LookRotation(dir, -transform.forward) * fromGun;
-                at = (chestBone != null ? chestBone.position : transform.position + transform.up * 1.3f) - transform.forward * 0.24f - transform.up * 0.05f;
+                var dir = (up * 0.72f - right * 0.69f).normalized;
+                want = Quaternion.LookRotation(dir, -forward) * fromGun;
+                at = bone == chestBone ? chestBone.TransformPoint(backPoint) : transform.position + up * 1.3f - forward * 0.24f;
             }
             copy.transform.SetParent(bone, true);
             copy.transform.rotation = want;

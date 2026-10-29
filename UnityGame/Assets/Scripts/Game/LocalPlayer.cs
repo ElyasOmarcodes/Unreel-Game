@@ -252,9 +252,12 @@ namespace UA
             var rig = CameraRig.I;
             var aim = rig.AimRay();
             var world = World.I;
-            // what is under the crosshair decides the direction; the shot itself starts at the eyes
+            // what is under the crosshair decides the direction; the shot starts on the crosshair's line level
+            // with the player's eyes (the camera looks over the shoulder: what it sees past a corner or over a
+            // wall is what is hit, not the edge of the wall beside the head); the eyes when the camera is far off
             var under = world.TraceShot(aim.origin, aim.direction, def.Range, agent.Id);
-            var origin = agent.Eye;
+            var origin = aim.origin + aim.direction * Mathf.Max(0f, Vector3.Dot(agent.Eye - aim.origin, aim.direction));
+            if ((origin - agent.Eye).sqrMagnitude > 0.9f * 0.9f) origin = agent.Eye;
             var dir = (under.Point - origin).normalized;
             if (Vector3.Dot(dir, aim.direction) < 0.5f) dir = aim.direction;
             // no spread: the bullet goes exactly where the crosshair is (shotgun pellets keep their pattern)
