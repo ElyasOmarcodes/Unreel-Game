@@ -843,6 +843,56 @@ public static class AssetSetup
         return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
     }
 
+    /// <summary>
+    /// A camo cut from the RIFLEMAN's own atlas (its digital camo): one source for the pack and the clothes. The
+    /// cut is made seamless by blending in its half-shifted copy towards the edges and laid twice each way; with
+    /// 'recolour' its light and shade are coloured with the tones (dark to light), else it keeps its own colours.
+    /// Without the atlas: the camo drawn in the tones.
+    /// </summary>
+    public static Texture2D CamoFrom(string name, Color[] tones, float scale, bool recolour = true)
+    {
+        const string atlas = "Assets/Characters/Rifleman/Body_Albedo.png";
+        const int left = 488, top = 412, cut = 112, tile = 128, size = 256;   // a plain piece of its jacket
+        if (!File.Exists(atlas)) return Camo(name, tones, scale);
+        var src = new Texture2D(2, 2);
+        src.LoadImage(File.ReadAllBytes(atlas));
+        int bottom = src.height - top - cut;
+        var piece = new Color[tile * tile];
+        for (int y = 0; y < tile; y++)
+            for (int x = 0; x < tile; x++)
+            {
+                float u = (x + 0.5f) / tile, v = (y + 0.5f) / tile;
+                Color At(float a, float b) => src.GetPixelBilinear((left + a * cut) / src.width, (bottom + b * cut) / src.height);
+                float tu = Mathf.Abs(u - 0.5f) * 2f, tv = Mathf.Abs(v - 0.5f) * 2f;
+                float w = Mathf.Clamp01(Mathf.Max(tu, tv) * 1.6f - 0.6f);
+                piece[y * tile + x] = Color.Lerp(At(u, v), At((u + 0.5f) % 1f, (v + 0.5f) % 1f), w);
+            }
+        Object.DestroyImmediate(src);
+        if (recolour)
+        {
+            // its shade from darkest to lightest onto the tones
+            var lum = piece.Select(c => c.grayscale).OrderBy(l => l).ToArray();
+            float lo = lum[lum.Length / 50], hi = lum[lum.Length - 1 - lum.Length / 50];
+            var ramp = tones.OrderBy(c => c.grayscale).ToArray();
+            for (int i = 0; i < piece.Length; i++)
+            {
+                float k = Mathf.Clamp01((piece[i].grayscale - lo) / Mathf.Max(0.01f, hi - lo)) * (ramp.Length - 1);
+                int j = Mathf.Min((int)k, ramp.Length - 2);
+                piece[i] = Color.Lerp(ramp[j], ramp[j + 1], k - j);
+            }
+        }
+        string path = $"{Generated}/Textures/{name}.png";
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, true);
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+                tex.SetPixel(x, y, piece[(y % tile) * tile + x % tile]);
+        tex.Apply();
+        File.WriteAllBytes(path, tex.EncodeToPNG());
+        Object.DestroyImmediate(tex);
+        AssetDatabase.ImportAsset(path);
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+    }
+
     private static Material[] suits;
 
     public static Material[] Suits()
@@ -850,9 +900,9 @@ public static class AssetSetup
         if (suits != null && suits.All(m => m != null)) return suits;
         suits = new[]
         {
-            Mat("Suit_Urban", Color.white, 0.3f, 0f, Camo("Camo_Urban", new[] { new Color(0.32f, 0.33f, 0.35f), new Color(0.5f, 0.51f, 0.53f), new Color(0.7f, 0.7f, 0.71f), new Color(0.18f, 0.18f, 0.2f) }, 1.4f)),
-            Mat("Suit_Desert", Color.white, 0.3f, 0f, Camo("Camo_Desert", new[] { new Color(0.62f, 0.52f, 0.36f), new Color(0.76f, 0.66f, 0.48f), new Color(0.5f, 0.4f, 0.28f), new Color(0.84f, 0.76f, 0.6f) }, 1.1f)),
-            Mat("Suit_Woodland", Color.white, 0.3f, 0f, Camo("Camo_Woodland", new[] { new Color(0.2f, 0.27f, 0.16f), new Color(0.33f, 0.4f, 0.22f), new Color(0.38f, 0.3f, 0.2f), new Color(0.1f, 0.12f, 0.08f) }, 1.7f)),
+            Mat("Suit_Urban", Color.white, 0.3f, 0f, CamoFrom("Camo_Urban", new[] { new Color(0.32f, 0.33f, 0.35f), new Color(0.5f, 0.51f, 0.53f), new Color(0.7f, 0.7f, 0.71f), new Color(0.18f, 0.18f, 0.2f) }, 1.4f)),
+            Mat("Suit_Desert", Color.white, 0.3f, 0f, CamoFrom("Camo_Desert", new[] { new Color(0.62f, 0.52f, 0.36f), new Color(0.76f, 0.66f, 0.48f), new Color(0.5f, 0.4f, 0.28f), new Color(0.84f, 0.76f, 0.6f) }, 1.1f)),
+            Mat("Suit_Woodland", Color.white, 0.3f, 0f, CamoFrom("Camo_Woodland", new[] { new Color(0.2f, 0.27f, 0.16f), new Color(0.33f, 0.4f, 0.22f), new Color(0.38f, 0.3f, 0.2f), new Color(0.1f, 0.12f, 0.08f) }, 1.7f, false)),
             Mat("Suit_Black", new Color(0.16f, 0.17f, 0.19f), 0.35f),
         };
         return suits;
