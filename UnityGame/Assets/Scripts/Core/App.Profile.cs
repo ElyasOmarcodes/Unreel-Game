@@ -31,8 +31,10 @@ namespace UA
         private RectTransform characterTab, weaponTab;
         private Button characterTabButton, weaponTabButton;
         private readonly System.Collections.Generic.List<(Text text, System.Func<string> value)> lookValues = new System.Collections.Generic.List<(Text, System.Func<string>)>();
-        // the rows of the pieces: shut while a ready-made character of the packs is chosen (made in one piece)
-        private readonly System.Collections.Generic.List<CanvasGroup> partRows = new System.Collections.Generic.List<CanvasGroup>();
+        // the rows of the pieces: put away while a ready-made character of the packs is chosen (made in one piece),
+        // a line saying so in their place
+        private readonly System.Collections.Generic.List<GameObject> partRows = new System.Collections.Generic.List<GameObject>();
+        private Text madeWholeNote;
 
         private class RotateDrag : MonoBehaviour, IDragHandler
         {
@@ -118,12 +120,12 @@ namespace UA
                 System.Func<string> value = () => Wardrobe.Label(Settings.Look, slot);
                 var t = UIKit.MiniStepper(characterTab, Wardrobe.SlotNames[(int)slot], column == 0 ? -257 : 257, -184 - row * 88, 506, value, d => { ChangeLook(slot, d); RefreshProfile(); });
                 lookValues.Add((t, value));
-                partRows.Add(t.transform.parent.gameObject.AddComponent<CanvasGroup>());
+                partRows.Add(t.transform.parent.gameObject);
             }
             System.Func<string> styleValue = () => Wardrobe.Styles[Wardrobe.StyleOf(Settings.Look)].Name;
             var styleText = UIKit.MiniStepper(characterTab, "STYLE", 257, -184, 506, styleValue, d => { ChangeStyle(d); RefreshProfile(); });
             lookValues.Add((styleText, styleValue));
-            partRows.Add(styleText.transform.parent.gameObject.AddComponent<CanvasGroup>());
+            partRows.Add(styleText.transform.parent.gameObject);
             Look(Wardrobe.Slot.Body, 0, 0);
             Look(Wardrobe.Slot.Top, 0, 1); Look(Wardrobe.Slot.TopColor, 1, 1);
             Look(Wardrobe.Slot.Bottom, 0, 2); Look(Wardrobe.Slot.BottomColor, 1, 2);
@@ -131,6 +133,8 @@ namespace UA
             Look(Wardrobe.Slot.Vest, 0, 4); Look(Wardrobe.Slot.Bag, 1, 4);
             Look(Wardrobe.Slot.Feet, 0, 5); Look(Wardrobe.Slot.Gloves, 1, 5);
             Look(Wardrobe.Slot.Kit, 0, 6); Look(Wardrobe.Slot.Beard, 1, 6);
+            madeWholeNote = UIKit.Txt(characterTab, "This character comes made in one piece: its clothes and gear stay as they are.\nPick a character built piece by piece (TEAM 1 and after) to change every part.", 30, TextAnchor.MiddleCenter, UIKit.Muted);
+            madeWholeNote.rectTransform.At(0.5f, 1f, 0, -300, 960, 240, 0.5f, 1f);
 
             // weapons: every weapon in a list; the one picked turns in 3D with its real data and its bars
             // against the others, and goes into either slot (any weapon in either)
@@ -213,11 +217,8 @@ namespace UA
             stage.ShowCharacter(Settings.Look, previewWeapon);
             foreach (var (text, value) in lookValues) text.text = Loc.T(value());
             bool madeWhole = Wardrobe.Get(Settings.Look, Wardrobe.Slot.Character) > 0;
-            foreach (var row in partRows)
-            {
-                row.interactable = !madeWhole;
-                row.alpha = madeWhole ? 0.3f : 1f;
-            }
+            foreach (var row in partRows) row.SetActive(!madeWhole);
+            madeWholeNote.gameObject.SetActive(madeWhole);
             stage.ShowGun(previewWeapon);
             var w = Weapons.Get(previewWeapon);
             int bodyShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets));
