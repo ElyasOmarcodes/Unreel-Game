@@ -34,6 +34,18 @@ namespace UA
             }
         }
 
+        /// <summary>0 English, 1 Persian, 2 Arabic, 3 Spanish (Loc); the first start follows the phone's language.</summary>
+        public static int Language
+        {
+            get => PlayerPrefs.GetInt("lang", Application.systemLanguage == SystemLanguage.Arabic ? 2
+                : Application.systemLanguage == SystemLanguage.Spanish ? 3 : SystemLanguageIsPersian ? 1 : 0);
+            set { PlayerPrefs.SetInt("lang", (value % 4 + 4) % 4); PlayerPrefs.Save(); }
+        }
+
+        // Unity has no Persian in its list of system languages: the phone's culture says it
+        private static bool SystemLanguageIsPersian =>
+            System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "fa";
+
         /// <summary>The first-start page (name and character) was seen.</summary>
         public static bool Welcomed { get => PlayerPrefs.GetInt("welcomed", 0) == 1; set { PlayerPrefs.SetInt("welcomed", value ? 1 : 0); PlayerPrefs.Save(); } }
 

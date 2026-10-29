@@ -211,6 +211,22 @@ namespace UA
             app.ShowScreen("settings");
             yield return Wait(1f);
             yield return Shot("03-settings");
+            // the other languages: the settings page and the menu in each, then back to English
+            string[] codes = { "en", "fa", "ar", "es" };
+            for (int lang = 1; lang < 4; lang++)
+            {
+                Settings.Language = lang;
+                app.Relanguage();
+                yield return Wait(0.6f);
+                yield return Shot($"03L{lang}-settings-{codes[lang]}");
+                app.ShowScreen("menu");
+                yield return Wait(0.4f);
+                yield return Shot($"03L{lang}-menu-{codes[lang]}");
+                app.ShowScreen("settings");
+            }
+            Settings.Language = 0;
+            app.Relanguage();
+            yield return Wait(0.5f);
             app.OpenLayoutEditor();
             yield return Wait(1f);
             yield return Shot("03b-controls-layout");

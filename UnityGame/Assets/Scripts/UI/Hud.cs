@@ -287,14 +287,14 @@ namespace UA
             string weapon = Weapons.Get(k.Weapon).Name;
             string kc = Hex(a != null ? World.TeamColor(a, s) : Color.white), vc = Hex(b != null ? World.TeamColor(b, s) : Color.white);
             string line = k.Killer == k.Victim
-                ? $"<color={vc}>{victim}</color> <color=#aaaaaa>eliminated</color>"
-                : $"<color={kc}>{killer}</color>  <color=#ffb040>[{weapon}]</color>{(k.Headshot ? " <color=#ff5040>HEADSHOT</color>" : "")}  <color={vc}>{victim}</color>";
+                ? $"<color={vc}>{victim}</color> <color=#aaaaaa>{Loc.T("eliminated")}</color>"
+                : $"<color={kc}>{killer}</color>  <color=#ffb040>[{weapon}]</color>{(k.Headshot ? " <color=#ff5040>" + Loc.T("HEADSHOT!") + "</color>" : "")}  <color={vc}>{victim}</color>";
             KillCam.OnKill(k);
             feed.Add((line, Time.unscaledTime + 6f));
             if (feed.Count > 5) feed.RemoveAt(0);
             if (k.Killer != k.Victim)
             {
-                killToastText.text = $"<color=#2fe0c4>{killer}</color>  <color=#e8e8e8>killed</color>  <color=#ff4a4a>{victim}</color>";
+                killToastText.text = $"<color=#2fe0c4>{killer}</color>  <color=#e8e8e8>{Loc.T("killed")}</color>  <color=#ff4a4a>{victim}</color>";
                 killToastUntil = Time.unscaledTime + 2.4f;
                 killToast.gameObject.SetActive(true);
             }
@@ -310,8 +310,8 @@ namespace UA
 
         public void ShowCenter(string big, string small, float seconds)
         {
-            center.text = big;
-            centerSmall.text = small;
+            center.text = Loc.T(big);
+            centerSmall.text = Loc.T(small);
             centerUntil = Time.unscaledTime + seconds;
         }
 
@@ -346,16 +346,16 @@ namespace UA
             {
                 var ranked = s.Players.Values.OrderByDescending(p => p.Kills).ToList();
                 int place = me != null ? ranked.IndexOf(me) + 1 : 0;
-                scoreBlue.text = "SOLO #" + Mathf.Max(1, place);
-                scoreRed.text = "TOP " + (ranked.Count > 0 ? ranked[0].Kills : 0);
+                scoreBlue.text = Loc.T("SOLO") + " #" + Mathf.Max(1, place);
+                scoreRed.text = Loc.F("TOP {0}", ranked.Count > 0 ? ranked[0].Kills : 0);
                 scoreBlue.color = UIKit.Blue;
                 scoreRed.color = UIKit.Red;
             }
             if (me != null)
             {
                 playerName.text = Rtl.Shape(me.Name);
-                kills.text = "KILLS: " + me.Kills;
-                deaths.text = "DEATHS: " + me.Deaths;
+                kills.text = Loc.Pair("KILLS", me.Kills.ToString());
+                deaths.text = Loc.Pair("DEATHS", me.Deaths.ToString());
             }
 
             // health: five segments of 20
@@ -415,7 +415,7 @@ namespace UA
             if (s.Phase == Phase.Countdown)
             {
                 center.text = Mathf.CeilToInt(s.TimeLeft).ToString();
-                centerSmall.text = "GET READY";
+                centerSmall.text = Loc.T("GET READY");
             }
             else if (me != null && !me.Alive && s.Phase == Phase.Playing)
             {
@@ -423,10 +423,10 @@ namespace UA
                 if (s.KillFeed.Any(k => k.Victim == s.LocalId))
                 {
                     var lastDeath = s.KillFeed.Last(k => k.Victim == s.LocalId);
-                    if (lastDeath.Killer != s.LocalId && s.Players.TryGetValue(lastDeath.Killer, out var killer)) by = "Killed by " + Rtl.Shape(killer.Name);
+                    if (lastDeath.Killer != s.LocalId && s.Players.TryGetValue(lastDeath.Killer, out var killer)) by = Loc.Lang == 0 ? "Killed by " + Rtl.Shape(killer.Name) : Loc.F("Killed by {0}", killer.Name);
                 }
-                center.text = "YOU WERE ELIMINATED";
-                centerSmall.text = by + (by.Length > 0 ? "  -  " : "") + "respawning...";
+                center.text = Loc.T("YOU WERE ELIMINATED");
+                centerSmall.text = by + (by.Length > 0 ? "  -  " : "") + Loc.T("respawning...");
             }
             else if (now > centerUntil)
             {

@@ -40,7 +40,7 @@ namespace UA
             new Color(0.18f, 0.42f, 0.95f), new Color(0.92f, 0.22f, 0.18f), new Color(0.2f, 0.75f, 0.3f), new Color(0.98f, 0.78f, 0.12f), new Color(0.62f, 0.3f, 0.9f),
             new Color(0.1f, 0.8f, 0.85f), new Color(0.98f, 0.5f, 0.1f), new Color(0.95f, 0.4f, 0.7f), new Color(0.55f, 0.4f, 0.25f), new Color(0.85f, 0.88f, 0.92f),
         };
-        public static string TeamName(int team) => team <= 0 ? "ALONE" : "TEAM " + team;
+        public static string TeamName(int team) => team <= 0 ? Loc.T("ALONE") : Loc.F("TEAM {0}", team);
         public static Color TeamColor(int team) => team <= 0 ? new Color(0.85f, 0.88f, 0.92f) : TeamColors[(team - 1) % MaxTeams];
         public static string TeamHex(int team) => "#" + ColorUtility.ToHtmlStringRGB(TeamColor(team));
         /// <summary>The same side: both picked the same team number, and it is not 0 (alone).</summary>

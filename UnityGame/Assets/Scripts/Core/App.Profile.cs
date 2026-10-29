@@ -206,20 +206,20 @@ namespace UA
         {
             if (stage == null) return;
             stage.ShowCharacter(Settings.Look, previewWeapon);
-            foreach (var (text, value) in lookValues) text.text = value();
+            foreach (var (text, value) in lookValues) text.text = Loc.T(value());
             stage.ShowGun(previewWeapon);
             var w = Weapons.Get(previewWeapon);
             int bodyShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets));
             int headShots = Mathf.CeilToInt(100f / (w.Damage * w.Pellets * w.HeadMultiplier));
             float scope = w.Scope ? Mathf.Tan(31f * Mathf.Deg2Rad) * Weapons.ScopeScale / Mathf.Tan(w.AimFov * 0.5f * Mathf.Deg2Rad) : 0f;
-            gunTitle.text = w.Name + $"  <size=22><color=#9aa4b0>{(w.Primary ? "RIFLE CLASS" : "SIDEARM CLASS")}</color></size>";
+            gunTitle.text = w.Name + $"  <size=22><color=#9aa4b0>{Loc.T(w.Primary ? "RIFLE CLASS" : "SIDEARM CLASS")}</color></size>";
             gunStats.text = $"{w.Caliber} · {w.MuzzleVelocity} m/s · {w.Action}{(w.Scope ? $" · scope {scope:0}x" : "")} · kills in {bodyShots} (head {headShots})";
             for (int i = 0; i < weaponBars.Count; i++)
             {
                 float v = Mathf.Clamp01(WeaponBars[i].value(w));
                 weaponBars[i].fill.sizeDelta = new Vector2(Mathf.Max(6f, BarWidth * v), weaponBars[i].fill.sizeDelta.y);
                 weaponBars[i].fill.GetComponent<Image>().color = Color.Lerp(UIKit.Red, UIKit.Green, v);
-                weaponBars[i].value.text = WeaponBars[i].text(w);
+                weaponBars[i].value.text = Loc.T(WeaponBars[i].text(w));
             }
             for (int i = 0; i < weaponRows.Count; i++)
             {

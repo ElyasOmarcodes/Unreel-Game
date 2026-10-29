@@ -186,11 +186,13 @@ namespace UA
                 }
                 if (!climbing) verticalSpeed -= 20f * dt;
                 var before = transform.position;
-                cc.Move((velocity + Vector3.up * verticalSpeed) * dt);
-                // walking into a wall: do not keep pushing (keeps the animation honest)
+                var hit = cc.Move((velocity + Vector3.up * verticalSpeed) * dt);
+                // walking into a wall: do not keep pushing (keeps the animation honest). Only a real wall at the
+                // side, and a real stop: a slope, a kerb or a seam in the ground under the feet takes a little of
+                // a step's way and must not slow the run down
                 var moved = (transform.position - before) / Mathf.Max(dt, 1e-4f);
                 moved.y = 0;
-                if (moved.sqrMagnitude < velocity.sqrMagnitude) velocity = Vector3.Lerp(velocity, moved, 0.5f);
+                if ((hit & CollisionFlags.Sides) != 0 && moved.sqrMagnitude < velocity.sqrMagnitude * 0.6f) velocity = Vector3.Lerp(velocity, moved, 0.5f);
                 if (alive) transform.rotation = Quaternion.Euler(0, rig.Yaw, 0);
                 if (transform.position.y < -15f && World.I != null) agent.Teleport(World.I.Spawns.Length > 0 ? World.I.Spawns[0] : Vector3.up, rig.Yaw);
             }
@@ -280,11 +282,8 @@ namespace UA
             bloom = Mathf.Min(bloom + def.Recoil * 0.5f, 6f);
             // the barrel climbs a fixed amount per shot, half as much with the crosshair on an enemy (aim assist)
             rig.Kick(def.Climb * (onEnemy && Settings.AimAssist ? 0.5f : 1f));
-            if (def.BoltAction)
-            {
-                Aiming = false;   // bolt action: re-aim after every shot
-                boltAt = Time.time + 0.42f;
-            }
+            // bolt action: the bolt is worked (its sound) with the eye kept at the scope
+            if (def.BoltAction) boltAt = Time.time + 0.42f;
             if (Mag[Slot] == 0) StartReload();
         }
 

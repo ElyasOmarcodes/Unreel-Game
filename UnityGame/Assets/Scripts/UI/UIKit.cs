@@ -145,7 +145,7 @@ namespace UA
             t.fontSize = size;
             t.alignment = align;
             t.color = color ?? TextColor;
-            t.text = text;
+            t.text = Loc.T(text);   // in the player's language
             t.raycastTarget = false;
             t.supportRichText = true;
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -214,7 +214,7 @@ namespace UA
             return button;
         }
 
-        public static void SetLabel(this Button b, string label) => b.GetComponentInChildren<Text>().text = label;
+        public static void SetLabel(this Button b, string label) => b.GetComponentInChildren<Text>().text = Loc.T(label);
 
         public static InputField Input(Transform parent, string value, string placeholder, int size = 36, int limit = 14)
         {
@@ -246,11 +246,11 @@ namespace UA
             var l = Txt(row, label, 34, TextAnchor.MiddleLeft, Muted);
             l.rectTransform.Fill();
             l.rectTransform.offsetMin = new Vector2(30, 0);
-            var v = Txt(row, value(), 36, TextAnchor.MiddleCenter, Accent);
+            var v = Txt(row, value(), 36, TextAnchor.MiddleCenter, Accent);   // Txt puts it in the player's language
             v.rectTransform.At(1f, 0.5f, -230, 0, 300, 84);
-            var minus = Btn(row, "<", () => { change(-1); v.text = value(); }, 40);
+            var minus = Btn(row, "<", () => { change(-1); v.text = Loc.T(value()); }, 40);
             minus.GetComponent<RectTransform>().At(1f, 0.5f, -430, 0, 90, 70);
-            var plus = Btn(row, ">", () => { change(1); v.text = value(); }, 40);
+            var plus = Btn(row, ">", () => { change(1); v.text = Loc.T(value()); }, 40);
             plus.GetComponent<RectTransform>().At(1f, 0.5f, -40, 0, 90, 70, 1f, 0.5f);
             return v;
         }
@@ -269,9 +269,9 @@ namespace UA
             v.resizeTextForBestFit = true;
             v.resizeTextMinSize = 16;
             v.resizeTextMaxSize = 27;
-            var minus = Btn(row, "<", () => { change(-1); v.text = value(); }, 36);
+            var minus = Btn(row, "<", () => { change(-1); v.text = Loc.T(value()); }, 36);
             minus.GetComponent<RectTransform>().At(0f, 0.5f, 8, 0, 64, 64, 0f, 0.5f);
-            var plus = Btn(row, ">", () => { change(1); v.text = value(); }, 36);
+            var plus = Btn(row, ">", () => { change(1); v.text = Loc.T(value()); }, 36);
             plus.GetComponent<RectTransform>().At(1f, 0.5f, -8, 0, 64, 64, 1f, 0.5f);
             return v;
         }

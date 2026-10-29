@@ -29,7 +29,7 @@ namespace UA
             else if (Settings.Quality > 0) Settings.Quality -= 1;
             else if (Settings.FrameRate > 30) Settings.FrameRate = 30;
             else return;
-            App.I?.Toast($"GRAPHICS LOWERED FOR SMOOTH PLAY ({Mathf.RoundToInt(fps)} FPS)");
+            App.I?.Toast(Loc.F("GRAPHICS LOWERED FOR SMOOTH PLAY ({0} FPS)", Mathf.RoundToInt(fps)));
         }
     }
 }

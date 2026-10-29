@@ -55,6 +55,27 @@ namespace UA
             // the phone is short of memory: let go of everything not in use right now
             Application.lowMemory += () => Resources.UnloadUnusedAssets();
             UIKit.Init();
+            BuildUI();
+
+            Session.I.PhaseChanged += OnPhase;
+            Session.I.Disconnected += reason =>
+            {
+                Paused = false;
+                // a locked group: ask for its password and try again
+                if ((reason == Session.PasswordNeeded || reason == Session.WrongPassword) && lastJoinHost != null) OpenJoinPassword(lastJoinHost, null);
+                else if (Current != "results") ShowScreen("menu");   // the results table stays until closed
+                Toast(reason);
+            };
+            Session.I.ShotSeen += OnRemoteShot;
+            Session.I.Healed += OnHealed;
+            // no splash of our own (Unity's comes first): the first start asks for a name, later the menu
+            ShowScreen("menu");
+            Log("ui-start");
+        }
+
+        /// <summary>Every page, the battle screen and the cover of a switched-off version, in the player's language.</summary>
+        private void BuildUI()
+        {
             hud = new GameObject("HUD").AddComponent<Hud>();
             hud.Build();
             hud.SetVisible(false);
@@ -75,22 +96,23 @@ namespace UA
             BuildResults();
             toast = UIKit.Txt(root, "", 34, TextAnchor.MiddleCenter, UIKit.TextColor).Shadowed();
             toast.rectTransform.At(0.5f, 0f, 0, 70, 1600, 60);
-
-            Session.I.PhaseChanged += OnPhase;
-            Session.I.Disconnected += reason =>
-            {
-                Paused = false;
-                // a locked group: ask for its password and try again
-                if ((reason == Session.PasswordNeeded || reason == Session.WrongPassword) && lastJoinHost != null) OpenJoinPassword(lastJoinHost, null);
-                else if (Current != "results") ShowScreen("menu");   // the results table stays until closed
-                Toast(reason);
-            };
-            Session.I.ShotSeen += OnRemoteShot;
-            Session.I.Healed += OnHealed;
             BuildBlocked();
-            // no splash of our own (Unity's comes first): the first start asks for a name, later the menu
-            ShowScreen("menu");
-            Log("ui-start");
+        }
+
+        /// <summary>Another language: every page built again in it, the player stays on the page they were on.</summary>
+        public void Relanguage()
+        {
+            string at = Current;
+            Destroy(hud.gameObject);
+            Destroy(root.gameObject);
+            if (blockedCover != null) Destroy(blockedCover.gameObject);
+            screens.Clear();
+            shownGroups.Clear();
+            wasBlocked = false;
+            BuildUI();
+            ShowScreen(at);
+            if (Paused) SetPaused(true);
+            Log("language=" + Loc.Lang);
         }
 
         private IEnumerator Start()
@@ -114,7 +136,7 @@ namespace UA
             hud.SetVisible(name == "game");
             if (pausePanel != null) pausePanel.gameObject.SetActive(Paused);
             if (name == "join") Session.I.StartDiscovery(); else Session.I.StopDiscovery();
-            if (name == "menu") menuPlayer.text = "PLAYER:  <color=#ffa020>" + Rtl.Shape(Settings.PlayerName) + "</color>";
+            if (name == "menu") menuPlayer.text = Loc.Pair("PLAYER", "<color=#ffa020>" + Rtl.Shape(Settings.PlayerName) + "</color>");
             if (name == "lobby") RefreshLobby();
             if (name != "profile" && name != "welcome" && stage != null) stage.SetActive(false);
             Log("state=" + name);
@@ -122,7 +144,7 @@ namespace UA
 
         public void Toast(string message)
         {
-            toast.text = message;
+            toast.text = Loc.T(message);
             toastUntil = Time.unscaledTime + 4f;
         }
 
@@ -145,8 +167,11 @@ namespace UA
             }
         }
 
+        private bool relanguage;
+
         private void Update()
         {
+            if (relanguage) { relanguage = false; Relanguage(); }
             UpdateBlocked();
             if (KillSwitch.Blocked) return;
             var s = Session.I;
@@ -161,8 +186,8 @@ namespace UA
             if (Current == "results")
             {
                 resultsInfo.text = s.Phase == Phase.Ended
-                    ? $"RATING = score next to the best player   -   the group goes back to the lobby in {Mathf.CeilToInt(s.TimeLeft)}s"
-                    : "RATING = score next to the best player   -   the group is in the lobby: close the table when you are ready";
+                    ? Loc.F("RATING = score next to the best player   -   the group goes back to the lobby in {0}s", Mathf.CeilToInt(s.TimeLeft))
+                    : Loc.T("RATING = score next to the best player   -   the group is in the lobby: close the table when you are ready");
                 resultsLobby.gameObject.SetActive(s.IsHost && s.Phase == Phase.Ended);
             }
             toast.color = new Color(1, 1, 1, Mathf.Clamp01(toastUntil - Time.unscaledTime));
@@ -305,7 +330,7 @@ namespace UA
                 var link = SocialLinks[i];
                 var b = UIKit.Btn(s, "", () =>
                 {
-                    if (string.IsNullOrEmpty(link.url)) Toast(link.name + ": the link is coming soon");
+                    if (string.IsNullOrEmpty(link.url)) Toast(link.name + ": " + Loc.T("the link is coming soon"));
                     else Application.OpenURL(link.url);
                 }, 10, new Color(0.08f, 0.1f, 0.14f, 0.85f));
                 b.GetComponent<RectTransform>().At(1f, 0f, -40 - (SocialLinks.Length - 1 - i) * 112, 80, 96, 96, 1f, 0f);
@@ -347,7 +372,7 @@ namespace UA
             DraftPractice = practice;
             if (Draft.GroupName == "Group")
                 Draft.GroupName = Rtl.HasRtl(Settings.PlayerName) ? "د " + Settings.PlayerName + " ګروپ" : Settings.PlayerName + "'s group";
-            createTitle.text = practice ? "PRACTICE VS BOTS" : "CREATE GROUP";
+            createTitle.text = Loc.T(practice ? "PRACTICE VS BOTS" : "CREATE GROUP");
             createButton.SetLabel(practice ? "START PRACTICE" : "CREATE GROUP");
             groupNameField.text = Draft.GroupName;
             groupNameField.transform.parent.gameObject.SetActive(!practice);
@@ -403,7 +428,7 @@ namespace UA
                 Draft.Map = (byte)(Draft.Map - Draft.Map % 3 + (Draft.Map % 3 + 3 + d) % 3);
                 World.I?.ApplyLighting(Draft.Map);
             }, 1080);
-            UIKit.Stepper(panel, "MATCH TIME", -415, () => Draft.Minutes + " MIN", d =>
+            UIKit.Stepper(panel, "MATCH TIME", -415, () => Draft.Minutes + " " + Loc.T("MIN"), d =>
             {
                 int i = System.Array.IndexOf(minutes, Draft.Minutes);
                 Draft.Minutes = minutes[Mathf.Clamp((i < 0 ? 1 : i) + d, 0, minutes.Length - 1)];
@@ -453,7 +478,7 @@ namespace UA
             var teamRow = UIKit.Node(s, "TeamRow").At(0.5f, 1f, 0, -116, 900, 58, 0.5f, 1f);
             var teamText = UIKit.Txt(teamRow, "", 34, TextAnchor.MiddleCenter, UIKit.Accent);
             teamText.rectTransform.Fill();
-            System.Action showTeam = () => teamText.text = "TEAM NUMBER:  " + TeamLabel(Settings.Team);
+            System.Action showTeam = () => teamText.text = Loc.Pair("TEAM NUMBER", TeamLabel(Settings.Team));
             showTeam();
             var teamPrev = UIKit.Btn(teamRow, "<", () => { Settings.Team = (byte)((Settings.Team + MatchConfig.MaxTeams) % (MatchConfig.MaxTeams + 1)); showTeam(); }, 38);
             teamPrev.GetComponent<RectTransform>().At(0f, 0.5f, 0, 0, 90, 66, 0f, 0.5f);
@@ -532,7 +557,7 @@ namespace UA
             var groups = all.Where(g => !IPAddress.IsLoopback(g.Address.Address) || !all.Any(o => o != g && o.Name == g.Name && o.Port == g.Port))
                 .OrderBy(g => g.Name).ToList();
             var keys = groups.Select(g => g.Address + "|" + g.Players + "|" + g.Phase + "|" + g.Locked).ToList();
-            joinStatus.text = groups.Count == 0 ? "Searching for groups on this Wi-Fi / hotspot ...\n\nAsk a friend to tap CREATE GROUP." : "";
+            joinStatus.text = groups.Count == 0 ? Loc.T("Searching for groups on this Wi-Fi / hotspot ...\n\nAsk a friend to tap CREATE GROUP.") : "";
             if (keys.SequenceEqual(shownGroups)) return;
             shownGroups.Clear();
             shownGroups.AddRange(keys);
@@ -542,10 +567,10 @@ namespace UA
                 var g = groups[i];
                 var row = UIKit.Img(joinList, new Color(1, 1, 1, 0.05f), UIKit.Rounded);
                 row.rectTransform.At(0.5f, 1f, 0, -i * 112, 1440, 100, 0.5f, 1f);
-                var name = UIKit.Txt(row.transform, $"{Rtl.Shape(g.Name)}\n<size=24><color=#9aa4b0>{MatchConfig.ModeNames[(int)g.Mode]}  -  {MatchConfig.MapNames[g.Map % MatchConfig.MapNames.Length]}  -  {g.Address.Address}</color></size>", 34, TextAnchor.MiddleLeft);
+                var name = UIKit.Txt(row.transform, $"{Rtl.Shape(g.Name)}\n<size=24><color=#9aa4b0>{Loc.T(MatchConfig.ModeNames[(int)g.Mode])}  -  {Loc.T(MatchConfig.MapNames[g.Map % MatchConfig.MapNames.Length])}  -  {g.Address.Address}</color></size>", 34, TextAnchor.MiddleLeft);
                 name.rectTransform.Fill();
                 name.rectTransform.offsetMin = new Vector2(30, 0);
-                var count = UIKit.Txt(row.transform, $"{g.Players} PLAYERS" + (g.Phase != Phase.Lobby ? "\n<size=22>IN MATCH</size>" : ""), 32, TextAnchor.MiddleCenter, UIKit.Accent);
+                var count = UIKit.Txt(row.transform, Loc.F("{0} PLAYERS", g.Players) + (g.Phase != Phase.Lobby ? "\n<size=22>" + Loc.T("IN MATCH") + "</size>" : ""), 32, TextAnchor.MiddleCenter, UIKit.Accent);
                 count.rectTransform.At(1f, 0.5f, -330, 0, 160, 90);
                 var target = g.Address;
                 string groupName = g.Name;
@@ -625,7 +650,7 @@ namespace UA
         }
 
         /// <summary>A team number as the menus show it: 0 is fighting alone.</summary>
-        private static string TeamLabel(int team) => team == 0 ? "0 = ALONE" : team + " = " + MatchConfig.TeamName(team);
+        private static string TeamLabel(int team) => Loc.RightToLeft ? MatchConfig.TeamName(team) + " = " + team : team + " = " + MatchConfig.TeamName(team);
 
         private void RefreshLobby()
         {
@@ -636,7 +661,7 @@ namespace UA
             if (!s.Active) return;
             if (!s.IsHost && me == null)
             {
-                lobbyTitle.text = "JOINING ...";
+                lobbyTitle.text = Loc.T("JOINING ...");
                 lobbyInfo.text = s.Status;
                 lobbyIp.text = "";
                 lobbyLeft.text = lobbyRight.text = "";
@@ -645,12 +670,14 @@ namespace UA
                 lobbyWait.text = "";
                 return;
             }
-            lobbyTitle.text = s.Practice ? "PRACTICE" : Rtl.Shape(s.Config.GroupName.ToUpperInvariant());
-            lobbyInfo.text = $"{(tdm ? "TEAMS" : "EVERYONE ALONE")}   -   {MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length]}   -   {s.Config.Minutes} MIN   -   BOTS: {s.Config.Bots} ({MatchConfig.SkillNames[s.Config.BotSkill % 3]})";
-            lobbyIp.text = s.Practice ? "Only you and the bots - no network used" :
-                s.IsHost ? "Friends: JOIN GROUP, or type this IP:  " + (s.HostAddresses.Length > 0 ? s.HostAddresses : "(no Wi-Fi found)")
-                    + (string.IsNullOrEmpty(s.Config.Password) ? "" : "   -   PASSWORD: " + s.Config.Password) : "Connected - " + s.Players.Count(p => !p.Value.IsBot) + " players in the group";
-            lobbyLeftTitle.text = tdm ? "TEAMS" : "PLAYERS";
+            lobbyTitle.text = s.Practice ? Loc.T("PRACTICE") : Rtl.Shape(s.Config.GroupName.ToUpperInvariant());
+            lobbyInfo.text = $"{Loc.T(tdm ? "TEAMS" : "EVERYONE ALONE")}   -   {Loc.T(MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length])}   -   {s.Config.Minutes} {Loc.T("MIN")}   -   "
+                + Loc.Pair("BOTS", $"{s.Config.Bots} ({Loc.T(MatchConfig.SkillNames[s.Config.BotSkill % 3])})");
+            lobbyIp.text = s.Practice ? Loc.T("Only you and the bots - no network used") :
+                s.IsHost ? Loc.Pair("Friends: JOIN GROUP, or type this IP", s.HostAddresses.Length > 0 ? s.HostAddresses : Loc.T("(no Wi-Fi found)"))
+                    + (string.IsNullOrEmpty(s.Config.Password) ? "" : "   -   " + Loc.Pair("PASSWORD", s.Config.Password))
+                : Loc.F("Connected - {0} players in the group", s.Players.Count(p => !p.Value.IsBot));
+            lobbyLeftTitle.text = Loc.T(tdm ? "TEAMS" : "PLAYERS");
             lobbyRightTitle.text = tdm ? "" : "";
             lobbyLeftTitle.color = lobbyRightTitle.color = UIKit.Accent;
             var ordered = s.Players.Values.OrderBy(p => p.IsBot).ThenBy(p => p.Id).ToList();
@@ -678,8 +705,8 @@ namespace UA
             secondaryText.text = Weapons.Get(Settings.Secondary).Name;
             lobbyStart.gameObject.SetActive(s.IsHost && s.Phase == Phase.Lobby);
             lobbyTeam.gameObject.SetActive(s.Phase == Phase.Lobby);
-            if (me != null) lobbyTeam.SetLabel(me.Team == 0 ? "TEAM: 0 ALONE" : "TEAM: " + me.Team);
-            lobbyWait.text = s.IsHost ? "" : s.Phase == Phase.Lobby ? "Waiting for the host to start ..." : "Match in progress - joining ...";
+            if (me != null) lobbyTeam.SetLabel(Loc.Pair("TEAM", me.Team == 0 ? TeamLabel(0) : me.Team.ToString()));
+            lobbyWait.text = s.IsHost ? "" : Loc.T(s.Phase == Phase.Lobby ? "Waiting for the host to start ..." : "Match in progress - joining ...");
         }
 
         private void OpenSettings()
@@ -724,8 +751,13 @@ namespace UA
             }, W));
             var hint = UIKit.Txt(panel, "Running speed is the same for everyone and cannot be changed.", 24, TextAnchor.MiddleCenter, UIKit.Muted);
             hint.rectTransform.At(0.5f, 1f, R, -690, W, 40, 0.5f, 1f);
+            Row(L, UIKit.Stepper(panel, "LANGUAGE", -575, () => Loc.LanguageName(Settings.Language), d =>
+            {
+                Settings.Language += d;
+                relanguage = true;   // built again after this frame (the button pressed is part of the page)
+            }, W));
             var layout = UIKit.Btn(panel, "CONTROLS LAYOUT", OpenLayoutEditor, 30, UIKit.AccentDark, "open_with");
-            layout.GetComponent<RectTransform>().At(0.5f, 1f, L, -600, 480, 76, 0.5f, 1f);
+            layout.GetComponent<RectTransform>().At(0.5f, 1f, L, -680, 480, 76, 0.5f, 1f);
             var back = UIKit.Btn(s, "BACK", Back, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, 0, 50, 380, 96, 0.5f, 0f);
         }
@@ -781,16 +813,16 @@ namespace UA
                 int Kills(int i) => sides[i].members.Sum(p => p.Kills);
                 bool draw = sides.Count < 2 || Kills(0) == Kills(1);
                 string Name(int i) => sides[i].team > 0 ? $"<color={MatchConfig.TeamHex(sides[i].team)}>{MatchConfig.TeamName(sides[i].team)}</color>" : Rtl.Shape(sides[i].members[0].Name.ToUpperInvariant());
-                title = draw ? "DRAW" : Name(0) + " WINS";
+                title = draw ? Loc.T("DRAW") : Loc.After(Name(0), "WINS");
                 title += "  <size=40>" + string.Join(" : ", Enumerable.Range(0, Mathf.Min(4, sides.Count)).Select(i => sides[i].team > 0 ? $"<color={MatchConfig.TeamHex(sides[i].team)}>{Kills(i)}</color>" : Kills(i).ToString())) + "</size>";
                 var me = s.Local;
                 if (me != null && !draw)
-                    title += sides[0].members.Contains(me) ? "  <size=40>VICTORY</size>" : "  <size=40>DEFEAT</size>";
+                    title += "  <size=40>" + Loc.T(sides[0].members.Contains(me) ? "VICTORY" : "DEFEAT") + "</size>";
             }
             else
             {
                 var best = s.Players.Values.OrderByDescending(p => p.Kills).ThenBy(p => p.Deaths).FirstOrDefault();
-                title = best == null ? "MATCH OVER" : (best.Id == s.LocalId ? "<color=#ffa020>YOU WIN!</color>" : Rtl.Shape(best.Name.ToUpperInvariant()) + " WINS");
+                title = best == null ? Loc.T("MATCH OVER") : best.Id == s.LocalId ? "<color=#ffa020>" + Loc.T("YOU WIN!") + "</color>" : Loc.After(Rtl.Shape(best.Name.ToUpperInvariant()), "WINS");
             }
             resultsTitle.text = title;
 
@@ -804,11 +836,13 @@ namespace UA
         private void OnHealed(HealEvent e)
         {
             var s = Session.I;
-            string Name(byte id) => s.Players.TryGetValue(id, out var p) ? Rtl.Shape(p.Name) : "?";
+            // the names as typed: the whole line is joined (and put right to left) once, in the player's language
+            string Name(byte id) => s.Players.TryGetValue(id, out var p) ? p.Name : "?";
+            string Line(string en, byte id) => Loc.Lang == 0 ? string.Format(en, Rtl.Shape(Name(id)), e.Amount) : Loc.F(en, Name(id), e.Amount);
             if (e.Target == s.LocalId && e.Giver != s.LocalId)
-                Toast($"{Name(e.Giver)} GAVE YOU BLOOD  +{e.Amount}");
+                Toast(Line("{0} GAVE YOU BLOOD  +{1}", e.Giver));
             else if (e.Giver == s.LocalId && e.Target != s.LocalId)
-                Toast($"YOU GAVE {Name(e.Target)} BLOOD  +{e.Amount}");
+                Toast(Line("YOU GAVE {0} BLOOD  +{1}", e.Target));
             if (e.Target == s.LocalId) Sfx.Play(Sfx.Has("dry_0") ? "dry_0" : "click", 0.6f, 1.4f);
             if (e.Giver != s.LocalId && World.I != null && World.I.Agents.TryGetValue(e.Giver, out var giver) && giver != null)
             {

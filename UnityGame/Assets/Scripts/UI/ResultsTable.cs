@@ -98,7 +98,7 @@ namespace UA
                 foreach (var (team, members) in Sides(s))
                 {
                     int shots = members.Sum(p => p.Shots), hits = members.Sum(p => p.ShotHits);
-                    string name = team > 0 ? MatchConfig.TeamName(team) : Rtl.Shape(Short(members[0].Name)) + "  <size=20><color=#8a94a0>ALONE</color></size>";
+                    string name = team > 0 ? MatchConfig.TeamName(team) : Rtl.Shape(Short(members[0].Name)) + "  <size=20><color=#8a94a0>" + Loc.T("ALONE") + "</color></size>";
                     lines.Add((new[]
                     {
                         (lines.Count + 1).ToString(), name, members.Count.ToString(), members.Sum(p => p.Kills).ToString(), members.Sum(p => p.Deaths).ToString(),
@@ -116,7 +116,7 @@ namespace UA
                     var (p, score) = players[i];
                     float kd = p.Deaths > 0 ? (float)p.Kills / p.Deaths : p.Kills;
                     int rating = Mathf.RoundToInt(100f * score / top);
-                    string name = Rtl.Shape(Short(p.Name)) + (p.IsBot ? "  <size=20><color=#8a94a0>BOT</color></size>" : "");
+                    string name = Rtl.Shape(Short(p.Name)) + (p.IsBot ? "  <size=20><color=#8a94a0>" + Loc.T("BOT") + "</color></size>" : "");
                     lines.Add((new[]
                     {
                         i == 0 ? "MVP" : (i + 1).ToString(), name, p.Team > 0 ? $"<color={MatchConfig.TeamHex(p.Team)}>T{p.Team}</color>" : "-",

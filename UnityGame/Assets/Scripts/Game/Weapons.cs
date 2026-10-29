@@ -21,7 +21,7 @@ namespace UA
         public int Pellets = 1;
         public bool Auto;
         public bool Scope;
-        public bool BoltAction;     // re-aim after every shot
+        public bool BoltAction;     // the bolt is worked after every shot
         public float AimFov = 45f;
         public string Sound;
         public float SoundPitch = 1f;
