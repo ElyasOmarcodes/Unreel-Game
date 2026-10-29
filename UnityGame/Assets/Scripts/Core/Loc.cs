@@ -328,6 +328,9 @@ POLICE OFFICER|پلیس|شرطي|POLICÍA
 FIELD AGENT|مامور میدانی|عميل ميداني|AGENTE DE CAMPO
 OPERATIVE|عملیاتی|عنصر عمليات|OPERATIVO
 BODYGUARD|محافظ|حارس شخصي|GUARDAESPALDAS
+SWAT|نیروی واکنش سریع|قوات التدخل|SWAT
+RIFLEMAN|تفنگدار|رامي بندقية|FUSILERO
+RED BERET|کلاه سرخ|القبعة الحمراء|BOINA ROJA
 SPECIAL FORCES|نیروی ویژه|القوات الخاصة|FUERZAS ESPECIALES
 SOLDIER|سرباز|جندي|SOLDADO
 DESERT SCOUT|دیده بان صحرا|كشاف الصحراء|EXPLORADOR DEL DESIERTO

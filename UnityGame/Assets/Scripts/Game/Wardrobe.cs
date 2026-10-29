@@ -12,7 +12,7 @@ namespace UA
         public enum Slot { Body, Top, Bottom, Head, Vest, Feet, Gloves, Kit, Beard, Bag, TopColor, BottomColor, HeadColor, Character }
 
         // bits per slot, in the order of the enum
-        private static readonly int[] Bits = { 2, 3, 2, 4, 2, 2, 1, 1, 1, 1, 3, 3, 2, 3 };
+        private static readonly int[] Bits = { 2, 3, 2, 4, 2, 2, 1, 1, 1, 1, 3, 3, 2, 4 };   // 31 bits (the character last: old looks keep it)
 
         public static readonly string[][] Names =
         {
@@ -28,7 +28,7 @@ namespace UA
             new[] { "NONE", "ASSAULT PACK" },
             null, null, null,
             // a ready-made character of the player's pack in place of all the pieces (0: built piece by piece)
-            new[] { "OWN BUILD", "MERCENARY", "POLICE OFFICER", "FIELD AGENT", "OPERATIVE", "BODYGUARD" },
+            new[] { "OWN BUILD", "MERCENARY", "POLICE OFFICER", "FIELD AGENT", "OPERATIVE", "BODYGUARD", "SWAT", "RIFLEMAN", "RED BERET" },
         };
         /// <summary>
         /// Pieces no longer offered (women's: the abaya, the hijab, the pack's woman FIELD AGENT): skipped by the
@@ -199,6 +199,9 @@ namespace UA
             new Preset("POLICE OFFICER", 0, 0, 0, 0, 0, 0, (Slot.Character, 2)),
             new Preset("OPERATIVE", 0, 0, 0, 0, 0, 0, (Slot.Character, 4)),
             new Preset("BODYGUARD", 0, 0, 0, 0, 0, 0, (Slot.Character, 5)),
+            new Preset("SWAT", 0, 0, 0, 0, 0, 0, (Slot.Character, 6)),
+            new Preset("RIFLEMAN", 0, 0, 0, 0, 0, 0, (Slot.Character, 7)),
+            new Preset("RED BERET", 0, 0, 0, 0, 0, 0, (Slot.Character, 8)),
         };
 
         public static int PresetLook(int index)
@@ -226,7 +229,7 @@ namespace UA
             if (Get(look, Slot.Top) == 0) look = Set(look, Slot.BottomColor, Get(look, Slot.TopColor));
             // now and then one of the pack characters
             if (UnityEngine.Random.value < 0.35f)
-                look = Set(look, Slot.Character, new[] { 1, 2, 4, 5 }[UnityEngine.Random.Range(0, 4)]);
+                look = Set(look, Slot.Character, new[] { 1, 2, 4, 5, 6, 7, 8 }[UnityEngine.Random.Range(0, 7)]);
             return look;
         }
     }

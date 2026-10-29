@@ -9,7 +9,7 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// The five ready-made characters of the player's pack (UnityGame/Models/Characters: every part of a
+/// The ready-made characters of the player's packs (UnityGame/Models/Characters: every part of a
 /// character in one OBJ, in a T-pose, metres, feet at 0, facing +Z; one packed texture each under
 /// Assets/Characters) put on the agent's own skeleton, so they play every animation:
 ///  - the model is scaled to the body's height and stood where the body stands at rest;
@@ -30,6 +30,9 @@ public static class CharacterPack
     public static readonly (string key, bool female)[] All =
     {
         ("Char3", false), ("Char6", false), ("Fem1", true), ("male2F", false), ("male3F", false),
+        // the player's second pack (made from downloaded models: welded, cut to ~22k triangles, baked onto one
+        // 1024 atlas; their own fitted Mixamo joints in Key_skeleton.json)
+        ("Swat", false), ("Rifleman", false), ("RedBeret", false),
     };
 
     public static List<Agent.OutfitPart> Dress(Outfit.Body body, bool female, Material team, List<Renderer> teamRenderers)
