@@ -418,6 +418,9 @@ public static class CharacterPack
                 .Select(x => { float d = Mathf.Max(0f, ToSegment(p, x.a, x.b) - x.radius) + 0.02f; return (x.bone, 1f / (d * d * d * d)); })
                 .OrderByDescending(x => x.Item2).Take(4).ToArray();
         }
+        // how far a point is outside the flesh of a limb ("arm", "leg" or "trunk") of one side
+        float Gap(Vector3 p, string limb, float side) =>
+            pieces.Where(x => x.limb == limb && x.side == side).Select(x => ToSegment(p, x.a, x.b) - x.radius).DefaultIfEmpty(9f).Min();
         (int bone, float weight)[] Mix((int bone, float weight)[] a0, (int bone, float weight)[] b0, float t)
         {
             float sa = Mathf.Max(1e-6f, a0.Sum(x => x.weight)), sb = Mathf.Max(1e-6f, b0.Sum(x => x.weight));
@@ -445,7 +448,10 @@ public static class CharacterPack
             legOf[i] = sign;
             if (!sides.TryGetValue(sign, out var sd)) w = Trunk(p.y);
             else if (p.y >= neckY + 0.02f && ax < 0.16f) { w = Trunk(p.y); kind[i] = 'H'; }
-            else if (ax > sd.armX + 0.1f || ax > sd.armX - 0.03f && Mathf.Abs(p.y - sd.armY) < 0.11f)
+            else if ((ax > sd.armX + 0.1f || ax > sd.armX - 0.03f && Mathf.Abs(p.y - sd.armY) < 0.11f)
+                     // gear out wide below the shoulders (belt pouches, plates) of an A-pose character stays
+                     // with the body when it lies nearer the trunk or a leg than the arm
+                     && (p.y > sd.armY - 0.11f || Gap(p, "arm", sign) < Mathf.Min(Gap(p, "trunk", 0f), Mathf.Min(Gap(p, "leg", -1f), Gap(p, "leg", 1f)))))
             {
                 kind[i] = 'A';
                 // a wide soft shoulder: the top of the arm shares with the trunk (it does not jut out when running)
