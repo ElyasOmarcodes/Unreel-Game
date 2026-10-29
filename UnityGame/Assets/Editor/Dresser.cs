@@ -730,8 +730,8 @@ public static class Dresser
             if (mask != null) hooded.Append(mask);
             Part(result, Outfit.Wear(body, hooded, "Head_HoodScarf", hood), Slot.Head, M(13));
             // the scarf: the RANGER's own (cut from his model, drawn from his atlas) in black over the hood
-            var armyAlbedo = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Characters/Army/Body_Albedo.png");
-            var armyNormal = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Characters/Army/Body_Normal.png");
+            var armyAlbedo = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Characters/Army/Body_Albedo.png");
+            var armyNormal = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Characters/Army/Body_Normal.png");
             var scarfCloth = AssetSetup.Mat("Cloth_BlackScarf", new Color(0.13f, 0.13f, 0.14f), 0.08f, 0f, armyAlbedo, armyNormal);
             var scarf = CharacterPack.Piece(body, "ArmyScarf", "Army", scarfCloth, 0.012f);
             if (scarf != null) Part(result, scarf, Slot.Head, M(13));
