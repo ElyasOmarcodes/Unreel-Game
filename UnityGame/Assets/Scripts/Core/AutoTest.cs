@@ -130,15 +130,15 @@ namespace UA
             yield return Shot("00-feet-side");
             foreach (var go in row) Destroy(go);
             row.Clear();
-            // the seven characters of the player's packs on the game's skeleton: front, back, and close
-            const int packs = 7;
+            // the nine characters of the player's packs on the game's skeleton: front, back, and close
+            const int packs = 9;
             for (int i = 0; i < packs; i++)
             {
                 var go = Dress(Wardrobe.PresetLook(i), new Vector3(i * 1.0f, 300, 0), 180);
                 if (go != null) go.GetComponent<Agent>().SetWeapon(9 + i % 3);
             }
             cam.Cam.fieldOfView = 34;
-            cam.transform.SetPositionAndRotation(new Vector3(3.0f, 301.0f, -8.4f), Quaternion.Euler(3, 0, 0));
+            cam.transform.SetPositionAndRotation(new Vector3(4.0f, 301.0f, -10.6f), Quaternion.Euler(3, 0, 0));
             yield return Wait(1f);
             yield return Shot("00-pack-characters");
             foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 0, 0);
@@ -146,13 +146,13 @@ namespace UA
             yield return Shot("00-pack-characters-back");
             foreach (var go in row) Destroy(go);
             row.Clear();
-            // the second pack (SWAT, RIFLEMAN, RED BERET): close, then running from the front and the side
-            for (int i = 0; i < 3; i++) Dress(Wardrobe.PresetLook(i), new Vector3(i * 0.9f, 300, 0), 180);
-            cam.transform.SetPositionAndRotation(new Vector3(0.9f, 301.35f, -2.9f), Quaternion.Euler(4, 0, 0));
+            // the second pack (SWAT, RIFLEMAN, RED BERET, BLACK SQUAD, RANGER): close, then running front and side
+            for (int i = 0; i < 5; i++) Dress(Wardrobe.PresetLook(i), new Vector3(i * 0.9f, 300, 0), 180);
+            cam.transform.SetPositionAndRotation(new Vector3(1.8f, 301.35f, -4.4f), Quaternion.Euler(4, 0, 0));
             yield return Wait(1f);
             yield return Shot("00-pack2-close");
             foreach (var go in row) { var anim = go != null ? go.GetComponent<Agent>().Anim : null; if (anim != null) anim.SetFloat("MoveY", 1f); }
-            cam.transform.SetPositionAndRotation(new Vector3(0.9f, 301.0f, -4.6f), Quaternion.Euler(3, 0, 0));
+            cam.transform.SetPositionAndRotation(new Vector3(1.8f, 301.0f, -6.2f), Quaternion.Euler(3, 0, 0));
             yield return Wait(0.6f);
             yield return Shot("00-pack2-running");
             foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 90, 0);

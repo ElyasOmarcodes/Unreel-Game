@@ -331,6 +331,8 @@ BODYGUARD|محافظ|حارس شخصي|GUARDAESPALDAS
 SWAT|نیروی واکنش سریع|قوات التدخل|SWAT
 RIFLEMAN|تفنگدار|رامي بندقية|FUSILERO
 RED BERET|کلاه سرخ|القبعة الحمراء|BOINA ROJA
+BLACK SQUAD|جوخه سیاه|الفرقة السوداء|ESCUADRA NEGRA
+RANGER|تکاور|جندي الصاعقة|RANGER
 SPECIAL FORCES|نیروی ویژه|القوات الخاصة|FUERZAS ESPECIALES
 SOLDIER|سرباز|جندي|SOLDADO
 DESERT SCOUT|دیده بان صحرا|كشاف الصحراء|EXPLORADOR DEL DESIERTO

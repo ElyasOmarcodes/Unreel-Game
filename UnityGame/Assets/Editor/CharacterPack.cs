@@ -31,8 +31,8 @@ public static class CharacterPack
     {
         ("Char3", false), ("Char6", false), ("Fem1", true), ("male2F", false), ("male3F", false),
         // the player's second pack (made from downloaded models: welded, cut to ~22k triangles, baked onto one
-        // 1024 atlas; their own fitted Mixamo joints in Key_skeleton.json)
-        ("Swat", false), ("Rifleman", false), ("RedBeret", false),
+        // 1024 atlas, the arms turned out to a T-pose; their own fitted Mixamo joints in Key_skeleton.json)
+        ("Swat", false), ("Rifleman", false), ("RedBeret", false), ("BlackSquad", false), ("Army", false),
     };
 
     public static List<Agent.OutfitPart> Dress(Outfit.Body body, bool female, Material team, List<Renderer> teamRenderers)
@@ -308,17 +308,27 @@ public static class CharacterPack
         return (p - (a + ab * t)).magnitude;
     }
 
-    private static GameObject Build(Outfit.Body body, string key)
+    /// <summary>
+    /// A piece cut out of a pack character (Models/Characters/piece.obj, still where it sat on that character):
+    /// put on the body by that character's own joints, as that character would be, drawn with 'material'
+    /// (usually that character's own atlas, tinted), pushed out along its normals by 'puff' (over other clothes).
+    /// </summary>
+    public static GameObject Piece(Outfit.Body body, string piece, string from, Material material, float puff) => Build(body, piece, from, material, puff);
+
+    private static GameObject Build(Outfit.Body body, string key, string from = null, Material material = null, float puff = 0f)
     {
         string file = Path.Combine(Folder, key + ".obj");
         if (!File.Exists(file)) { Debug.LogWarning("[Setup] character missing: " + file); return null; }
         var m = Load(file);
-        var skeleton = Skeleton(key, m);
+        for (int i = 0; i < m.P.Count && puff != 0f; i++) m.P[i] += m.N[i].normalized * puff;
+        // a piece: the joints and the height of the character it was cut from
+        var whole = from == null ? m : Load(Path.Combine(Folder, from + ".obj"));
+        var skeleton = Skeleton(from ?? key, whole);
         if (skeleton == null) { Debug.LogWarning("[Setup] no Mixamo skeleton for the characters in " + Folder); return null; }
 
         // stand it where the body stands, as tall as the body (the skeleton with it)
         float bodyLow = body.Points.Min(p => p.y), bodyHigh = body.Points.Max(p => p.y);
-        float low = m.P.Min(p => p.y), high = m.P.Max(p => p.y);
+        float low = whole.P.Min(p => p.y), high = whole.P.Max(p => p.y);
         var pelvis = body.At("pelvis", "spine_01");
         float s = (bodyHigh - bodyLow) / Mathf.Max(0.5f, high - low);
         Vector3 Place(Vector3 p) => new Vector3(pelvis.x + p.x * s, bodyLow + (p.y - low) * s, pelvis.z + p.z * s);
@@ -520,13 +530,17 @@ public static class CharacterPack
             }
             return texture;
         }
-        var mat = AssetSetup.Mat("Char_" + key, Color.white, 0.3f, 0f, T("Albedo"), T("Normal"));
-        // hair, lashes and beards are cut out of the texture's alpha
-        mat.SetFloat("_Mode", 1f);
-        mat.SetFloat("_Cutoff", 0.5f);
-        mat.EnableKeyword("_ALPHATEST_ON");
-        mat.SetOverrideTag("RenderType", "TransparentCutout");
-        mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
+        var mat = material;
+        if (mat == null)
+        {
+            mat = AssetSetup.Mat("Char_" + key, Color.white, 0.3f, 0f, T("Albedo"), T("Normal"));
+            // hair, lashes and beards are cut out of the texture's alpha
+            mat.SetFloat("_Mode", 1f);
+            mat.SetFloat("_Cutoff", 0.5f);
+            mat.EnableKeyword("_ALPHATEST_ON");
+            mat.SetOverrideTag("RenderType", "TransparentCutout");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
+        }
         var go = Outfit.Wear(body, g, "Character_" + key, bindposes, mat);
         Debug.Log($"[Setup] character {key}: {m.P.Count} vertices, scale {s:0.00}, {pieces.Count} bones from the Mixamo skeleton");
         return go;

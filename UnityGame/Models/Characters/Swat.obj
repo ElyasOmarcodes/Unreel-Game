@@ -1,4 +1,4 @@
-# Swat: every part of the character (metres, feet at 0, facing +Z)
+# Swat: every part of the character (T-pose, metres, feet at 0, facing +Z)
 v -0.05643 0.91278 0.27540
 v 0.05663 0.92048 0.27870
 v -0.05038 1.09774 0.27201

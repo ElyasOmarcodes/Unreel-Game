@@ -719,7 +719,7 @@ public static class Dresser
         }
 
         // 13: hood and scarf (TEAM 1): a black mask over the face and neck (only the eyes free), a loose
-        // hood over it falling to the shoulders, and a scarf wound twice round the neck, its ends on the chest
+        // hood over it falling to the shoulders, and the RANGER's scarf in black round the neck and down the chest
         {
             var mask = Outfit.Shell(body, new Cut
             {
@@ -728,50 +728,13 @@ public static class Dresser
             });
             var hooded = Headcloth(0.022f, 0.06f, 30f, false, 0.075f);
             if (mask != null) hooded.Append(mask);
-            // the scarf: two thick rolls round the neck, then the two ends down the chest
-            int neckBoneId = neckBone, chestId = chestBone, midId = body.Bone("spine_02");
-            var scarf = new Garment();
-            int fold = 0;
-            foreach (var (y, extra, tube) in new[] { (chin - 0.022f, 0.022f, 0.014f), (chin - 0.048f, 0.03f, 0.016f), (chin - 0.074f, 0.036f, 0.015f) })
-            {
-                var around = Outfit.Support(neckPts, y, 0.014f, hx, hz);
-                if (around == null) continue;
-                // loosely wound: each turn a little wavy, sagging to the front
-                int turn = fold++;
-                var radius = around.Select((v, k) =>
-                {
-                    float a = (k + 0.5f) / 32f * Mathf.PI * 2f;
-                    return v + extra + 0.008f * Mathf.Sin(a * 3f + turn * 1.7f) + 0.006f * Mathf.Max(0f, Mathf.Sin(a));
-                }).ToArray();
-                var roll = Outfit.Torus(new Vector3(hx, y, hz), radius, tube, 8);
-                roll.SetWeights(Outfit.Weight((neckBoneId, 0.6f), (chestId, 0.4f)));
-                scarf.Append(roll);
-            }
-            var front = shells.SelectMany(g => g.P).Concat(body.PointsIn(Region.Torso)).ToList();
-            float FrontAt(float x, float y) => front.Where(q => Mathf.Abs(q.y - y) < 0.03f && Mathf.Abs(q.x - x) < 0.04f).Select(q => q.z).DefaultIfEmpty(chest.z + 0.12f).Max();
-            foreach (var (side, length) in new[] { (-1f, 0.42f), (1f, 0.3f) })
-            {
-                var path = new List<Vector3>();
-                var width = new List<float>();
-                var normals = new List<Vector3>();
-                float x = hx + side * 0.065f;
-                for (int i = 0; i <= 8; i++)
-                {
-                    float f = i / 8f, y = chin - 0.07f - length * f;
-                    path.Add(new Vector3(x + side * 0.01f * f, y, FrontAt(x, y) + 0.016f));
-                    width.Add(Mathf.Lerp(0.085f, 0.11f, f));
-                    normals.Add(Vector3.forward);
-                }
-                var end = Outfit.Strip(path, width, normals, 0.008f);
-                for (int i = 0; i < end.P.Count; i++)
-                {
-                    float f = Mathf.Clamp01((chin - 0.07f - end.P[i].y) / length);
-                    end.W[i] = Outfit.Weight((neckBoneId, (1 - f) * 0.4f), (chestId, 0.6f + 0.2f * f), (midId, 0.4f * f));
-                }
-                scarf.Append(end);
-            }
-            hooded.Append(scarf);
             Part(result, Outfit.Wear(body, hooded, "Head_HoodScarf", hood), Slot.Head, M(13));
+            // the scarf: the RANGER's own (cut from his model, drawn from his atlas) in black over the hood
+            var armyAlbedo = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Characters/Army/Body_Albedo.png");
+            var armyNormal = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Characters/Army/Body_Normal.png");
+            var scarfCloth = AssetSetup.Mat("Cloth_BlackScarf", new Color(0.13f, 0.13f, 0.14f), 0.08f, 0f, armyAlbedo, armyNormal);
+            var scarf = CharacterPack.Piece(body, "ArmyScarf", "Army", scarfCloth, 0.012f);
+            if (scarf != null) Part(result, scarf, Slot.Head, M(13));
         }
 
         // hair under the head wear, beard unless the face is covered
