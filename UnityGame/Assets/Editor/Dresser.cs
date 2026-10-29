@@ -372,8 +372,10 @@ public static class Dresser
                 var a = body.At("upperarm_" + side);
                 var b = body.At("lowerarm_" + side);
                 var axis = (b - a).normalized;
-                var outward = Vector3.ProjectOnPlane(new Vector3(Mathf.Sign(a.x - hip.x), 0, 0.12f), axis).normalized;
-                var at = a + (b - a) * 0.16f;
+                // the outer side of the sleeve: sideways when the arm hangs, up when it is held out (the rest pose)
+                var outward = Vector3.Cross(Vector3.forward, axis).normalized;
+                if (outward.y < -0.3f || (Mathf.Abs(outward.y) <= 0.3f && Mathf.Sign(outward.x) != Mathf.Sign(a.x - hip.x))) outward = -outward;
+                var at = a + (b - a) * 0.2f;
                 // on the sleeve: the farthest point of the jacket out from the arm there
                 float reach = topShells[0].P.Where(q => Mathf.Abs(Vector3.Dot(q - at, axis)) < 0.03f && Vector3.Dot(q - at, outward) > 0f)
                     .Select(q => Vector3.Dot(q - at, outward)).DefaultIfEmpty(0.08f).Max();

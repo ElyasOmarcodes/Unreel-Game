@@ -159,7 +159,7 @@ namespace UA
                 yield return Wait(0.3f);
                 yield return Shot("00-team1-head");
                 // the right side figure: its shoulder and the patch on the sleeve
-                cam.transform.SetPositionAndRotation(new Vector3(2.45f, 301.42f, -0.95f), Quaternion.Euler(4, 0, 0));
+                cam.transform.SetPositionAndRotation(new Vector3(2.4f, 301.45f, -1.6f), Quaternion.Euler(4, 0, 0));
                 yield return Wait(0.3f);
                 yield return Shot("00-team1-arm");
                 foreach (var go in row) Destroy(go);
