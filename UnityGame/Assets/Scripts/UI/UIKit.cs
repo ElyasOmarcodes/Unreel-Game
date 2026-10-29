@@ -146,6 +146,9 @@ namespace UA
             t.alignment = align;
             t.color = color ?? TextColor;
             t.text = Loc.T(text);   // in the player's language
+            // a long right-to-left text: broken into lines in reading order once its box is known
+            if (Loc.RightToLeft && t.text != text && !t.text.Contains("\n") && Rtl.HasRtl(t.text))
+                r.gameObject.AddComponent<RtlLines>().Logical = Loc.Raw(text);
             t.raycastTarget = false;
             t.supportRichText = true;
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -246,7 +249,12 @@ namespace UA
             var l = Txt(row, label, 34, TextAnchor.MiddleLeft, Muted);
             l.rectTransform.Fill();
             l.rectTransform.offsetMin = new Vector2(30, 0);
-            var v = Txt(row, value(), 36, TextAnchor.MiddleCenter, Accent);   // Txt puts it in the player's language
+            // up to the arrows: a long label (another language) gets smaller rather than run under them
+            l.rectTransform.offsetMax = new Vector2(-480, 0);
+            l.resizeTextForBestFit = true;
+            l.resizeTextMinSize = 18;
+            l.resizeTextMaxSize = 34;
+            var v = Txt(row, value(), 36, TextAnchor.MiddleCenter, Accent);
             v.rectTransform.At(1f, 0.5f, -230, 0, 300, 84);
             var minus = Btn(row, "<", () => { change(-1); v.text = Loc.T(value()); }, 40);
             minus.GetComponent<RectTransform>().At(1f, 0.5f, -430, 0, 90, 70);
@@ -293,6 +301,53 @@ namespace UA
             var t = Txt(parent, text, size, TextAnchor.MiddleCenter, TextColor).Shadowed();
             t.rectTransform.At(0.5f, 1f, 0, y, 1600, size + 30, 0.5f, 1f);
             return t;
+        }
+    }
+}
+
+namespace UA
+{
+    /// <summary>
+    /// A right-to-left text (Persian, Arabic) longer than its box: broken into lines by words in reading
+    /// order, the first line on top, each line joined and turned on its own. Unity's own wrapping works on
+    /// the turned text and would put the end of the sentence on the first line.
+    /// </summary>
+    public class RtlLines : MonoBehaviour
+    {
+        public string Logical;
+        private Text text;
+        private string shaped;
+        private float width = -1f;
+
+        private void OnEnable() => Fit();
+        private void OnRectTransformDimensionsChange() { if (isActiveAndEnabled) Fit(); }
+
+        private void Fit()
+        {
+            if (text == null) text = GetComponent<Text>();
+            if (text == null || string.IsNullOrEmpty(Logical)) return;
+            // the text was set to something else since: no longer ours
+            if (shaped != null && text.text != shaped) { enabled = false; return; }
+            float w = ((RectTransform)transform).rect.width;
+            if (w <= 1f || Mathf.Abs(w - width) < 0.5f) return;
+            width = w;
+            var settings = text.GetGenerationSettings(new Vector2(w, 0f));
+            settings.horizontalOverflow = HorizontalWrapMode.Overflow;
+            float Measure(string s) => text.cachedTextGeneratorForLayout.GetPreferredWidth(s, settings) / text.pixelsPerUnit;
+            var lines = new System.Collections.Generic.List<string>();
+            string line = "";
+            foreach (var word in Logical.Split(' '))
+            {
+                string longer = line.Length == 0 ? word : line + " " + word;
+                if (line.Length > 0 && Measure(Rtl.Shape(longer)) > w) { lines.Add(line); line = word; }
+                else line = longer;
+            }
+            lines.Add(line);
+            var parts = new string[lines.Count];
+            for (int i = 0; i < lines.Count; i++) parts[i] = Rtl.Shape(lines[i]);
+            shaped = string.Join("\n", parts);
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.text = shaped;
         }
     }
 }

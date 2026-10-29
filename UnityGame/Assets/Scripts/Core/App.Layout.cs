@@ -48,6 +48,8 @@ namespace UA
         private void BuildLayoutEditor()
         {
             var s = MakeScreen("layout");
+            layoutItems.Clear();   // built again (another language): the old buttons are gone
+            layoutSelected = null;
             var hint = UIKit.Txt(s, "Drag a button to move it.  Select it and use  -  /  +  to resize,  HIDE to remove it.", 30, TextAnchor.MiddleCenter, UIKit.TextColor).Shadowed();
             hint.rectTransform.At(0.5f, 1f, 0, -40, 1700, 50, 0.5f, 1f);
             // fake stick area

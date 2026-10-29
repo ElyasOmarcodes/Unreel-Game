@@ -37,6 +37,13 @@ namespace UA
             return en;
         }
 
+        /// <summary>The translation as written (not yet joined or turned right to left), or the English.</summary>
+        public static string Raw(string en)
+        {
+            if (Lang == 0 || string.IsNullOrEmpty(en)) return en;
+            return Table().TryGetValue(en, out var tr) ? tr : en;
+        }
+
         /// <summary>A text with values in it ({0}, {1} ...): the values put in first, then joined as a whole.</summary>
         public static string F(string en, params object[] values)
         {
@@ -95,13 +102,13 @@ GROUP NAME|نام گروه|اسم المجموعة|NOMBRE DEL GRUPO
 Group name|نام گروه|اسم المجموعة|Nombre del grupo
 PASSWORD|رمز|كلمة السر|CONTRASEÑA
 Optional - empty = open|اختیاری - خالی یعنی باز|اختياري - فارغ يعني مفتوح|Opcional: vacío = abierto
-TEAM NUMBER|شماره تیم|رقم الفريق|NÚMERO DE EQUIPO
+TEAM NUMBER|شماره تیم|رقم الفريق|EQUIPO Nº
 MAP|نقشه|الخريطة|MAPA
 TIME OF DAY|زمان روز|وقت اليوم|HORA DEL DÍA
 MATCH TIME|مدت بازی|مدة المباراة|DURACIÓN
 MIN|دقیقه|دقيقة|MIN
 BOTS|ربات ها|الروبوتات|BOTS
-BOT SKILL|مهارت ربات ها|مهارة الروبوتات|NIVEL DE LOS BOTS
+BOT SKILL|مهارت ربات ها|مهارة الروبوتات|NIVEL BOTS
 START PRACTICE|شروع تمرین|بدء التدريب|EMPEZAR PRÁCTICA
 NONE|هیچ|لا شيء|NINGUNO
 STEEL CITY|شهر فولاد|مدينة الفولاذ|CIUDAD DE ACERO
@@ -154,11 +161,11 @@ SOUND VOLUME|صدا|مستوى الصوت|VOLUMEN
 SHOW FPS|نمایش FPS|إظهار FPS|MOSTRAR FPS
 AUTO GRAPHICS|گرافیک خودکار|رسوميات تلقائية|GRÁFICOS AUTO
 TURN SPEED|سرعت چرخش|سرعة الدوران|GIRO
-AIM SPEED|سرعت نشانه روی|سرعة التصويب|VELOCIDAD AL APUNTAR
-SCOPE SPEED|سرعت دوربین|سرعة المنظار|VELOCIDAD CON MIRA
-LEFT / RIGHT|چپ / راست|يسار / يمين|IZQUIERDA / DERECHA
+AIM SPEED|سرعت نشانه روی|سرعة التصويب|APUNTANDO
+SCOPE SPEED|سرعت دوربین|سرعة المنظار|CON MIRA
+LEFT / RIGHT|چپ / راست|يسار / يمين|IZQ. / DER.
 UP / DOWN|بالا / پایین|أعلى / أسفل|ARRIBA / ABAJO
-AIM ASSIST|کمک نشانه روی|مساعدة التصويب|AYUDA DE PUNTERÍA
+AIM ASSIST|کمک نشانه روی|مساعدة التصويب|AYUDA PUNTERÍA
 MUSIC|موسیقی|الموسيقى|MÚSICA
 LANGUAGE|زبان|اللغة|IDIOMA
 ON|روشن|تشغيل|SÍ
@@ -168,7 +175,7 @@ LOW|پایین|منخفض|BAJA
 MEDIUM|متوسط|متوسط|MEDIA
 HIGH|بالا|عال|ALTA
 Running speed is the same for everyone and cannot be changed.|سرعت دویدن برای همه یکسان است و تغییر نمی کند.|سرعة الجري واحدة للجميع ولا يمكن تغييرها.|La velocidad de carrera es igual para todos y no se puede cambiar.
-CONTROLS LAYOUT|چیدمان دکمه ها|ترتيب الأزرار|DISPOSICIÓN DE BOTONES
+CONTROLS LAYOUT|چیدمان دکمه ها|ترتيب الأزرار|MOVER BOTONES
 PAUSED|توقف|متوقف|PAUSA
 RESUME|ادامه|استئناف|CONTINUAR
 LEAVE MATCH|ترک بازی|مغادرة المباراة|SALIR DE LA PARTIDA

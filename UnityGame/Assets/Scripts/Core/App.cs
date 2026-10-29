@@ -283,7 +283,8 @@ namespace UA
             side.rectTransform.pivot = new Vector2(0, 0.5f);
             side.rectTransform.sizeDelta = new Vector2(760, 0);
             side.rectTransform.anchoredPosition = Vector2.zero;
-            var title = UIKit.Txt(side.transform, "AGENT\n<color=#ff3b30>WARFARE</color>", 84, TextAnchor.UpperLeft).Shadowed();
+            var title = UIKit.Txt(side.transform, "", 84, TextAnchor.UpperLeft).Shadowed();
+            title.text = "AGENT\n<color=#ff3b30>WARFARE</color>";   // the name, in every language
             title.lineSpacing = 0.85f;
             title.rectTransform.At(0f, 1f, 90, -90, 700, 240, 0f, 1f);
             if (Logo() != null) Badge(side.transform).At(0f, 1f, 560, -90, 170, 170, 0f, 1f);

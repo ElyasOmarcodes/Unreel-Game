@@ -551,7 +551,8 @@ public static class Dresser
         // around the neck and the top of the shoulders only (the arms stand out sideways at rest)
         var neckPts = body.PointsIn(Region.Torso, Region.Head).Where(p => Mathf.Abs(p.x - hx) < 0.2f).ToList();
         neckPts.AddRange(shells.SelectMany(s => s.P).Where(p => p.y > shoulderY - 0.15f && Mathf.Abs(p.x - hx) < 0.2f));
-        Garment Headcloth(float headRoom, float hang, float faceHalfAngle, bool closedBelowChin)
+        // dome: the height under the crown over which a loose hood rounds off (0: the cloth lies on the head)
+        Garment Headcloth(float headRoom, float hang, float faceHalfAngle, bool closedBelowChin, float dome = 0f)
         {
             var rings = new List<(float y, float[] r)>();
             float[] widest = null;
@@ -561,6 +562,12 @@ public static class Dresser
             {
                 var s = y >= top - 0.004f ? R(Sec(top - 0.004f), Mathf.Clamp01(1f - (y - top + 0.004f) * 9f), 0) : Sec(y);
                 var r = R(s, 1, headRoom);
+                if (dome > 0f && y > top - dome)
+                {
+                    // a round crown: an ellipse from the widest ring under it up to the top of the cloth
+                    float t = Mathf.Clamp01((y - (top - dome)) / (dome + headRoom));
+                    r = R(Sec(top - dome), Mathf.Sqrt(1f - t * t), headRoom * Mathf.Sqrt(1f - t * t));
+                }
                 if (widest != null && y < eyeY + 0.02f) r = r.Select((v, k) => Mathf.Max(v, widest[k] + 0.002f)).ToArray();
                 if (y < eyeY + 0.04f) widest = r;
                 rings.Add((y, r));
@@ -681,19 +688,27 @@ public static class Dresser
         {
             var mask = Outfit.Shell(body, new Cut
             {
-                Regions = new[] { Region.Head }, Thickness = 0.007f, Smooth = 3, Tile = 0.06f,
-                Keep = (p, n) => !(p.z > hz && Mathf.Abs(p.y - eyeY) < 0.019f && Mathf.Abs(p.x - hx) < 0.066f) && p.y > shoulderY - 0.02f,
+                Regions = new[] { Region.Head }, Thickness = 0.009f, Smooth = 4, Tile = 0.06f,
+                Keep = (p, n) => !(p.z > hz && Mathf.Abs(p.y - eyeY) < 0.015f && Mathf.Abs(p.x - hx) < 0.062f) && p.y > shoulderY - 0.02f,
             });
-            var hooded = Headcloth(0.024f, 0.06f, 36f, false);
+            var hooded = Headcloth(0.022f, 0.06f, 30f, false, 0.075f);
             if (mask != null) hooded.Append(mask);
             // the scarf: two thick rolls round the neck, then the two ends down the chest
             int neckBoneId = neckBone, chestId = chestBone, midId = body.Bone("spine_02");
             var scarf = new Garment();
-            foreach (var (y, extra, tube) in new[] { (chin - 0.028f, 0.03f, 0.024f), (chin - 0.064f, 0.042f, 0.026f) })
+            int fold = 0;
+            foreach (var (y, extra, tube) in new[] { (chin - 0.022f, 0.022f, 0.014f), (chin - 0.048f, 0.03f, 0.016f), (chin - 0.074f, 0.036f, 0.015f) })
             {
                 var around = Outfit.Support(neckPts, y, 0.014f, hx, hz);
                 if (around == null) continue;
-                var roll = Outfit.Torus(new Vector3(hx, y, hz), R(around, 1, extra), tube, 8);
+                // loosely wound: each turn a little wavy, sagging to the front
+                int turn = fold++;
+                var radius = around.Select((v, k) =>
+                {
+                    float a = (k + 0.5f) / 32f * Mathf.PI * 2f;
+                    return v + extra + 0.008f * Mathf.Sin(a * 3f + turn * 1.7f) + 0.006f * Mathf.Max(0f, Mathf.Sin(a));
+                }).ToArray();
+                var roll = Outfit.Torus(new Vector3(hx, y, hz), radius, tube, 8);
                 roll.SetWeights(Outfit.Weight((neckBoneId, 0.6f), (chestId, 0.4f)));
                 scarf.Append(roll);
             }
