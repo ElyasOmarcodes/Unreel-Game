@@ -381,19 +381,34 @@ public static class Dresser
                 // across the patch, to the right of someone looking at it (the flag reads the right way)
                 var across = Vector3.Cross(axis, outward).normalized;
                 var at = a + (b - a) * 0.6f;
-                const float wide = 0.08f, high = 0.055f;
-                var piece = Outfit.Derive(topShells[0], q =>
-                {
-                    var d = q - at;
-                    return Vector3.Dot(d, outward) > 0f && Mathf.Abs(Vector3.Dot(d, axis)) < high / 2f && Mathf.Abs(Vector3.Dot(d, across)) < wide / 2f;
-                }, 0.003f);
-                if (piece == null) { Debug.LogWarning($"[Setup] TEAM 1 patch {side}: nothing of the sleeve at {at} facing {outward}"); continue; }
-                for (int i = 0; i < piece.P.Count; i++)
-                {
-                    var d = piece.P[i] - at;
-                    piece.UV[i] = new Vector2(Vector3.Dot(d, across) / wide + 0.5f, Vector3.Dot(d, -axis) / high + 0.5f);
-                }
-                Debug.Log($"[Setup] TEAM 1 patch {side}: {piece.P.Count} points at {at} facing {outward}");
+                const float wide = 0.09f, high = 0.06f;
+                const int cols = 9, rows = 6;
+                // a whole rectangle lying on the sleeve: each point straight out from the arm to the cloth there,
+                // 3 mm above it, moving as the nearest point of the sleeve does
+                var shell = topShells[0];
+                var piece = new Garment();
+                var grid = new int[cols + 1, rows + 1];
+                bool whole = true;
+                for (int i = 0; i <= cols && whole; i++)
+                    for (int j = 0; j <= rows && whole; j++)
+                    {
+                        var line = at + across * ((i / (float)cols - 0.5f) * wide) - axis * ((j / (float)rows - 0.5f) * high);
+                        int best = -1;
+                        float far = float.MinValue;
+                        for (int k = 0; k < shell.P.Count; k++)
+                        {
+                            var d = shell.P[k] - line;
+                            float along = Vector3.Dot(d, outward);
+                            if (along > far && (d - outward * along).sqrMagnitude < 0.02f * 0.02f) { far = along; best = k; }
+                        }
+                        if (best < 0) { whole = false; break; }
+                        grid[i, j] = piece.Add(line + outward * (far + 0.003f), outward, new Vector2(i / (float)cols, j / (float)rows), shell.W[best]);
+                    }
+                if (!whole) { Debug.LogWarning($"[Setup] TEAM 1 patch {side}: the sleeve not found at {at} facing {outward}"); continue; }
+                for (int i = 0; i < cols; i++)
+                    for (int j = 0; j < rows; j++)
+                        piece.Quad(grid[i, j + 1], grid[i + 1, j + 1], grid[i, j], grid[i + 1, j]);
+                Debug.Log($"[Setup] TEAM 1 patch {side}: at {at} facing {outward}");
                 if (patches == null) patches = piece; else patches.Append(piece);
             }
             var patchPart = Part(result, Outfit.Wear(body, patches, "Top_FlagPatches", flag), Slot.Head, M(13));
