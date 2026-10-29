@@ -145,6 +145,22 @@ namespace UA
             yield return Shot("00-pack-characters-back");
             foreach (var go in row) Destroy(go);
             row.Clear();
+            // TEAM 1 as on its reference sheet: front, back and right side, then the head and the arm patch close
+            {
+                int team1 = System.Array.FindIndex(Wardrobe.Presets, preset => preset.Name == "TEAM 1");
+                float[] turns = { 180f, 0f, 90f };
+                for (int i = 0; i < turns.Length && team1 >= 0; i++)
+                    Dress(Wardrobe.PresetLook(team1), new Vector3(i * 1.2f, 300, 0), turns[i]);
+                cam.Cam.fieldOfView = 34;
+                cam.transform.SetPositionAndRotation(new Vector3(1.2f, 301.0f, -5.2f), Quaternion.Euler(3, 0, 0));
+                yield return Wait(1f);
+                yield return Shot("00-team1-sheet");
+                cam.transform.SetPositionAndRotation(new Vector3(0.05f, 301.62f, -1.0f), Quaternion.Euler(4, 0, 0));
+                yield return Wait(0.3f);
+                yield return Shot("00-team1-head");
+                foreach (var go in row) Destroy(go);
+                row.Clear();
+            }
             // the clothes in motion (running): no gap in them anywhere, front and side
             for (int i = 0; i < 5 && i < Wardrobe.Styles.Length; i++)
             {

@@ -58,7 +58,7 @@ public static class Dresser
 
     // ------------------------------------------------------------------ materials
 
-    private static Material cloth, wool, denim, stripes, check, knit, leather, rubber, black, white, tie, waistcoat, glove;
+    private static Material cloth, wool, denim, stripes, check, knit, leather, rubber, black, white, tie, waistcoat, glove, hood, flag;
     private static Material[] camos;
     private static readonly Dictionary<string, Material> kitMaterials = new Dictionary<string, Material>();
 
@@ -123,6 +123,10 @@ public static class Dresser
         tie = AssetSetup.Mat("Cloth_Tie", new Color(0.42f, 0.07f, 0.1f), 0.45f, 0f, woolAlbedo, clothNormal);
         waistcoat = AssetSetup.Mat("Cloth_Waistcoat", new Color(0.2f, 0.19f, 0.18f), 0.18f, 0f, woolAlbedo, clothNormal);
         glove = AssetSetup.Mat("Gloves_Tactical", new Color(0.1f, 0.1f, 0.1f), 0.28f, 0f, null, knitNormal);
+        // black cotton of the hood and the scarf (TEAM 1)
+        hood = AssetSetup.Mat("Cloth_BlackHood", new Color(0.075f, 0.075f, 0.08f), 0.06f, 0f, clothAlbedo, clothNormal);
+        // the arm patch: green, white and black with three red stars, a dark stitched edge
+        flag = AssetSetup.Mat("Patch_Flag", Color.white, 0.15f, 0f, Outfit.Texture("Patch_Flag", 128, FlagPixel));
 
         var suits = AssetSetup.Suits();
         Material Plain(string name, Color c) => AssetSetup.Mat("Suit_" + name, c, 0.12f, 0f, clothAlbedo, clothNormal);
@@ -130,7 +134,8 @@ public static class Dresser
         {
             suits[0], suits[1], suits[2], suits[3],
             Plain("Olive", new Color(0.33f, 0.35f, 0.24f)), Plain("Sand", new Color(0.66f, 0.58f, 0.43f)),
-            Plain("Navy", new Color(0.14f, 0.17f, 0.27f)), Plain("Grey", new Color(0.42f, 0.43f, 0.45f)),
+            Plain("Navy", new Color(0.14f, 0.17f, 0.27f)),
+            AssetSetup.Mat("Suit_Hex", Color.white, 0.12f, 0f, Outfit.Texture("Camo_Hex", 256, HexCamoPixel)),
         };
         foreach (var m in camos)
         {
@@ -138,6 +143,75 @@ public static class Dresser
             m.EnableKeyword("_NORMALMAP");
             m.SetFloat("_Glossiness", 0.12f);
         }
+    }
+
+    /// <summary>
+    /// Hexagon camo (TEAM 1): small six-sided cells in earth and olive tones, grouped in patches by a slow
+    /// pattern, with darker seams between them; it repeats seamlessly over the tile.
+    /// </summary>
+    private static Color HexCamoPixel(float u, float v)
+    {
+        const int cols = 24, rows = 28;   // an even number of rows: the shifted rows meet across the seam
+        Color[] tones =
+        {
+            new Color(0.29f, 0.27f, 0.18f), new Color(0.41f, 0.4f, 0.27f), new Color(0.55f, 0.5f, 0.36f),
+            new Color(0.47f, 0.36f, 0.24f), new Color(0.66f, 0.6f, 0.45f),
+        };
+        float x = u * cols, y = v * rows;
+        float best = float.MaxValue, second = float.MaxValue;
+        int bc = 0, br = 0;
+        int r0 = Mathf.FloorToInt(y), c0 = Mathf.FloorToInt(x);
+        for (int r = r0 - 1; r <= r0 + 2; r++)
+            for (int c = c0 - 1; c <= c0 + 2; c++)
+            {
+                float dx = (c + ((r & 1) == 1 ? 0.5f : 0f) - x) / cols, dy = (r - y) / rows;
+                float d = dx * dx * 0.75f + dy * dy;   // the cells a little wider than tall, as on the cloth
+                if (d < best) { second = best; best = d; bc = c; br = r; }
+                else if (d < second) second = d;
+            }
+        bc = (bc % cols + cols) % cols;
+        br = (br % rows + rows) % rows;
+        float cu = (bc + ((br & 1) == 1 ? 0.5f : 0f)) / cols * Mathf.PI * 2f, cv = br / (float)rows * Mathf.PI * 2f;
+        float n = Mathf.Sin(cu * 2f + Mathf.Sin(cv * 3f) * 1.3f) + 0.8f * Mathf.Sin(cv * 2f + Mathf.Cos(cu * 3f) * 1.3f) + 0.45f * Mathf.Sin((cu + cv) * 4f + 1.3f);
+        int hash = ((bc * 73856093) ^ (br * 19349663)) & 1023;
+        n += (hash / 1023f - 0.5f) * 1.1f;
+        int k = Mathf.Clamp(Mathf.FloorToInt((n + 2.2f) / 4.4f * tones.Length), 0, tones.Length - 1);
+        var col = tones[k];
+        // the seam between two cells, and a little weave
+        float seam = Mathf.Sqrt(second) - Mathf.Sqrt(best);
+        if (seam < 0.004f) col *= 0.8f;
+        col *= 0.95f + 0.05f * Outfit.Noise(u, v, 64);
+        col.a = 1f;
+        return col;
+    }
+
+    /// <summary>The arm patch (3 : 2): green over white over black, three red stars on the white, a stitched edge.</summary>
+    private static Color FlagPixel(float u, float v)
+    {
+        if (u < 0.04f || u > 0.96f || v < 0.06f || v > 0.94f) return new Color(0.16f, 0.16f, 0.13f);
+        float fy = (v - 0.06f) / 0.88f;
+        var c = fy > 2f / 3f ? new Color(0.0f, 0.45f, 0.24f) : fy > 1f / 3f ? new Color(0.95f, 0.95f, 0.93f) : new Color(0.04f, 0.04f, 0.04f);
+        // stars on the white band, measured in the patch's own proportions (1.5 wide for 1 high)
+        var p = new Vector2((u - 0.5f) * 1.5f, fy - 0.5f);
+        for (int i = -1; i <= 1; i++)
+            if (InStar(p - new Vector2(i * 0.3f, 0f), 0.13f)) c = new Color(0.82f, 0.08f, 0.1f);
+        return c;
+    }
+
+    private static bool InStar(Vector2 p, float outer)
+    {
+        // a five-pointed star, a point up: inside when on the inner side of the two edges of its sector
+        float a = Mathf.Atan2(p.x, p.y);
+        float sector = Mathf.PI * 2f / 5f;
+        float local = Mathf.Repeat(a + sector / 2f, sector) - sector / 2f;
+        float r = p.magnitude;
+        float inner = outer * 0.382f;
+        // the edge from the point (angle 0, outer) to the notch (angle sector / 2, inner)
+        var tip = new Vector2(0f, outer);
+        var notch = new Vector2(Mathf.Sin(sector / 2f) * inner, Mathf.Cos(sector / 2f) * inner);
+        var q = new Vector2(Mathf.Sin(Mathf.Abs(local)) * r, Mathf.Cos(local) * r);
+        var edge = notch - tip;
+        return edge.x * (q.y - tip.y) - edge.y * (q.x - tip.x) <= 0f || r < inner;
     }
 
     /// <summary>Materials of a kit model: its own colours, multicam where the kit uses camo.</summary>
@@ -290,6 +364,26 @@ public static class Dresser
             new Drape { Hem = ankle.y + 0.03f, Ease = 0.05f, Flare = 0.045f, Folds = 0.015f, Follow = 0.95f }, cloth, Wardrobe.TopColors[6]);
         Top(7, "LongCoat", new Cut { Thickness = 0.016f, Smooth = 12, UpperArm = 0.066f * slim, LowerArm = 0.058f * slim, Tile = 0.25f },
             new Drape { Hem = knee.y - 0.06f, FrontOpen = true, SideSlits = true, OpenFrom = 0.14f, Ease = 0.02f, Flare = 0.045f, Folds = 0.01f, Tile = 0.25f }, wool, Wardrobe.TopColors[7]);
+
+        // the TEAM 1 arm patches on the combat jacket's sleeves, just under the shoulders (with the hood)
+        if (topShells[0] != null)
+            foreach (string side in new[] { "l", "r" })
+            {
+                var a = body.At("upperarm_" + side);
+                var b = body.At("lowerarm_" + side);
+                var axis = (b - a).normalized;
+                var outward = Vector3.ProjectOnPlane(new Vector3(Mathf.Sign(a.x - hip.x), 0, 0.12f), axis).normalized;
+                var at = a + (b - a) * 0.16f;
+                // on the sleeve: the farthest point of the jacket out from the arm there
+                float reach = topShells[0].P.Where(q => Mathf.Abs(Vector3.Dot(q - at, axis)) < 0.03f && Vector3.Dot(q - at, outward) > 0f)
+                    .Select(q => Vector3.Dot(q - at, outward)).DefaultIfEmpty(0.08f).Max();
+                var patch = Box(at + outward * (reach + 0.002f), Quaternion.LookRotation(outward, -axis), new Vector3(0.075f, 0.05f, 0.004f));
+                var patchPart = Part(result, Outfit.Attach(body, patch, "upperarm_" + side, "Top_FlagPatch_" + side, flag), Slot.Head, M(13));
+                if (patchPart == null) continue;
+                patchPart.HasSecond = true;
+                patchPart.Slot2 = Slot.Top;
+                patchPart.Mask2 = M(0);
+            }
 
         // front details: a button placket on the shirts, collar, white shirt front and tie on the suit
         float FrontZ(Garment g, float y) => g.P.Where(p => Mathf.Abs(p.y - y) < 0.02f && Mathf.Abs(p.x - neck.x) < 0.03f).Select(p => p.z).DefaultIfEmpty(chest.z + 0.12f).Max();
@@ -582,6 +676,54 @@ public static class Dresser
             Tint(Part(result, Outfit.Attach(body, cap, "head", "Head_FieldCap", cloth), Slot.Head, M(12)), Slot.HeadColor, Wardrobe.HeadColors);
         }
 
+        // 13: hood and scarf (TEAM 1): a black mask over the face and neck (only the eyes free), a loose
+        // hood over it falling to the shoulders, and a scarf wound twice round the neck, its ends on the chest
+        {
+            var mask = Outfit.Shell(body, new Cut
+            {
+                Regions = new[] { Region.Head }, Thickness = 0.007f, Smooth = 3, Tile = 0.06f,
+                Keep = (p, n) => !(p.z > hz && Mathf.Abs(p.y - eyeY) < 0.019f && Mathf.Abs(p.x - hx) < 0.066f) && p.y > shoulderY - 0.02f,
+            });
+            var hooded = Headcloth(0.024f, 0.06f, 36f, false);
+            if (mask != null) hooded.Append(mask);
+            // the scarf: two thick rolls round the neck, then the two ends down the chest
+            int neckBoneId = neckBone, chestId = chestBone, midId = body.Bone("spine_02");
+            var scarf = new Garment();
+            foreach (var (y, extra, tube) in new[] { (chin - 0.028f, 0.03f, 0.024f), (chin - 0.064f, 0.042f, 0.026f) })
+            {
+                var around = Outfit.Support(neckPts, y, 0.014f, hx, hz);
+                if (around == null) continue;
+                var roll = Outfit.Torus(new Vector3(hx, y, hz), R(around, 1, extra), tube, 8);
+                roll.SetWeights(Outfit.Weight((neckBoneId, 0.6f), (chestId, 0.4f)));
+                scarf.Append(roll);
+            }
+            var front = shells.SelectMany(g => g.P).Concat(body.PointsIn(Region.Torso)).ToList();
+            float FrontAt(float x, float y) => front.Where(q => Mathf.Abs(q.y - y) < 0.03f && Mathf.Abs(q.x - x) < 0.04f).Select(q => q.z).DefaultIfEmpty(chest.z + 0.12f).Max();
+            foreach (var (side, length) in new[] { (-1f, 0.42f), (1f, 0.3f) })
+            {
+                var path = new List<Vector3>();
+                var width = new List<float>();
+                var normals = new List<Vector3>();
+                float x = hx + side * 0.065f;
+                for (int i = 0; i <= 8; i++)
+                {
+                    float f = i / 8f, y = chin - 0.07f - length * f;
+                    path.Add(new Vector3(x + side * 0.01f * f, y, FrontAt(x, y) + 0.016f));
+                    width.Add(Mathf.Lerp(0.085f, 0.11f, f));
+                    normals.Add(Vector3.forward);
+                }
+                var end = Outfit.Strip(path, width, normals, 0.008f);
+                for (int i = 0; i < end.P.Count; i++)
+                {
+                    float f = Mathf.Clamp01((chin - 0.07f - end.P[i].y) / length);
+                    end.W[i] = Outfit.Weight((neckBoneId, (1 - f) * 0.4f), (chestId, 0.6f + 0.2f * f), (midId, 0.4f * f));
+                }
+                scarf.Append(end);
+            }
+            hooded.Append(scarf);
+            Part(result, Outfit.Wear(body, hooded, "Head_HoodScarf", hood), Slot.Head, M(13));
+        }
+
         // hair under the head wear, beard unless the face is covered
         if (hair != null) Part(result, hair, Slot.Head, female ? M(0) : M(0, 1, 2, 3, 4, 9, 10, 12));
         if (beard != null)
@@ -589,7 +731,7 @@ public static class Dresser
             var part = Part(result, beard, Slot.Beard, M(1));
             part.HasSecond = true;
             part.Slot2 = Slot.Head;
-            part.Mask2 = AllBut(11);
+            part.Mask2 = AllBut(11, 13);
         }
 
         // ---- shoes: kit boots (skinned to foot, toes and ankle), formal shoes, Kabuli sandals

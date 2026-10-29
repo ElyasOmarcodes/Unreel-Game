@@ -19,7 +19,7 @@ namespace UA
             new[] { "MAN - LIGHT", "MAN - DARK" },   // men only (the women's bodies are gone)
             new[] { "COMBAT JACKET", "AFGHAN PERAHAN", "ARAB THOBE", "FORMAL SUIT", "LONG SHIRT", "AFGHAN CHAPAN", "ABAYA", "LONG COAT" },
             new[] { "CARGO TROUSERS", "AFGHAN TUNBAN", "SUIT TROUSERS", "JEANS" },
-            new[] { "NONE", "COMBAT HELMET", "HELMET + HEADSET", "HELMET + NIGHT VISION", "PAKOL", "TURBAN", "GHUTRA + AGAL", "SHEMAGH + AGAL", "HIJAB", "PRAYER CAP", "BERET", "BALACLAVA", "FIELD CAP" },
+            new[] { "NONE", "COMBAT HELMET", "HELMET + HEADSET", "HELMET + NIGHT VISION", "PAKOL", "TURBAN", "GHUTRA + AGAL", "SHEMAGH + AGAL", "HIJAB", "PRAYER CAP", "BERET", "BALACLAVA", "FIELD CAP", "HOOD + SCARF" },
             new[] { "NONE", "PLATE CARRIER", "CHEST RIG", "WAISTCOAT" },
             new[] { "COMBAT BOOTS", "DESERT BOOTS", "FORMAL SHOES", "SANDALS" },
             new[] { "NONE", "TACTICAL GLOVES" },
@@ -47,7 +47,7 @@ namespace UA
         private static Swatch S(string name, float r, float g, float b) => new Swatch(name, new Color(r, g, b));
 
         // the combat jacket and cargo trousers use camo patterns (materials) instead of colours, in this order
-        public static readonly string[] Camos = { "URBAN", "DESERT", "WOODLAND", "BLACK", "OLIVE", "SAND", "NAVY", "GREY" };
+        public static readonly string[] Camos = { "URBAN", "DESERT", "WOODLAND", "BLACK", "OLIVE", "SAND", "NAVY", "HEX" };
 
         /// <summary>Colours of every top (8 each, cloth colours a tailor would sell).</summary>
         public static readonly Swatch[][] TopColors =
@@ -90,6 +90,8 @@ namespace UA
             new Style { Name = "STATESMAN", Top = 3, Bottom = 2, Head = 0, Vest = 0, Feet = 2 },
             new Style { Name = "EVERYDAY", Top = 4, Bottom = 3, Head = 9, Vest = 0, Feet = 0, Beard = 1 },
             new Style { Name = "AFGHAN GUARD", Top = 1, Bottom = 1, Head = 5, Vest = 2, Feet = 1, Beard = 1, Bag = 1 },
+            // hexagon camo, black hood with a face mask and a scarf, belt with pouches, knee pads, black boots, gloves
+            new Style { Name = "TEAM 1", Top = 0, Bottom = 0, Head = 13, Vest = 0, Feet = 0, Gloves = 1, Kit = 1 },
         };
 
         public static int Count(Slot slot)
@@ -191,6 +193,7 @@ namespace UA
             new Preset("GUARD", 1, 7, 4, 2, 3, 1),      // Afghan guard: grey perahan, turban, chest rig
             new Preset("BLACK TURBAN", 0, 2, 7, 7, 1, 1, (Slot.Head, 5)),   // cream perahan, black turban, waistcoat
             new Preset("STATESMAN", 0, 5, 1, 1, 1, 0),       // statesman: navy suit
+            new Preset("TEAM 1", 0, 8, 7, 7, 0, 1),       // hexagon camo, hood and scarf, the flag on the arm
             // the player's character pack
             new Preset("MERCENARY", 0, 0, 0, 0, 0, 0, (Slot.Character, 1)),
             new Preset("POLICE OFFICER", 0, 0, 0, 0, 0, 0, (Slot.Character, 2)),
