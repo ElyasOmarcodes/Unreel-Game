@@ -366,8 +366,10 @@ public static class Dresser
             new Drape { Hem = knee.y - 0.06f, FrontOpen = true, SideSlits = true, OpenFrom = 0.14f, Ease = 0.02f, Flare = 0.045f, Folds = 0.01f, Tile = 0.25f }, wool, Wardrobe.TopColors[7]);
 
         // the TEAM 1 arm patches on the combat jacket's sleeves, under the team band (the hood and the scarf
-        // cover the top of the shoulders)
+        // cover the top of the shoulders): cut from the sleeve itself, so they move and stretch with it
         if (topShells[0] != null)
+        {
+            Garment patches = null;
             foreach (string side in new[] { "l", "r" })
             {
                 var a = body.At("upperarm_" + side);
@@ -376,17 +378,31 @@ public static class Dresser
                 // the outer side of the sleeve: sideways when the arm hangs, up when it is held out (the rest pose)
                 var outward = Vector3.Cross(Vector3.forward, axis).normalized;
                 if (outward.y < -0.3f || (Mathf.Abs(outward.y) <= 0.3f && Mathf.Sign(outward.x) != Mathf.Sign(a.x - hip.x))) outward = -outward;
+                // across the patch, to the right of someone looking at it (the flag reads the right way)
+                var across = Vector3.Cross(axis, outward).normalized;
                 var at = a + (b - a) * 0.6f;
-                // on the sleeve: the farthest point of the jacket out from the arm there
-                float reach = topShells[0].P.Where(q => Mathf.Abs(Vector3.Dot(q - at, axis)) < 0.03f && Vector3.Dot(q - at, outward) > 0f)
-                    .Select(q => Vector3.Dot(q - at, outward)).DefaultIfEmpty(0.08f).Max();
-                var patch = Box(at + outward * (reach + 0.002f), Quaternion.LookRotation(outward, -axis), new Vector3(0.075f, 0.05f, 0.004f));
-                var patchPart = Part(result, Outfit.Attach(body, patch, "upperarm_" + side, "Top_FlagPatch_" + side, flag), Slot.Head, M(13));
-                if (patchPart == null) continue;
+                const float wide = 0.08f, high = 0.055f;
+                var piece = Outfit.Derive(topShells[0], q =>
+                {
+                    var d = q - at;
+                    return Vector3.Dot(d, outward) > 0f && Mathf.Abs(Vector3.Dot(d, axis)) < high / 2f && Mathf.Abs(Vector3.Dot(d, across)) < wide / 2f;
+                }, 0.003f);
+                if (piece == null) continue;
+                for (int i = 0; i < piece.P.Count; i++)
+                {
+                    var d = piece.P[i] - at;
+                    piece.UV[i] = new Vector2(Vector3.Dot(d, across) / wide + 0.5f, Vector3.Dot(d, -axis) / high + 0.5f);
+                }
+                if (patches == null) patches = piece; else patches.Append(piece);
+            }
+            var patchPart = Part(result, Outfit.Wear(body, patches, "Top_FlagPatches", flag), Slot.Head, M(13));
+            if (patchPart != null)
+            {
                 patchPart.HasSecond = true;
                 patchPart.Slot2 = Slot.Top;
                 patchPart.Mask2 = M(0);
             }
+        }
 
         // front details: a button placket on the shirts, collar, white shirt front and tie on the suit
         float FrontZ(Garment g, float y) => g.P.Where(p => Mathf.Abs(p.y - y) < 0.02f && Mathf.Abs(p.x - neck.x) < 0.03f).Select(p => p.z).DefaultIfEmpty(chest.z + 0.12f).Max();
