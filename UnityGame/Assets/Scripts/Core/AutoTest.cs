@@ -884,7 +884,10 @@ namespace UA
             yield return Until(() => Session.I.Groups.Count > 0, 90);
             yield return Wait(1.5f);
             yield return Shot("06-join-list");
-            var group = Session.I.Groups.Values.First();
+            // the list can be empty for a moment (a group not heard for a while drops out): wait for it again
+            yield return Until(() => Session.I.Groups.Count > 0, 30);
+            var group = Session.I.Groups.Values.FirstOrDefault();
+            if (group == null) { App.Log("client: no group to join"); yield break; }
             App.Log("client joining " + group.Name + " at " + group.Address);
             app.JoinGroup(group.Address);
             yield return Until(() => Session.I.Local != null, 15);

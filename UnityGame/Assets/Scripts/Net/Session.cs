@@ -321,7 +321,9 @@ namespace UA
                 w.Write(Version);
                 foreach (var target in LanUtil.BroadcastTargets(GamePort)) discovery?.Send(pw.Buffer, pw.Length, target);
             }
-            foreach (var key in Groups.Where(g => now - g.Value.LastSeen > 4f).Select(g => g.Key).ToList())
+            // a group drops out of the list only when not heard for 8 s (a busy host's answer can come late:
+            // the list does not flicker)
+            foreach (var key in Groups.Where(g => now - g.Value.LastSeen > 8f).Select(g => g.Key).ToList())
                 Groups.Remove(key);
         }
 
