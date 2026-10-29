@@ -40,7 +40,7 @@ public static class CharacterPack
     /// the hand bone whole (the fingers do not bend on their own), so they never tear when the game's fingers
     /// close round a gun.
     /// </summary>
-    private static readonly HashSet<string> RigidHands = new HashSet<string> { "Rifleman", "RedBeret", "BlackSquad", "Army" };
+    private static readonly HashSet<string> RigidHands = new HashSet<string> { "RedBeret", "Army" };
 
     public static List<Agent.OutfitPart> Dress(Outfit.Body body, bool female, Material team, List<Renderer> teamRenderers)
     {
