@@ -160,6 +160,70 @@ namespace UA
             yield return Shot("00-pack2-running-side");
             foreach (var go in row) Destroy(go);
             row.Clear();
+            // every ready-made character (the two packs and TEAM 1) in every state, five at a time, from the front
+            // and the side, then each one's hands close: the joints, the hands and the fingers checked by eye
+            {
+                var names = new[] { "SWAT", "RIFLEMAN", "RED BERET", "BLACK SQUAD", "RANGER", "MERCENARY", "POLICE OFFICER", "OPERATIVE", "BODYGUARD", "TEAM 1" };
+                var states = new (string name, System.Action<Animator> set)[]
+                {
+                    ("idle", a => { }),
+                    ("run", a => a.SetFloat("MoveY", 1f)),
+                    ("crouch", a => a.SetBool("Crouch", true)),
+                    ("prone", a => a.SetBool("Prone", true)),
+                    ("jump", a => a.SetBool("Grounded", false)),
+                };
+                for (int half = 0; half < 2; half++)
+                {
+                    foreach (var (state, set) in states)
+                    {
+                        for (int i = 0; i < 5; i++)
+                        {
+                            var go = Dress(Wardrobe.PresetLook(Wardrobe.PresetIndex(names[half * 5 + i])), new Vector3(i * 1.1f, 300, 0), 180);
+                            var anim = go != null ? go.GetComponent<Agent>().Anim : null;
+                            if (anim == null) continue;
+                            anim.SetBool("Grounded", true);
+                            set(anim);
+                        }
+                        bool low = state == "prone";
+                        cam.Cam.fieldOfView = 34;
+                        cam.transform.SetPositionAndRotation(new Vector3(2.2f, low ? 301.6f : 301.0f, low ? -5.6f : -6.4f), Quaternion.Euler(low ? 14 : 3, 0, 0));
+                        yield return Wait(state == "prone" ? 1.6f : 0.8f);
+                        yield return Shot($"00-check{half}-{state}-front");
+                        foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 90, 0);
+                        yield return Wait(0.3f);
+                        yield return Shot($"00-check{half}-{state}-side");
+                        foreach (var go in row) Destroy(go);
+                        row.Clear();
+                    }
+                }
+                // the hands close, holding the gun: right hand from its side, left hand from the front
+                for (int i = 0; i < names.Length; i++)
+                {
+                    var go = Dress(Wardrobe.PresetLook(Wardrobe.PresetIndex(names[i])), new Vector3(0, 300, 0), 180);
+                    if (go == null) continue;
+                    if (go.GetComponent<Agent>().Anim is Animator a) a.SetBool("Grounded", true);
+                    yield return Wait(0.6f);
+                    Transform Find(string n) => go.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name.ToLowerInvariant() == n);
+                    var right = Find("hand_r"); var left = Find("hand_l");
+                    cam.Cam.fieldOfView = 30;
+                    if (right != null)
+                    {
+                        cam.transform.position = right.position + new Vector3(-0.55f, 0.12f, -0.25f);
+                        cam.transform.LookAt(right.position);
+                        yield return Wait(0.1f);
+                        yield return Shot($"00-check-hands-{i}-right");
+                    }
+                    if (left != null)
+                    {
+                        cam.transform.position = left.position + new Vector3(0.35f, 0.15f, -0.5f);
+                        cam.transform.LookAt(left.position);
+                        yield return Wait(0.1f);
+                        yield return Shot($"00-check-hands-{i}-left");
+                    }
+                    Destroy(go);
+                    row.Clear();
+                }
+            }
             // TEAM 1 as on its reference sheet: front, back and right side, then the head and the arm patch close
             {
                 int team1 = Wardrobe.PresetIndex("TEAM 1");
