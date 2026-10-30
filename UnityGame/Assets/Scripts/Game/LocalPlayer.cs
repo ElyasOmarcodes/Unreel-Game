@@ -33,6 +33,8 @@ namespace UA
         private float bloom;
         private bool crouch, prone;
         private Vector3 velocity;
+        private float bodyYaw;
+        private bool bodyYawSet;
 
         // speeds in m/s (the same for everyone)
         public const float RunSpeed = 5.6f, SprintSpeed = 7.8f, CrouchSpeed = 3f, ProneSpeed = 1.6f;
@@ -69,6 +71,7 @@ namespace UA
             crouch = false;
             prone = false;
             velocity = Vector3.zero;
+            bodyYawSet = false;
             cc.height = StandHeight;
             cc.center = new Vector3(0, StandHeight / 2f + 0.02f, 0);
             reloadEnd = 0;
@@ -193,7 +196,14 @@ namespace UA
                 var moved = (transform.position - before) / Mathf.Max(dt, 1e-4f);
                 moved.y = 0;
                 if ((hit & CollisionFlags.Sides) != 0 && moved.sqrMagnitude < velocity.sqrMagnitude * 0.6f) velocity = Vector3.Lerp(velocity, moved, 0.5f);
-                if (alive) transform.rotation = Quaternion.Euler(0, rig.Yaw, 0);
+                // the body turns after the aim as softly as the camera does (20 a second): the uneven steps of a
+                // finger on the glass do not jerk it round, and it stays where the camera sees it
+                if (alive)
+                {
+                    bodyYaw = bodyYawSet && Mathf.Abs(Mathf.DeltaAngle(bodyYaw, rig.Yaw)) < 45f ? Mathf.LerpAngle(bodyYaw, rig.Yaw, 1f - Mathf.Exp(-20f * dt)) : rig.Yaw;
+                    bodyYawSet = true;
+                    transform.rotation = Quaternion.Euler(0, bodyYaw, 0);
+                }
                 if (transform.position.y < -15f && World.I != null) agent.Teleport(World.I.Spawns.Length > 0 ? World.I.Spawns[0] : Vector3.up, rig.Yaw);
             }
 
@@ -233,7 +243,12 @@ namespace UA
             state.Yaw = rig.Yaw;
             state.Pitch = rig.AimPitch;
             // animation follows the real speed: 1 = running, 2 = sprinting
-            var local = Quaternion.Inverse(transform.rotation) * velocity;
+            // the way the stick points (against the aim), at the speed the body really goes: turning while running
+            // the body's speed lags a moment behind the new way, and taken alone it would swing the legs into the
+            // side steps for that moment (a jerk at every turn)
+            var local = Quaternion.Inverse(Quaternion.Euler(0, rig.Yaw, 0)) * velocity;
+            var stick = new Vector3(input.x, 0, input.y);
+            if (stick.sqrMagnitude > 0.04f && !prone) local = stick.normalized * new Vector2(velocity.x, velocity.z).magnitude;
             float norm = baseSpeed * def.MoveSpeed;
             state.MoveX = alive ? Mathf.Clamp(local.x / norm, -1f, 1f) : 0f;
             state.MoveY = !alive ? 0f : local.z > norm * 1.02f ? 1f + Mathf.Clamp01((local.z - norm) / Mathf.Max(0.1f, (SprintSpeed - RunSpeed) * def.MoveSpeed)) : Mathf.Clamp(local.z / norm, -1f, 1f);

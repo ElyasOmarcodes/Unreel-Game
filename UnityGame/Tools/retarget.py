@@ -73,6 +73,20 @@ def feet_low(fr, hip):
             world[b.name] = base
         if b.name.startswith(('foot_', 'ball_')): low = min(low, world[b.name].translation.z)
     return low
+def feet_heights(fr, hip):
+    world = {}
+    low = {'l': 1e9, 'r': 1e9}
+    for b in order:
+        rest_rel = (b.parent.matrix_local.inverted() @ b.matrix_local) if b.parent else b.matrix_local
+        parent_w = world[b.parent.name] if b.parent else ual.matrix_world
+        base = parent_w @ rest_rel
+        if b.name in fr:
+            pos = dst_rest_hips + hip if b.name == 'pelvis' else base.translation
+            world[b.name] = Matrix.Translation(pos) @ (fr[b.name] @ dst_rest[b.name]).to_matrix().to_4x4()
+        else:
+            world[b.name] = base
+        if b.name.startswith(('foot_', 'ball_')): low[b.name[-1]] = min(low[b.name[-1]], world[b.name].translation.z)
+    return low['l'], low['r']
 def shape(name, frames, hips):
     straight, straight_trunk, steady, sway = amounts(name)
     if straight == 0 and straight_trunk == 0 and steady == 1: return
@@ -86,11 +100,9 @@ def shape(name, frames, hips):
             r = m.inverted() @ fr[b]
             if r.w < 0: r = -r
             fr[b] = slerp_id(m, 1 - cut) @ slerp_id(r, swing)
-    if sway > 0:
-        mx = sum(h.x for h in hips) / len(hips)
-        for h in hips: h.x = mx + (h.x - mx) * (1 - sway)
-    for fr, h, low in zip(frames, hips, before):
-        h.z += low - feet_low(fr, h)
+    # the hips lifted by how much lower the feet go on the whole (one even amount: no shaking up and down)
+    shift = sum(low - feet_low(fr, h) for fr, h, low in zip(frames, hips, before)) / len(frames)
+    for h in hips: h.z += shift
 result = {}
 if render != '-':
     w = bpy.data.worlds.new('w'); bpy.context.scene.world = w; w.use_nodes = True; w.node_tree.nodes['Background'].inputs[1].default_value = 2.0
@@ -115,11 +127,26 @@ for path in anims:
     for o in src_objs: bpy.data.objects.remove(o)
     shape(name, frames, hips)
     # in place: the hips' drift over the clip taken out along the ground (the game moves the body)
-    n = len(hips); drift = hips[-1] - hips[0]
+    n = len(hips); h0 = hips[0].copy(); drift = hips[-1] - h0
     speed = Vector((drift.x, drift.y, 0)).length / max(1e-6, (n - 1) / sc.render.fps)
     for i in range(n):
         k = i / max(1, n - 1)
-        hips[i] = hips[i] - Vector((drift.x * k + hips[0].x, drift.y * k + hips[0].y, 0))
+        hips[i] = hips[i] - Vector((drift.x * k + h0.x, drift.y * k + h0.y, 0))
+    # the hips' sway to the sides (what is left once the clip's own travel is taken out) made smaller
+    sway = amounts(name)[3]
+    if sway > 0:
+        mx = sum(h.x for h in hips) / n
+        for h in hips: h.x = mx + (h.x - mx) * (1 - sway)
+    loop = not name.startswith('death')
+    if loop:
+        # one step of the cycle starts every loop clip: the left foot down with the right one up (the clips of a
+        # blend are played at the same point of their cycle, so they step together, with no stumble between)
+        legs = [feet_heights(fr, h) for fr, h in zip(frames, hips)]
+        start = max(range(n - 1), key=lambda i: legs[i][1] - legs[i][0])
+        # the last frame repeats the first: dropped, the cycle turned to start there, closed again
+        frames = frames[start:n - 1] + frames[:start]; hips = hips[start:n - 1] + hips[:start]
+        frames.append(dict(frames[0])); hips.append(hips[0].copy())
+        print('  cycle starts at frame', start)
     result[name] = {'fps': sc.render.fps, 'speed': round(speed, 3),
                     'bones': sorted(frames[0].keys()),
                     'turns': [[x for b in sorted(fr.keys()) for x in to_unity(fr[b])] for fr in frames],

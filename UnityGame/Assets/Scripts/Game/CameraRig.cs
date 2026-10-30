@@ -142,7 +142,8 @@ namespace UA
             followSet = true;
             followY = Mathf.Lerp(followY, at.y, 1f - Mathf.Exp(-14f * dt));
             at.y = followY;
-            var body = Quaternion.Euler(0, Yaw, 0);
+            // the shoulder point turns with the body (the player's own body turns as softly as the camera)
+            var body = Quaternion.Euler(0, Target.IsLocal ? Target.transform.eulerAngles.y : Yaw, 0);
             Vector3 Side(Vector3 p, float s) => new Vector3(p.x * s, p.y, p.z);
             var head = at + Vector3.up * (1.6f - drop);
             // over the left shoulder only when the right one is clearly walled and the left is free, back
