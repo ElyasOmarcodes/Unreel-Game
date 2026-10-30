@@ -38,6 +38,59 @@ def to_unity(q):
     q = q.normalized()
     return [round(q.w, 4), round(-q.x, 4), round(-q.z, 4), round(-q.y, 4)]
 order = [b for b in ual.data.bones]          # parents before children
+
+# ---- the game's stance: upright and steady -------------------------------------------------------------
+# Mixamo's rifle clips stand bent (knees, hips, back) and rock the hips from side to side. Of each bone of the
+# trunk and legs, part of its mean turn over the clip is taken out (STRAIGHT: idle and walks more, runs less,
+# crouches not at all) and the trunk's swing round its mean is made smaller (STEADY); the hips sway less to the
+# sides; then the hips are set so the lowest foot is as high as before in every frame (no foot in the ground).
+TRUNK = ['pelvis', 'spine_01', 'spine_02', 'spine_03']
+LEGS = [f'{b}_{s}' for b in ('thigh', 'calf', 'foot') for s in 'lr']
+def amounts(name):
+    if 'crouch' in name: return 0.0, 0.3, 1.0, 0.0
+    if 'idle' in name: return 0.75, 0.75, 1.0, 0.0
+    if 'walk' in name: return 0.6, 0.85, 0.75, 0.5
+    if 'run' in name or 'sprint' in name: return 0.4, 0.7, 0.45, 0.45
+    return 0.0, 0.0, 1.0, 0.0
+def mean(qs):
+    acc = Quaternion((0, 0, 0, 0)); ref = qs[0]
+    for q in qs:
+        q = q if ref.dot(q) >= 0 else -q
+        acc = Quaternion((acc.w + q.w, acc.x + q.x, acc.y + q.y, acc.z + q.z))
+    return acc.normalized()
+def slerp_id(q, t): return Quaternion().slerp(q, t)
+def feet_low(fr, hip):
+    world = {}
+    low = 1e9
+    for b in order:
+        rest_rel = (b.parent.matrix_local.inverted() @ b.matrix_local) if b.parent else b.matrix_local
+        parent_w = world[b.parent.name] if b.parent else ual.matrix_world
+        base = parent_w @ rest_rel
+        if b.name in fr:
+            pos = dst_rest_hips + hip if b.name == 'pelvis' else base.translation
+            world[b.name] = Matrix.Translation(pos) @ (fr[b.name] @ dst_rest[b.name]).to_matrix().to_4x4()
+        else:
+            world[b.name] = base
+        if b.name.startswith(('foot_', 'ball_')): low = min(low, world[b.name].translation.z)
+    return low
+def shape(name, frames, hips):
+    straight, straight_trunk, steady, sway = amounts(name)
+    if straight == 0 and straight_trunk == 0 and steady == 1: return
+    before = [feet_low(fr, h) for fr, h in zip(frames, hips)]
+    for b in TRUNK + LEGS:
+        if b not in frames[0]: continue
+        m = mean([fr[b] for fr in frames])
+        cut = straight_trunk if b in TRUNK else straight
+        swing = steady if b in TRUNK else 1.0
+        for fr in frames:
+            r = m.inverted() @ fr[b]
+            if r.w < 0: r = -r
+            fr[b] = slerp_id(m, 1 - cut) @ slerp_id(r, swing)
+    if sway > 0:
+        mx = sum(h.x for h in hips) / len(hips)
+        for h in hips: h.x = mx + (h.x - mx) * (1 - sway)
+    for fr, h, low in zip(frames, hips, before):
+        h.z += low - feet_low(fr, h)
 result = {}
 if render != '-':
     w = bpy.data.worlds.new('w'); bpy.context.scene.world = w; w.use_nodes = True; w.node_tree.nodes['Background'].inputs[1].default_value = 2.0
@@ -60,6 +113,7 @@ for path in anims:
         hips.append(A @ (h - src_rest_hips) * scale)
         frames.append(turns)
     for o in src_objs: bpy.data.objects.remove(o)
+    shape(name, frames, hips)
     # in place: the hips' drift over the clip taken out along the ground (the game moves the body)
     n = len(hips); drift = hips[-1] - hips[0]
     speed = Vector((drift.x, drift.y, 0)).length / max(1e-6, (n - 1) / sc.render.fps)

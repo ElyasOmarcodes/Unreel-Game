@@ -65,7 +65,7 @@ namespace UA
 
         /// <summary>Where the local player's crosshair points this frame (others aim along their yaw / pitch).</summary>
         [System.NonSerialized] public Vector3? AimPoint;
-        private Transform chestBone, handBone, upperArmBone, lowerArmBone, thighBone, thighLeft, pelvisBone, spineBone, neckBone;
+        private Transform leftHandBone, chestBone, handBone, upperArmBone, lowerArmBone, thighBone, thighLeft, pelvisBone, spineBone, neckBone;
         // the other weapon of the loadout, carried: a rifle slung across the back, a pistol at the hip
         private GameObject backCopy;
         private int backId = -1;
@@ -85,6 +85,7 @@ namespace UA
                 string n = t.name.ToLowerInvariant();
                 if (n == "spine_03") chestBone = t;
                 else if (n == "hand_r") handBone = t;
+                else if (n == "hand_l") leftHandBone = t;
                 else if (n == "upperarm_r") upperArmBone = t;
                 else if (n == "lowerarm_r") lowerArmBone = t;
                 else if (n == "thigh_r") thighBone = t;
@@ -126,7 +127,7 @@ namespace UA
         {
             if (State == null || !Alive || State.Prone || pelvisBone == null || spineBone == null || neckBone == null) return;
             var right = transform.right;
-            const float tuck = 9f;
+            const float tuck = 4f;
             pelvisBone.rotation = Quaternion.AngleAxis(-tuck, right) * pelvisBone.rotation;
             if (thighBone != null) thighBone.rotation = Quaternion.AngleAxis(tuck, right) * thighBone.rotation;
             if (thighLeft != null) thighLeft.rotation = Quaternion.AngleAxis(tuck, right) * thighLeft.rotation;
@@ -168,6 +169,14 @@ namespace UA
             if (Ready > 0.99f) return;
             var muzzle = Muzzles[weapon];
             var want = Quaternion.AngleAxis(48f, transform.right) * transform.forward;
+            // a rifle carried as the running clips hold it: the barrel laid through the left hand (it holds the
+            // fore-end, not the air); a pistol (or a left hand not out in front) points forwards and down
+            if (leftHandBone != null && Weapons.Get(weapon).Primary)
+            {
+                var toLeft = leftHandBone.position - handBone.position;
+                if (toLeft.magnitude > 0.12f && toLeft.magnitude < 0.7f && Vector3.Dot(toLeft.normalized, transform.forward) > 0.25f)
+                    want = (toLeft.normalized + transform.up * 0.04f).normalized;
+            }
             var turn = Limit(Quaternion.FromToRotation(muzzle.forward, want), 100f);
             handBone.rotation = Quaternion.Slerp(Quaternion.identity, turn, 1f - Ready) * handBone.rotation;
         }
