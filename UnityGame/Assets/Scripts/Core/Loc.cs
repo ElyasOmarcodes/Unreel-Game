@@ -333,6 +333,7 @@ RIFLEMAN|تفنگدار|رامي بندقية|FUSILERO
 RED BERET|کلاه سرخ|القبعة الحمراء|BOINA ROJA
 BLACK SQUAD|جوخه سیاه|الفرقة السوداء|ESCUADRA NEGRA
 RANGER|تکاور|جندي الصاعقة|RANGER
+UNDERCOVER|مامور مخفی|عميل متخفي|ENCUBIERTO
 This character comes made in one piece: its clothes and gear stay as they are.|این شخصیت یکپارچه ساخته شده است: لباس و تجهیزاتش همان‌طور می‌ماند.|هذه الشخصية مصنوعة قطعة واحدة: ملابسها وعتادها تبقى كما هي.|Este personaje viene hecho de una pieza: su ropa y equipo quedan como están.
 Pick a character built piece by piece (TEAM 1 and after) to change every part.|برای تغییر هر بخش یک شخصیت تکه‌تکه (تیم ۱ و بعد از آن) را انتخاب کنید.|لتغيير كل جزء اختر شخصية مبنية قطعة قطعة (الفريق 1 وما بعده).|Elige un personaje hecho pieza a pieza (EQUIPO 1 y siguientes) para cambiar cada parte.
 SPECIAL FORCES|نیروی ویژه|القوات الخاصة|FUERZAS ESPECIALES

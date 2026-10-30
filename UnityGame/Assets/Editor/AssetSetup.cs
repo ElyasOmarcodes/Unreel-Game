@@ -70,9 +70,11 @@ public static class AssetSetup
         RemapCityModels();
         Nature.Setup();
         SetupAnimationClips();
+        bool realistic = AssetDatabase.LoadAssetAtPath<GameObject>(UbcMale) != null;
+        // the player's Mixamo animations on the agent's own skeleton (in place of the Quaternius ones of the same use)
+        MixamoClips.Build(realistic ? UbcMale : UalPath);
         var controller = BuildAnimator();
         BuildEffectMaterials();
-        bool realistic = AssetDatabase.LoadAssetAtPath<GameObject>(UbcMale) != null;
         Debug.Log("[Setup] characters: " + (realistic ? "Universal Base Characters" : "mannequins"));
         BuildAgent(controller, realistic ? UbcMale : UalPath, "Agent");
         // men only: no women's body (nor its clothes) in the game or the APK
@@ -267,6 +269,8 @@ public static class AssetSetup
 
     private static AnimationClip Clip(string name)
     {
+        var mixamo = MixamoClips.Get(name);
+        if (mixamo != null) return mixamo;
         var clip = AssetDatabase.LoadAllAssetsAtPath(UalPath).OfType<AnimationClip>().FirstOrDefault(c => c.name == name)
             ?? AssetDatabase.LoadAllAssetsAtPath(Ual2Path).OfType<AnimationClip>().FirstOrDefault(c => c.name == name);
         if (clip == null) Debug.LogWarning("[Setup] missing clip " + name);
@@ -302,6 +306,22 @@ public static class AssetSetup
         tree.blendParameter = "MoveX";
         tree.blendParameterY = "MoveY";
         void Add(BlendTree t, string clip, float x, float y) { var a = Clip(clip); if (a != null) t.AddChild(a, new Vector2(x, y)); }
+        // a Mixamo clip played as fast as the game moves the body there (the feet do not slide): its own speed
+        // against the game's at that place of the blend (run 5.6 m/s at 1, sprint 7.8 at 2, crouch 3 at 1),
+        // the step rate (Cadence, about 1.2 running) taken into account
+        void Pace(BlendTree t, float runAtOne, float cadence)
+        {
+            var children = t.children;
+            for (int i = 0; i < children.Length; i++)
+            {
+                float own = MixamoClips.Speed(children[i].motion != null ? children[i].motion.name : "");
+                float at = children[i].position.magnitude;
+                if (own <= 0.1f || at < 0.01f) continue;
+                float game = at <= 1f ? runAtOne * at : runAtOne + (LocalPlayer.SprintSpeed - runAtOne) * (at - 1f);
+                children[i].timeScale = Mathf.Clamp(game / (own * cadence), 0.6f, 1.8f);
+            }
+            t.children = children;
+        }
         Add(tree, "Idle_Loop", 0, 0);
         // a real walk for slow steps (half the stick) in every direction, the jog for running
         if (Clip("Walk_Fwd_Loop") != null)
@@ -325,6 +345,7 @@ public static class AssetSetup
         Add(tree, "Jog_Bwd_L_Loop", -0.7f, -0.7f);
         Add(tree, "Jog_Bwd_R_Loop", 0.7f, -0.7f);
         Add(tree, "Sprint_Loop", 0, 2);
+        Pace(tree, LocalPlayer.RunSpeed, 1.2f);
         sm.defaultState = loco;
         // step rate set by the agent: running takes shorter, quicker steps
         loco.speedParameterActive = true;
@@ -339,6 +360,14 @@ public static class AssetSetup
         Add(crouchTree, "Crouch_Bwd_Loop", 0, -1);
         Add(crouchTree, "Crouch_Left_Loop", -1, 0);
         Add(crouchTree, "Crouch_Right_Loop", 1, 0);
+        if (MixamoClips.Get("Crouch_Fwd_L_Loop") != null)
+        {
+            Add(crouchTree, "Crouch_Fwd_L_Loop", -0.7f, 0.7f);
+            Add(crouchTree, "Crouch_Fwd_R_Loop", 0.7f, 0.7f);
+            Add(crouchTree, "Crouch_Bwd_L_Loop", -0.7f, -0.7f);
+            Add(crouchTree, "Crouch_Bwd_R_Loop", 0.7f, -0.7f);
+        }
+        Pace(crouchTree, LocalPlayer.CrouchSpeed, 1f);
 
         var prone = c.CreateBlendTreeInController("Prone", out var proneTree, 0);
         proneTree.blendType = BlendTreeType.FreeformDirectional2D;

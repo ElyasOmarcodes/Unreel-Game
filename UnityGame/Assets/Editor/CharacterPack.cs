@@ -33,6 +33,8 @@ public static class CharacterPack
         // the player's second pack (made from downloaded models: welded, cut to ~22k triangles, baked onto one
         // 1024 atlas, the arms turned out to a T-pose; their own fitted Mixamo joints in Key_skeleton.json)
         ("Swat", false), ("Rifleman", false), ("RedBeret", false), ("BlackSquad", false), ("Army", false),
+        // rigged on Mixamo by the player (Key_weights.txt: its own skin): a Mixamo character
+        ("Ch18", false),
     };
 
     /// <summary>
@@ -70,6 +72,7 @@ public static class CharacterPack
         public readonly List<Vector3> P = new List<Vector3>(), N = new List<Vector3>();
         public readonly List<Vector2> UV = new List<Vector2>();
         public readonly List<int> T = new List<int>();
+        public readonly List<int> PI = new List<int>();   // each vertex's 'v' line (for weights given per 'v')
     }
 
     /// <summary>The OBJ in Unity's space (x mirrored, corners reversed), one vertex per distinct corner.</summary>
@@ -99,6 +102,7 @@ public static class CharacterPack
                         c = corners[(pi, ti, ni)] = model.P.Count;
                         model.P.Add(v[pi]);
                         model.UV.Add(ti >= 0 ? vt[ti] : Vector2.zero);
+                        model.PI.Add(pi);
                         model.N.Add(ni >= 0 ? vn[ni] : Vector3.up);
                     }
                     idx.Add(c);
@@ -348,7 +352,8 @@ public static class CharacterPack
         var maps = new Dictionary<int, Matrix4x4>();   // agent bone: its rest pose onto the character's T-pose
         var pieces = new List<(int bone, Vector3 a, Vector3 b, float radius, float side, string limb)>();
         var missing = new List<string>();
-        var lastTurn = new Dictionary<string, Quaternion>();   // per side: the turn of the bone before (for the ends)
+        var lastTurn = new Dictionary<string, Quaternion>();
+        var mixBone = new Dictionary<string, int>();   // a Mixamo bone: the agent bone that carries it   // per side: the turn of the bone before (for the ends)
         foreach (var (bone0, toward0, from0, to0, radius) in Bones)
         {
             foreach (string side in bone0.Contains("*") ? new[] { "l", "r" } : new[] { "" })
@@ -363,6 +368,7 @@ public static class CharacterPack
                 float sign = side == "" ? 0f : Mathf.Sign(body.At(Ours("upperarm_*")).x - pelvis.x);
                 // the Mixamo side on the same side of the body
                 string mix = side == "" ? "" : joint.TryGetValue("LeftArm", out var la) && Mathf.Sign(la.x - pelvis.x) == sign ? "Left" : "Right";
+                mixBone[from0.Replace("*", mix)] = bone;
                 if (!joint.TryGetValue(from0.Replace("*", mix), out var a) || !joint.TryGetValue(to0.Replace("*", mix), out var b)) { missing.Add(from0.Replace("*", mix)); continue; }
                 string limb = name.StartsWith("thigh") || name.StartsWith("calf") || name.StartsWith("foot") || name.StartsWith("ball") ? "leg"
                     : side != "" ? "arm" : "trunk";
@@ -519,7 +525,7 @@ public static class CharacterPack
             if (sampled != null) { weights[i] = sampled.Value; fromBody++; }
             else weights[i] = Outfit.Weight(provisional[i]);
         }
-        if (RigidHands.Contains(from ?? key))
+        if (RigidHands.Contains(from ?? key) && !File.Exists(Path.Combine(Folder, key + "_weights.txt")))
         {
             // every finger bone's share given to its hand
             var toHand = new int[bones.Length];
@@ -540,7 +546,38 @@ public static class CharacterPack
                     .GroupBy(x => x.Item1).Select(g => (g.Key, g.Sum(x => x.Item2))).ToArray());
             }
         }
-        Debug.Log($"[Setup] character {key}: {fromBody} of {m.P.Count} vertices skinned from the body, {inherited} bones moving with the bone above");
+        // a character rigged on Mixamo (Key_weights.txt): its own skin, every Mixamo bone's share given to the
+        // agent bone it is mapped on (the ends of the fingers, the head and the toes to the bone before them)
+        string weightFile = Path.Combine(Folder, key + "_weights.txt");
+        if (from == null && File.Exists(weightFile))
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var perV = File.ReadLines(weightFile).Where(l => l.Length == 0 || l[0] != '#').ToList();
+            int Mapped(string n)
+            {
+                if (mixBone.TryGetValue(n, out int b)) return b;
+                if (n == "HeadTop_End") return mixBone.TryGetValue("Head", out b) ? b : -1;
+                if (n.EndsWith("Toe_End")) return mixBone.TryGetValue(n.Replace("Toe_End", "ToeBase"), out b) ? b : -1;
+                if (n.EndsWith("4")) return mixBone.TryGetValue(n.Substring(0, n.Length - 1) + "3", out b) ? b : -1;
+                return -1;
+            }
+            int own = 0, lost = 0;
+            for (int i = 0; i < m.P.Count; i++)
+            {
+                int line = m.PI[i];
+                if (line >= perV.Count) continue;
+                var t = perV[line].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var items = new List<(int bone, float weight)>();
+                for (int k = 0; k + 1 < t.Length; k += 2)
+                {
+                    int b = Mapped(t[k]);
+                    if (b >= 0) items.Add((b, float.Parse(t[k + 1], inv))); else lost++;
+                }
+                if (items.Count > 0) { weights[i] = Outfit.Weight(items.ToArray()); own++; }
+            }
+            Debug.Log($"[Setup] character {key}: Mixamo's own skin on {own} of {m.P.Count} vertices ({lost} shares of unmapped bones)");
+        }
+        else Debug.Log($"[Setup] character {key}: {fromBody} of {m.P.Count} vertices skinned from the body, {inherited} bones moving with the bone above");
 
         var g = new Outfit.Garment();
         for (int i = 0; i < m.P.Count; i++) g.Add(m.P[i], m.N[i], m.UV[i], weights[i]);

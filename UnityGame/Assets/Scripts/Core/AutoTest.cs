@@ -131,7 +131,7 @@ namespace UA
             foreach (var go in row) Destroy(go);
             row.Clear();
             // the nine characters of the player's packs on the game's skeleton: front, back, and close
-            const int packs = 9;
+            const int packs = 10;
             for (int i = 0; i < packs; i++)
             {
                 var go = Dress(Wardrobe.PresetLook(i), new Vector3(i * 1.0f, 300, 0), 180);
@@ -163,7 +163,7 @@ namespace UA
             // every ready-made character (the two packs and TEAM 1) in every state, five at a time, from the front
             // and the side, then each one's hands close: the joints, the hands and the fingers checked by eye
             {
-                var names = new[] { "SWAT", "RIFLEMAN", "RED BERET", "BLACK SQUAD", "RANGER", "MERCENARY", "POLICE OFFICER", "OPERATIVE", "BODYGUARD", "TEAM 1" };
+                var names = new[] { "SWAT", "RIFLEMAN", "RED BERET", "BLACK SQUAD", "RANGER", "UNDERCOVER", "MERCENARY", "POLICE OFFICER", "OPERATIVE", "BODYGUARD", "TEAM 1", "SOLDIER" };
                 var states = new (string name, System.Action<Animator> set)[]
                 {
                     ("idle", a => { }),
@@ -176,9 +176,9 @@ namespace UA
                 {
                     foreach (var (state, set) in states)
                     {
-                        for (int i = 0; i < 5; i++)
+                        for (int i = 0; i < 6; i++)
                         {
-                            var go = Dress(Wardrobe.PresetLook(Wardrobe.PresetIndex(names[half * 5 + i])), new Vector3(i * 1.1f, 300, 0), 180);
+                            var go = Dress(Wardrobe.PresetLook(Wardrobe.PresetIndex(names[half * 6 + i])), new Vector3(i * 1.1f, 300, 0), 180);
                             var anim = go != null ? go.GetComponent<Agent>().Anim : null;
                             if (anim == null) continue;
                             anim.SetBool("Grounded", true);
@@ -186,7 +186,7 @@ namespace UA
                         }
                         bool low = state == "prone";
                         cam.Cam.fieldOfView = 34;
-                        cam.transform.SetPositionAndRotation(new Vector3(2.2f, low ? 301.6f : 301.0f, low ? -5.6f : -6.4f), Quaternion.Euler(low ? 14 : 3, 0, 0));
+                        cam.transform.SetPositionAndRotation(new Vector3(2.75f, low ? 301.7f : 301.0f, low ? -6.6f : -7.4f), Quaternion.Euler(low ? 14 : 3, 0, 0));
                         yield return Wait(state == "prone" ? 1.6f : 0.8f);
                         yield return Shot($"00-check{half}-{state}-front");
                         foreach (var go in row) go.transform.rotation = Quaternion.Euler(0, 90, 0);
