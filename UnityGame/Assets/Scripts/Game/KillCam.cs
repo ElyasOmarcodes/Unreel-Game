@@ -46,6 +46,7 @@ namespace UA
         private float nextRing;
         private static Mesh bulletMesh, ringMesh, quadMesh;
         private Transform bulletGlow;
+        private Vector3? releaseEye;   // where the bullet's camera stops to let it go into the victim
 
         private static Mesh Quad()
         {
@@ -89,6 +90,7 @@ namespace UA
             // the victim stands still at the start of the fall until the bullet arrives
             if (victim.Anim != null) { victim.Anim.Play("Dead", 0, 0f); victim.Anim.speed = 0f; }
             hit = !gun;
+            releaseEye = null;
             start = Time.unscaledTime;
             if (gun) MakeBullet();
             ShowCover(k);
@@ -450,16 +452,29 @@ namespace UA
                 }
                 // a ring of pushed air now and then along the way (more of them where it flies slowly)
                 while (u >= nextRing && nextRing < 0.97f) { Ring(Vector3.Lerp(from, to, nextRing), dir); nextRing += 0.11f; }
-                const float release = 0.84f;
-                float uc = Mathf.Min(u, Along(release));
-                var camAt = Vector3.Lerp(from, to, uc);
-                // round the line: side (90) over the top (0) to a little past it, close while slow
-                float turn = Mathf.Lerp(95f, -25f, Mathf.SmoothStep(0f, 1f, Mathf.Min(f, release) / release));
-                var round = Quaternion.AngleAxis(turn, dir) * Vector3.ProjectOnPlane(Vector3.up, dir).normalized;
-                float near = Mathf.Lerp(0.7f, 0.32f, Mathf.Sin(Mathf.Clamp01(f / release) * Mathf.PI));
-                var place = camAt - dir * Mathf.Lerp(0.25f, 0.6f, f) + round * near;
-                eye = Clear(camAt, place);
-                look = f < release ? at + dir * 0.35f : Vector3.Lerp(at, to, 0.5f);
+                const float release = 0.78f;
+                if (f < release)
+                {
+                    // beside it and a little above (the horizon behind it, not the ground), swinging from the
+                    // side round towards the back while it slows, close in while it is slow
+                    float turn = Mathf.Lerp(100f, 50f, Mathf.SmoothStep(0f, 1f, f / release));
+                    var round = Quaternion.AngleAxis(turn, dir) * Vector3.ProjectOnPlane(Vector3.up, dir).normalized;
+                    float near = Mathf.Lerp(0.7f, 0.34f, Mathf.Sin(f / release * Mathf.PI));
+                    eye = Clear(at, at - dir * Mathf.Lerp(0.25f, 0.55f, f) + round * near);
+                    look = at + dir * 0.12f;
+                }
+                else
+                {
+                    // the camera stays where it sees the victim best and lets the bullet go the last metres in
+                    if (releaseEye == null)
+                    {
+                        var stop = Vector3.Lerp(from, to, Along(release));
+                        releaseEye = Best(to, stop + right * 0.9f + Vector3.up * 0.3f - dir * 0.3f, stop - right * 0.9f + Vector3.up * 0.3f - dir * 0.3f,
+                            stop + Vector3.up * 0.7f - dir * 0.6f);
+                    }
+                    eye = releaseEye.Value;
+                    look = Vector3.Lerp(at, to, 0.6f);
+                }
                 fov = Mathf.Lerp(46f, 38f, Mathf.Sin(f * Mathf.PI));
                 roll = Mathf.Lerp(10f, -6f, f);
                 steady = true;
