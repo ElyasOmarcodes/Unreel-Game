@@ -15,8 +15,8 @@ HOST=$!
 sleep 15
 run client
 CLIENT=$!
-# wait at most 21 minutes
-for i in $(seq 1 252); do
+# wait at most 40 minutes (the host films the match frame by frame at the end)
+for i in $(seq 1 480); do
   sleep 5
   kill -0 $HOST 2>/dev/null || kill -0 $CLIENT 2>/dev/null || break
 done

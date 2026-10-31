@@ -31,10 +31,11 @@ namespace UA
             new[] { "OWN BUILD", "MERCENARY", "POLICE OFFICER", "FIELD AGENT", "OPERATIVE", "BODYGUARD", "SWAT", "RIFLEMAN", "RED BERET", "BLACK SQUAD", "RANGER", "UNDERCOVER" },
         };
         /// <summary>
-        /// Pieces no longer offered (women's: the abaya, the hijab, the pack's woman FIELD AGENT): skipped by the
-        /// profile and never drawn for bots; an old look with the woman of the pack is built piece by piece.
+        /// Pieces no longer offered (women's: the abaya, the hijab, the pack's woman FIELD AGENT; the RANGER, held
+        /// back for now): skipped by the profile and never drawn for bots; an old look with one of them is built
+        /// piece by piece.
         /// </summary>
-        public static bool Offered(Slot slot, int value) => !(slot == Slot.Top && value == 6 || slot == Slot.Head && value == 8 || slot == Slot.Character && value == 3);
+        public static bool Offered(Slot slot, int value) => !(slot == Slot.Top && value == 6 || slot == Slot.Head && value == 8 || slot == Slot.Character && (value == 3 || value == 10));
 
         public static readonly string[] SlotNames = { "AGENT", "TOP", "BOTTOM", "HEAD", "VEST", "SHOES", "GLOVES", "BELT", "BEARD", "BAG", "TOP COLOUR", "BOTTOM COLOUR", "HEAD COLOUR", "CHARACTER" };
 
@@ -190,7 +191,6 @@ namespace UA
             new Preset("RIFLEMAN", 0, 0, 0, 0, 0, 0, (Slot.Character, 7)),
             new Preset("RED BERET", 0, 0, 0, 0, 0, 0, (Slot.Character, 8)),
             new Preset("BLACK SQUAD", 0, 0, 0, 0, 0, 0, (Slot.Character, 9)),
-            new Preset("RANGER", 0, 0, 0, 0, 0, 0, (Slot.Character, 10)),
             new Preset("UNDERCOVER", 0, 0, 0, 0, 0, 0, (Slot.Character, 11)),
             new Preset("MERCENARY", 0, 0, 0, 0, 0, 0, (Slot.Character, 1)),
             new Preset("POLICE OFFICER", 0, 0, 0, 0, 0, 0, (Slot.Character, 2)),
@@ -237,7 +237,7 @@ namespace UA
             if (Get(look, Slot.Top) == 0) look = Set(look, Slot.BottomColor, Get(look, Slot.TopColor));
             // now and then one of the pack characters
             if (UnityEngine.Random.value < 0.35f)
-                look = Set(look, Slot.Character, new[] { 1, 2, 4, 5, 6, 7, 8, 9, 10, 11 }[UnityEngine.Random.Range(0, 10)]);
+                look = Set(look, Slot.Character, new[] { 1, 2, 4, 5, 6, 7, 8, 9, 11 }[UnityEngine.Random.Range(0, 9)]);
             return look;
         }
     }

@@ -124,6 +124,18 @@ jobs:
       - name: Play a LAN match on the runner (host + client) and take screenshots
         run: bash .github/scripts/lan-test.sh UnityGame/Builds/Linux shots
 
+      # the films of the match (one JPEG a frame, 30 a second) as MP4 videos
+      - name: Make the videos
+        if: always()
+        run: |
+          command -v ffmpeg >/dev/null || sudo apt-get install -y -q ffmpeg >/dev/null
+          for d in shots/vid-*/; do
+            [ -d "$d" ] || continue
+            n=$(basename "$d")
+            ffmpeg -loglevel error -y -framerate 30 -i "$d/f%05d.jpg" -c:v libx264 -preset veryfast -crf 27 -pix_fmt yuv420p -vf "scale=1280:-2" -movflags +faststart "shots/$n.mp4" && rm -rf "$d"
+          done
+          ls -la shots/*.mp4 2>/dev/null || echo "no videos"
+
       # small copies of the screenshots on a branch of their own (ci-shots/<branch>), so they can be seen
       # with git alone, also where the artifact store cannot be reached
       - name: Push the screenshots to a branch
@@ -135,6 +147,7 @@ jobs:
             n=$(basename "$f" .png)
             convert "$f" -resize 1280x720 -quality 82 "$out/$n.jpg" 2>/dev/null || cp "$f" "$out/"
           done
+          cp shots/*.mp4 "$out/" 2>/dev/null || true
           grep -hE "\[UA\]|Exception" shots/*.log > "$out/log.txt" 2>/dev/null || true
           cd "$out"
           git init -q -b shots

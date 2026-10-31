@@ -235,36 +235,45 @@ namespace UA
         public bool LineOfSight(Vector3 from, Vector3 to) => !Physics.Linecast(from, to, EnvMask, QueryTriggerInteraction.Ignore);
 
         /// <summary>
-        /// Host: a random spawn point among the safe ones. Every point of the map's spawn list (spread
-        /// all over the map) is scored by its distance to the nearest enemy and to where this player
-        /// died; points too close to an enemy, or in the open line of sight of one, are skipped; one of
-        /// the best few is then picked at random, so players come back in many different places.
+        /// Host: one of the map's spawn points (Steel City: its seven), picked fully at random; only a point
+        /// with an enemy right beside it is left out while another is free. Two players never come in on top
+        /// of each other: a point already taken gives a free place a step or two beside it.
         /// </summary>
         public (Vector3, float) PickSpawn(PlayerState p, Session s)
         {
             if (Spawns.Length == 0) return (Center, 0f);
-            var enemies = s.Players.Values.Where(o => o.Alive && IsEnemy(p, o, s)).Select(o => o.Pos).ToList();
-            var scored = new List<(Vector3 point, float score)>();
-            foreach (var sp in Spawns)
-            {
-                float nearest = enemies.Count == 0 ? 60f : enemies.Min(e => Vector3.Distance(e, sp));
-                if (nearest < 14f) continue;
-                bool seen = enemies.Any(e => Vector3.Distance(e, sp) < 45f && LineOfSight(e + Vector3.up * 1.5f, sp + Vector3.up * 1.4f));
-                float score = Mathf.Min(nearest, 50f) - (seen ? 25f : 0f);
-                // not the same place again: away from where this player died
-                if (p.Pos != Vector3.zero) score += Mathf.Min(Vector3.Distance(p.Pos, sp), 30f) * 0.5f;
-                scored.Add((sp, score));
-            }
-            Vector3 chosen;
-            if (scored.Count == 0) chosen = Spawns[Random.Range(0, Spawns.Length)];
-            else
-            {
-                var best = scored.OrderByDescending(x => x.score).Take(Mathf.Max(3, scored.Count / 3)).ToList();
-                chosen = best[Random.Range(0, best.Count)].point;
-            }
+            var others = s.Players.Values.Where(o => o != p && o.Alive && o.Spawned).ToList();
+            var free = Spawns.Where(sp => !others.Any(o => IsEnemy(p, o, s) && Vector3.Distance(o.Pos, sp) < 10f)).ToList();
+            if (free.Count == 0) free = Spawns.ToList();
+            // the least crowded first among equals: fully random, but a point nobody stands on wins over a taken one
+            int Crowd(Vector3 sp) => others.Count(o => Vector3.Distance(o.Pos, sp) < 2.5f);
+            int least = free.Min(Crowd);
+            var pick = free.Where(sp => Crowd(sp) == least).ToList();
+            var chosen = pick[Random.Range(0, pick.Count)];
+            chosen = FreeSpot(chosen, others);
             var toCenter = Center - chosen;
             float yaw = Mathf.Atan2(toCenter.x, toCenter.z) * Mathf.Rad2Deg + Random.Range(-40f, 40f);
             return (chosen + Vector3.up * 0.1f, yaw);
+        }
+
+        /// <summary>The point itself, or the nearest place around it (rings of 1.2 m) clear of players and walls.</summary>
+        private static Vector3 FreeSpot(Vector3 point, List<PlayerState> others)
+        {
+            bool Clear(Vector3 at) =>
+                !others.Any(o => Vector3.Distance(new Vector3(o.Pos.x, 0, o.Pos.z), new Vector3(at.x, 0, at.z)) < 1.1f && Mathf.Abs(o.Pos.y - at.y) < 2f)
+                && !Physics.CheckCapsule(at + Vector3.up * 0.5f, at + Vector3.up * 1.5f, 0.35f, EnvMask, QueryTriggerInteraction.Ignore);
+            if (Clear(point)) return point;
+            for (int ring = 1; ring <= 3; ring++)
+                for (int k = 0; k < 8 * ring; k++)
+                {
+                    float a = (k + 0.5f * ring) / (8f * ring) * Mathf.PI * 2f;
+                    var at = point + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * (1.2f * ring);
+                    // on the same ground: down onto it from a little above
+                    if (Physics.Raycast(at + Vector3.up * 1.2f, Vector3.down, out var hit, 2.5f, EnvMask, QueryTriggerInteraction.Ignore)) at = hit.point;
+                    else continue;
+                    if (Mathf.Abs(at.y - point.y) < 0.6f && Clear(at)) return at;
+                }
+            return point;
         }
 
         public int NearestWaypoint(Vector3 pos)

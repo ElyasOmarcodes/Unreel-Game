@@ -238,7 +238,10 @@ namespace UA
             }
             else agent.AimPoint = null;
 
-            // write our state for the network and the animations
+            // write our state for the network and the animations; not while the host's new place for us after a
+            // death is still waiting to be taken (the body still lies where it fell: that place would overwrite
+            // the new one, and the player came back where they died)
+            if (agent.SpawnPending) return;
             state.Pos = transform.position;
             state.Yaw = rig.Yaw;
             state.Pitch = rig.AimPitch;
@@ -267,23 +270,22 @@ namespace UA
             var rig = CameraRig.I;
             var aim = rig.AimRay();
             var world = World.I;
-            // what is under the crosshair decides the direction; the shot starts on the crosshair's line level
-            // with the player's eyes (the camera looks over the shoulder: what it sees past a corner or over a
-            // wall is what is hit, not the edge of the wall beside the head); the eyes when the camera is far off
-            var under = world.TraceShot(aim.origin, aim.direction, def.Range, agent.Id);
+            // the shot goes along the crosshair's own line, from where that line passes level with the player's
+            // eyes: what the camera sees past a corner or over a wall is what is hit, and the edge of a wall
+            // beside the head or the gun never stops it (it passes through the air beside the wall, as seen)
             var origin = aim.origin + aim.direction * Mathf.Max(0f, Vector3.Dot(agent.Eye - aim.origin, aim.direction));
-            if ((origin - agent.Eye).sqrMagnitude > 0.9f * 0.9f) origin = agent.Eye;
-            var dir = (under.Point - origin).normalized;
-            if (Vector3.Dot(dir, aim.direction) < 0.5f) dir = aim.direction;
+            var dir = aim.direction;
             // no spread: the bullet goes exactly where the crosshair is (shotgun pellets keep their pattern)
             var shot = new Shot { Weapon = def.Id, Origin = origin, Dir = dir, Seed = rng.Next(), Victim = Session.NoPlayer };
 
             // local feedback right away; what was hit on this screen goes with the shot to the host
             var muzzle = agent.Muzzle.position;
+            // the trail starts at the barrel, or on the line itself when the barrel is behind the wall's edge
+            var trail = Physics.Linecast(muzzle, origin, World.EnvMask, QueryTriggerInteraction.Ignore) ? origin : muzzle;
             foreach (var d in Ballistics.Pellets(dir, shot.Seed, def))
             {
                 var hit = world.TraceShot(origin, d, def.Range, agent.Id);
-                Effects.Tracer(muzzle, hit.Point, def.Pellets > 1 ? 0.6f : 1f);
+                Effects.Tracer(trail, hit.Point, def.Pellets > 1 ? 0.6f : 1f);
                 if (hit.Sacred) { Hud.I?.ShowCenter("DO NOT SHOOT THE BOARDS", "the shot comes back on you", 1.6f); continue; }
                 if (hit.Kind == 0) Effects.Impact(hit.Point, -d);
                 else if (hit.Kind == 1)
@@ -379,11 +381,11 @@ namespace UA
             var rig = CameraRig.I;
             var origin = agent.Eye + Quaternion.Euler(0, rig.Yaw, 0) * new Vector3(0.3f, 0.15f, 0.45f);
             if (Physics.Linecast(agent.Eye, origin, World.EnvMask, QueryTriggerInteraction.Ignore)) origin = agent.Eye;
-            // thrown a little above the crosshair (a 14 degree loft): level aim lands some 11 m off (4 m more
-            // than before) and rolls on; aiming higher throws further, as a real throw does (up to ~45 degrees)
+            // thrown a little above the crosshair (a 14 degree loft): level aim lands some 14 m off and rolls on;
+            // aiming higher throws further, as a real throw does (up to ~45 degrees: some 35 m)
             float loft = Mathf.Clamp(rig.Pitch + 14f, -30f, 46f);
             var dir = Quaternion.Euler(-loft, rig.Yaw, 0f) * Vector3.forward;
-            var throwVelocity = dir * (prone ? 9f : 15f) + velocity * 0.35f;
+            var throwVelocity = dir * (prone ? 10.5f : 17f) + velocity * 0.35f;
             Session.I.ThrowLocal(origin, throwVelocity);
             // the fuse on the grenade itself is the throw sound now, and the arm swing is played there (Grenade.Spawn)
         }

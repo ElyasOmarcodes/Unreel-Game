@@ -154,6 +154,13 @@ namespace UA
             flashes.Add((flash, Time.time + 0.045f));
         }
 
+        /// <summary>A puff of smoke (no mark): a muzzle's breath in the air.</summary>
+        public static void Puff(Vector3 pos, Vector3 dir)
+        {
+            Ensure();
+            Emit(dust, pos, dir, 5, 0.5f);
+        }
+
         public static void Impact(Vector3 pos, Vector3 normal)
         {
             Ensure();

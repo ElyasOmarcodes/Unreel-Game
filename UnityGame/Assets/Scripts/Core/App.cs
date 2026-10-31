@@ -323,10 +323,9 @@ namespace UA
             BuildSocial(s);
         }
 
-        /// <summary>Where to follow the game. Only the GitHub page is live for now; the rest are filled in later.</summary>
+        /// <summary>Where to follow the game (the links are filled in later).</summary>
         public static readonly (string name, string icon, string url)[] SocialLinks =
         {
-            ("GITHUB", "code", "https://github.com/ElyasOmarcodes"),
             ("YOUTUBE", "play_circle_filled", ""),
             ("FACEBOOK", "public", ""),
             ("TELEGRAM", "send", ""),

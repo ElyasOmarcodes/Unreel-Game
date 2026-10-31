@@ -49,6 +49,8 @@ namespace UA
         public bool IsLocal { get; private set; }
 
         private byte spawnSeq;
+        /// <summary>The host has placed this player anew and the body is not there yet (Sync moves it).</summary>
+        public bool SpawnPending => State != null && State.SpawnSeq != spawnSeq;
         private int weapon = -1;
         private bool visible = true;
         private float animMoveX, animMoveY;
@@ -125,18 +127,29 @@ namespace UA
         /// </summary>
         private void Upright()
         {
-            if (State == null || !Alive || State.Prone || pelvisBone == null || spineBone == null || neckBone == null) return;
+            // also on the profile's stage and the test rows (no player there: the animator says if lying down)
+            bool prone = State != null ? State.Prone : Anim != null && Anim.GetBool(ProneId);
+            if (State != null && !Alive || prone || pelvisBone == null || spineBone == null || neckBone == null) return;
             var right = transform.right;
-            const float tuck = 4f;
+            // the body built piece by piece keeps its own model's curved back (the hips tipped, the seat out)
+            // under the animation: its hips are tucked further and its back stood up more than the ready-made
+            // characters' (those are bound straight)
+            float tuck = ownBuild ? 13f : 4f;
             pelvisBone.rotation = Quaternion.AngleAxis(-tuck, right) * pelvisBone.rotation;
             if (thighBone != null) thighBone.rotation = Quaternion.AngleAxis(tuck, right) * thighBone.rotation;
             if (thighLeft != null) thighLeft.rotation = Quaternion.AngleAxis(tuck, right) * thighLeft.rotation;
             // how far the back leans forwards (hips to neck), beyond a natural 6 degrees
             var back = neckBone.position - spineBone.position;
             float lean = Mathf.Atan2(Vector3.Dot(back, transform.forward), Vector3.Dot(back, transform.up)) * Mathf.Rad2Deg;
-            float straighten = Mathf.Clamp((lean - 6f) * 0.6f, 0f, 14f);
+            float straighten = Mathf.Clamp((lean - 6f) * 0.6f, 0f, 14f) + (ownBuild ? 5f : 0f);
             spineBone.rotation = Quaternion.AngleAxis(tuck - straighten, right) * spineBone.rotation;
+            // the head held up over the shoulders, not pushed forwards (a little less with the eye at the gun)
+            float neck = State != null && State.Aiming ? 5f : 10f;
+            neckBone.rotation = Quaternion.AngleAxis(-neck, right) * neckBone.rotation;
         }
+
+        /// <summary>The look is built piece by piece (not a ready-made character of the packs).</summary>
+        private bool ownBuild = true;
 
         /// <summary>
         /// The body hitbox ends just under the head as the animation holds it (standing, crouched, leaning
@@ -323,6 +336,7 @@ namespace UA
             bool ready = false;
             foreach (var p in Parts)
                 ready |= character > 0 && p.Object != null && p.Slot == Wardrobe.Slot.Character && ((p.Mask >> character) & 1) == 1;
+            ownBuild = !ready;
             foreach (var go in BaseBody)
                 if (go != null) go.SetActive(!ready);
             foreach (var part in Parts)

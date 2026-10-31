@@ -42,6 +42,9 @@ public static class CharacterPack
     /// the hand bone whole (the fingers do not bend on their own), so they never tear when the game's fingers
     /// close round a gun.
     /// </summary>
+    /// <summary>Characters held back for now (not built, not offered): the RANGER (Army).</summary>
+    private static readonly HashSet<string> Held = new HashSet<string> { "Army" };
+
     private static readonly HashSet<string> RigidHands = new HashSet<string> { "RedBeret", "Army" };
 
     public static List<Agent.OutfitPart> Dress(Outfit.Body body, bool female, Material team, List<Renderer> teamRenderers)
@@ -50,7 +53,7 @@ public static class CharacterPack
         int mask = 0;
         for (int i = 0; i < All.Length; i++)
         {
-            if (All[i].female || female) continue;
+            if (All[i].female || female || Held.Contains(All[i].key)) continue;
             var go = Build(body, All[i].key);
             if (go == null) continue;
             parts.Add(new Agent.OutfitPart { Object = go, Slot = Wardrobe.Slot.Character, Mask = 1 << (i + 1) });

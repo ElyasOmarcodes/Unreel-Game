@@ -547,6 +547,12 @@ namespace UA
                 if (!p.Alive) p.RespawnAt += seconds;
         }
 
+        /// <summary>Host, auto test only: more time on the match clock (nothing else held).</summary>
+        public void Extend(float seconds)
+        {
+            if (IsHost && Phase == Phase.Playing) phaseEnd += seconds;
+        }
+
         /// <summary>Host, auto test only: one player kills another outright with the gun in their hands.</summary>
         public void TestKill(byte killer, byte victim)
         {

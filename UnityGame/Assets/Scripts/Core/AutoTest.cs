@@ -146,7 +146,7 @@ namespace UA
             yield return Shot("00-pack-characters-back");
             foreach (var go in row) Destroy(go);
             row.Clear();
-            // the second pack (SWAT, RIFLEMAN, RED BERET, BLACK SQUAD, RANGER): close, then running front and side
+            // the second pack (SWAT, RIFLEMAN, RED BERET, BLACK SQUAD, UNDERCOVER): close, then running front and side
             for (int i = 0; i < 5; i++) Dress(Wardrobe.PresetLook(i), new Vector3(i * 0.9f, 300, 0), 180);
             cam.transform.SetPositionAndRotation(new Vector3(1.8f, 301.35f, -4.4f), Quaternion.Euler(4, 0, 0));
             yield return Wait(1f);
@@ -163,7 +163,7 @@ namespace UA
             // every ready-made character (the two packs and TEAM 1) in every state, five at a time, from the front
             // and the side, then each one's hands close: the joints, the hands and the fingers checked by eye
             {
-                var names = new[] { "SWAT", "RIFLEMAN", "RED BERET", "BLACK SQUAD", "RANGER", "UNDERCOVER", "MERCENARY", "POLICE OFFICER", "OPERATIVE", "BODYGUARD", "TEAM 1", "SOLDIER" };
+                var names = new[] { "SWAT", "RIFLEMAN", "RED BERET", "BLACK SQUAD", "DESERT SCOUT", "UNDERCOVER", "MERCENARY", "POLICE OFFICER", "OPERATIVE", "BODYGUARD", "TEAM 1", "SOLDIER" };
                 var states = new (string name, System.Action<Animator> set)[]
                 {
                     ("idle", a => { }),
@@ -387,7 +387,7 @@ namespace UA
                 CameraRig.I.Yaw = Quaternion.LookRotation(prey.Pos - me.Pos).eulerAngles.y;
                 yield return Wait(0.3f);
                 Session.I.TestKill(me.Id, prey.Id);
-                yield return Until(() => !KillCam.Active, 8);
+                yield return Until(() => !KillCam.Active, 11);
             }
             yield return Play(10f, "09-running-firing", "10-fight");
             Controls.SimMove = Vector2.zero;
@@ -438,6 +438,7 @@ namespace UA
             app.SetPaused(false);
             // let the bots fight a little, then end the match
             yield return Play(25f, "13-battle", null);
+            yield return Videos();
             Session.I.EndMatch();
             yield return Until(() => app.Current == "results", 5);
             yield return Wait(1.5f);
@@ -450,6 +451,105 @@ namespace UA
             app.LeaveGroup();
             yield return Wait(1f);
             yield return Tour();
+        }
+
+        // ---------------------------------------------------------------- videos
+        // Films of the match at a steady 30 frames a second (the game's clock steps one frame at a time, however
+        // slowly the machine draws): the player going through every move, and a bot finding its way and fighting.
+        // Each frame is a JPEG in vid-<name>/; the workflow makes an MP4 of every folder.
+
+        private IEnumerator Record(string name, float seconds, Action<float> step)
+        {
+            string dir = Path.Combine(shots, "vid-" + name);
+            Directory.CreateDirectory(dir);
+            Time.captureFramerate = 30;
+            int frames = Mathf.RoundToInt(seconds * 30f);
+            for (int f = 0; f < frames; f++)
+            {
+                step?.Invoke(f / 30f);
+                yield return new WaitForEndOfFrame();
+                var tex = ScreenCapture.CaptureScreenshotAsTexture();
+                File.WriteAllBytes(Path.Combine(dir, $"f{f:00000}.jpg"), tex.EncodeToJPG(82));
+                Destroy(tex);
+            }
+            Time.captureFramerate = 0;
+            App.Log($"video {name}: {frames} frames");
+        }
+
+        private IEnumerator Videos()
+        {
+            var s = Session.I;
+            var me = LocalPlayer.I != null ? LocalPlayer.I.GetComponent<Agent>() : null;
+            if (me == null || World.I == null) yield break;
+            s.Extend(600f);
+            yield return Until(() => s.Local != null && s.Local.Alive, 8f);
+            void Keep() { if (s.Local != null && s.Local.Alive) s.Local.Health = 100f; }   // the player stays alive for the film
+            // an open yard: one of the map's spawn points, facing the middle
+            if (World.I.Spawns.Length > 0)
+            {
+                var at = World.I.Spawns[0] + Vector3.up * 0.1f;
+                float yaw = Quaternion.LookRotation(Vector3.ProjectOnPlane(World.I.Center - at, Vector3.up)).eulerAngles.y;
+                me.Teleport(at, yaw);
+                CameraRig.I.Yaw = yaw;
+                CameraRig.I.Pitch = 0f;
+            }
+            Controls.SimMove = Vector2.zero;
+            Controls.SimFire = false;
+            yield return Wait(1f);
+            // every move of the player, one after the other
+            bool crouched = false, lying = false, aimed = false, jumped = false, reloaded = false, swapped = false, thrown = false;
+            float last = 0f;
+            yield return Record("1-player-moves", 39f, t =>
+            {
+                Keep();
+                float dt = t - last;
+                last = t;
+                var move = Vector2.zero;
+                if (t < 2.5f) CameraRig.I.Yaw += 20f * Mathf.Sin(t * 2.4f) * dt;                     // standing, looking round
+                else if (t < 5.5f) move = new Vector2(0f, 0.5f);                                       // walking
+                else if (t < 8.5f) move = new Vector2(0f, 0.95f);                                      // running
+                else if (t < 11.5f) move = new Vector2(0f, 1f);                                        // sprinting
+                else if (t < 16f) { move = new Vector2(0f, 0.95f); CameraRig.I.Yaw += 55f * Mathf.Sin((t - 11.5f) * 1.4f) * dt; }   // running and turning
+                else if (t < 18f) move = new Vector2(0.95f, 0f);                                       // to the right
+                else if (t < 20f) move = new Vector2(-0.95f, 0f);                                      // to the left
+                else if (t < 21.5f) move = new Vector2(0f, -0.9f);                                     // backwards
+                else if (t < 24.5f) { if (!crouched) { crouched = true; Controls.SimCrouch = true; } move = new Vector2(0.3f, 0.8f); }   // crouched
+                else if (t < 28.5f) { if (!lying) { lying = true; Controls.SimProne = true; } if (t > 25.2f) move = new Vector2(0f, 0.8f); }   // crawling
+                else if (t < 31f) { if (lying) { lying = false; Controls.SimProne = true; } if (t > 29.2f) move = new Vector2(0f, 0.95f); if (t > 30.2f && !jumped) { jumped = true; Controls.SimJump = true; } }   // up, a running jump
+                else if (t < 33.5f) { if (!aimed && t > 31.3f) { aimed = true; Controls.SimAim = true; } Controls.SimFire = t > 31.8f && t < 33f; }   // aiming, a burst
+                else if (t < 35.5f) { Controls.SimFire = false; if (aimed) { aimed = false; Controls.SimAim = true; } if (!reloaded && t > 33.8f) { reloaded = true; Controls.SimReload = true; } }   // reload
+                else if (t < 37f) { if (!swapped) { swapped = true; Controls.SimSwap = true; } }       // the other gun
+                else if (!thrown) { thrown = true; Controls.SimGrenade = true; }                       // a grenade
+                Controls.SimMove = move;
+            });
+            Controls.SimMove = Vector2.zero;
+            Controls.SimFire = false;
+            // a bot on its way and in the fight, the camera behind it
+            Agent bot = null;
+            Vector3 eye = Vector3.zero;
+            bool eyeSet = false;
+            CameraRig.Frozen = true;
+            yield return Record("2-bot-battle", 32f, t =>
+            {
+                Keep();
+                if (bot == null || bot.State == null || !bot.State.Alive)
+                {
+                    bot = World.I.Agents.Values.Where(a => a != null && a.State != null && a.State.IsBot && a.State.Alive).OrderBy(a => a.Id).FirstOrDefault();
+                    eyeSet = false;
+                }
+                if (bot == null) return;
+                var cam = CameraRig.I;
+                var head = bot.transform.position + Vector3.up * 1.6f;
+                var want = head - bot.transform.forward * 3.4f + bot.transform.right * 0.7f + Vector3.up * 0.6f;
+                if (Physics.SphereCast(head, 0.2f, (want - head).normalized, out var wall, (want - head).magnitude, World.EnvMask, QueryTriggerInteraction.Ignore))
+                    want = head + (want - head).normalized * Mathf.Max(0.5f, wall.distance - 0.1f);
+                eye = eyeSet ? Vector3.Lerp(eye, want, 1f - Mathf.Exp(-5f / 30f)) : want;
+                eyeSet = true;
+                cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(bot.transform.position + Vector3.up * 1.2f + bot.transform.forward * 2f - eye));
+                cam.Cam.fieldOfView = 58f;
+                cam.Cam.ResetProjectionMatrix();
+            });
+            CameraRig.Frozen = false;
         }
 
         /// <summary>
@@ -917,7 +1017,7 @@ namespace UA
             yield return Until(() => KillCam.Active, 150);
             if (!KillCam.Active) { App.Log("no first kill film"); yield break; }
             float start = Time.realtimeSinceStartup;
-            foreach (var (at, name) in new[] { (0.6f, "0-title"), (1.5f, "a-aim"), (2.1f, "b-bullet"), (3.1f, "c-bullet-near"), (3.47f, "d-hit"), (4.6f, "e-fall"), (6.1f, "f-killer") })
+            foreach (var (at, name) in new[] { (1.0f, "0-title"), (2.3f, "a-aim"), (3.1f, "b-bullet"), (3.9f, "c-bullet-slow"), (4.75f, "c2-bullet-near"), (5.25f, "d-hit"), (6.3f, "e-fall"), (7.9f, "f-killer"), (9.0f, "g-back-to-game") })
             {
                 while (Time.realtimeSinceStartup - start < at) yield return null;
                 yield return Shot($"{prefix}{name}-first-kill");
