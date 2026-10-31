@@ -1,0 +1,983 @@
+using System.Collections.Generic;
+using System.Linq;
+using UA;
+using UnityEditor;
+using UnityEngine;
+
+/// <summary>
+/// The "Village" map: an Afghan farming village on rolling green land. Mud-walled compounds (qala)
+/// with gates and corner towers around one- and two-storey mud houses (flat roofs on wooden beams,
+/// outside stairs to the roof), a small bazaar on a raised platform around a big plane tree, a dry
+/// river bed (khwar) with a wooden footbridge and a ford, terraced wheat fields and orchards on the
+/// hills, and an old round watchtower (burj) on the highest hill. Ground is a height field mesh painted
+/// with grass, dirt, gravel and rock (ambientCG, CC0).
+/// </summary>
+public static class VillageBuilder
+{
+    public const float Half = 120f;             // the village and its fields (bots, spawns)
+    private const float Edge = Half + 44f;      // players can climb the hills around it up to here
+    private const float Size = 420f;
+
+    private static Transform root;
+    private static System.Random rng;
+    private static readonly List<Rect> flats = new List<Rect>();
+    private static readonly List<Renderer> night = new List<Renderer>();
+
+    /// <summary>An oil lantern (glows at night) hanging at a point, with its small iron cap.</summary>
+    private static void Lantern(Transform t, Vector3 world, Vector3? wall = null)
+    {
+        var iron = AssetSetup.Solid("T_Iron", new Color(0.07f, 0.07f, 0.08f), 0.45f, 0.6f);
+        MeshGen.TexBox("LanternCap", world + Vector3.up * 0.18f, new Vector3(0.24f, 0.05f, 0.24f), iron, 1f, t, 0f, false);
+        MeshGen.TexBox("LanternHook", world + Vector3.up * 0.3f, new Vector3(0.03f, 0.2f, 0.03f), iron, 1f, t, 0f, false);
+        NightLights.Lamp(t, world, new Vector3(0.16f, 0.26f, 0.16f), night, 2.6f);
+        // its glow on the mud wall behind it
+        if (wall.HasValue) NightLights.Pool(t, world - wall.Value * 0.38f + Vector3.down * 0.2f, wall.Value, 1.7f, night);
+    }
+
+    private static float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+
+    // ------------------------------------------------------------------ materials
+
+    // kahgel: mud and straw plaster, light beige brown (the hand smoothed clay texture)
+    // (shader UA/Mud: projected in world space, so separate pieces read as one plastered surface)
+    private static Material Mud => MudMat("V_Mud", new Color(1.05f, 0.95f, 0.8f));
+    // the wall tops, parapets and roofs: the same mud as the walls (one plastered piece, no seams)
+    private static Material MudPlaster => Mud;
+    private static Material MudDark => MudMat("V_MudDark", new Color(0.82f, 0.72f, 0.58f));
+    private static readonly Dictionary<string, Material> mudMats = new Dictionary<string, Material>();
+
+    private static Material MudMat(string name, Color tint)
+    {
+        if (mudMats.TryGetValue(name, out var cached) && cached != null) return cached;
+        string path = $"{AssetSetup.Generated}/Materials/{name}.mat";
+        AssetDatabase.DeleteAsset(path);
+        var shader = Shader.Find("UA/Mud");
+        if (shader == null) Debug.LogWarning("[Map] village: mud shader missing");
+        var m = new Material(shader ?? Shader.Find("Standard")) { name = name };
+        // grainy dry earth as the plaster, the smoothed clay as large patches of fresher mud
+        m.SetTexture("_MainTex", T("ExcavatedSoil_BaseColor.jpg") ?? T("Ground104_BaseColor.jpg"));
+        m.SetTexture("_Patches", T("Clay007_BaseColor.jpg"));
+        m.SetColor("_Color", tint);
+        m.SetFloat("_Tile", 3f);
+        m.SetFloat("_PatchTile", 9f);
+        m.SetFloat("_GroundY", 0f);
+        AssetDatabase.CreateAsset(m, path);
+        return mudMats[name] = m;
+    }
+    private static Material Dirt => Mats.Pbr("V_Dirt", "Ground104", Color.white, 0.1f);
+    private static Material Wood => Mats.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
+    private static Material OldWood => Mats.Pbr("V_OldWood", "Planks037A", new Color(0.72f, 0.62f, 0.5f), 0.3f);
+    private static Material Hay => Mats.Pbr("V_Hay", "Ground104", new Color(1f, 0.86f, 0.5f), 0.05f);
+    // field stone (dry_riverbed_rock) for the compound walls, wells and stepping stones; flagstones
+    // (monastery_stone_floor) for the steps of the bazaar: the houses keep their mud
+    private static Material Stone => AssetSetup.Stone(Mats.Pbr("V_FieldStone", "DryRiverbedSand", new Color(0.95f, 0.82f, 0.66f), 0.15f), 2.5f);
+    private static Material Flagstone => AssetSetup.Stone(Mats.Pbr("V_Flagstone", "MonasteryFloorSand", new Color(0.95f, 0.85f, 0.7f), 0.25f), 2.5f);
+
+    // ------------------------------------------------------------------ ground
+
+    /// <summary>River bed centre line (z) for a given x.</summary>
+    private static float RiverZ(float x) => -47f + 9f * Mathf.Sin(x / 37f) + 4f * Mathf.Sin(x / 13f + 1f);
+
+    private static float Gauss(float x, float z, float cx, float cz, float sigma) => Mathf.Exp(-((x - cx) * (x - cx) + (z - cz) * (z - cz)) / (2f * sigma * sigma));
+
+    /// <summary>Ground height before the flat spots are levelled.</summary>
+    private static float RawHeight(float x, float z)
+    {
+        float h = 0f;
+        // gentle waves everywhere, real hills around the edge (outside the playable area they frame the view)
+        h += 0.6f * Mathf.Sin(x / 23f) * Mathf.Cos(z / 19f) + 0.4f * Mathf.Sin((x + z) / 31f);
+        float edge = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
+        h += Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Half - 4f, Half + 50f, edge)) * (20f + 8f * Mathf.Sin(x / 17f + z / 23f));
+        // the watchtower hill (north east) and a lower hill with terraced fields (north west)
+        h += 9.5f * Gauss(x, z, 58f, 56f, 15f);
+        float terraces = 6f * Gauss(x, z, -52f, 60f, 20f);
+        h += Mathf.Floor(terraces / 0.9f) * 0.9f + Mathf.Clamp01((terraces % 0.9f) / 0.9f - 0.85f) * 6f;
+        // the dry river bed: 3 m deep, 7 m wide bottom with sloping banks
+        float d = Mathf.Abs(z - RiverZ(x));
+        h -= 3.2f * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(9f, 3.5f, d));
+        return h;
+    }
+
+    private static float FlatWeight(float x, float z)
+    {
+        float w = 0f;
+        foreach (var r in flats)
+        {
+            float dx = Mathf.Max(r.xMin - x, 0f, x - r.xMax), dz = Mathf.Max(r.yMin - z, 0f, z - r.yMax);
+            float dist = Mathf.Sqrt(dx * dx + dz * dz);
+            w = Mathf.Max(w, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(4f, 0f, dist)));
+        }
+        return w;
+    }
+
+    public static float GroundHeight(float x, float z) => Mathf.Lerp(RawHeight(x, z), 0f, FlatWeight(x, z));
+
+    private static Texture2D T(string file) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{Mats.Textures}/{file}") ?? AssetSetup.ExtraTex(file);
+
+    /// <summary>
+    /// The ground: a height field mesh (2 m cells) with a mesh collider, painted with grass, dirt,
+    /// gravel and rock through its vertex colours (shader UA/Ground). A plain mesh rather than a Unity
+    /// terrain: cheaper on phones and its shader always ends up in the build.
+    /// </summary>
+    private static void BuildGround()
+    {
+        const int cells = 210;
+        float cell = Size / cells;
+        int n = cells + 1;
+        var vertices = new Vector3[n * n];
+        var colors = new Color[n * n];
+        for (int j = 0; j < n; j++)
+            for (int i = 0; i < n; i++)
+            {
+                float x = -Size / 2f + i * cell, z = -Size / 2f + j * cell;
+                vertices[j * n + i] = new Vector3(x, GroundHeight(x, z), z);
+            }
+        for (int j = 0; j < n; j++)
+            for (int i = 0; i < n; i++)
+            {
+                var v = vertices[j * n + i];
+                float hx = vertices[j * n + Mathf.Min(n - 1, i + 1)].y - vertices[j * n + Mathf.Max(0, i - 1)].y;
+                float hz = vertices[Mathf.Min(n - 1, j + 1) * n + i].y - vertices[Mathf.Max(0, j - 1) * n + i].y;
+                var normal = new Vector3(-hx, 2f * cell, -hz).normalized;
+                float x = v.x, z = v.z;
+                float noise = Mathf.PerlinNoise(x * 0.05f + 3f, z * 0.05f + 7f);
+                float steep = Mathf.InverseLerp(0.9f, 0.72f, normal.y);
+                float river = Mathf.InverseLerp(6f, 3f, Mathf.Abs(z - RiverZ(x)));
+                // the village itself is trodden dirt, paths link it to the hills and the river
+                float village = Mathf.Max(FlatWeight(x, z), Mathf.InverseLerp(48f, 30f, new Vector2(x * 0.9f, z).magnitude));
+                float dirt = Mathf.Clamp01(Mathf.Max(village * (0.75f + 0.25f * noise), PathWeight(x, z)));
+                float rock = Mathf.Clamp01(steep * (1f - river));
+                float gravel = river;
+                float grass = Mathf.Clamp01(1f - dirt - rock - gravel);
+                float sum = Mathf.Max(0.001f, grass + dirt + rock + gravel);
+                colors[j * n + i] = new Color(dirt / sum, grass / sum, gravel / sum, rock / sum);
+            }
+        var triangles = new int[cells * cells * 6];
+        int t = 0;
+        for (int j = 0; j < cells; j++)
+            for (int i = 0; i < cells; i++)
+            {
+                int a = j * n + i, b = a + 1, c = a + n, d = c + 1;
+                // clockwise seen from above (Unity's front faces)
+                triangles[t++] = a; triangles[t++] = c; triangles[t++] = b;
+                triangles[t++] = b; triangles[t++] = c; triangles[t++] = d;
+            }
+        var mesh = new Mesh { name = "VillageGround" };
+        mesh.SetVertices(vertices);
+        mesh.SetColors(colors);
+        mesh.SetTriangles(triangles, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        AssetDatabase.DeleteAsset($"{AssetSetup.Generated}/Village_Ground.asset");
+        AssetDatabase.CreateAsset(mesh, $"{AssetSetup.Generated}/Village_Ground.asset");
+
+        string matPath = $"{AssetSetup.Generated}/Materials/Village_Ground.mat";
+        AssetDatabase.DeleteAsset(matPath);
+        var shader = Shader.Find("UA/Ground");
+        if (shader == null) Debug.LogWarning("[Map] village: ground shader missing");
+        var mat = new Material(shader ?? Shader.Find("Standard")) { name = "Village_Ground" };
+        // rocky grass on the fields; the dug earth (the mud of the walls, darker and mixed with grass) on the paths and yards
+        mat.SetTexture("_Grass", T("RockyTerrain02_BaseColor.jpg") ?? T("Grass004_BaseColor.jpg"));
+        mat.SetTexture("_Dirt", T("ExcavatedSoil_BaseColor.jpg") ?? T("Ground104_BaseColor.jpg"));
+        mat.SetTexture("_Gravel", T("Gravel036L_BaseColor.jpg"));
+        mat.SetTexture("_Rock", T("Rock055_BaseColor.jpg"));
+        mat.SetColor("_GrassTint", new Color(0.9f, 1f, 0.85f));
+        mat.SetVector("_Tiles", new Vector4(5f, 4f, 3f, 8f));
+        // the paths paved with field stones
+        var paths = new Rect(-Half, -Half, Half * 2f, Half * 2f);
+        // the field stones of the Old Town's walls
+        mat.SetTexture("_Path", T("DryRiverbed_BaseColor.jpg") ?? T("MonasteryFloorSand_BaseColor.jpg"));
+        mat.SetTexture("_PathMask", PathMask(paths, 512));
+        mat.SetVector("_PathArea", new Vector4(paths.xMin, paths.yMin, paths.width, 2.4f));
+        // the field stones in the colours of the village's earth (the texture alone is near white here)
+        mat.SetColor("_PathTint", new Color(0.86f, 0.78f, 0.66f));
+        AssetDatabase.CreateAsset(mat, matPath);
+
+        var go = new GameObject("Ground");
+        go.transform.SetParent(root, false);
+        go.AddComponent<MeshFilter>().sharedMesh = mesh;
+        var r = go.AddComponent<MeshRenderer>();
+        r.sharedMaterial = mat;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        go.AddComponent<MeshCollider>().sharedMesh = mesh;
+        Physics.SyncTransforms();
+    }
+
+    // the paths: from the bazaar to the bridge, the ford, the watchtower and the terraces
+    private static readonly Vector2[][] Paths =
+    {
+        new[] { new Vector2(0, 0), new Vector2(6, -20), new Vector2(10, -38), new Vector2(12, -60), new Vector2(14, -80) },
+        new[] { new Vector2(0, 0), new Vector2(-18, -18), new Vector2(-40, -36), new Vector2(-46, -60), new Vector2(-50, -80) },
+        new[] { new Vector2(0, 0), new Vector2(22, 18), new Vector2(40, 36), new Vector2(52, 50) },
+        new[] { new Vector2(0, 0), new Vector2(-22, 22), new Vector2(-40, 44), new Vector2(-50, 62) },
+        new[] { new Vector2(0, 0), new Vector2(40, -2), new Vector2(80, 4) },
+        new[] { new Vector2(0, 0), new Vector2(-40, 2), new Vector2(-80, -4) },
+        // out to the farms around the old village
+        new[] { new Vector2(-80, -4), new Vector2(-92, -40), new Vector2(-98, -66) },
+        new[] { new Vector2(80, 4), new Vector2(96, 36), new Vector2(100, 56) },
+        new[] { new Vector2(-80, -4), new Vector2(-94, 28), new Vector2(-100, 46) },
+        new[] { new Vector2(14, -80), new Vector2(30, -96), new Vector2(40, -98) },
+        new[] { new Vector2(-50, 62), new Vector2(-38, 84), new Vector2(-30, 94) },
+        new[] { new Vector2(80, 4), new Vector2(92, -36), new Vector2(98, -62) },
+    };
+
+    /// <summary>Distance from (x, z) to the nearest path (its middle line).</summary>
+    private static float PathDistance(float x, float z)
+    {
+        float best = 99f;
+        var p = new Vector2(x, z);
+        foreach (var path in Paths)
+            for (int i = 0; i + 1 < path.Length; i++)
+            {
+                var a = path[i]; var b = path[i + 1];
+                float t = Mathf.Clamp01(Vector2.Dot(p - a, b - a) / (b - a).sqrMagnitude);
+                best = Mathf.Min(best, Vector2.Distance(p, a + (b - a) * t));
+            }
+        return best;
+    }
+
+    // trodden dirt beside the paving, fading into the grass
+    private static float PathWeight(float x, float z) => Mathf.InverseLerp(3.6f, 1.8f, PathDistance(x, z));
+
+    /// <summary>
+    /// Where the paths are paved (shader UA/Ground, _PathMask): full in the middle 1.4 m, fading out
+    /// over the next metre with a ragged edge, so stone, dirt and grass run into each other.
+    /// </summary>
+    private static Texture2D PathMask(Rect area, int size)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.R8, false, true) { name = "Village_PathMask", wrapMode = TextureWrapMode.Clamp };
+        var px = new Color32[size * size];
+        for (int j = 0; j < size; j++)
+            for (int i = 0; i < size; i++)
+            {
+                float x = area.xMin + (i + 0.5f) * area.width / size, z = area.yMin + (j + 0.5f) * area.height / size;
+                float edge = 1.4f + 0.6f * Mathf.PerlinNoise(x * 0.35f + 11f, z * 0.35f + 5f);
+                float m = Mathf.InverseLerp(edge + 1.1f, edge, PathDistance(x, z));
+                px[j * size + i] = new Color32((byte)(m * 255f), 0, 0, 255);
+            }
+        tex.SetPixels32(px);
+        tex.Apply();
+        string path = $"{AssetSetup.Generated}/Village_PathMask.asset";
+        AssetDatabase.DeleteAsset(path);
+        AssetDatabase.CreateAsset(tex, path);
+        return tex;
+    }
+
+    /// <summary>Ground height under (x, z): the mesh surface (raycast), else the height function.</summary>
+    private static float Y(float x, float z)
+    {
+        var hits = Physics.RaycastAll(new Vector3(x, 80f, z), Vector3.down, 200f, World.EnvMask);
+        float best = float.MinValue;
+        foreach (var h in hits)
+            if (h.collider.name == "Ground") best = Mathf.Max(best, h.point.y);
+        return best > float.MinValue ? best : GroundHeight(x, z);
+    }
+
+    // ------------------------------------------------------------------ pieces
+
+    /// <summary>A mud block with softly rounded edges (walls, parapets, platforms).</summary>
+    private static GameObject Block(string name, Transform t, Vector3 local, Vector3 size, Material m = null, float round = 0.1f, bool collider = true)
+    {
+        if (size.x < 0.02f || size.y < 0.02f || size.z < 0.02f) return null;
+        return MeshGen.RoundBox(name, t.TransformPoint(local), size, round, m ?? Mud, 2.5f, t, t.eulerAngles.y, collider);
+    }
+
+    /// <summary>
+    /// A wall along local X from x0 to x1 at local z, base y, with openings (centre x, width, bottom,
+    /// top): wooden lintels over doors and windows. 'extend' runs both ends on into the walls they meet,
+    /// so the rounded ends are buried and the corners close without a seam.
+    /// </summary>
+    private static void Wall(Transform t, float x0, float x1, float z, float y, float height, float thick, List<(float c, float w, float b, float top)> openings, Material m = null, bool alongZ = false, System.Random ruin = null, float extend = 0f)
+    {
+        x0 -= extend;
+        x1 += extend;
+        Vector3 P(float u, float v) => alongZ ? new Vector3(z, v, u) : new Vector3(u, v, z);
+        Vector3 S(float len, float h) => alongZ ? new Vector3(thick, h, len) : new Vector3(len, h, thick);
+        // a run of solid wall; a ruined one is broken into pieces of different heights with gaps
+        void Span(float a0, float a1)
+        {
+            if (a1 - a0 < 0.02f) return;
+            if (ruin == null) { Block("Wall", t, P((a0 + a1) / 2f, y + height / 2f), S(a1 - a0 + 0.02f, height), m); return; }
+            // the broken top wanders up and down along the wall; now and then a stretch has fallen
+            float top = height * (0.55f + 0.4f * (float)ruin.NextDouble());
+            for (float u = a0; u < a1 - 0.01f;)
+            {
+                float len = Mathf.Min(a1 - u, 0.6f + 0.7f * (float)ruin.NextDouble());
+                top = Mathf.Clamp(top + ((float)ruin.NextDouble() - 0.5f) * height * 0.45f, height * 0.25f, height);
+                bool fallen = ruin.NextDouble() < 0.08;
+                float hh = fallen ? Mathf.Min(top, 0.45f) : top;
+                Block("RuinedWall", t, P(u + len / 2f, y + hh / 2f), S(len + 0.06f, hh), m, 0.07f);
+                u += len;
+            }
+        }
+        float cursor = x0;
+        foreach (var o in openings.OrderBy(o => o.c))
+        {
+            float a = o.c - o.w / 2f, b = o.c + o.w / 2f;
+            if (a > cursor) Span(cursor, a);
+            // the pieces under and over an opening reach into the wall beside it: no seam at the joint
+            if (o.b > 0.01f) Block("Sill", t, P(o.c, y + o.b / 2f), S(o.w + 0.3f, o.b), m);
+            if (o.top < height - 0.01f && ruin == null)
+            {
+                Block("Above", t, P(o.c, y + (o.top + height) / 2f), S(o.w + 0.3f, height - o.top), m);
+                Block("Lintel", t, P(o.c, y + o.top + 0.06f), S(o.w + 0.5f, 0.12f) + (alongZ ? new Vector3(0.06f, 0, 0) : new Vector3(0, 0, 0.06f)), Wood, 0.03f, false);
+            }
+            cursor = b;
+        }
+        if (x1 > cursor) Span(cursor, x1);
+    }
+
+    /// <summary>A heap of fallen mud blocks and beams.</summary>
+    private static void Rubble(Transform t, Vector3 local, float radius, System.Random r)
+    {
+        for (int i = 0; i < 9; i++)
+        {
+            float a = (float)r.NextDouble() * Mathf.PI * 2f, d = (float)r.NextDouble() * radius;
+            var size = new Vector3(0.4f + (float)r.NextDouble() * 0.8f, 0.25f + (float)r.NextDouble() * 0.45f, 0.4f + (float)r.NextDouble() * 0.7f);
+            var piece = Block("Rubble", t, local + new Vector3(Mathf.Cos(a) * d, size.y * 0.35f, Mathf.Sin(a) * d), size, i % 3 == 0 ? MudDark : Mud, 0.15f, i % 2 == 0);
+            if (piece != null) piece.transform.rotation = t.rotation * Quaternion.Euler((float)r.NextDouble() * 30f - 15f, (float)r.NextDouble() * 360f, (float)r.NextDouble() * 30f - 15f);
+        }
+        var beam = Block("FallenBeam", t, local + new Vector3(0, 0.3f, 0), new Vector3(0.14f, 0.14f, radius * 1.8f), OldWood, 0.03f, false);
+        if (beam != null) beam.transform.rotation = t.rotation * Quaternion.Euler(18f, (float)r.NextDouble() * 360f, 0);
+    }
+
+    private static List<(float, float, float, float)> Openings(params (float c, float w, float b, float top)[] o) => o.ToList();
+    private static (float, float, float, float) Door(float c) => (c, 1.1f, 0f, 2.15f);
+    private static (float, float, float, float) Window(float c) => (c, 0.7f, 1.1f, 1.9f);
+
+    /// <summary>
+    /// Flat mud roof on wooden beams with a low parapet; the beam ends show on the front and back. Roof and
+    /// parapet are flush with the outer faces of the walls (no eave, no ledge): wall, roof edge and
+    /// parapet read as one plastered piece.
+    /// </summary>
+    private static void Roof(Transform t, float w, float l, float y, bool parapet, float stairGap = 0f, float gapSide = 1f, System.Random collapsed = null)
+    {
+        if (collapsed != null)
+        {
+            // fallen in: a piece of roof over the front, the bare beams over the rest
+            Block("Roof", t, new Vector3(0, y + 0.15f, -l / 2f + l * 0.22f), new Vector3(w, 0.3f, l * 0.44f), MudPlaster, 0.02f);
+            for (float x = -w / 2f + 0.4f; x < w / 2f - 0.2f; x += 0.75f)
+                if (collapsed.NextDouble() < 0.55)
+                {
+                    var beam = Block("BrokenBeam", t, new Vector3(x, y + 0.05f, l * 0.1f), new Vector3(0.13f, 0.13f, l * (0.35f + 0.4f * (float)collapsed.NextDouble())), OldWood, 0.03f, false);
+                    if (beam != null) beam.transform.rotation = t.rotation * Quaternion.Euler((float)collapsed.NextDouble() * 25f, 0, 0);
+                }
+            return;
+        }
+        Block("Roof", t, new Vector3(0, y + 0.15f, 0), new Vector3(w, 0.3f, l), MudPlaster, 0.02f);
+        for (float x = -w / 2f + 0.4f; x < w / 2f - 0.2f; x += 0.75f)
+            foreach (float s in new[] { -1f, 1f })
+                Block("Beam", t, new Vector3(x, y - 0.08f, s * (l / 2f + 0.3f)), new Vector3(0.13f, 0.13f, 0.45f), OldWood, 0.03f, false);
+        if (!parapet) return;
+        float ph = 0.55f, py = y + 0.3f + ph / 2f;
+        Block("Parapet", t, new Vector3(0, py, -l / 2f + 0.15f), new Vector3(w, ph, 0.3f), MudPlaster, 0.02f);
+        Block("Parapet", t, new Vector3(0, py, l / 2f - 0.15f), new Vector3(w, ph, 0.3f), MudPlaster, 0.02f);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            // the side where the outside stair arrives has an opening at its back end
+            if (stairGap > 0f && Mathf.Approximately(s, gapSide))
+            {
+                float len = l - 0.3f - stairGap;
+                Block("Parapet", t, new Vector3(s * (w / 2f - 0.15f), py, -l / 2f + 0.3f + len / 2f), new Vector3(0.3f, ph, len), MudPlaster, 0.02f);
+            }
+            else Block("Parapet", t, new Vector3(s * (w / 2f - 0.15f), py, 0), new Vector3(0.3f, ph, l - 0.6f), MudPlaster, 0.02f);
+        }
+        // a wooden spout to drain the roof
+        Block("Spout", t, new Vector3(w / 4f, y + 0.25f, -l / 2f - 0.45f), new Vector3(0.14f, 0.1f, 0.7f), OldWood, 0.02f, false);
+    }
+
+    /// <summary>
+    /// A mud house (front at local -Z): rooms with a partition, doors and small windows, a flat roof,
+    /// optionally an upper room (balakhana) with a wooden balcony. Returns the roof height.
+    /// </summary>
+    private static float House(Transform parent, Vector3 pos, float yaw, float w, float l, bool upper, int stairSide, System.Random ruin = null)
+    {
+        var t = new GameObject("House").transform;
+        t.SetParent(parent, false);
+        t.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
+        const float h = 3.1f, thick = 0.45f;
+        Block("Floor", t, new Vector3(0, 0.05f, 0), new Vector3(w, 0.1f, l), Dirt, 0.04f);
+        // the walls rise into the roof slab (no seam between wall and roof)
+        float wh = h + 0.2f;
+        Wall(t, -w / 2f, w / 2f, -l / 2f + thick / 2f, 0, wh, thick, Openings(Door(-w * 0.22f), Door(w * 0.25f), Window(-w * 0.4f), Window(w * 0.02f), Window(w * 0.42f)), null, false, ruin);
+        Wall(t, -w / 2f, w / 2f, l / 2f - thick / 2f, 0, wh, thick, Openings(Window(-w * 0.25f), Window(w * 0.25f)), null, false, ruin);
+        Wall(t, -l / 2f + thick, l / 2f - thick, -w / 2f + thick / 2f, 0, wh, thick, Openings(Window(0)), null, true, ruin, thick * 0.8f);
+        Wall(t, -l / 2f + thick, l / 2f - thick, w / 2f - thick / 2f, 0, wh, thick, Openings(Window(0)), null, true, ruin, thick * 0.8f);
+        // partition between the two rooms with a doorway
+        Wall(t, -l / 2f + thick, l / 2f - thick, 0, 0, wh, 0.3f, Openings((-0.4f, 1f, 0f, 2.1f)), MudDark, true, ruin, thick * 0.8f);
+        if (ruin != null)
+        {
+            Roof(t, w, l, h, false, 0f, 1f, ruin);
+            Rubble(t, new Vector3(w * 0.2f, 0, l * 0.15f), 1.6f, ruin);
+            Rubble(t, new Vector3(-w * 0.3f, 0, l * 0.2f), 1.2f, ruin);
+            return h;
+        }
+        // at night: a lantern by the main door and warm light in some windows (blue-violet moonlight around)
+        Lantern(t, t.TransformPoint(new Vector3(-w * 0.22f + 0.95f, 2.45f, -l / 2f - 0.4f)), t.TransformDirection(Vector3.back));
+        var lit = new System.Random((int)(pos.x * 31f + pos.z * 17f));
+        foreach (float wx in new[] { -w * 0.4f, w * 0.02f, w * 0.42f })
+            if (lit.NextDouble() < 0.6)
+                NightLights.Window(t, t.TransformPoint(new Vector3(wx, 1.5f, -l / 2f - 0.02f)), t.TransformDirection(Vector3.back), 0.66f, 0.76f, night);
+        // the guest room has a raised sitting platform (toshak place) along the back wall: low cover
+        Block("Platform", t, new Vector3(-w / 4f, 0.25f, l / 2f - 1f), new Vector3(w / 2f - 1f, 0.4f, 1.1f), MudDark, 0.12f);
+        Roof(t, w, l, h, true, 1.6f, stairSide);
+        // outside stair along one side, from the front up onto the roof (Buildings.Stairs: 0.2 m steps, 0.36 m deep)
+        float run = Mathf.CeilToInt((h + 0.3f) / 0.2f) * 0.36f;
+        var stairStart = t.TransformPoint(new Vector3(stairSide * (w / 2f + 0.75f), 0, l / 2f - 0.3f - run));
+        global::Buildings.Stairs(parent, stairStart, t.forward, h + 0.3f, 1.2f, Mud);
+        Block("StairWall", t, new Vector3(stairSide * (w / 2f + 1.45f), (h + 0.3f) / 2f + 0.3f, l / 2f - 0.3f - run / 2f), new Vector3(0.25f, h + 0.9f, run), MudPlaster, 0.1f);
+        float top = h + 0.3f;
+        if (upper)
+        {
+            // the upper room on the half away from the stair, its door towards the open roof, a balcony at the front
+            var u = new GameObject("UpperRoom").transform;
+            u.SetParent(t, false);
+            float uw = w * 0.45f, ul = l - 0.6f;
+            u.localPosition = new Vector3(-stairSide * (w / 2f - uw / 2f - 0.15f), top, 0.15f);
+            Wall(u, -uw / 2f, uw / 2f, -ul / 2f + 0.2f, 0, 3f, 0.4f, Openings(Window(-uw * 0.2f), Window(uw * 0.25f)));
+            Wall(u, -uw / 2f, uw / 2f, ul / 2f - 0.2f, 0, 3f, 0.4f, Openings(Window(0)));
+            Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, -stairSide * (uw / 2f - 0.2f), 0, 3f, 0.4f, Openings(Window(0.6f)), null, true, null, 0.32f);
+            Wall(u, -ul / 2f + 0.4f, ul / 2f - 0.4f, stairSide * (uw / 2f - 0.2f), 0, 3f, 0.4f, Openings(Door(-0.4f)), null, true, null, 0.32f);
+            Roof(u, uw, ul, 2.8f, false);
+            NightLights.Window(u, u.TransformPoint(new Vector3(uw * 0.25f, 1.5f, -ul / 2f - 0.02f)), u.TransformDirection(Vector3.back), 0.66f, 0.76f, night);
+            // wooden balcony on carved posts
+            Block("Balcony", u, new Vector3(0, 0.0f, -ul / 2f - 0.75f), new Vector3(uw * 0.7f, 0.12f, 1.1f), OldWood, 0.03f);
+            Block("BalconyRail", u, new Vector3(0, 0.55f, -ul / 2f - 1.27f), new Vector3(uw * 0.7f, 0.9f, 0.08f), OldWood, 0.03f);
+        }
+        return top;
+    }
+
+    /// <summary>
+    /// A small one-room mud house (kota): door at the front, a small window at the back, a flat roof on
+    /// beams. On sloping ground it stands on a mud plinth. A ruined one has broken walls and no roof.
+    /// </summary>
+    private static void Hut(Transform parent, Vector3 pos, float yaw, float w, float l, System.Random ruin, bool plinth = true, int climbSide = 0)
+    {
+        var t = new GameObject(ruin != null ? "RuinedHut" : "Hut").transform;
+        t.SetParent(parent, false);
+        float floor = pos.y;
+        if (plinth)
+        {
+            // stand on the highest corner, a plinth fills down to the lowest
+            float lo = float.MaxValue, hi = float.MinValue;
+            foreach (var (dx, dz) in new[] { (-1f, -1f), (1f, -1f), (-1f, 1f), (1f, 1f) })
+            {
+                var p = pos + Quaternion.Euler(0, yaw, 0) * new Vector3(dx * w / 2f, 0, dz * l / 2f);
+                float y = Y(p.x, p.z);
+                lo = Mathf.Min(lo, y);
+                hi = Mathf.Max(hi, y);
+            }
+            floor = hi + 0.15f;
+            t.SetPositionAndRotation(new Vector3(pos.x, floor, pos.z), Quaternion.Euler(0, yaw, 0));
+            Block("Plinth", t, new Vector3(0, (lo - floor) / 2f - 0.25f, 0), new Vector3(w + 0.4f, floor - lo + 0.5f, l + 0.4f), MudDark, 0.15f);
+        }
+        else t.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
+        const float h = 2.6f, thick = 0.4f;
+        Wall(t, -w / 2f, w / 2f, -l / 2f + thick / 2f, 0, h + 0.2f, thick, Openings(Door(0.2f)), null, false, ruin);
+        Wall(t, -w / 2f, w / 2f, l / 2f - thick / 2f, 0, h + 0.2f, thick, Openings(Window(0)), null, false, ruin);
+        foreach (float s in new[] { -1f, 1f })
+            Wall(t, -l / 2f + thick, l / 2f - thick, s * (w / 2f - thick / 2f), 0, h + 0.2f, thick, Openings(), null, true, ruin, thick * 0.8f);
+        if (ruin == null) Roof(t, w, l, h, true, climbSide != 0 ? 1.6f : 0f, climbSide);
+        else Rubble(t, new Vector3(0.3f, 0, 0.2f), 1f, ruin);
+        if (climbSide == 0 || ruin != null) return;
+        // the hidden way up to the corner tower: stacked crates to the gap in the roof parapet (0.75 m
+        // steps), then two chests on the roof up to the tower top behind the hut (Agent jumps ~1 m)
+        float roofTop = h + 0.3f, side = climbSide;
+        for (int i = 0; i < 3; i++)
+        {
+            float top = 0.75f * (3 - i);
+            for (float y = 0; y < top - 0.01f; y += 0.75f)
+                Block("Crate", t, new Vector3(side * (w / 2f + 0.6f + i * 0.9f), y + 0.375f, l / 2f - 0.85f), new Vector3(0.88f, 0.74f, 1.1f), OldWood, 0.04f);
+        }
+        Block("Chest", t, new Vector3(-side * 0.0f, roofTop + 0.3f, l / 2f - 0.35f), new Vector3(0.9f, 0.6f, 0.9f), OldWood, 0.04f);
+        Block("Chest", t, new Vector3(-side * 0.93f, roofTop + 0.6f, l / 2f - 0.35f), new Vector3(0.94f, 1.2f, 0.9f), OldWood, 0.04f);
+    }
+
+    /// <summary>A compound: mud walls with a gate (and a breach), corner towers, a house against the back wall and a yard.</summary>
+    private static void Compound(Vector3 c, float w, float l, float yaw, bool upper, bool towers, int seed, bool ruined = false, bool climbTree = false)
+    {
+        var r = new System.Random(seed);
+        var ruin = ruined ? r : null;
+        var t = new GameObject("Qala").transform;
+        t.SetParent(root, false);
+        t.SetPositionAndRotation(c, Quaternion.Euler(0, yaw, 0));
+        const float wallH = 2.9f, thick = 0.6f;
+        float gate = (float)(r.NextDouble() - 0.5) * (w - 8f);
+        // front wall with the gate, back wall with a breach, solid sides with a low gap
+        Wall(t, -w / 2f, w / 2f, -l / 2f, 0, wallH, thick, Openings((gate, 2.6f, 0f, 2.5f)), null, false, ruin, thick / 2f);
+        Block("GateBeam", t, new Vector3(gate, 2.62f, -l / 2f), new Vector3(3.2f, 0.2f, 0.75f), OldWood, 0.04f, false);
+        Lantern(t, t.TransformPoint(new Vector3(gate + 1.3f, 2.2f, -l / 2f - 0.42f)), t.TransformDirection(Vector3.back));
+        foreach (float s in new[] { -1f, 1f })
+        {
+            // half-open wooden gate leaves
+            var leaf = Block("GateLeaf", t, new Vector3(gate + s * 1.6f, 1.15f, -l / 2f - 0.35f - 0.4f), new Vector3(0.1f, 2.2f, 1.2f), OldWood, 0.02f);
+            if (leaf != null) leaf.transform.RotateAround(t.TransformPoint(new Vector3(gate + s * 1.3f, 0, -l / 2f - 0.3f)), Vector3.up, s * 20f);
+        }
+        float breach = (float)(r.NextDouble() - 0.5) * (w - 6f);
+        Wall(t, -w / 2f, w / 2f, l / 2f, 0, wallH, thick, Openings((breach, 1.5f, 0f, wallH)), null, false, ruin, thick / 2f);
+        foreach (float s in new[] { -1f, 1f })
+            Wall(t, -l / 2f + thick / 2f, l / 2f - thick / 2f, s * w / 2f, 0, wallH, thick, Openings((s * l * 0.15f, 1.3f, 0.95f, wallH)), null, true, ruin, thick * 0.4f);
+        // square corner posts over the joints of a compound without towers
+        if (!towers && !ruined)
+            foreach (float x in new[] { -1f, 1f })
+                foreach (float zz in new[] { -1f, 1f })
+                    Block("CornerPost", t, new Vector3(x * w / 2f, (wallH + 0.24f) / 2f, zz * l / 2f), new Vector3(thick + 0.18f, wallH + 0.24f, thick + 0.18f), MudPlaster, 0.1f);
+        // soft rounded wall tops (a ruin has broken tops instead)
+        foreach (float s in ruined ? new float[0] : new[] { -1f, 1f })
+        {
+            Block("Cap", t, new Vector3(0, wallH + 0.08f, s * l / 2f), new Vector3(w + thick, 0.16f, thick), MudPlaster, 0.02f, false);
+            Block("Cap", t, new Vector3(s * w / 2f, wallH + 0.08f, 0), new Vector3(thick, 0.16f, l), MudPlaster, 0.02f, false);
+        }
+        if (towers)
+            foreach (float x in new[] { -1f, 1f })
+                foreach (float z in new[] { -1f, 1f })
+                {
+                    var p = t.TransformPoint(new Vector3(x * w / 2f, 0, z * l / 2f));
+                    float th = ruined ? 1.8f + (float)r.NextDouble() * 2f : 4.2f;
+                    MeshGen.TexCylinder("Tower", p, 1.5f, th, Mud, 2.5f, t);
+                    if (!ruined)
+                    {
+                        MeshGen.TexCylinder("TowerTop", p + Vector3.up * th, 1.62f, 0.3f, MudPlaster, 2.5f, t, false);
+                        // a flat top to stand on (the round collider is domed) and low merlons: a lookout over the lanes
+                        var deck = new GameObject("TowerDeck");
+                        deck.transform.SetParent(t, false);
+                        deck.transform.SetPositionAndRotation(p + Vector3.up * (th + 0.15f), t.rotation);
+                        deck.AddComponent<BoxCollider>().size = new Vector3(2.5f, 0.3f, 2.5f);
+                        for (int m = 0; m < 4; m++)
+                        {
+                            var dir = Quaternion.Euler(0, m * 90f, 0) * t.forward;
+                            MeshGen.RoundBox("Merlon", p + dir * 1.25f + Vector3.up * (th + 0.6f), new Vector3(0.7f, 0.6f, 0.4f), 0.1f, MudPlaster, 2.5f, t, Quaternion.LookRotation(dir).eulerAngles.y);
+                        }
+                    }
+                }
+        // the house along the back wall, its stair on the side with room for it
+        float hw = Mathf.Min(w - 5.2f, 13f), hl = 6f;
+        int stairSide = r.NextDouble() < 0.5 ? -1 : 1;
+        float hx = -stairSide * (w / 2f - thick - 0.3f - hw / 2f);
+        House(t, t.TransformPoint(new Vector3(hx, 0, l / 2f - thick / 2f - 0.2f - hl / 2f)), yaw, hw, hl, upper && !ruined, stairSide, ruin);
+        // a small store room in the front corner away from the gate, its door to the yard
+        float g = gate >= 0f ? 1f : -1f;
+        Hut(t, t.TransformPoint(new Vector3(-g * (w / 2f - thick / 2f - 2.2f), 0, -l / 2f + thick / 2f + 2.1f)), yaw + 180f, 4f, 3.6f, ruin, false, towers ? (int)-g : 0);
+        // the yard: tandoor oven, hay stack, firewood, a tree, sacks and a water jar
+        Yard(t, w, l, gate, r, climbTree);
+        if (ruined) Rubble(t, new Vector3(breach, 0, l / 2f - 1.5f), 1.8f, r);
+    }
+
+    private static void Yard(Transform t, float w, float l, float gate, System.Random r, bool climbTree)
+    {
+        float yardZ = -l / 2f + (l - 6f) / 2f;
+        float g = gate >= 0f ? 1f : -1f;
+        var tandoor = t.TransformPoint(new Vector3(g * (w / 2f - 1.6f), 0, yardZ + 2f));
+        MeshGen.TexCylinder("Tandoor", tandoor, 0.55f, 0.9f, MudDark, 1.5f, t);
+        var hay = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        hay.name = "HayStack";
+        hay.transform.SetParent(t, false);
+        hay.transform.localPosition = new Vector3(-g * (w / 2f - 2.4f), 0.6f, yardZ + 2.4f);
+        hay.transform.localScale = new Vector3(2.4f, 2f, 2.4f);
+        hay.GetComponent<Renderer>().sharedMaterial = Hay;
+        Block("Firewood", t, new Vector3(g * (w / 2f - 1.2f), 0.45f, -l / 2f + 1.6f), new Vector3(1.1f, 0.9f, 1.8f), OldWood, 0.08f);
+        Block("Sacks", t, new Vector3(gate + (gate > 0 ? -3.5f : 3.5f), 0.35f, yardZ + 1f), new Vector3(1.6f, 0.7f, 0.9f), Hay, 0.25f);
+        // a charpai (rope bed) as low cover
+        Block("Charpai", t, new Vector3(w * 0.15f, 0.45f, yardZ - 1.5f), new Vector3(1.9f, 0.12f, 0.95f), OldWood, 0.03f);
+        foreach (float x in new[] { -0.85f, 0.85f })
+            foreach (float z in new[] { -0.4f, 0.4f })
+                Block("Leg", t, new Vector3(w * 0.15f + x, 0.2f, yardZ - 1.5f + z), new Vector3(0.08f, 0.4f, 0.08f), OldWood, 0.02f, false);
+        if (climbTree) ClimbingTree(t, t.TransformPoint(new Vector3(w * 0.25f, 0, yardZ + 0.5f)), t.TransformDirection(Vector3.back));
+        else if (r.NextDouble() < 0.7)
+            Nature.Tree(Nature.Trees, rng, t.TransformPoint(new Vector3(w * 0.25f, 0, yardZ + 0.5f)), 6f, 8f, t);
+    }
+
+    /// <summary>
+    /// A tall old tree in a yard with a hide up in it: a plank platform round the trunk at 5.6 m on
+    /// braces, low plank walls on three sides, inside the crown, and a wooden ladder up to it from the
+    /// yard side. From up there one sees over the walls and the lanes without being seen.
+    /// </summary>
+    private static void ClimbingTree(Transform parent, Vector3 foot, Vector3 outward)
+    {
+        const float high = 5.6f, half = 1.5f;
+        var t = new GameObject("ClimbingTree").transform;
+        t.SetParent(parent, false);
+        t.SetPositionAndRotation(foot, Quaternion.LookRotation(-outward));
+        Nature.Tree(Nature.Trees, rng, foot, 15f, 16f, t);
+        var bark = Mats.Pbr("V_TreeTrunk", "Wood049", new Color(0.42f, 0.33f, 0.25f), 0.2f);
+        MeshGen.TexCylinder("Trunk", foot, 0.5f, high + 2f, bark, 2f, t);
+        // the platform (open over the ladder) and the low walls of the hide on the other three sides
+        Block("HidePlatform", t, new Vector3(0, high - 0.06f, 0), new Vector3(half * 2f, 0.12f, half * 2f), OldWood, 0.02f);
+        Block("HideWall", t, new Vector3(0, high + 0.25f, half - 0.04f), new Vector3(half * 2f, 0.5f, 0.08f), OldWood, 0.02f);
+        foreach (float sd in new[] { -1f, 1f })
+            Block("HideWall", t, new Vector3(sd * (half - 0.04f), high + 0.25f, 0.2f), new Vector3(0.08f, 0.5f, half * 2f - 0.4f), OldWood, 0.02f);
+        // braces from the trunk out under the corners
+        foreach (float sx in new[] { -1f, 1f })
+            foreach (float sz in new[] { -1f, 1f })
+            {
+                var from = t.TransformPoint(new Vector3(sx * 0.35f, high - 1.7f, sz * 0.35f));
+                var to = t.TransformPoint(new Vector3(sx * (half - 0.2f), high - 0.12f, sz * (half - 0.2f)));
+                var brace = MeshGen.Object("Brace", MeshGen.Cylinder(0.08f, (to - from).magnitude, 1f, 8), bark, t, from);
+                brace.transform.rotation = Quaternion.FromToRotation(Vector3.up, (to - from).normalized);
+            }
+        // the ladder up from the yard to the open edge of the platform
+        Physics.SyncTransforms();
+        CityLordBuilder.PlaceLadder(t, foot + outward * half, outward, high);
+    }
+
+    /// <summary>The bazaar: shops on a raised platform with steps, around a big plane tree on a round seat.</summary>
+    private static void Bazaar()
+    {
+        var t = new GameObject("Bazaar").transform;
+        t.SetParent(root, false);
+        // the chinar on its round raised seat
+        MeshGen.TexCylinder("TreeSeat", Vector3.zero, 4.2f, 0.9f, Mud, 2.5f, t);
+        MeshGen.TexCylinder("TreeSeatTop", Vector3.up * 0.9f, 4.35f, 0.12f, MudPlaster, 2.5f, t, false);
+        global::Buildings.Stairs(t, new Vector3(0, 0, -5.9f), Vector3.forward, 0.9f, 1.6f, Flagstone);
+        global::Buildings.Stairs(t, new Vector3(0, 0, 5.9f), Vector3.back, 0.9f, 1.6f, Flagstone);
+        Nature.Tree(Nature.Trees, rng, Vector3.up * 1f, 11f, 13f, t);
+        // two rows of shops facing the square
+        foreach (float side in new[] { -1f, 1f })
+        {
+            var row = new GameObject("Shops").transform;
+            row.SetParent(t, false);
+            row.SetPositionAndRotation(new Vector3(0, 0, side * 15f), Quaternion.Euler(0, side > 0 ? 0f : 180f, 0));
+            Block("ShopPlatform", row, new Vector3(0, 0.35f, 0.4f), new Vector3(26f, 0.7f, 6.4f), MudPlaster, 0.03f);
+            // glazed tiles on the shop platform (interior_tiles)
+            if (AssetSetup.ExtraTex("InteriorTiles_BaseColor.jpg") != null)
+                MeshGen.TexBox("ShopTiles", row.TransformPoint(new Vector3(0, 0.715f, 0.4f)), new Vector3(25.8f, 0.03f, 6.2f), Mats.Pbr("V_Tiles", "InteriorTiles", new Color(0.95f, 0.88f, 0.78f), 0.6f), 1.2f, row, row.eulerAngles.y, false);
+            // steps up to the platform edge (front at local z = -2.8; 4 steps of 0.36 m)
+            global::Buildings.Stairs(t, row.TransformPoint(new Vector3(-8f, 0, -4.24f)), row.forward, 0.7f, 2.2f, Flagstone);
+            global::Buildings.Stairs(t, row.TransformPoint(new Vector3(8f, 0, -4.24f)), row.forward, 0.7f, 2.2f, Flagstone);
+            for (int i = 0; i < 5; i++)
+            {
+                float x = -10f + i * 5f;
+                var shop = new GameObject("Shop").transform;
+                shop.SetParent(row, false);
+                shop.localPosition = new Vector3(x, 0.7f, 1.2f);
+                // open front shop: back and side walls, roof with an awning on poles
+                Block("Back", shop, new Vector3(0, 1.4f, 1.8f), new Vector3(4.9f, 2.8f, 0.4f));
+                Block("Side", shop, new Vector3(-2.45f, 1.4f, 0), new Vector3(0.35f, 2.8f, 4f));
+                if (i == 4) Block("Side", shop, new Vector3(2.45f, 1.4f, 0), new Vector3(0.35f, 2.8f, 4f));
+                // the roofs of the row meet end to end, flush with the outer faces of the walls: one long roof
+                float r0 = i == 0 ? -2.625f : -2.5f, r1 = i == 4 ? 2.625f : 2.5f;
+                Block("Roof", shop, new Vector3((r0 + r1) / 2f, 2.95f, 0), new Vector3(r1 - r0, 0.3f, 4f), MudPlaster, 0.02f);
+                Block("Awning", shop, new Vector3(0, 2.5f, -2.8f), new Vector3(4.9f, 0.06f, 1.6f), OldWood, 0.02f, false).transform.localRotation = Quaternion.Euler(-12, 0, 0);
+                foreach (float px in new[] { -2.2f, 2.2f })
+                    Block("Pole", shop, new Vector3(px, 1.2f, -3.45f), new Vector3(0.12f, 2.4f, 0.12f), OldWood, 0.03f);
+                // goods: sacks, crates, a counter
+                Block("Counter", shop, new Vector3(0.6f, 0.45f, -1.3f), new Vector3(2.4f, 0.9f, 0.7f), OldWood, 0.04f);
+                Block("Sacks", shop, new Vector3(-1.4f, 0.3f, 0.6f), new Vector3(1.2f, 0.6f, 0.8f), Hay, 0.2f);
+            }
+        }
+        // a well and a cart in the square
+        MeshGen.TexCylinder("Well", new Vector3(-9f, 0, -5f), 1f, 0.9f, Stone, 1.5f, t);
+        Block("WellFrame", t, new Vector3(-9f, 1.9f, -5f), new Vector3(2.4f, 0.12f, 0.12f), OldWood, 0.03f, false);
+        foreach (float s in new[] { -1f, 1f })
+            Block("WellPost", t, new Vector3(-9f + s * 1.1f, 1.2f, -5f), new Vector3(0.12f, 1.6f, 0.12f), OldWood, 0.03f, false);
+        Cart(t, new Vector3(9f, 0, 4f), 30f);
+        Cart(t, new Vector3(-12f, 0, 6f), -60f);
+    }
+
+    private static void Cart(Transform parent, Vector3 pos, float yaw)
+    {
+        var t = new GameObject("Cart").transform;
+        t.SetParent(parent, false);
+        t.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
+        Block("Bed", t, new Vector3(0, 0.75f, 0), new Vector3(1.4f, 0.12f, 2.4f), OldWood, 0.03f);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            Block("Side", t, new Vector3(s * 0.66f, 1f, 0), new Vector3(0.08f, 0.4f, 2.4f), OldWood, 0.02f, false);
+            var wheel = MeshGen.Object("Wheel", MeshGen.Cylinder(0.55f, 0.1f, 1f, 16), OldWood, t, t.TransformPoint(new Vector3(s * 0.8f, 0.55f, -0.2f)));
+            wheel.transform.rotation = t.rotation * Quaternion.Euler(0, 0, 90);
+        }
+        Block("Shaft", t, new Vector3(0, 0.6f, 1.9f), new Vector3(0.1f, 0.1f, 1.6f), OldWood, 0.02f, false);
+        var c = new GameObject("CartCollider");
+        c.transform.SetParent(t, false);
+        c.transform.localPosition = new Vector3(0, 0.7f, 0);
+        c.AddComponent<BoxCollider>().size = new Vector3(1.6f, 1.2f, 2.4f);
+    }
+
+    /// <summary>The old round watchtower: thick mud walls with loopholes, a stair up the outside to the top.</summary>
+    private static void Watchtower(Vector3 pos)
+    {
+        var t = new GameObject("Burj").transform;
+        t.SetParent(root, false);
+        t.position = pos;
+        const float radius = 3.2f, height = 5.6f;
+        int segments = 14;
+        for (int i = 0; i < segments; i++)
+        {
+            float a = (i + 0.5f) / segments * 360f;
+            if (Mathf.Abs(Mathf.DeltaAngle(a, 90f)) < 13f) continue;   // the doorway (east)
+            var dir = Quaternion.Euler(0, a, 0) * Vector3.forward;
+            MeshGen.RoundBox("TowerWall", pos + dir * radius + Vector3.up * height / 2f, new Vector3(1.55f, height, 0.7f), 0.15f, Mud, 2.5f, t, a);
+            // battlements on top, every other segment, open where the outside stair arrives (south)
+            if (i % 2 == 0 && Mathf.Abs(Mathf.DeltaAngle(a, 180f)) > 30f)
+                MeshGen.RoundBox("Merlon", pos + dir * radius + Vector3.up * (height + 0.45f), new Vector3(1.2f, 0.9f, 0.7f), 0.15f, MudPlaster, 2.5f, t, a);
+        }
+        // wooden floor at the top, reached by the outside stair on the south side (going east)
+        MeshGen.TexCylinder("TopFloor", pos + Vector3.up * (height - 0.2f), radius - 0.3f, 0.2f, OldWood, 1.5f, t);
+        var landing = pos + Vector3.back * (radius + 1.05f) + Vector3.up * (height - 0.1f);
+        MeshGen.RoundBox("Landing", landing, new Vector3(1.8f, 0.2f, 1.5f), 0.05f, OldWood, 1f, t);
+        var top = landing + Vector3.left * 0.9f;
+        // the hill falls away under the stair: find where a stair from the ground reaches the landing
+        var start = top + Vector3.left * 8f;
+        for (int k = 0; k < 4; k++)
+        {
+            start.y = Y(start.x, start.z);
+            float run = Mathf.CeilToInt((top.y + 0.1f - start.y) / 0.2f) * 0.36f;
+            start = new Vector3(top.x - run, start.y, top.z);
+        }
+        start.y = Y(start.x, start.z);
+        global::Buildings.Stairs(t, start, Vector3.right, top.y + 0.1f - start.y, 1.4f, Mud);
+    }
+
+    /// <summary>A plank footbridge across the river bed on posts, with rails.</summary>
+    private static void Bridge(float x)
+    {
+        var t = new GameObject("Footbridge").transform;
+        t.SetParent(root, false);
+        float z = RiverZ(x);
+        const float span = 22f;
+        t.position = new Vector3(x, Mathf.Max(Y(x, z - span / 2f), Y(x, z + span / 2f)) + 0.12f, z);
+        MeshGen.RoundBox("Deck", t.position, new Vector3(2.2f, 0.18f, span), 0.04f, OldWood, 1.5f, t);
+        foreach (float s in new[] { -1f, 1f })
+        {
+            MeshGen.RoundBox("Rail", t.position + new Vector3(s * 1.05f, 0.95f, 0), new Vector3(0.08f, 0.08f, span), 0.02f, OldWood, 1f, t, 0, false);
+            var guard = new GameObject("RailCollider");
+            guard.transform.SetParent(t, false);
+            guard.transform.position = t.position + new Vector3(s * 1.08f, 0.6f, 0);
+            guard.AddComponent<BoxCollider>().size = new Vector3(0.08f, 1.2f, span);
+            for (float k = -span / 2f; k <= span / 2f; k += 2.75f)
+            {
+                float ground = Y(x + s, z + k), railTop = t.position.y + 0.95f;
+                MeshGen.RoundBox("Post", new Vector3(x + s * 1.05f, (ground + railTop) / 2f, z + k), new Vector3(0.14f, railTop - ground + 0.1f, 0.14f), 0.03f, OldWood, 1f, t, 0, false);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ the map
+
+    public static MapLayout Build()
+    {
+        rng = new System.Random(23);
+        night.Clear();
+        root = new GameObject("Map_Village").transform;
+        flats.Clear();
+        mudMats.Clear();
+        // where the compounds stand the ground is levelled (with a few metres of margin)
+        var compounds = new (Vector3 c, float w, float l, float yaw, bool upper, bool towers)[]
+        {
+            (new Vector3(-34f, 0, 12f), 22f, 18f, 90f, true, true),
+            (new Vector3(-30f, 0, -22f), 18f, 16f, 0f, false, false),
+            (new Vector3(32f, 0, 16f), 20f, 18f, -90f, true, false),
+            (new Vector3(34f, 0, -20f), 18f, 16f, 180f, false, true),
+            (new Vector3(-6f, 0, 38f), 20f, 16f, 180f, true, false),
+            (new Vector3(-62f, 0, -12f), 16f, 16f, 90f, false, false),
+            (new Vector3(62f, 0, -6f), 18f, 16f, -90f, true, true),
+            (new Vector3(20f, 0, -68f), 16f, 14f, 180f, false, false),
+            (new Vector3(-18f, 0, -36f), 14f, 14f, 0f, false, false),
+            (new Vector3(66f, 0, 26f), 16f, 14f, -90f, false, false),
+            // farms further out
+            (new Vector3(-98f, 0, -76f), 18f, 16f, 45f, false, true),
+            (new Vector3(100f, 0, 66f), 20f, 16f, -135f, true, false),
+            (new Vector3(-102f, 0, 54f), 18f, 16f, 90f, true, false),
+            (new Vector3(98f, 0, -72f), 16f, 14f, -60f, false, false),
+            (new Vector3(-30f, 0, 102f), 18f, 16f, 180f, false, true),
+            (new Vector3(42f, 0, -104f), 18f, 14f, 0f, true, false),
+        };
+        foreach (var k in compounds)
+        {
+            var ext = Quaternion.Euler(0, k.yaw, 0) * new Vector3(k.w, 0, k.l);
+            float ex = Mathf.Abs(ext.x) / 2f + 2.5f, ez = Mathf.Abs(ext.z) / 2f + 2.5f;
+            flats.Add(new Rect(k.c.x - ex, k.c.z - ez, ex * 2f, ez * 2f));
+        }
+        flats.Add(new Rect(-16f, -21f, 32f, 42f));   // the bazaar square
+        BuildGround();
+        int seed = 5;
+        var ruins = new[] { 5, 8, 9, 13 };
+        for (int i = 0; i < compounds.Length; i++)
+        {
+            var k = compounds[i];
+            Compound(k.c, k.w, k.l, k.yaw, k.upper, k.towers, seed++, ruins.Contains(i), i == 2);
+        }
+        // lone huts: by the fields and up on the hills around the village, some of them in ruins
+        var huts = new GameObject("Huts").transform;
+        huts.SetParent(root, false);
+        var hutSpots = new[]
+        {
+            (new Vector3(-78f, 0, -40f), 20f), (new Vector3(76f, 0, -44f), -15f), (new Vector3(40f, 0, 76f), 180f), (new Vector3(-80f, 0, 32f), 90f),
+            (new Vector3(4f, 0, 112f), 170f), (new Vector3(112f, 0, -24f), -100f), (new Vector3(-110f, 0, 8f), 80f), (new Vector3(-62f, 0, -110f), 10f),
+            (new Vector3(96f, 0, 92f), 225f), (new Vector3(-100f, 0, 96f), 135f),
+        };
+        for (int i = 0; i < hutSpots.Length; i++)
+        {
+            var (p, yaw) = hutSpots[i];
+            Hut(huts, p, yaw, 4f + (i % 3) * 0.8f, 3.6f + (i % 2) * 0.6f, i % 3 == 1 ? new System.Random(100 + i) : null);
+        }
+        Bazaar();
+        // lantern posts at the corners of the bazaar square
+        foreach (var (x, z) in new[] { (-14f, -19f), (14f, -19f), (-14f, 19f), (14f, 19f) })
+        {
+            float gy = Y(x, z);
+            MeshGen.TexBox("LanternPost", new Vector3(x, gy + 1.5f, z), new Vector3(0.16f, 3f, 0.16f), OldWood, 1f, root);
+            MeshGen.TexBox("LanternArm", new Vector3(x, gy + 2.95f, z + 0.3f), new Vector3(0.1f, 0.1f, 0.7f), OldWood, 1f, root, 0f, false);
+            Lantern(root, new Vector3(x, gy + 2.5f, z + 0.6f));
+        }
+
+        // the watchtower on its hill, the bridge and a ford over the river bed
+        var hill = new Vector3(58f, 0, 56f);
+        hill.y = Y(hill.x, hill.z);
+        Watchtower(hill);
+        Bridge(12f);
+        Bridge(-92f);
+        Bridge(94f);
+        for (int i = 0; i < 7; i++)
+        {
+            float x = -48f + (i % 2 == 0 ? 0.6f : -0.6f), z = RiverZ(-48f) - 6f + i * 2f;
+            MeshGen.RoundBox("SteppingStone", new Vector3(x, Y(x, z) + 0.2f, z), new Vector3(1.3f, 0.5f, 1.1f), 0.2f, Stone, 1f, root, R(0, 90));
+        }
+        // the river bed: rocks and poplars along the banks
+        var nature = new GameObject("Nature").transform;
+        nature.SetParent(root, false);
+        for (float x = -Half + 4f; x < Half - 4f; x += R(7f, 12f))
+        {
+            float z = RiverZ(x);
+            Nature.Place(Nature.Rocks[rng.Next(Nature.Rocks.Length)], new Vector3(x, Y(x, z), z + R(-2.5f, 2.5f)), R(0, 360), R(0.8f, 1.8f), nature);
+            foreach (float s in new[] { -1f, 1f })
+            {
+                float bz = z + s * R(10f, 13f);
+                if (Mathf.Abs(x - 12f) < 6f || Mathf.Abs(x + 48f) < 5f || rng.NextDouble() < 0.35) continue;
+                Nature.Tree(rng.NextDouble() < 0.5 ? Nature.Pines : Nature.Trees, rng, new Vector3(x, Y(x, bz), bz), 9f, 13f, nature);
+            }
+        }
+        // orchards on the north west, trees scattered over the fields
+        for (int i = 0; i < 5; i++)
+            for (int k = 0; k < 4; k++)
+            {
+                float x = -76f + i * 6.5f + R(-0.8f, 0.8f), z = 22f + k * 6.5f + R(-0.8f, 0.8f);
+                if (FlatWeight(x, z) > 0.2f) continue;
+                Nature.Tree(Nature.Trees, rng, new Vector3(x, Y(x, z), z), 4.5f, 6f, nature);
+            }
+        for (int i = 0; i < 46; i++)
+        {
+            float x = R(-Half + 6f, Half - 6f), z = R(-Half + 6f, Half - 6f);
+            if (FlatWeight(x, z) > 0.1f || PathWeight(x, z) > 0.1f || Mathf.Abs(z - RiverZ(x)) < 10f || new Vector2(x, z).magnitude < 24f) continue;
+            if (Physics.CheckSphere(new Vector3(x, Y(x, z) + 1f, z), 3f)) continue;
+            Nature.Tree(rng.NextDouble() < 0.25 ? Nature.Pines : Nature.Trees, rng, new Vector3(x, Y(x, z), z), 7f, 11f, nature);
+            Nature.Place(Nature.Bushes[rng.Next(Nature.Bushes.Length)], new Vector3(x + R(-2f, 2f), Y(x, z), z + R(-2f, 2f)), R(0, 360), R(0.9f, 1.5f), nature);
+        }
+        // grass and flowers on the fields (few: they are drawn one by one)
+        for (int i = 0; i < 200; i++)
+        {
+            float x = R(-Half, Half), z = R(-Half, Half);
+            if (FlatWeight(x, z) > 0.05f || PathWeight(x, z) > 0.1f || Mathf.Abs(z - RiverZ(x)) < 7f) continue;
+            Nature.Place(Nature.Ground[rng.Next(Nature.Ground.Length)], new Vector3(x, Y(x, z), z), R(0, 360), R(0.4f, 0.8f), nature);
+        }
+        // mud walls on the field terraces: cover on the north west hill
+        for (int i = 0; i < 6; i++)
+        {
+            float z = 48f + i * 5.5f, x = -52f + R(-6f, 6f);
+            var p = new Vector3(x, Y(x, z), z);
+            MeshGen.RoundBox("FieldWall", p + Vector3.up * 0.4f, new Vector3(R(6f, 10f), 0.9f, 0.5f), 0.2f, Mud, 2.5f, nature, R(-8f, 8f));
+        }
+        // hay stacks and sandbag posts in the open
+        Physics.SyncTransforms();
+        var cover = new GameObject("Cover").transform;
+        cover.SetParent(root, false);
+        int placed = 0;
+        for (int i = 0; i < 160 && placed < 24; i++)
+        {
+            float x = R(-Half + 8f, Half - 8f), z = R(-Half + 8f, Half - 8f);
+            if (FlatWeight(x, z) > 0.05f || Mathf.Abs(z - RiverZ(x)) < 8f) continue;
+            var p = new Vector3(x, Y(x, z), z);
+            if (Physics.CheckBox(p + Vector3.up * 1.2f, new Vector3(2.5f, 1f, 2.5f), Quaternion.identity, World.EnvMask)) continue;
+            if (placed % 3 == 0) Obstacles.SandbagBunker(cover, p, R(0, 360));
+            else
+            {
+                var hay = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                hay.name = "HayStack";
+                hay.transform.SetParent(cover, false);
+                hay.transform.position = p + Vector3.up * 0.5f;
+                hay.transform.localScale = new Vector3(R(2.4f, 3.2f), R(2f, 2.6f), R(2.4f, 3.2f));
+                hay.GetComponent<Renderer>().sharedMaterial = Hay;
+            }
+            Physics.SyncTransforms();
+            placed++;
+        }
+        // ammunition crates: in the bazaar, by the bridge and in the compounds, never at the strong points
+        // (tower, hill tops): whoever holds one has to leave it for more
+        var supply = new GameObject("AmmoCrates").transform;
+        supply.SetParent(root, false);
+        foreach (var (x, z) in new[] { (6f, 7f), (16f, RiverZ(16f) + 13f), (-34f, 6f), (32f, 10f), (-30f, -26f), (-50f, 40f), (-98f, -62f), (100f, 52f), (-28f, 90f), (44f, -92f) })
+            Obstacles.AmmoCrate(supply, new Vector3(x, Y(x, z), z), R(0, 360));
+        // invisible walls just outside the playable area
+        foreach (var (c, s) in new[]
+        {
+            (new Vector3(0, 20f, Edge), new Vector3(Edge * 2f, 80f, 1f)), (new Vector3(0, 20f, -Edge), new Vector3(Edge * 2f, 80f, 1f)),
+            (new Vector3(Edge, 20f, 0), new Vector3(1f, 80f, Edge * 2f)), (new Vector3(-Edge, 20f, 0), new Vector3(1f, 80f, Edge * 2f)),
+        })
+        {
+            var wall = new GameObject("Edge");
+            wall.layer = World.FenceLayer;   // stops players, not the camera
+            wall.transform.SetParent(root, false);
+            wall.transform.position = c;
+            wall.AddComponent<BoxCollider>().size = s;
+        }
+
+        foreach (var tr in root.GetComponentsInChildren<Transform>(true))
+            if (tr.gameObject.layer != World.FenceLayer)
+                GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
+
+        var layout = new MapLayout { Name = "VILLAGE", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
+        // the parts of the village named on boards (Arabic and English), as in Al-Zahra
+        var boards = new GameObject("Boards").transform;
+        boards.SetParent(root, false);
+        foreach (var (x, z, ar, en) in new[]
+                 {
+                     (18f, -14f, "السوق وشجرة الدلب", "THE BAZAAR AND THE PLANE TREE"), (46f, 44f, "تل برج المراقبة", "THE WATCHTOWER HILL"),
+                     (12f, -30f, "مجرى النهر والجسر", "THE RIVER BED AND THE BRIDGE"), (-60f, 16f, "البساتين", "THE ORCHARDS"),
+                     (-52f, 42f, "الحقول المدرجة", "THE TERRACED FIELDS"), (-34f, -4f, "قلعة الغرب", "THE WEST FORT"),
+                 })
+            Signboards.Stand(boards, new Vector3(x, 0, z), Vector3.zero, ar, en);
+        BuildNavigation(layout);
+        root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "Village", null, night).ToArray();
+        Debug.Log($"[Village] built: {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
+        return layout;
+    }
+
+    /// <summary>Bot waypoints and spawn points on a grid over the open ground (not inside walls or on roofs).</summary>
+    private static void BuildNavigation(MapLayout layout)
+    {
+        Physics.SyncTransforms();
+        var points = new List<Vector3>();
+        var index = new Dictionary<Vector2Int, int>();
+        const float step = 8f;
+        int n = Mathf.FloorToInt((Half - 4f) / step);
+        for (int gx = -n; gx <= n; gx++)
+            for (int gz = -n; gz <= n; gz++)
+            {
+                var p = new Vector3(gx * step, 0, gz * step);
+                if (!Physics.Raycast(p + Vector3.up * 60f, Vector3.down, out var hit, 120f, World.EnvMask)) continue;
+                p.y = hit.point.y;
+                // only the ground or a floor close to it (inside houses), not roofs and tower tops
+                if (Mathf.Abs(p.y - Y(p.x, p.z)) > 0.4f) continue;
+                if (Physics.CheckCapsule(p + Vector3.up * 0.6f, p + Vector3.up * 1.6f, 0.55f, World.EnvMask | (1 << World.FenceLayer))) continue;
+                index[new Vector2Int(gx, gz)] = points.Count;
+                points.Add(p);
+            }
+        var links = new List<Vector2Int>();
+        foreach (var pair in index)
+            foreach (var d in new[] { new Vector2Int(1, 0), new Vector2Int(0, 1), new Vector2Int(1, 1), new Vector2Int(1, -1) })
+            {
+                if (!index.TryGetValue(pair.Key + d, out int other)) continue;
+                var a = points[pair.Value];
+                var b = points[other];
+                if (Mathf.Abs(a.y - b.y) > Vector3.Distance(a, b) * 0.55f) continue;
+                // the way between must be free and the ground in between not much higher (hill tops)
+                var mid = (a + b) / 2f;
+                if (Y(mid.x, mid.z) > Mathf.Max(a.y, b.y) + 0.8f) continue;
+                if (Physics.SphereCast(a + Vector3.up * 1.2f, 0.4f, (b - a).normalized, out _, Vector3.Distance(a, b), World.EnvMask | (1 << World.FenceLayer))) continue;
+                links.Add(new Vector2Int(pair.Value, other));
+            }
+        layout.Waypoints = points.ToArray();
+        layout.Links = links.ToArray();
+        layout.Spawns = points.Where(p => Mathf.Abs(p.z - RiverZ(p.x)) > 5f).ToArray();
+    }
+}

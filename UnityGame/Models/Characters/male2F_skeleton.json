@@ -1,0 +1,2476 @@
+{
+ "character": "male2F",
+ "bone_count": 65,
+ "bones": [
+  {
+   "name": "mixamorig:Hips",
+   "parent": null,
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -0.9505717875434412,
+    0,
+    0,
+    1,
+    0.0,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:Spine",
+   "parent": "mixamorig:Hips",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.0611332134968583,
+    0,
+    0,
+    1,
+    0.010287586512090385,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:Spine1",
+   "parent": "mixamorig:Spine",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.1901217595941302,
+    0,
+    0,
+    1,
+    0.022289776557042756,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:Spine2",
+   "parent": "mixamorig:Spine1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.3375371483546044,
+    0,
+    0,
+    1,
+    0.03600656146358673,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:Neck",
+   "parent": "mixamorig:Spine2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.503379379778281,
+    0,
+    0,
+    1,
+    0.05143794267693404,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:Head",
+   "parent": "mixamorig:Neck",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.551933314288815,
+    0,
+    0,
+    1,
+    0.029823899433149663,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:HeadTop_End",
+   "parent": "mixamorig:Head",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.7922603246594446,
+    0,
+    0,
+    1,
+    -0.07715877761592771,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftShoulder",
+   "parent": "mixamorig:Spine2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.06971223890633256,
+    0,
+    1,
+    0,
+    -1.4823486586740628,
+    0,
+    0,
+    1,
+    0.05174790590807397,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftArm",
+   "parent": "mixamorig:LeftShoulder",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.20632885531347303,
+    0,
+    1,
+    0,
+    -1.438897500865447,
+    0,
+    0,
+    1,
+    0.05236783815120075,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftForeArm",
+   "parent": "mixamorig:LeftArm",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.44260652115518634,
+    0,
+    1,
+    0,
+    -1.405951113097378,
+    0,
+    0,
+    1,
+    0.06084625370083497,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHand",
+   "parent": "mixamorig:LeftForeArm",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.7267072143459347,
+    0,
+    1,
+    0,
+    -1.4104175341700622,
+    0,
+    0,
+    1,
+    0.045194870796156375,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandThumb1",
+   "parent": "mixamorig:LeftHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.768454733443089,
+    0,
+    1,
+    0,
+    -1.3935825055154518,
+    0,
+    0,
+    1,
+    0.01144084668538558,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandThumb2",
+   "parent": "mixamorig:LeftHandThumb1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8018527672195226,
+    0,
+    1,
+    0,
+    -1.3801144270956331,
+    0,
+    0,
+    1,
+    -0.015562415670540631,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandThumb3",
+   "parent": "mixamorig:LeftHandThumb2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8336454829289531,
+    0,
+    1,
+    0,
+    -1.3644045824860267,
+    0,
+    0,
+    1,
+    -0.03490173467102035,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandThumb4",
+   "parent": "mixamorig:LeftHandThumb3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8601039105789116,
+    0,
+    1,
+    0,
+    -1.3557664247933818,
+    0,
+    0,
+    1,
+    -0.04683416579094664,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandIndex1",
+   "parent": "mixamorig:LeftHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8513592003157904,
+    0,
+    1,
+    0,
+    -1.4067876247704578,
+    0,
+    0,
+    1,
+    0.012828958100544349,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandIndex2",
+   "parent": "mixamorig:LeftHandIndex1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8883222130191942,
+    0,
+    1,
+    0,
+    -1.3997034512241437,
+    0,
+    0,
+    1,
+    0.013438681368005918,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandIndex3",
+   "parent": "mixamorig:LeftHandIndex2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.9213724710447675,
+    0,
+    1,
+    0,
+    -1.3923615906454103,
+    0,
+    0,
+    1,
+    0.013929628464173421,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandIndex4",
+   "parent": "mixamorig:LeftHandIndex3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.9488976268156493,
+    0,
+    1,
+    0,
+    -1.384391976337664,
+    0,
+    0,
+    1,
+    0.014214377086248942,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandMiddle1",
+   "parent": "mixamorig:LeftHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8594071566610311,
+    0,
+    1,
+    0,
+    -1.4037654904929022,
+    0,
+    0,
+    1,
+    0.04126982314734497,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandMiddle2",
+   "parent": "mixamorig:LeftHandMiddle1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.892548798314756,
+    0,
+    1,
+    0,
+    -1.400897820445117,
+    0,
+    0,
+    1,
+    0.04023274788071081,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandMiddle3",
+   "parent": "mixamorig:LeftHandMiddle2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.9300449438447446,
+    0,
+    1,
+    0,
+    -1.3953159271502584,
+    0,
+    0,
+    1,
+    0.03889184286152154,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandMiddle4",
+   "parent": "mixamorig:LeftHandMiddle3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.9557587984110794,
+    0,
+    1,
+    0,
+    -1.3834242163160546,
+    0,
+    0,
+    1,
+    0.03737310453887749,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandRing1",
+   "parent": "mixamorig:LeftHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8738321733570202,
+    0,
+    1,
+    0,
+    -1.3994198659975114,
+    0,
+    0,
+    1,
+    0.06580012156687515,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandRing2",
+   "parent": "mixamorig:LeftHandRing1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.902680541865085,
+    0,
+    1,
+    0,
+    -1.3958299138118357,
+    0,
+    0,
+    1,
+    0.06486502333037814,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandRing3",
+   "parent": "mixamorig:LeftHandRing2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.930829474142297,
+    0,
+    1,
+    0,
+    -1.392636203997619,
+    0,
+    0,
+    1,
+    0.06397783097232826,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandRing4",
+   "parent": "mixamorig:LeftHandRing3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.9553249111644608,
+    0,
+    1,
+    0,
+    -1.3897878651019426,
+    0,
+    0,
+    1,
+    0.0631998734977268,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandPinky1",
+   "parent": "mixamorig:LeftHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.880943909981461,
+    0,
+    1,
+    0,
+    -1.3912219776064876,
+    0,
+    0,
+    1,
+    0.08710049027579532,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandPinky2",
+   "parent": "mixamorig:LeftHandPinky1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.9029826258018694,
+    0,
+    1,
+    0,
+    -1.3906707160439538,
+    0,
+    0,
+    1,
+    0.08614256347480119,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandPinky3",
+   "parent": "mixamorig:LeftHandPinky2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.9206939383563869,
+    0,
+    1,
+    0,
+    -1.387531114956932,
+    0,
+    0,
+    1,
+    0.08516528817915729,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandPinky4",
+   "parent": "mixamorig:LeftHandPinky3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.9344334853476883,
+    0,
+    1,
+    0,
+    -1.3847118190361944,
+    0,
+    0,
+    1,
+    0.08437753794986903,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightShoulder",
+   "parent": "mixamorig:Spine2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.06971223890633256,
+    0,
+    1,
+    0,
+    -1.4823486586740628,
+    0,
+    0,
+    1,
+    0.05112797366494719,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightArm",
+   "parent": "mixamorig:RightShoulder",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.20632885531347303,
+    0,
+    1,
+    0,
+    -1.438897500865447,
+    0,
+    0,
+    1,
+    0.0505080414218204,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightForeArm",
+   "parent": "mixamorig:RightArm",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.4426066598955125,
+    0,
+    1,
+    0,
+    -1.405951113097378,
+    0,
+    0,
+    1,
+    0.06186963703153308,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHand",
+   "parent": "mixamorig:RightForeArm",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.7267072605927101,
+    0,
+    1,
+    0,
+    -1.4104174416765116,
+    0,
+    0,
+    1,
+    0.04508927206542225,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandThumb1",
+   "parent": "mixamorig:RightHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.7679633614546727,
+    0,
+    1,
+    0,
+    -1.3897168300549585,
+    0,
+    0,
+    1,
+    0.012332942646837505,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandThumb2",
+   "parent": "mixamorig:RightHandThumb1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.800968158900047,
+    0,
+    1,
+    0,
+    -1.3731567847267596,
+    0,
+    0,
+    1,
+    -0.013872066403548046,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandThumb3",
+   "parent": "mixamorig:RightHandThumb2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8326449801903745,
+    0,
+    1,
+    0,
+    -1.3561153104668513,
+    0,
+    0,
+    1,
+    -0.03401996763780728,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandThumb4",
+   "parent": "mixamorig:RightHandThumb3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8600744976297696,
+    0,
+    1,
+    0,
+    -1.3453917931787553,
+    0,
+    0,
+    1,
+    -0.04658382621496584,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandIndex1",
+   "parent": "mixamorig:RightHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8478355660060101,
+    0,
+    1,
+    0,
+    -1.397476946470232,
+    0,
+    0,
+    1,
+    0.01293792851024605,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandIndex2",
+   "parent": "mixamorig:RightHandIndex1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8852119323877635,
+    0,
+    1,
+    0,
+    -1.391642730768898,
+    0,
+    0,
+    1,
+    0.013194473825398205,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandIndex3",
+   "parent": "mixamorig:RightHandIndex2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.9195532153948549,
+    0,
+    1,
+    0,
+    -1.3840442930803545,
+    0,
+    0,
+    1,
+    0.013283175140577733,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandIndex4",
+   "parent": "mixamorig:RightHandIndex3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.9503818708247065,
+    0,
+    1,
+    0,
+    -1.377855919573158,
+    0,
+    0,
+    1,
+    0.013403877779108737,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandMiddle1",
+   "parent": "mixamorig:RightHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.852709513663346,
+    0,
+    1,
+    0,
+    -1.392819433721676,
+    0,
+    0,
+    1,
+    0.04020736129145045,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandMiddle2",
+   "parent": "mixamorig:RightHandMiddle1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8902220305518194,
+    0,
+    1,
+    0,
+    -1.3913983628077884,
+    0,
+    0,
+    1,
+    0.03938060190712886,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandMiddle3",
+   "parent": "mixamorig:RightHandMiddle2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.9280924974817366,
+    0,
+    1,
+    0,
+    -1.3862769949021674,
+    0,
+    0,
+    1,
+    0.03827359573527268,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandMiddle4",
+   "parent": "mixamorig:RightHandMiddle3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.9584411113831401,
+    0,
+    1,
+    0,
+    -1.3749540269115912,
+    0,
+    0,
+    1,
+    0.03684575255921526,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandRing1",
+   "parent": "mixamorig:RightHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8818281483267335,
+    0,
+    1,
+    0,
+    -1.3880959730714277,
+    0,
+    0,
+    1,
+    0.06309788201547234,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandRing2",
+   "parent": "mixamorig:RightHandRing1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.9088460694652436,
+    0,
+    1,
+    0,
+    -1.3864344189255622,
+    0,
+    0,
+    1,
+    0.06372351417366474,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandRing3",
+   "parent": "mixamorig:RightHandRing2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.9343645776523716,
+    0,
+    1,
+    0,
+    -1.3825447876354218,
+    0,
+    0,
+    1,
+    0.06415557467265574,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandRing4",
+   "parent": "mixamorig:RightHandRing3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.952875681940317,
+    0,
+    1,
+    0,
+    -1.374756183206514,
+    0,
+    0,
+    1,
+    0.06413565965500759,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandPinky1",
+   "parent": "mixamorig:RightHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8774760492827894,
+    0,
+    1,
+    0,
+    -1.3837001245779739,
+    0,
+    0,
+    1,
+    0.08592533658999271,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandPinky2",
+   "parent": "mixamorig:RightHandPinky1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.9006336595867502,
+    0,
+    1,
+    0,
+    -1.3818768917053785,
+    0,
+    0,
+    1,
+    0.08570893636629418,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandPinky3",
+   "parent": "mixamorig:RightHandPinky2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.9196606004072881,
+    0,
+    1,
+    0,
+    -1.378696593456022,
+    0,
+    0,
+    1,
+    0.08540508349035138,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandPinky4",
+   "parent": "mixamorig:RightHandPinky3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.934991406445877,
+    0,
+    1,
+    0,
+    -1.3791010677534987,
+    0,
+    0,
+    1,
+    0.08537715621886856,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftUpLeg",
+   "parent": "mixamorig:Hips",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.08103543234993878,
+    0,
+    1,
+    0,
+    -0.8892214627787128,
+    0,
+    0,
+    1,
+    -0.013743225055155964,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftLeg",
+   "parent": "mixamorig:LeftUpLeg",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0958186996914119,
+    0,
+    1,
+    0,
+    -0.4810392838392009,
+    0,
+    0,
+    1,
+    0.038997976320596,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftFoot",
+   "parent": "mixamorig:LeftLeg",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.08355439593050921,
+    0,
+    1,
+    0,
+    -0.12183069421171819,
+    0,
+    0,
+    1,
+    0.03626570237900711,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftToeBase",
+   "parent": "mixamorig:LeftFoot",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.09499899872118273,
+    0,
+    1,
+    0,
+    -0.014158521730351717,
+    0,
+    0,
+    1,
+    -0.12389531790925815,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftToe_End",
+   "parent": "mixamorig:LeftToeBase",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.10453514739392882,
+    0,
+    1,
+    0,
+    -0.01604024972839594,
+    0,
+    0,
+    1,
+    -0.20126912135252856,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightUpLeg",
+   "parent": "mixamorig:Hips",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.08103543234993878,
+    0,
+    1,
+    0,
+    -0.8892214627787128,
+    0,
+    0,
+    1,
+    -0.01804950221596844,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightLeg",
+   "parent": "mixamorig:RightUpLeg",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.0958186996914119,
+    0,
+    1,
+    0,
+    -0.48103923759242556,
+    0,
+    0,
+    1,
+    0.032267365152911676,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightFoot",
+   "parent": "mixamorig:RightLeg",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.08355442483474383,
+    0,
+    1,
+    0,
+    -0.12183027799073977,
+    0,
+    0,
+    1,
+    0.03236881901640234,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightToeBase",
+   "parent": "mixamorig:RightFoot",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.0949990680913458,
+    0,
+    1,
+    0,
+    -0.014156364751843741,
+    0,
+    0,
+    1,
+    -0.12050400718553492,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightToe_End",
+   "parent": "mixamorig:RightToeBase",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.10453518207901034,
+    0,
+    1,
+    0,
+    -0.016037542485521524,
+    0,
+    0,
+    1,
+    -0.19805463517447214,
+    0,
+    0,
+    0,
+    1
+   ]
+  }
+ ]
+}

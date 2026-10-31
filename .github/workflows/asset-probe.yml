@@ -1,0 +1,25 @@
+name: Asset probe (research)
+
+# Read-only research: looks for free (CC0) ambientCG materials the game could use.
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/asset-probe.yml']
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: ambientCG materials for an Afghan village (mud walls, dirt, straw, wood, stone)
+        run: |
+          for q in mud adobe clay "rammed earth" dirt ground soil gravel straw thatch "wood beams" "rough plaster" "stone wall" cobblestone rock hay field grass path; do
+            echo "=== $q"
+            curl -s "https://ambientcg.com/api/v2/full_json?type=Material&q=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$q")&limit=40&include=tagData,displayData" \
+              | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          for a in d.get('foundAssets', []):
+              print(a['assetId'], '|', a.get('displayName'), '|', a.get('displayCategory'), '|', ' '.join((a.get('tags') or [])[:10]))
+          "
+          done

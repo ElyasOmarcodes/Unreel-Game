@@ -1,0 +1,12 @@
+newmtl Backpack_dark_plastic
+Kd 0.0254 0.0254 0.0254
+Ns 114.2
+
+newmtl Backpack_stapping1
+Kd 0.1282 0.1203 0.0494
+Ns 14.9
+
+newmtl Backpack_camopouch
+Kd 0.7616 0.7223 0.3768
+Ns 40.0
+

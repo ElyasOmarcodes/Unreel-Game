@@ -72,3 +72,8 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+!UnityGame/Models/MilitaryKit/*.obj
+
+# the weapon pack models (OBJ) are part of the game
+!UnityGame/Assets/Weapons/**/*.obj
+!UnityGame/Models/Characters/*.obj

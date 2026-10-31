@@ -1,0 +1,1260 @@
+{
+ "character": "BlackSquad",
+ "bone_count": 33,
+ "bones": [
+  {
+   "name": "mixamorig:Hips",
+   "parent": null,
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -0.9304515483659622,
+    0,
+    0,
+    1,
+    0.0,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:Spine",
+   "parent": "mixamorig:Hips",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.0463079078195596,
+    0,
+    0,
+    1,
+    0.004824744608742471,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:Spine1",
+   "parent": "mixamorig:Spine",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.1814737536476945,
+    0,
+    0,
+    1,
+    0.010453616350591484,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:Spine2",
+   "parent": "mixamorig:Spine1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.3359489927180956,
+    0,
+    0,
+    1,
+    0.016886611041870777,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:Neck",
+   "parent": "mixamorig:Spine2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.5097337181630346,
+    0,
+    0,
+    1,
+    0.024123727045489648,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:Head",
+   "parent": "mixamorig:Neck",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.5383702152615115,
+    0,
+    0,
+    1,
+    0.011263510044772992,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:HeadTop_End",
+   "parent": "mixamorig:Head",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0,
+    0,
+    1,
+    0,
+    -1.789977850001752,
+    0,
+    0,
+    1,
+    -0.10172927435031298,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftShoulder",
+   "parent": "mixamorig:Spine2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.0757743049130601,
+    0,
+    1,
+    0,
+    -1.4881478928090413,
+    0,
+    0,
+    1,
+    0.025859383712498542,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftArm",
+   "parent": "mixamorig:LeftShoulder",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.22387047233167065,
+    0,
+    1,
+    0,
+    -1.4421113071658607,
+    0,
+    0,
+    1,
+    0.029330702867283304,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftForeArm",
+   "parent": "mixamorig:LeftArm",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.45654322197632424,
+    0,
+    1,
+    0,
+    -1.4248195314528853,
+    0,
+    0,
+    1,
+    0.014047960871311578,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHand",
+   "parent": "mixamorig:LeftForeArm",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.6825140569501101,
+    0,
+    1,
+    0,
+    -1.4292072721590097,
+    0,
+    0,
+    1,
+    -0.006923461065199714,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandIndex1",
+   "parent": "mixamorig:LeftHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8326273063874505,
+    0,
+    1,
+    0,
+    -1.4131464256781539,
+    0,
+    0,
+    1,
+    -0.018941731045136374,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandIndex2",
+   "parent": "mixamorig:LeftHandIndex1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8437441331046462,
+    0,
+    1,
+    0,
+    -1.4006826269185775,
+    0,
+    0,
+    1,
+    -0.019343387248951415,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandIndex3",
+   "parent": "mixamorig:LeftHandIndex2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8446581332169275,
+    0,
+    1,
+    0,
+    -1.3747276873127552,
+    0,
+    0,
+    1,
+    -0.028446077255502824,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftHandIndex4",
+   "parent": "mixamorig:LeftHandIndex3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.8496553315076013,
+    0,
+    1,
+    0,
+    -1.3627199572866047,
+    0,
+    0,
+    1,
+    -0.02389451979423281,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightShoulder",
+   "parent": "mixamorig:Spine2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.0757743049130601,
+    0,
+    1,
+    0,
+    -1.4881478928090413,
+    0,
+    0,
+    1,
+    0.022388057281755074,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightArm",
+   "parent": "mixamorig:RightShoulder",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.22387046651090367,
+    0,
+    1,
+    0,
+    -1.4421113071658607,
+    0,
+    0,
+    1,
+    0.018916730123415732,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightForeArm",
+   "parent": "mixamorig:RightArm",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.45654316958942154,
+    0,
+    1,
+    0,
+    -1.4248195314528853,
+    0,
+    0,
+    1,
+    0.008113306613520815,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHand",
+   "parent": "mixamorig:RightForeArm",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.6825141908277503,
+    0,
+    1,
+    0,
+    -1.4292072721590097,
+    0,
+    0,
+    1,
+    -0.014544100855934456,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandIndex1",
+   "parent": "mixamorig:RightHand",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8110186112400425,
+    0,
+    1,
+    0,
+    -1.4150629946928914,
+    0,
+    0,
+    1,
+    -0.06359341361799373,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandIndex2",
+   "parent": "mixamorig:RightHandIndex1",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8292313719856599,
+    0,
+    1,
+    0,
+    -1.4156910787317363,
+    0,
+    0,
+    1,
+    -0.07160016379916546,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandIndex3",
+   "parent": "mixamorig:RightHandIndex2",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8528092034942877,
+    0,
+    1,
+    0,
+    -1.397933269132287,
+    0,
+    0,
+    1,
+    -0.07402517098773417,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightHandIndex4",
+   "parent": "mixamorig:RightHandIndex3",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.8666555508239491,
+    0,
+    1,
+    0,
+    -1.3782802178082685,
+    0,
+    0,
+    1,
+    -0.07514418433337243,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftUpLeg",
+   "parent": "mixamorig:Hips",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.09380830990511019,
+    0,
+    1,
+    0,
+    -0.8660933303518068,
+    0,
+    0,
+    1,
+    -0.012826132044547595,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftLeg",
+   "parent": "mixamorig:LeftUpLeg",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.11474425826873277,
+    0,
+    1,
+    0,
+    -0.4866776251931122,
+    0,
+    0,
+    1,
+    -0.013702557650862819,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftFoot",
+   "parent": "mixamorig:LeftLeg",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.11382182968588284,
+    0,
+    1,
+    0,
+    -0.12894154122732282,
+    0,
+    0,
+    1,
+    0.020010952094944176,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftToeBase",
+   "parent": "mixamorig:LeftFoot",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.12948436108316294,
+    0,
+    1,
+    0,
+    -0.016507967373536513,
+    0,
+    0,
+    1,
+    -0.1288108234026658,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:LeftToe_End",
+   "parent": "mixamorig:LeftToeBase",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    0.13839018110934465,
+    0,
+    1,
+    0,
+    -0.017835199739939085,
+    0,
+    0,
+    1,
+    -0.2023520929321239,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightUpLeg",
+   "parent": "mixamorig:Hips",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.09380830408434322,
+    0,
+    1,
+    0,
+    -0.8660933303518068,
+    0,
+    0,
+    1,
+    -0.0015430904162156594,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightLeg",
+   "parent": "mixamorig:RightUpLeg",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.11474426408949974,
+    0,
+    1,
+    0,
+    -0.4866776251931122,
+    0,
+    0,
+    1,
+    -0.022697752643444688,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightFoot",
+   "parent": "mixamorig:RightLeg",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.11382148626063177,
+    0,
+    1,
+    0,
+    -0.1289459300856162,
+    0,
+    0,
+    1,
+    0.016820257208826468,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightToeBase",
+   "parent": "mixamorig:RightFoot",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.12948461137614253,
+    0,
+    1,
+    0,
+    -0.016498920446477508,
+    0,
+    0,
+    1,
+    -0.13168474560205748,
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "mixamorig:RightToe_End",
+   "parent": "mixamorig:RightToeBase",
+   "local_position": [
+    0,
+    0,
+    0
+   ],
+   "local_rotation": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "local_scale": [
+    1,
+    1,
+    1
+   ],
+   "bind_pose": [
+    1,
+    0,
+    0,
+    -0.13839074572374047,
+    0,
+    1,
+    0,
+    -0.017819664112903227,
+    0,
+    0,
+    1,
+    -0.2046293632342943,
+    0,
+    0,
+    0,
+    1
+   ]
+  }
+ ]
+}
