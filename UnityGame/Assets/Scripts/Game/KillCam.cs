@@ -46,7 +46,8 @@ namespace UA
         private float nextRing;
         private static Mesh bulletMesh, ringMesh, quadMesh;
         private Transform bulletGlow;
-        private Vector3? releaseEye;   // where the bullet's camera stops to let it go into the victim
+        private Vector3? releaseEye;
+        private float bulletSide;      // which side of the bullet its camera flies on (0: not chosen yet)   // where the bullet's camera stops to let it go into the victim
 
         private static Mesh Quad()
         {
@@ -91,6 +92,7 @@ namespace UA
             if (victim.Anim != null) { victim.Anim.Play("Dead", 0, 0f); victim.Anim.speed = 0f; }
             hit = !gun;
             releaseEye = null;
+            bulletSide = 0f;
             start = Time.unscaledTime;
             if (gun) MakeBullet();
             ShowCover(k);
@@ -458,9 +460,19 @@ namespace UA
                     // beside it and a little above (the horizon behind it, not the ground), swinging from the
                     // side round towards the back while it slows, close in while it is slow
                     float turn = Mathf.Lerp(100f, 50f, Mathf.SmoothStep(0f, 1f, f / release));
-                    var round = Quaternion.AngleAxis(turn, dir) * Vector3.ProjectOnPlane(Vector3.up, dir).normalized;
+                    var up = Vector3.ProjectOnPlane(Vector3.up, dir).normalized;
                     float near = Mathf.Lerp(0.7f, 0.34f, Mathf.Sin(f / release * Mathf.PI));
-                    eye = Clear(at, at - dir * Mathf.Lerp(0.25f, 0.55f, f) + round * near);
+                    var back = at - dir * Mathf.Lerp(0.25f, 0.55f, f);
+                    // on the side with room (a wall beside the line of flight does not fill the picture); the side
+                    // is chosen once, so the camera does not flick from one to the other
+                    if (bulletSide == 0f)
+                    {
+                        var a = Clear(at, back + Quaternion.AngleAxis(turn, dir) * up * 0.7f);
+                        var b = Clear(at, back + Quaternion.AngleAxis(-turn, dir) * up * 0.7f);
+                        bulletSide = (a - at).sqrMagnitude >= (b - at).sqrMagnitude - 0.01f ? 1f : -1f;
+                    }
+                    var round = Quaternion.AngleAxis(turn * bulletSide, dir) * up;
+                    eye = Best(at, back + round * near, back + Quaternion.AngleAxis(-turn * bulletSide, dir) * up * near, back + up * near);
                     look = at + dir * 0.12f;
                 }
                 else
