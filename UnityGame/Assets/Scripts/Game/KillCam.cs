@@ -44,7 +44,19 @@ namespace UA
         private Transform vapour;          // the pale wake behind the bullet
         private readonly System.Collections.Generic.List<(Transform t, Material m, float born)> rings = new System.Collections.Generic.List<(Transform, Material, float)>();
         private float nextRing;
-        private static Mesh bulletMesh, ringMesh;
+        private static Mesh bulletMesh, ringMesh, quadMesh;
+        private Transform bulletGlow;
+
+        private static Mesh Quad()
+        {
+            if (quadMesh != null) return quadMesh;
+            quadMesh = new Mesh { name = "FilmQuad" };
+            quadMesh.vertices = new[] { new Vector3(-0.5f, -0.5f, 0), new Vector3(0.5f, -0.5f, 0), new Vector3(-0.5f, 0.5f, 0), new Vector3(0.5f, 0.5f, 0) };
+            quadMesh.uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) };
+            quadMesh.triangles = new[] { 0, 2, 1, 2, 3, 1, 0, 1, 2, 2, 1, 3 };
+            quadMesh.RecalculateBounds();
+            return quadMesh;
+        }
         private static Material ringMaterial;
         private string killerName;
         private int shot = -1;            // which shot of the film the camera is in (smoothing starts again at each)
@@ -147,6 +159,17 @@ namespace UA
                 trail.endColor = new Color(1f, 0.6f, 0.3f, 0f);
                 trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 trail.numCapVertices = 2;
+                // a warm glow round it (heated by the barrel and the air): it reads even small and in the dark
+                var glow = new GameObject("Glow");
+                glow.transform.SetParent(go.transform, false);
+                glow.AddComponent<MeshFilter>().sharedMesh = Quad();
+                var gr = glow.AddComponent<MeshRenderer>();
+                gr.sharedMaterial = new Material(Resources.Load<Material>("Materials/Flash"));
+                if (gr.sharedMaterial.HasProperty("_TintColor")) gr.sharedMaterial.SetColor("_TintColor", new Color(1f, 0.55f, 0.25f, 0.45f));
+                gr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                glow.transform.localScale = Vector3.one * 0.075f;
+                bulletGlow = glow.transform;
+                go.transform.localScale = Vector3.one * 1.5f;
                 bullet = go.transform;
                 // the pale wake of pushed air, wider and slower to fade
                 var wake = new GameObject("FilmBulletWake");
@@ -433,10 +456,10 @@ namespace UA
                 // round the line: side (90) over the top (0) to a little past it, close while slow
                 float turn = Mathf.Lerp(95f, -25f, Mathf.SmoothStep(0f, 1f, Mathf.Min(f, release) / release));
                 var round = Quaternion.AngleAxis(turn, dir) * Vector3.ProjectOnPlane(Vector3.up, dir).normalized;
-                float near = Mathf.Lerp(0.95f, 0.45f, Mathf.Sin(Mathf.Clamp01(f / release) * Mathf.PI));
-                var place = camAt - dir * Mathf.Lerp(0.3f, 0.75f, f) + round * near;
+                float near = Mathf.Lerp(0.7f, 0.32f, Mathf.Sin(Mathf.Clamp01(f / release) * Mathf.PI));
+                var place = camAt - dir * Mathf.Lerp(0.25f, 0.6f, f) + round * near;
                 eye = Clear(camAt, place);
-                look = f < release ? at + dir * 0.6f : Vector3.Lerp(at, to, 0.5f);
+                look = f < release ? at + dir * 0.35f : Vector3.Lerp(at, to, 0.5f);
                 fov = Mathf.Lerp(46f, 38f, Mathf.Sin(f * Mathf.PI));
                 roll = Mathf.Lerp(10f, -6f, f);
                 steady = true;
@@ -482,6 +505,7 @@ namespace UA
             eye = smoothEye;
             look = smoothLook;
             cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(look - eye) * Quaternion.Euler(0f, 0f, roll));
+            if (bulletGlow != null) bulletGlow.rotation = cam.transform.rotation;   // the glow faces the camera
             cam.Cam.fieldOfView = fov;
             cam.Cam.ResetProjectionMatrix();
             cam.Cam.nearClipPlane = now == 2 ? 0.08f : CameraRig.NearClip;   // close to the bullet

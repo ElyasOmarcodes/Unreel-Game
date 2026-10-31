@@ -134,14 +134,14 @@ namespace UA
             // the body built piece by piece keeps its own model's curved back (the hips tipped, the seat out)
             // under the animation: its hips are tucked further and its back stood up more than the ready-made
             // characters' (those are bound straight)
-            float tuck = ownBuild ? 13f : 4f;
+            float tuck = ownBuild ? 20f : 4f;
             pelvisBone.rotation = Quaternion.AngleAxis(-tuck, right) * pelvisBone.rotation;
             if (thighBone != null) thighBone.rotation = Quaternion.AngleAxis(tuck, right) * thighBone.rotation;
             if (thighLeft != null) thighLeft.rotation = Quaternion.AngleAxis(tuck, right) * thighLeft.rotation;
             // how far the back leans forwards (hips to neck), beyond a natural 6 degrees
             var back = neckBone.position - spineBone.position;
             float lean = Mathf.Atan2(Vector3.Dot(back, transform.forward), Vector3.Dot(back, transform.up)) * Mathf.Rad2Deg;
-            float straighten = Mathf.Clamp((lean - 6f) * 0.6f, 0f, 14f) + (ownBuild ? 5f : 0f);
+            float straighten = Mathf.Clamp((lean - 6f) * 0.6f, 0f, 14f) + (ownBuild ? 9f : 0f);
             spineBone.rotation = Quaternion.AngleAxis(tuck - straighten, right) * spineBone.rotation;
             // the head held up over the shoulders, not pushed forwards (a little less with the eye at the gun)
             float neck = State != null && State.Aiming ? 5f : 10f;
