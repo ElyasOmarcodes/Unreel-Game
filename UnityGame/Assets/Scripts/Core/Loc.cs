@@ -115,6 +115,7 @@ STEEL CITY|شهر فولاد|مدينة الفولاذ|CIUDAD DE ACERO
 AL-ZAHRA|الزهرا|الزهراء|AL-ZAHRA
 VILLAGE|روستا|القرية|ALDEA
 OLD TOWN|شهر قدیم|المدينة القديمة|CIUDAD VIEJA
+HILL VILLAGE|روستای کوهپایه|قرية التل|ALDEA DE LA COLINA
 DAY|روز|نهار|DÍA
 AFTERNOON|عصر|عصر|TARDE
 EVENING|غروب|مساء|ANOCHECER

@@ -27,6 +27,7 @@ namespace UA
             "STEEL CITY - DAY", "STEEL CITY - SUNSET", "STEEL CITY - NIGHT",
             "AL-ZAHRA - DAY", "AL-ZAHRA - SUNSET", "AL-ZAHRA - NIGHT",
             "VILLAGE - DAY", "VILLAGE - SUNSET", "VILLAGE - NIGHT", "OLD TOWN - DAY", "OLD TOWN - SUNSET", "OLD TOWN - NIGHT",
+            "HILL VILLAGE - DAY", "HILL VILLAGE - SUNSET", "HILL VILLAGE - NIGHT",
         };
         public static readonly string[] ModeNames = { "TEAMS", "SOLO - NO TEAMS" };
         /// <summary>
@@ -47,8 +48,8 @@ namespace UA
         public static bool Mates(PlayerState a, PlayerState b) => a != null && b != null && a != b && a.Team != 0 && a.Team == b.Team;
         public static byte ClampTeam(int team) => (byte)Mathf.Clamp(team, 0, MaxTeams);
         /// <summary>The maps in the order of the menu (base layout of each; + 0 day, 1 afternoon, 2 evening).</summary>
-        public static readonly int[] MapOrder = { 0, 3, 6, 9 };
-        public static readonly string[] MapTitles = { "STEEL CITY", "AL-ZAHRA", "VILLAGE", "OLD TOWN" };
+        public static readonly int[] MapOrder = { 0, 12, 3, 6, 9 };
+        public static readonly string[] MapTitles = { "STEEL CITY", "HILL VILLAGE", "AL-ZAHRA", "VILLAGE", "OLD TOWN" };
         public static readonly string[] TimeNames = { "DAY", "AFTERNOON", "EVENING" };
         public static readonly string[] SkillNames = { "EASY", "NORMAL", "HARD" };
 

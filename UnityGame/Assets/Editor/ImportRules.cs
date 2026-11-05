@@ -84,6 +84,32 @@ public class ImportRules : AssetPostprocessor
             extra.SetPlatformTextureSettings(phone);
             return;
         }
+        if (assetPath.Contains("Textures/Koy/"))
+        {
+            // the hill village (Poly Haven, CC0): colour at 1024 px, normal maps at 512; the trees are
+            // pictures with alpha (impostor atlases): cut out, the alpha kept in the mip maps
+            var koy = (TextureImporter)assetImporter;
+            string name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
+            bool normal = name.EndsWith("_Normal"), atlas = name.EndsWith("_Atlas");
+            koy.maxTextureSize = 1024;
+            koy.mipmapEnabled = true;
+            koy.anisoLevel = atlas ? 1 : 3;
+            if (normal) koy.textureType = TextureImporterType.NormalMap;
+            if (atlas)
+            {
+                koy.alphaIsTransparency = true;
+                koy.mipMapsPreserveCoverage = true;
+                koy.alphaTestReferenceValue = 0.45f;
+                koy.wrapMode = TextureWrapMode.Clamp;
+            }
+            var phone = koy.GetPlatformTextureSettings("Android");
+            phone.overridden = true;
+            phone.maxTextureSize = normal ? 512 : 1024;
+            phone.format = normal ? TextureImporterFormat.ASTC_8x8 : TextureImporterFormat.ASTC_6x6;
+            phone.compressionQuality = 50;
+            koy.SetPlatformTextureSettings(phone);
+            return;
+        }
         if (!assetPath.Contains("ThirdParty/") && !assetPath.Contains("Assets/Weapons/") && !assetPath.Contains("Assets/Characters/")) return;
         var importer = (TextureImporter)assetImporter;
         string file = System.IO.Path.GetFileNameWithoutExtension(assetPath);

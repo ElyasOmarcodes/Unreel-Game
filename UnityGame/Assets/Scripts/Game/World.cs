@@ -64,7 +64,7 @@ namespace UA
 
         /// <summary>Map index (as in MatchConfig.MapNames) to layout: three each (day, sunset, night) for CityLord (STEEL CITY), Al-Zahra, the village and the old town.</summary>
         public static int LayoutOf(int map) => map / 3;
-        public const int CityLordLayout = 0, ZahraLayout = 1;
+        public const int CityLordLayout = 0, ZahraLayout = 1, HillVillageLayout = 4;
 
         private void Awake()
         {
@@ -339,6 +339,19 @@ namespace UA
                         RenderSettings.ambientGroundColor = new Color(0.3f, 0.26f, 0.2f);
                         RenderSettings.fogColor = new Color(0.8f, 0.84f, 0.9f);
                         RenderSettings.fogDensity = 0.0045f;
+                    }
+                    else if (LayoutOf(map) == HillVillageLayout)
+                    {
+                        // an Aegean summer morning: a strong, clean sun from the south over the square, the
+                        // whitewash bright, soft blue shadows, a thin haze over the pine hill
+                        Sun.transform.rotation = Quaternion.Euler(50f, 25f, 0f);
+                        Sun.color = new Color(1f, 0.95f, 0.86f);
+                        Sun.intensity = 1.3f;
+                        RenderSettings.ambientSkyColor = new Color(0.58f, 0.68f, 0.84f);
+                        RenderSettings.ambientEquatorColor = new Color(0.56f, 0.53f, 0.48f);
+                        RenderSettings.ambientGroundColor = new Color(0.33f, 0.29f, 0.23f);
+                        RenderSettings.fogColor = new Color(0.78f, 0.84f, 0.91f);
+                        RenderSettings.fogDensity = 0.004f;
                     }
                     break;
             }
