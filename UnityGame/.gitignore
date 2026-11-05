@@ -1,0 +1,10 @@
+Library/
+Temp/
+Obj/
+Logs/
+Builds/
+UserSettings/
+*.csproj
+*.sln
+Assets/ThirdParty/
+Assets/ThirdParty.meta

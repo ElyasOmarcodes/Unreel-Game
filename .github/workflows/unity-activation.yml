@@ -1,0 +1,24 @@
+name: Unity - request activation file (.alf)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/unity-activation.yml
+
+jobs:
+  request-alf:
+    runs-on: ubuntu-latest
+    container: unityci/editor:ubuntu-2022.3.50f1-android-3
+    steps:
+      - name: Create manual activation file
+        run: |
+          mkdir -p alf && cd alf
+          unity-editor -batchmode -nographics -createManualActivationFile -logFile - || true
+          ls -la
+          test -n "$(ls *.alf 2>/dev/null)"
+      - name: Upload .alf as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-activation-alf
+          path: alf/*.alf
