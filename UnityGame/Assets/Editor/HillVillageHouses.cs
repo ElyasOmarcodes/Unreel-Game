@@ -36,7 +36,6 @@ public static partial class HillVillageBuilder
     private static Material WhitePlastic => AssetSetup.Solid("K_WhitePlastic", new Color(0.86f, 0.86f, 0.84f), 0.35f, 0f);
     private static Material BlackPlastic => AssetSetup.Solid("K_BlackPlastic", new Color(0.04f, 0.04f, 0.05f), 0.65f, 0f);
     private static Material BluePlastic => AssetSetup.Solid("K_BluePlastic", new Color(0.08f, 0.2f, 0.45f), 0.55f, 0f);
-    private static Material GreenPlastic => AssetSetup.Solid("K_GreenPlastic", new Color(0.12f, 0.3f, 0.14f), 0.55f, 0f);
     private static Material Solar => AssetSetup.Solid("K_Solar", new Color(0.05f, 0.08f, 0.18f), 0.9f, 0.3f);
     private static Material Marble => AssetSetup.Solid("K_Marble", new Color(0.86f, 0.85f, 0.82f), 0.35f, 0f);
     private static Material Terracotta => AssetSetup.Solid("K_Pot", new Color(0.62f, 0.3f, 0.18f), 0.2f, 0f);
@@ -1312,21 +1311,6 @@ public static partial class HillVillageBuilder
     {
         Cylinder("Barrel", root, p, 0.29f, 0.88f, rusty ? AssetSetup.RustyPost : BluePlastic, true, 12);
         Cylinder("BarrelRim", root, p + Vector3.up * 0.3f, 0.3f, 0.04f, rusty ? AssetSetup.RustyPost : BluePlastic, false, 12);
-    }
-
-    /// <summary>Rubbish bags piled at a corner by the street (no collider: kicked aside).</summary>
-    private static void Rubbish(Vector3 p)
-    {
-        int n = rng.Next(3, 7);
-        for (int i = 0; i < n; i++)
-        {
-            var q = p + new Vector3(R(-0.6f, 0.6f), 0, R(-0.6f, 0.6f));
-            float s = R(0.32f, 0.48f);
-            var bag = Sphere("RubbishBag", root, q + Vector3.up * (s * 0.35f + (i > 3 ? 0.3f : 0f)), s, Chance(0.6) ? BlackPlastic : Chance(0.5) ? BluePlastic : GreenPlastic);
-            bag.transform.localScale = new Vector3(s * 2f * R(0.9f, 1.15f), s * 1.5f, s * 2f * R(0.85f, 1.1f));
-            bag.transform.rotation = Quaternion.Euler(R(-10f, 10f), R(0f, 360f), R(-10f, 10f));
-            bag.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        }
     }
 
     /// <summary>A stack of wooden pallets (one collider for the stack).</summary>

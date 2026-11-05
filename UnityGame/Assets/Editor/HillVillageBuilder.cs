@@ -1097,7 +1097,7 @@ public static partial class HillVillageBuilder
         return layout;
     }
 
-    /// <summary>The dusty square before the cemetery: a row of broad trees along its wall, a burnt-out car, benches, barrels.</summary>
+    /// <summary>The dusty square before the cemetery: a row of broad trees along its wall, benches, barrels.</summary>
     private static void DustySquare()
     {
         for (int i = 0; i < 5; i++)
@@ -1106,7 +1106,6 @@ public static partial class HillVillageBuilder
             p.y = Y(p.x, p.z);
             TreeAt(broadleaf, p, R(1.3f, 1.7f));
         }
-        Obstacles.CarWreck(root, new Vector3(65.5f, Y(65.5f, -17.5f), -17.5f), 32f);
         Bench(new Vector3(58.5f, Y(58.5f, -23.2f), -23.2f), 180f);
         Bench(new Vector3(70f, Y(70f, -23.2f), -23.2f), 180f);
         for (int i = 0; i < 3; i++) Barrel(new Vector3(56.2f + i * 0.62f, Y(56.2f + i * 0.62f, -14f), -14f), i != 1);
@@ -1120,9 +1119,9 @@ public static partial class HillVillageBuilder
     }
 
     /// <summary>
-    /// The things by the houses along the lanes: rubbish bags at a corner, barrels, firewood stacked
-    /// against a side wall, pots of flowers by a door, a bench against a front, pallets by the sheds and
-    /// on the road; shipping containers at the edges of the village and burnt-out cars in the lanes.
+    /// The things by the houses along the lanes: barrels, firewood stacked against a side wall, pots of
+    /// flowers by a door, a bench against a front, pallets by the sheds and on the road; shipping
+    /// containers at the edges of the village.
     /// </summary>
     private static void StreetProps()
     {
@@ -1132,11 +1131,7 @@ public static partial class HillVillageBuilder
             if (h.Lane < 0 || h.Side == 0 || h.Kind == Kind.Wing || h.Ruin) continue;
             double r = rng.NextDouble();
             float sx = Chance(0.5) ? -1f : 1f;
-            if (r < 0.13)
-            {
-                var q = h.ToWorld(sx * (h.W / 2f - 0.6f), h.D / 2f + 0.75f);
-                if (Room(q, 0.5f)) Rubbish(new Vector3(q.x, Y(q.x, q.y), q.y));
-            }
+            if (r < 0.13) { }   // the front of the house kept clear
             else if (r < 0.21)
             {
                 int n = rng.Next(1, 4);
@@ -1186,18 +1181,6 @@ public static partial class HillVillageBuilder
             var c = new Vector3(x, Y(x, z), z);
             if (!Physics.CheckBox(c + Vector3.up * 1.4f, new Vector3(1.3f, 1.2f, 3.1f), Quaternion.Euler(0, yaw, 0), World.EnvMask, QueryTriggerInteraction.Ignore))
                 ShippingContainer(c - Vector3.up * 0.05f, yaw, red);
-        }
-        // burnt-out cars left at the side of the lanes
-        foreach (var (name, frac, side) in new[] { ("Road", 0.62f, 2), ("MiddleLane", 0.42f, 1), ("WestLane", 0.72f, 2), ("SouthLane", 0.3f, 1) })
-        {
-            var lane = LaneNamed(name);
-            var (p, t) = lane.At(lane.Length * frac);
-            var n = side == 1 ? new Vector2(-t.y, t.x) : new Vector2(t.y, -t.x);
-            var q = p + n * (lane.Width / 2f - 1.15f);
-            var c = new Vector3(q.x, Y(q.x, q.y), q.y);
-            float yaw = YawOf(t) + R(-8f, 8f);
-            if (!Physics.CheckBox(c + Vector3.up * 0.9f, new Vector3(0.95f, 0.6f, 2.2f), Quaternion.Euler(0, yaw, 0), World.EnvMask, QueryTriggerInteraction.Ignore))
-                Obstacles.CarWreck(root, c, yaw);
         }
     }
 
