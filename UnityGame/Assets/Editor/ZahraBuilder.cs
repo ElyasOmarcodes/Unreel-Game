@@ -75,7 +75,6 @@ public static class ZahraBuilder
     private static Material MarblePink => AssetSetup.Solid("Z_MarblePink", new Color(0.86f, 0.64f, 0.62f), 0.75f);
     private static Material MarbleBlue => AssetSetup.Solid("Z_MarbleBlue", new Color(0.6f, 0.67f, 0.76f), 0.75f);
     private static Material Capital => AssetSetup.Solid("Z_Capital", new Color(0.94f, 0.93f, 0.88f), 0.5f);
-    private static Material Leaf => AssetSetup.Solid("Z_PalmLeaf", new Color(0.3f, 0.48f, 0.18f), 0.25f);
     private static Material Cypress => Mats.Pbr("Z_Cypress", "Grass001", new Color(0.3f, 0.48f, 0.24f), 0.1f);
     private static Material Bronze => AssetSetup.Solid("Z_Bronze", new Color(0.25f, 0.18f, 0.1f), 0.5f, 0.6f);
     private static Material Soot => AssetSetup.Solid("Z_Soot", new Color(0.08f, 0.06f, 0.05f), 0.2f);
@@ -737,6 +736,15 @@ public static class ZahraBuilder
         return meshes[key] = m;
     }
 
+    /// <summary>A cypress for another map (the hill village's cemetery), drawn with that map's random numbers.</summary>
+    internal static void CypressFor(Transform parent, Vector3 p, float height, System.Random random)
+    {
+        var keep = rng;
+        rng = random;
+        CypressTree(parent, p, height);
+        rng = keep;
+    }
+
     /// <summary>A Mediterranean cypress: a short trunk under a tall, narrow flame of dark dense foliage.</summary>
     private static void CypressTree(Transform parent, Vector3 p, float height)
     {
@@ -754,60 +762,16 @@ public static class ZahraBuilder
         col.radius = width * 0.35f; col.height = height; col.center = new Vector3(0, height / 2f, 0);
     }
 
-    /// <summary>A date palm: a slightly leaning trunk and a crown of drooping fronds.</summary>
+    /// <summary>A date palm: the picture of a real palm (the hill village's), as tall as asked.</summary>
     private static void Palm(Transform parent, Vector3 p, float height)
     {
-        var t = Node("Palm", parent, p, R(0, 360));
-        float lean = R(-6f, 6f);
-        var trunk = MeshGen.Object("PalmTrunk", MeshGen.Cylinder(0.2f, height, 1.2f, 10), PalmTrunk, t, p);
-        trunk.transform.rotation = Quaternion.Euler(lean, t.eulerAngles.y, 0);
-        var c = trunk.AddComponent<CapsuleCollider>();
-        c.radius = 0.22f; c.height = height; c.center = new Vector3(0, height / 2f, 0);
-        var top = trunk.transform.TransformPoint(new Vector3(0, height, 0));
-        if (frondMesh == null) frondMesh = FrondMesh();
-        for (int i = 0; i < 14; i++)
-        {
-            var frond = MeshObject(t, "Frond", frondMesh, Leaf, false);
-            frond.transform.SetPositionAndRotation(top, Quaternion.Euler(0, i * 360f / 14f + R(-10, 10), 0) * Quaternion.Euler(R(-25f, 5f), 0, 0));
-            frond.transform.localScale = Vector3.one * R(0.85f, 1.1f);
-        }
-    }
-
-    private static Mesh frondMesh;
-
-    /// <summary>
-    /// A palm frond 2.8 m long from the crown along +Z: it rises, then droops, folded in a V along its
-    /// spine and narrowing to the tip; seen from both sides.
-    /// </summary>
-    private static Mesh FrondMesh()
-    {
-        var b = new Builder(1f);
-        const int n = 9;
-        const float len = 2.8f;
-        Vector3 Spine(float u) => new Vector3(0, len * (0.32f * u - 0.78f * u * u), len * u);
-        float Width(float u) => 0.04f + 0.38f * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(Mathf.PI * Mathf.Min(1f, u * 1.1f))), 0.6f) * (1f - 0.55f * u);
-        for (int i = 0; i < n; i++)
-        {
-            float u0 = i / (float)n, u1 = (i + 1) / (float)n;
-            var s0 = Spine(u0); var s1 = Spine(u1);
-            foreach (float side in new[] { -1f, 1f })
-            {
-                // the leaflets rise from the spine to the edges (the V fold)
-                var e0 = s0 + new Vector3(side * Width(u0), Width(u0) * 0.35f, 0);
-                var e1 = s1 + new Vector3(side * Width(u1), Width(u1) * 0.35f, 0);
-                var normal = Vector3.Cross(e0 - s0, s1 - s0).normalized * side;
-                if (normal.y < 0) normal = -normal;
-                b.Face(normal, s0, e0, e1, s1);
-                b.Face(-normal, s0, e0, e1, s1);
-            }
-        }
-        return b.Save("palmfrond");
+        HillVillageBuilder.RealTree("palm", rng, p, height * 0.96f, height * 1.04f, parent);
     }
 
     /// <summary>A small orange tree (the fruits were left off: the crowns differ from tree to tree and they hung in the air).</summary>
     private static void OrangeTree(Transform parent, Vector3 p)
     {
-        Nature.Tree(Nature.Trees, rng, p, 3.4f, 4.4f, parent);
+        HillVillageBuilder.RealTree("broadleaf", rng, p, 3.4f, 4.4f, parent);
     }
 
     /// <summary>
@@ -956,7 +920,6 @@ public static class ZahraBuilder
         meshes.Clear();
         cypressMeshes = null;
         cypressLeaf = null;
-        frondMesh = null;
         houses = 0;
         AssetDatabase.DeleteAsset(MeshFolder);
         AssetSetup.Folder(MeshFolder);
@@ -2296,12 +2259,12 @@ public static class ZahraBuilder
         for (int i = 0; i < 80; i++)
         {
             float x = R(-300f, 300f), z = R(136f, 280f);
-            Scenery(Nature.Tree(rng.NextDouble() < 0.55 ? Nature.Pines : Nature.Trees, rng, new Vector3(x, North(x, z) - 0.3f, z), 9f, 15f, t));
+            Scenery(HillVillageBuilder.RealTree(rng.NextDouble() < 0.55 ? "pine" : "broadleaf", rng, new Vector3(x, North(x, z) - 0.3f, z), 9f, 15f, t));
         }
         for (int i = 0; i < 28; i++)
         {
             float s = rng.NextDouble() < 0.5 ? -1f : 1f, x = s * R(136f, 260f), z = R(-120f, 125f);
-            Scenery(Nature.Tree(Nature.Trees, rng, new Vector3(x, Level(z) - 1f + Mathf.Max(0f, Mathf.Abs(x) - 132f) * 0.18f * Fbm(x, z, 3) * 2f - 0.3f, z), 6f, 10f, t));
+            Scenery(HillVillageBuilder.RealTree(rng.NextDouble() < 0.5 ? "olive" : "broadleaf", rng, new Vector3(x, Level(z) - 1f + Mathf.Max(0f, Mathf.Abs(x) - 132f) * 0.18f * Fbm(x, z, 3) * 2f - 0.3f, z), 6f, 10f, t));
         }
         // the valley: strips of green wheat and of ploughed earth, olive groves in rows
         for (int i = 0; i < 9; i++)
@@ -2316,7 +2279,7 @@ public static class ZahraBuilder
         }
         for (int row = 0; row < 4; row++)
             for (float x = -240f; x < 240f; x += R(9f, 14f))
-                if (rng.NextDouble() < 0.35) Scenery(Nature.Tree(Nature.Trees, rng, new Vector3(x, -3f, -150f - row * 30f + R(-3f, 3f)), 3.5f, 5f, t));
+                if (rng.NextDouble() < 0.35) Scenery(HillVillageBuilder.RealTree("olive", rng, new Vector3(x, -3f, -150f - row * 30f + R(-3f, 3f)), 3.5f, 5f, t));
         // the Guadalquivir: flowing west between banks, poplars and reeds
         var flow = AssetSetup.WaterMat("Water_River", new Color(0.05f, 0.15f, 0.15f), new Color(0.22f, 0.36f, 0.32f), 1.2f, 0.25f, new Vector3(-1f, 1.2f, 0f));
         var river = MeshGen.TexBox("Guadalquivir", new Vector3(0, -3.3f, -300f), new Vector3(760f, 0.05f, 46f), flow, 20f, t, 0f, false);
@@ -2325,7 +2288,7 @@ public static class ZahraBuilder
         {
             Box(t, "RiverBank", new Vector3(0, -2.92f, -300f + s * 24.5f), new Vector3(760f, 0.3f, 3f), Earth, 4f, false);
             for (float x = -280f; x < 280f; x += R(22f, 34f))
-                Scenery(Nature.Tree(Nature.Trees, rng, new Vector3(x, -3f, -300f + s * 29f), 10f, 14f, t));
+                Scenery(HillVillageBuilder.RealTree("broadleaf", rng, new Vector3(x, -3f, -300f + s * 29f), 10f, 14f, t));
         }
     }
 

@@ -5,29 +5,24 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// The "Hill Village" map: a half-old Turkish (Aegean) hill village. Two-storey houses of rough stone
-/// and whitewashed plaster with blue window frames and shutters, wooden balconies and outside stairs,
-/// terracotta hip and gable roofs; a paved square (meydan) with a raised wooden-railed platform, globe
-/// street lamps, palms, a fountain against the terrace wall and a coffee house under a tiled pergola;
-/// a stone mosque with its minaret on the upper terrace; sloping cobbled streets along the retaining
-/// walls up to it and down to the lower quarter; olive groves on the slopes below and a pine forest on
-/// the hill above. Three levels joined by stairs and ramps. Every texture is a Poly Haven scan (CC0);
-/// the trees are pictures of Poly Haven's olive, pine and plane-like trees rendered from three sides
-/// and from above (impostors, see Tools/impostor.py), the palms and grass made the same way.
+/// The "Hill Village" map: a half-old Turkish (Aegean) hill village. Its plan (HillVillagePlan.cs) cuts
+/// the hillside into levels and winds lanes through them, then sets houses of many kinds along both
+/// sides of every lane, each its own size and height (HillVillageHouses.cs builds them): old stone and
+/// whitewashed houses, tower houses, flat-roofed concrete houses, shop houses with iron balconies,
+/// cottages, sheds, courtyard compounds, walled gardens. This file builds the ground, the terrace walls
+/// and stairs, the paved square (meydan) with its platform, fountain and coffee house, the mosque and
+/// its minaret on the upper terrace, the windmills, poles, lamps and props, the olive groves below and
+/// the pine forest on the hill above, and the bots' waypoints. Every texture is a Poly Haven scan
+/// (CC0); the trees are pictures of Poly Haven's olive, pine and plane-like trees rendered from three
+/// sides and from above (impostors, see Tools/impostor.py), the palms and grass made the same way;
+/// the other maps use the same trees (RealTree).
 /// </summary>
-public static class HillVillageBuilder
+public static partial class HillVillageBuilder
 {
-    public const float Half = 100f;            // the village, its groves and the near hill (bots, spawns)
-    private const float Edge = Half + 40f;     // players can climb the slopes around it up to here
-    private const float Size = 420f;           // the ground reaches this far (the view to the hills)
     private const string Tex = "Assets/Textures/Koy";
-
     private static Transform root;
-    private static System.Random rng;
     private static readonly List<Renderer> night = new List<Renderer>();
 
-    private static float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
-    private static bool Chance(double p) => rng.NextDouble() < p;
 
     // ------------------------------------------------------------------ materials
 
@@ -72,85 +67,6 @@ public static class HillVillageBuilder
 
     // ------------------------------------------------------------------ the levels of the ground
 
-    /// <summary>
-    /// A level piece of ground (axis-aligned): flat, or rising along x or z between two heights (a ramp
-    /// street). Each edge either blends into the ground beyond over its margin, or (margin 0) ends sharp:
-    /// there a retaining wall stands over the step. Later pads win over earlier ones.
-    /// </summary>
-    private struct Pad
-    {
-        public float X0, Z0, X1, Z1, Y0, Y1, A0, A1;
-        public int Axis;                // 0 flat (Y0), 1 along x, 2 along z: Y0 at A0, Y1 at A1
-        public float W, E, S, N;        // margins (west -x, east +x, south -z, north +z)
-
-        public float Height(float x, float z)
-        {
-            if (Axis == 0) return Y0;
-            float a = Axis == 1 ? x : z;
-            return Mathf.Lerp(Y0, Y1, Mathf.InverseLerp(A0, A1, a));
-        }
-
-        public float Weight(float x, float z)
-        {
-            float w = 1f;
-            w = Mathf.Min(w, Side(X0 - x, W));
-            w = Mathf.Min(w, Side(x - X1, E));
-            w = Mathf.Min(w, Side(Z0 - z, S));
-            w = Mathf.Min(w, Side(z - Z1, N));
-            return w;
-        }
-
-        private static float Side(float outside, float margin)
-        {
-            if (outside <= 0f) return 1f;
-            if (margin <= 0f) return 0f;
-            return Mathf.SmoothStep(1f, 0f, outside / margin);
-        }
-    }
-
-    private static readonly List<Pad> pads = new List<Pad>();
-
-    private static void Flat(float x0, float z0, float x1, float z1, float y, float w, float e, float s, float n) =>
-        pads.Add(new Pad { X0 = x0, Z0 = z0, X1 = x1, Z1 = z1, Y0 = y, W = w, E = e, S = s, N = n });
-
-    private static void Ramp(float x0, float z0, float x1, float z1, int axis, float a0, float y0, float a1, float y1, float w, float e, float s, float n) =>
-        pads.Add(new Pad { X0 = x0, Z0 = z0, X1 = x1, Z1 = z1, Axis = axis, A0 = a0, Y0 = y0, A1 = a1, Y1 = y1, W = w, E = e, S = s, N = n });
-
-    private static float Gauss(float x, float z, float cx, float cz, float sigma) => Mathf.Exp(-((x - cx) * (x - cx) + (z - cz) * (z - cz)) / (2f * sigma * sigma));
-
-    /// <summary>The land before the village was cut into it: rising to the pine hill in the north.</summary>
-    private static float RawHeight(float x, float z)
-    {
-        float h = 0.07f * z;
-        h += 1.8f * Mathf.Sin(x / 29f + 0.5f) * Mathf.Cos(z / 23f) + 0.9f * Mathf.Sin((x - z) / 17f);
-        h += 26f * Gauss(x, z, 10f, 128f, 46f);       // the pine hill
-        h += 11f * Gauss(x, z, -122f, 40f, 34f);      // the west hill
-        h += 9f * Gauss(x, z, 118f, 64f, 30f);        // the north east hill
-        h -= 3.5f * Gauss(x, z, 30f, -112f, 40f);     // the hollow below the olive groves
-        float edge = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
-        h += Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Half - 8f, Half + 50f, edge)) * (16f + 6f * Mathf.Sin(x / 21f + z / 27f));
-        return h;
-    }
-
-    public static float GroundHeight(float x, float z)
-    {
-        float h = RawHeight(x, z);
-        foreach (var p in pads)
-        {
-            float w = p.Weight(x, z);
-            if (w > 0f) h = Mathf.Lerp(h, p.Height(x, z), w);
-        }
-        return h;
-    }
-
-    /// <summary>How much of the ground here is a levelled part of the village (0 the open land).</summary>
-    private static float Built(float x, float z)
-    {
-        float w = 0f;
-        foreach (var p in pads) w = Mathf.Max(w, p.Weight(x, z));
-        return w;
-    }
-
     /// <summary>The ground under (x, z): the mesh (raycast), else the height function.</summary>
     private static float Y(float x, float z)
     {
@@ -161,54 +77,7 @@ public static class HillVillageBuilder
         return best > float.MinValue ? best : GroundHeight(x, z);
     }
 
-    /// <summary>
-    /// The levels: the square in the middle; the west quarter rising gently from it; the upper terrace
-    /// (mosque) 4.5 m above behind a stone wall, reached by stairs and by the east street sloping up
-    /// along its wall; the lower quarter 2.5 m below the square, with its own sloping street down in the
-    /// south east; the road out to the east climbing the slope.
-    /// </summary>
-    private static void Levels()
-    {
-        pads.Clear();
-        Flat(-26f, -18f, 26f, 16f, 0f, 6f, 6f, 0f, 0f);                          // the square (meydan)
-        Ramp(-96f, -18f, -26f, 16f, 1, -96f, 3f, -26f, 0f, 10f, 0f, 0f, 0f);     // the west quarter
-        Flat(-96f, 16f, 24f, 50f, 4.5f, 10f, 0f, 0f, 12f);                       // the upper terrace
-        Ramp(24f, -6f, 42f, 52f, 2, 16f, 0f, 40f, 4.5f, 0f, 10f, 6f, 10f);       // the east street up
-        Flat(-96f, -56f, 26f, -18f, -2.5f, 12f, 0f, 12f, 0f);                    // the lower quarter
-        Ramp(26f, -56f, 42f, -6f, 2, -40f, -2.5f, -18f, 0f, 0f, 10f, 12f, 0f);   // the street down
-        Ramp(42f, -8f, 104f, 10f, 1, 42f, 0f, 104f, 7f, 0f, 0f, 6f, 6f);         // the road out east
-    }
-
-    /// <summary>A level spot for a house standing on the open slope (its own pad, blended in).</summary>
-    private static float HousePad(Vector3 c, float w, float d, float yaw)
-    {
-        var ext = Quaternion.Euler(0, yaw, 0) * new Vector3(w, 0, d);
-        float ex = Mathf.Abs(ext.x) / 2f + 2f, ez = Mathf.Abs(ext.z) / 2f + 2f;
-        float y = GroundHeight(c.x, c.z);
-        Flat(c.x - ex, c.z - ez, c.x + ex, c.z + ez, y, 6f, 6f, 6f, 6f);
-        return y;
-    }
-
     // ------------------------------------------------------------------ the ground mesh
-
-    // the streets and lanes paved with cobbles, and the dirt tracks out to the hill and the groves
-    private static readonly List<(Vector2[] line, float width)> cobbles = new List<(Vector2[], float)>();
-    private static readonly List<(Vector2[] line, float width)> tracks = new List<(Vector2[], float)>();
-
-    private static float LineDistance(List<(Vector2[] line, float width)> lines, float x, float z)
-    {
-        float best = 1e9f;
-        var p = new Vector2(x, z);
-        foreach (var (line, width) in lines)
-            for (int i = 0; i + 1 < line.Length; i++)
-            {
-                var a = line[i]; var b = line[i + 1];
-                var ab = b - a;
-                float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-4f));
-                best = Mathf.Min(best, Vector2.Distance(p, a + ab * t) - width / 2f);
-            }
-        return best;
-    }
 
     /// <summary>
     /// Grid lines: 1 m apart over the village (the steps between the levels fall inside the terrace
@@ -255,14 +124,36 @@ public static class HillVillageBuilder
     private static Texture2D CobbleMask(Rect area, int size)
     {
         var tex = new Texture2D(size, size, TextureFormat.R8, false, true) { name = "HillVillage_Cobbles", wrapMode = TextureWrapMode.Clamp };
+        // the distance to the nearest lane edge, segment by segment over the pixels near each
+        var dist = new float[size * size];
+        for (int i = 0; i < dist.Length; i++) dist[i] = 9f;
+        float cell = area.width / size;
+        foreach (var (line, width) in cobbles)
+            for (int k = 0; k + 1 < line.Length; k++)
+            {
+                var a = line[k]; var ab = line[k + 1] - a;
+                float reach = width / 2f + 1f;
+                int i0 = Mathf.Max(0, Mathf.FloorToInt((Mathf.Min(a.x, a.x + ab.x) - reach - area.xMin) / cell));
+                int i1 = Mathf.Min(size - 1, Mathf.CeilToInt((Mathf.Max(a.x, a.x + ab.x) + reach - area.xMin) / cell));
+                int j0 = Mathf.Max(0, Mathf.FloorToInt((Mathf.Min(a.y, a.y + ab.y) - reach - area.yMin) / cell));
+                int j1 = Mathf.Min(size - 1, Mathf.CeilToInt((Mathf.Max(a.y, a.y + ab.y) + reach - area.yMin) / cell));
+                float len2 = Mathf.Max(ab.sqrMagnitude, 1e-4f);
+                for (int j = j0; j <= j1; j++)
+                    for (int i = i0; i <= i1; i++)
+                    {
+                        var p = new Vector2(area.xMin + (i + 0.5f) * cell, area.yMin + (j + 0.5f) * cell);
+                        float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / len2);
+                        float d = Vector2.Distance(p, a + ab * t) - width / 2f;
+                        if (d < dist[j * size + i]) dist[j * size + i] = d;
+                    }
+            }
         var px = new Color32[size * size];
         for (int j = 0; j < size; j++)
             for (int i = 0; i < size; i++)
             {
-                float x = area.xMin + (i + 0.5f) * area.width / size, z = area.yMin + (j + 0.5f) * area.height / size;
-                float d = LineDistance(cobbles, x, z);
+                float x = area.xMin + (i + 0.5f) * cell, z = area.yMin + (j + 0.5f) * cell;
                 float ragged = 0.35f * Mathf.PerlinNoise(x * 0.4f + 3f, z * 0.4f + 9f);
-                float m = Mathf.InverseLerp(0.5f + ragged, -0.2f + ragged, d);
+                float m = Mathf.InverseLerp(0.5f + ragged, -0.2f + ragged, dist[j * size + i]);
                 px[j * size + i] = new Color32((byte)(Mathf.Clamp01(m) * 255f), 0, 0, 255);
             }
         tex.SetPixels32(px);
@@ -607,389 +498,6 @@ public static class HillVillageBuilder
         return y + rise;
     }
 
-    // ------------------------------------------------------------------ houses
-
-    private class House
-    {
-        public float X, Z, Yaw, W, D;
-        public int Floors = 2;
-        public int Style;            // 0 whitewash with stone corners, 1 stone below and whitewash above, 2 all field stone, 3 old flaking plaster
-        public bool Hip = true, Balcony, OutsideStair, Chimney, Open, Ruin, Yard;
-        public House(float x, float z, float yaw, float w, float d, int floors, int style, string extras = "")
-        {
-            X = x; Z = z; Yaw = yaw; W = w; D = d; Floors = floors; Style = style;
-            Hip = !extras.Contains("gable");
-            Balcony = extras.Contains("balcony"); OutsideStair = extras.Contains("stair"); Chimney = extras.Contains("chimney");
-            Open = extras.Contains("open"); Ruin = extras.Contains("ruin"); Yard = extras.Contains("yard");
-        }
-    }
-
-    private struct Opening
-    {
-        public float U, Width, Bottom, Top;   // along the wall from its middle; bottom and top above the floor
-        public int Kind;                      // 0 window, 1 door, 2 balcony door
-    }
-
-    private const float Storey = 3.0f, Thick = 0.4f;
-
-    /// <summary>The four walls of a house: origin (middle of the wall's thickness), direction along it, outward, length.</summary>
-    private static (Vector3 o, Vector3 u, Vector3 n, float len) Side(int side, float w, float d)
-    {
-        switch (side)
-        {
-            case 0: return (new Vector3(0, 0, d / 2f - Thick / 2f), Vector3.right, Vector3.forward, w);
-            case 1: return (new Vector3(0, 0, -d / 2f + Thick / 2f), Vector3.left, Vector3.back, w);
-            case 2: return (new Vector3(-w / 2f + Thick / 2f, 0, 0), Vector3.forward, Vector3.left, d - 2f * Thick);
-            default: return (new Vector3(w / 2f - Thick / 2f, 0, 0), Vector3.back, Vector3.right, d - 2f * Thick);
-        }
-    }
-
-    private static Vector3 SideSize(Vector3 u, float along, float height, float across) =>
-        Mathf.Abs(u.x) > 0.5f ? new Vector3(along, height, across) : new Vector3(across, height, along);
-
-    /// <summary>One storey of one wall, with its openings cut out (open houses) or closed behind glass.</summary>
-    private static void WallStorey(Transform h, int side, float w, float d, float y0, float y1, Material m, List<Opening> ops, bool holes)
-    {
-        var (o, u, n, len) = Side(side, w, d);
-        void Piece(float a, float b, float c, float e)
-        {
-            if (b - a < 0.02f || e - c < 0.02f) return;
-            Box("Wall", h, o + u * ((a + b) / 2f) + Vector3.up * ((c + e) / 2f), SideSize(u, b - a, e - c, Thick), m, true, 2.5f);
-        }
-        if (!holes || ops.Count == 0) { Piece(-len / 2f, len / 2f, y0, y1); return; }
-        float at = -len / 2f;
-        foreach (var op in ops.OrderBy(q => q.U))
-        {
-            float l = op.U - op.Width / 2f, r = op.U + op.Width / 2f;
-            Piece(at, l, y0, y1);
-            Piece(l, r, y0, y0 + op.Bottom);
-            Piece(l, r, y0 + op.Top, y1);
-            at = r;
-        }
-        Piece(at, len / 2f, y0, y1);
-    }
-
-    /// <summary>
-    /// What makes an opening look lived in: a blue painted frame, a sill, a stone lintel on the stone
-    /// houses, shutters (open against the wall, or closed), glass behind a cross of glazing bars when
-    /// the house is closed, an iron grille on some ground floor windows; a wooden door in a door.
-    /// </summary>
-    private static void Dress(Transform h, int side, float w, float d, float y0, Opening op, bool holes, bool stoneWall, bool ground, bool old)
-    {
-        var (o, u, n, _) = Side(side, w, d);
-        var face = o + n * (Thick / 2f);
-        var c = face + u * op.U + Vector3.up * (y0 + (op.Bottom + op.Top) / 2f);
-        float hgt = op.Top - op.Bottom, wid = op.Width;
-        const float bar = 0.08f;
-        // the frame
-        Box("Frame", h, c + u * (wid / 2f + bar / 2f) + n * 0.03f, SideSize(u, bar, hgt + bar * 2f, 0.1f), Shutter, false, 1.4f);
-        Box("Frame", h, c - u * (wid / 2f + bar / 2f) + n * 0.03f, SideSize(u, bar, hgt + bar * 2f, 0.1f), Shutter, false, 1.4f);
-        Box("Frame", h, c + Vector3.up * (hgt / 2f + bar / 2f) + n * 0.03f, SideSize(u, wid, bar, 0.1f), Shutter, false, 1.4f);
-        if (op.Kind == 0)
-        {
-            Box("Sill", h, c - Vector3.up * (hgt / 2f + 0.04f) + n * 0.1f, SideSize(u, wid + 0.3f, 0.07f, 0.24f), Coping, false, 1.5f);
-            if (!holes)
-            {
-                Box("Glass", h, c - n * 0.005f, SideSize(u, wid, hgt, 0.02f), Glass, false);
-                Box("Bar", h, c + n * 0.02f, SideSize(u, 0.05f, hgt, 0.04f), Shutter, false, 1.4f);
-                Box("Bar", h, c + Vector3.up * (hgt * 0.12f) + n * 0.02f, SideSize(u, wid, 0.05f, 0.04f), Shutter, false, 1.4f);
-                if (Chance(0.3)) NightLights.Window(h, h.TransformPoint(c + n * 0.03f), h.TransformDirection(n), wid * 0.9f, hgt * 0.9f, night);
-            }
-            if (ground && Chance(0.35))
-                for (int k = 1; k <= 4; k++)
-                    Box("Grille", h, c + u * (-wid / 2f + wid * k / 5f) + n * 0.07f, SideSize(u, 0.025f, hgt, 0.025f), Iron, false);
-            // shutters: open flat against the wall either side, closed over the window, or one gone
-            int state = Chance(0.2) && !holes ? 1 : Chance(old ? 0.25 : 0.06) ? 2 : 0;
-            float sw = wid / 2f;
-            for (int s = -1; s <= 1; s += 2)
-            {
-                if (state == 2 && s > 0) continue;
-                var at = state == 1 ? c + u * (s * sw / 2f) + n * 0.07f : c + u * (s * (wid / 2f + bar + sw / 2f + 0.02f)) + n * 0.04f;
-                Box("Shutter", h, at, SideSize(u, sw - 0.02f, hgt, 0.035f), Shutter, false, 0.7f);
-            }
-        }
-        else
-        {
-            // the door: a lintel of stone or wood over it, the leaf shut, or swung open inside
-            Box("Lintel", h, c + Vector3.up * (hgt / 2f + bar + 0.1f) + n * 0.02f, SideSize(u, wid + 0.5f, 0.2f, 0.06f), stoneWall ? Stone : Wood, false);
-            var leafMat = Chance(0.5) ? Shutter : DoorWood;
-            if (!holes) Box("Door", h, c - n * 0.01f, SideSize(u, wid, hgt, 0.06f), leafMat, false, 1.4f);
-            else
-            {
-                // swung open inside, square to the wall from its hinge at one jamb
-                Box("Door", h, c - u * (wid / 2f - 0.04f) - n * (Thick + wid / 2f), SideSize(u, 0.06f, hgt, wid), leafMat, false, 1.4f);
-            }
-            if (op.Kind == 1)
-                Box("DoorStep", h, face + u * op.U + Vector3.up * (y0 - 0.06f) + n * 0.25f, SideSize(u, wid + 0.4f, 0.12f, 0.5f), Coping, true, 1.5f);
-        }
-    }
-
-    /// <summary>Openings of one storey of one wall: windows spaced along it, a door or balcony door at given places.</summary>
-    private static List<Opening> Openings(float len, float? door, int doorKind, float avoidFrom = 99f, float avoidTo = -99f)
-    {
-        var ops = new List<Opening>();
-        int nWin = Mathf.Max(1, Mathf.FloorToInt((len - 1.2f) / 2.4f));
-        for (int i = 0; i < nWin; i++)
-        {
-            float u = -len / 2f + len * (i + 1) / (nWin + 1);
-            if (door.HasValue && Mathf.Abs(u - door.Value) < 1.4f) continue;
-            if (u > avoidFrom && u < avoidTo) continue;
-            ops.Add(new Opening { U = u, Width = 0.9f, Bottom = 0.95f, Top = 2.25f, Kind = 0 });
-        }
-        if (door.HasValue)
-            ops.Add(new Opening { U = door.Value, Width = doorKind == 1 ? 1.05f : 1.0f, Bottom = 0f, Top = doorKind == 1 ? 2.2f : 2.3f, Kind = doorKind });
-        return ops;
-    }
-
-    /// <summary>The ground under a footprint: highest and lowest point.</summary>
-    private static (float hi, float lo) Under(Vector3 c, Quaternion rot, float w, float d)
-    {
-        float hi = float.MinValue, lo = float.MaxValue;
-        for (int i = -2; i <= 2; i++)
-            for (int k = -2; k <= 2; k++)
-            {
-                var p = c + rot * new Vector3(i * w / 4f, 0, k * d / 4f);
-                float y = Y(p.x, p.z);
-                hi = Mathf.Max(hi, y); lo = Mathf.Min(lo, y);
-            }
-        return (hi, lo);
-    }
-
-    private static void BuildHouse(House hs, Transform parent)
-    {
-        // not quite in line with the street: each house a little turned and set forward or back
-        var rot = Quaternion.Euler(0, hs.Yaw + R(-3.5f, 3.5f), 0);
-        var centre = new Vector3(hs.X, 0, hs.Z) + rot * Vector3.forward * R(-0.6f, 0.4f);
-        var (hi, lo) = Under(centre, rot, hs.W + 1f, hs.D + 1f);
-        float baseY = hi + 0.15f;
-        var h = new GameObject("House").transform;
-        h.SetParent(parent, false);
-        h.SetPositionAndRotation(new Vector3(centre.x, baseY, centre.z), rot);
-        float w = hs.W, d = hs.D;
-        // half the old houses freshly whitewashed: the village is white with stone between, as in the picture
-        if (hs.Style >= 2 && !hs.Ruin && Chance(0.45)) hs.Style = 0;
-        bool old = hs.Style >= 2;
-        var upper = hs.Style == 0 ? (Chance(0.3) ? CreamPlaster : Plaster) : hs.Style == 1 ? Plaster : hs.Style == 2 ? Stone : OldPlaster;
-        var lower = hs.Style == 1 || hs.Style == 2 ? Stone : upper;
-        float drop = baseY - lo + 0.4f;
-        // the foundation down into the slope, and a band of field stone round the foot of the walls
-        Box("Foundation", h, new Vector3(0, -drop / 2f, 0), new Vector3(w, drop, d), Stone, true, 2.6f);
-        foreach (int s in new[] { 0, 1, 2, 3 })
-        {
-            var (o, u, n, len) = Side(s, w, d);
-            float bandLen = s < 2 ? len + 0.12f : d + 0.12f;
-            var bc = (s < 2 ? o : new Vector3(o.x, 0, 0)) + n * (Thick / 2f + 0.03f) + Vector3.up * ((0.55f - drop) / 2f);
-            Box("StoneBand", h, bc, SideSize(u, bandLen, 0.55f + drop, 0.06f), Stone, false, 2.6f);
-        }
-        if (hs.Ruin) { Ruin(h, hs, lower); return; }
-
-        // where the doors go: the front door in the middle of the front, or on the right side when an
-        // outside stair runs up the left half of the front to the upper door
-        float stairRun = 17 * 0.3f;
-        bool stair = hs.OutsideStair && hs.Floors > 1 && w >= 6.8f;
-        float balconyW = Mathf.Min(4.2f, w * 0.5f);
-        float balconyU = stair ? w / 2f - balconyW / 2f - 0.5f : 0f;
-        bool balcony = hs.Balcony && hs.Floors > 1 && (!stair || w >= 8.5f);
-        float avoidFrom = stair ? -w / 2f - 1f : 99f, avoidTo = stair ? -w / 2f + 1.3f + stairRun + 0.4f : -99f;
-        for (int f = 0; f < hs.Floors; f++)
-        {
-            float y0 = f * Storey, y1 = y0 + Storey + (f == hs.Floors - 1 ? 0.3f : 0f);
-            var m = f == 0 ? lower : upper;
-            for (int s = 0; s < 4; s++)
-            {
-                var (_, _, _, len) = Side(s, w, d);
-                List<Opening> ops;
-                if (s == 0 && f == 0) ops = stair ? Openings(len, null, 0, avoidFrom, avoidTo) : Openings(len, 0f, 1);
-                else if (s == 0 && f == 1 && (stair || balcony))
-                {
-                    ops = Openings(len, balcony ? balconyU : (float?)null, 2, stair ? -w / 2f - 1f : 99f, stair ? -w / 2f + 1.5f : -99f);
-                    if (stair) ops.Add(new Opening { U = -w / 2f + 0.75f, Width = 0.95f, Bottom = 0f, Top = 2.2f, Kind = 2 });
-                }
-                else if (s == 3 && f == 0 && stair) ops = Openings(len, 0f, 1);
-                else ops = len < 4f ? new List<Opening> { new Opening { U = 0f, Width = 0.8f, Bottom = 0.95f, Top = 2.15f } } : Openings(len, null, 0);
-                WallStorey(h, s, w, d, y0, y1, m, ops, hs.Open);
-                foreach (var op in ops) Dress(h, s, w, d, y0, op, hs.Open, m == Stone, f == 0, old);
-            }
-        }
-        // floors inside (open houses): a board floor, the ceiling and upper floor over it
-        if (hs.Open)
-        {
-            Box("Floor", h, new Vector3(0, 0.03f, 0), new Vector3(w - 2f * Thick, 0.06f, d - 2f * Thick), Wood, true, 1.5f);
-            if (hs.Floors > 1) Box("UpperFloor", h, new Vector3(0, Storey - 0.1f, 0), new Vector3(w - 2f * Thick, 0.22f, d - 2f * Thick), Wood, true, 1.5f);
-        }
-        float top = hs.Floors * Storey + 0.3f;
-        // whitewash bands: under the eaves and between the storeys
-        if (hs.Style == 0 || hs.Style == 3 || hs.Style == 1)
-        {
-            foreach (int s in new[] { 0, 1, 2, 3 })
-            {
-                var (o, u, n, len) = Side(s, w, d);
-                float bandLen = (s < 2 ? len : d) + 0.14f;
-                var bo = (s < 2 ? o : new Vector3(o.x, 0, 0)) + n * (Thick / 2f + 0.035f);
-                Box("EaveBand", h, bo + Vector3.up * (top - 0.12f), SideSize(u, bandLen, 0.24f, 0.07f), Coping, false, 2f);
-                if (hs.Floors > 1) Box("FloorBand", h, bo + Vector3.up * Storey, SideSize(u, bandLen, 0.16f, 0.07f), hs.Style == 1 ? Stone : Coping, false, 2f);
-            }
-        }
-        // dressed stone quoins at the corners of the whitewashed houses
-        if (hs.Style == 0 || hs.Style == 1)
-        {
-            float from = hs.Style == 1 ? Storey + 0.1f : 0.55f;
-            int k = 0;
-            for (float y = from; y + 0.36f < top - 0.25f; y += 0.38f, k++)
-                foreach (var (sx, sz) in new[] { (-1f, -1f), (1f, -1f), (1f, 1f), (-1f, 1f) })
-                {
-                    float a = k % 2 == 0 ? 0.55f : 0.32f, b = k % 2 == 0 ? 0.32f : 0.55f;
-                    Box("Quoin", h, new Vector3(sx * (w / 2f - a / 2f + 0.035f), y + 0.17f, sz * (d / 2f + 0.035f)), new Vector3(a + 0.07f, 0.34f, 0.07f), Stone, false, 2.6f);
-                    Box("Quoin", h, new Vector3(sx * (w / 2f + 0.035f), y + 0.17f, sz * (d / 2f - b / 2f)), new Vector3(0.07f, 0.34f, b), Stone, false, 2.6f);
-                }
-        }
-        // the balcony: a slab on wooden brackets, a wooden railing round it
-        if (balcony)
-        {
-            float bz = d / 2f + 0.6f, by = Storey - 0.02f;
-            Box("Balcony", h, new Vector3(balconyU, by - 0.08f, bz), new Vector3(balconyW, 0.16f, 1.2f), Coping, true, 2f);
-            for (int i = -1; i <= 1; i++)
-                Box("Bracket", h, new Vector3(balconyU + i * (balconyW / 2f - 0.3f), by - 0.42f, d / 2f + 0.45f), new Vector3(0.12f, 0.5f, 0.9f), Wood, false, 1.5f);
-            Railing(h, new Vector3(balconyU - balconyW / 2f + 0.05f, by, d / 2f + 1.15f), new Vector3(balconyU + balconyW / 2f - 0.05f, by, d / 2f + 1.15f), Wood);
-            Railing(h, new Vector3(balconyU - balconyW / 2f + 0.05f, by, d / 2f + 0.05f), new Vector3(balconyU - balconyW / 2f + 0.05f, by, d / 2f + 1.15f), Wood);
-            Railing(h, new Vector3(balconyU + balconyW / 2f - 0.05f, by, d / 2f + 0.05f), new Vector3(balconyU + balconyW / 2f - 0.05f, by, d / 2f + 1.15f), Wood);
-        }
-        // the outside stair up the front to the upper door, with a landing and a low wall
-        if (stair)
-        {
-            float rise = Storey + 0.02f;
-            var foot = h.TransformPoint(new Vector3(-w / 2f + 1.3f + stairRun, 0f, d / 2f + 0.62f));
-            StepsDown(h, foot, h.TransformDirection(Vector3.left), rise, 1.15f, h.TransformDirection(Vector3.forward), drop, old ? Stone : Masonry);
-            Box("Landing", h, new Vector3(-w / 2f + 0.65f, (rise - drop) / 2f, d / 2f + 0.62f), new Vector3(1.3f, rise + drop, 1.24f), old ? Stone : Masonry, true, 2.6f);
-            Railing(h, new Vector3(-w / 2f + 0.05f, rise, d / 2f + 1.2f), new Vector3(-w / 2f + 1.25f, rise, d / 2f + 1.2f), Iron);
-        }
-        float ridge = RoofOver(h, w, d, top, hs.Hip, upper);
-        if (hs.Chimney)
-        {
-            var cp = new Vector3(w * 0.22f, 0, -d * 0.12f);
-            float cb = top + 0.4f, ct = ridge + 0.7f;
-            Box("Chimney", h, cp + Vector3.up * ((cb + ct) / 2f), new Vector3(0.6f, ct - cb, 0.6f), hs.Style == 2 ? Stone : upper, false, 2.5f);
-            Box("ChimneyCap", h, cp + Vector3.up * (ct + 0.05f), new Vector3(0.8f, 0.1f, 0.8f), Coping, false);
-            Box("ChimneyHat", h, cp + Vector3.up * (ct + 0.32f), new Vector3(0.7f, 0.08f, 0.7f), Roof, false);
-            foreach (var (sx, sz) in new[] { (-1f, -1f), (1f, 1f), (1f, -1f), (-1f, 1f) })
-                Box("ChimneyPost", h, cp + new Vector3(sx * 0.28f, ct + 0.18f, sz * 0.28f), new Vector3(0.08f, 0.26f, 0.08f), Stone, false);
-        }
-        // front steps when the door is well above the ground
-        if (!stair && baseY - Y(h.TransformPoint(new Vector3(0, 0, d / 2f + 1.2f)).x, h.TransformPoint(new Vector3(0, 0, d / 2f + 1.2f)).z) > 0.35f)
-        {
-            var g = h.TransformPoint(new Vector3(0, 0, d / 2f + 0.3f));
-            float down = baseY - Y(g.x, g.z + 0f);
-            StepsDown(h, h.TransformPoint(new Vector3(0, -down, d / 2f + 0.3f + Mathf.CeilToInt(down / 0.18f) * 0.3f)), h.TransformDirection(Vector3.back), down, 1.6f, Vector3.zero, 0.3f, Masonry);
-        }
-        if (hs.Yard) Yard(h, hs, w, d);
-    }
-
-    /// <summary>A flight of steps (see Steps) whose blocks reach 'below' metres under its foot.</summary>
-    private static void StepsDown(Transform t, Vector3 foot, Vector3 dir, float rise, float width, Vector3 wallSide, float below, Material m)
-    {
-        int count = Mathf.Max(1, Mathf.CeilToInt(Mathf.Abs(rise) / 0.18f));
-        float stepH = rise / count, run = 0.3f;
-        dir.y = 0; dir.Normalize();
-        float yaw = Quaternion.LookRotation(dir).eulerAngles.y;
-        float bottom = foot.y - below;
-        for (int i = 0; i < count; i++)
-        {
-            var p = foot + dir * (run * (i + 0.5f));
-            float topY = foot.y + stepH * (i + 1);
-            MeshGen.TexBox("Step", new Vector3(p.x, (topY + bottom) / 2f, p.z), new Vector3(width, topY - bottom, run + 0.02f), m, 2f, t, yaw);
-        }
-        if (wallSide != Vector3.zero)
-            Railing(null, foot + wallSide.normalized * (width / 2f - 0.05f) + Vector3.up * 0.05f, foot + dir * (run * count) + wallSide.normalized * (width / 2f - 0.05f) + Vector3.up * (rise + 0.05f), Iron, t);
-    }
-
-    /// <summary>
-    /// A railing from a to b (posts every ~0.9 m, a top and a middle rail, 1 m high). In the house's own
-    /// space when 'h' is given, else in world space under 'worldParent'. Sloping when a and b differ in height.
-    /// </summary>
-    private static void Railing(Transform h, Vector3 a, Vector3 b, Material m, Transform worldParent = null)
-    {
-        var A = h != null ? h.TransformPoint(a) : a;
-        var B = h != null ? h.TransformPoint(b) : b;
-        var parent = h ?? worldParent;
-        float len = Vector3.Distance(new Vector3(A.x, 0, A.z), new Vector3(B.x, 0, B.z));
-        int posts = Mathf.Max(1, Mathf.CeilToInt(len / 0.9f));
-        bool iron = m == Iron;
-        float post = iron ? 0.04f : 0.09f;
-        for (int i = 0; i <= posts; i++)
-        {
-            var p = Vector3.Lerp(A, B, i / (float)posts);
-            var go = MeshGen.Object("RailPost", MeshGen.Box(new Vector3(post, 1.0f, post), 1.5f), m, parent, p + Vector3.up * 0.5f);
-            go.AddComponent<BoxCollider>().size = new Vector3(post, 1.0f, post);
-        }
-        Beam("Rail", parent, A + Vector3.up * 1.0f, B + Vector3.up * 1.0f, iron ? 0.05f : 0.1f, m, true);
-        Beam("Rail", parent, A + Vector3.up * 0.5f, B + Vector3.up * 0.5f, iron ? 0.03f : 0.07f, m, true);
-    }
-
-    /// <summary>A ruined house: walls broken down to ragged tops, no roof, rubble and a fallen beam.</summary>
-    private static void Ruin(Transform h, House hs, Material m)
-    {
-        float w = hs.W, d = hs.D, full = hs.Floors * Storey;
-        for (int s = 0; s < 4; s++)
-        {
-            var (o, u, _, len) = Side(s, w, d);
-            float top = R(1.2f, full);
-            for (float a = -len / 2f; a < len / 2f - 0.01f; a += 1f)
-            {
-                float b = Mathf.Min(len / 2f, a + 1f);
-                top = Mathf.Clamp(Mathf.Lerp(top, R(0.6f, full), 0.55f), 0.5f, full);
-                // a window gap now and then in the standing parts
-                bool gap = top > 2.6f && Chance(0.2);
-                if (gap)
-                {
-                    Box("RuinWall", h, o + u * ((a + b) / 2f) + Vector3.up * 0.45f, SideSize(u, b - a, 0.9f, Thick), m, true, 2.5f);
-                    Box("RuinWall", h, o + u * ((a + b) / 2f) + Vector3.up * ((2.2f + top) / 2f), SideSize(u, b - a, top - 2.2f, Thick), m, true, 2.5f);
-                }
-                else Box("RuinWall", h, o + u * ((a + b) / 2f) + Vector3.up * (top / 2f), SideSize(u, b - a, top, Thick), m, true, 2.5f);
-            }
-        }
-        for (int i = 0; i < 9; i++)
-        {
-            var p = new Vector3(R(-w / 2f + 0.8f, w / 2f - 0.8f), 0, R(-d / 2f + 0.8f, d / 2f - 0.8f));
-            var go = Box("Rubble", h, p + Vector3.up * 0.2f, new Vector3(R(0.4f, 1.2f), R(0.3f, 0.7f), R(0.4f, 1.0f)), Stone, true, 2.6f);
-            if (go != null) go.transform.rotation = Quaternion.Euler(R(-12f, 12f), R(0f, 360f), R(-12f, 12f));
-        }
-        Beam("FallenBeam", h, h.TransformPoint(new Vector3(-w / 2f + 0.6f, 0.1f, 0)), h.TransformPoint(new Vector3(w / 2f - 1f, 2.4f, d * 0.2f)), 0.22f, Wood, true);
-    }
-
-    /// <summary>A walled yard in front of a house: field stone walls following the ground, a wooden gate, a tree.</summary>
-    private static void Yard(Transform h, House hs, float w, float d)
-    {
-        float depth = R(4.5f, 6.5f), half = w / 2f + 1.2f;
-        var corners = new[] { new Vector3(-half, 0, d / 2f), new Vector3(-half, 0, d / 2f + depth), new Vector3(half, 0, d / 2f + depth), new Vector3(half, 0, d / 2f) };
-        for (int s = 0; s < 3; s++)
-        {
-            var a = h.TransformPoint(corners[s]); var b = h.TransformPoint(corners[s + 1]);
-            float len = Vector3.Distance(a, b);
-            var dir = (b - a).normalized;
-            for (float t = 0f; t < len - 0.05f; t += 2f)
-            {
-                float t1 = Mathf.Min(len, t + 2f);
-                // the gate in the middle of the front wall
-                if (s == 1 && (t + t1) / 2f > len / 2f - 1f && (t + t1) / 2f < len / 2f + 1f) continue;
-                var p = a + dir * ((t + t1) / 2f);
-                float gy = Y(p.x, p.z);
-                MeshGen.TexBox("YardWall", new Vector3(p.x, gy + 0.55f, p.z), new Vector3(0.45f, 1.7f, t1 - t + 0.45f), Stone, 2.6f, root, Quaternion.LookRotation(dir).eulerAngles.y);
-                MeshGen.TexBox("YardCoping", new Vector3(p.x, gy + 1.44f, p.z), new Vector3(0.55f, 0.08f, t1 - t + 0.5f), Coping, 2f, root, Quaternion.LookRotation(dir).eulerAngles.y, false);
-            }
-            if (s == 1)
-            {
-                // the gate: two wooden leaves, one ajar
-                var g = a + dir * (len / 2f);
-                float gy = Y(g.x, g.z);
-                var leaf = MeshGen.TexBox("Gate", g - dir * 0.5f + Vector3.up * (gy + 0.7f), new Vector3(0.06f, 1.35f, 0.95f), Shutter, 1.4f, root, Quaternion.LookRotation(dir).eulerAngles.y);
-                var other = MeshGen.TexBox("Gate", g + dir * 0.5f + Vector3.up * (gy + 0.7f), new Vector3(0.06f, 1.35f, 0.95f), Shutter, 1.4f, root, Quaternion.LookRotation(dir).eulerAngles.y + 35f);
-            }
-        }
-        // the tree of the yard
-        var spot = h.TransformPoint(new Vector3(R(-w / 2f + 1f, w / 2f - 1f) * 0.6f, 0, d / 2f + depth * 0.6f));
-        TreeAt(Chance(0.35) ? palms[rng.Next(palms.Length)] : Chance(0.5) ? olives[rng.Next(olives.Length)] : broadleaf, new Vector3(spot.x, Y(spot.x, spot.z), spot.z), R(0.7f, 1f));
-    }
-
     // ------------------------------------------------------------------ trees and grass (impostors)
 
     [System.Serializable]
@@ -1066,6 +574,48 @@ public static class HillVillageBuilder
     }
 
     private static Transform nature;
+
+    private static bool treesReady;
+
+    /// <summary>The tree pictures, made once: the other maps use them too, and making them again would orphan the trees already placed.</summary>
+    private static void EnsureTrees()
+    {
+        if (treesReady && broadleaf != null && broadleaf.Mesh != null && broadleaf.Mat != null) return;
+        LoadTrees();
+        treesReady = true;
+    }
+
+    /// <summary>
+    /// A realistic tree for another map (the same pictures as here): "olive", "pine", "palm",
+    /// "broadleaf", "bush" (a young olive) or "grass", between minH and maxH metres tall, at p (world)
+    /// under 'parent'. Three draws from 'random' (kind, height, turn), as Nature.Tree takes.
+    /// </summary>
+    internal static GameObject RealTree(string kind, System.Random random, Vector3 p, float minH, float maxH, Transform parent)
+    {
+        EnsureTrees();
+        var set = kind == "olive" ? olives : kind == "pine" ? pines : kind == "palm" ? palms : kind == "bush" ? new[] { olives[1], olives[0] } : kind == "grass" ? new[] { grass } : new[] { broadleaf };
+        var k = set[random.Next(set.Length)];
+        float h = minH + (float)random.NextDouble() * (maxH - minH);
+        float yaw = (float)random.NextDouble() * 360f;
+        float scale = h / Mathf.Max(0.1f, k.Info.height);
+        bool small = k.Grass || kind == "bush";
+        var go = new GameObject(k.Grass ? "Grass" : kind == "bush" ? "Bush" : "Tree_" + k.Name);
+        go.transform.SetParent(parent, false);
+        go.transform.SetPositionAndRotation(p - Vector3.up * 0.08f * scale, Quaternion.Euler(0, yaw, 0));
+        go.transform.localScale = Vector3.one * scale;
+        go.AddComponent<MeshFilter>().sharedMesh = k.Mesh;
+        var r = go.AddComponent<MeshRenderer>();
+        r.sharedMaterial = k.Mat;
+        r.shadowCastingMode = small ? UnityEngine.Rendering.ShadowCastingMode.Off : UnityEngine.Rendering.ShadowCastingMode.On;
+        if (!small)
+        {
+            var c = go.AddComponent<CapsuleCollider>();
+            c.radius = Mathf.Clamp(k.Info.trunkRadius * 0.55f, 0.12f, 0.32f);
+            c.height = Mathf.Min(3.2f, k.Info.height * 0.5f);
+            c.center = new Vector3(0, c.height / 2f, 0);
+        }
+        return go;
+    }
 
     /// <summary>A tree (or tuft of grass) standing at p, turned at random, its trunk stopping players and bullets.</summary>
     private static GameObject TreeAt(TreeKind kind, Vector3 p, float scale)
@@ -1162,7 +712,7 @@ public static class HillVillageBuilder
             WallStorey(t, s, w, d, 0f, hgt, Masonry, ops.Where(o => o.Kind == 1).ToList(), true);
             foreach (var op in ops)
             {
-                if (op.Kind == 1) { Dress(t, s, w, d, 0f, op, true, true, true, false); continue; }
+                if (op.Kind == 1) { DressOpening(t, s, w, d, 0f, op, true, true, true, false, DoorWood, 0, false); continue; }
                 var (o, u2, n, _) = Side(s, w, d);
                 var face = o + n * (Thick / 2f);
                 var wc = face + u2 * op.U + Vector3.up * 2.05f;
@@ -1398,110 +948,16 @@ public static class HillVillageBuilder
 
     // ------------------------------------------------------------------ the village
 
-    /// <summary>Every house: position, facing (the front looks along yaw), size, storeys, style and extras.</summary>
-    private static List<House> Houses() => new List<House>
-    {
-        // the upper terrace, first row facing the square
-        new House(-88f, 25f, 180f, 9f, 7f, 2, 1, "balcony"),
-        new House(-75f, 25f, 180f, 8f, 7f, 2, 0, "stair open"),
-        new House(-62f, 26f, 180f, 10f, 8f, 2, 3, "gable balcony chimney"),
-        new House(-49f, 25f, 180f, 7f, 6f, 1, 2, "gable open"),
-        new House(-36f, 25f, 180f, 9f, 7f, 2, 0, "chimney"),
-        new House(-24f, 26f, 180f, 8f, 7f, 2, 1, "stair open"),
-        new House(12f, 25f, 180f, 8f, 7f, 2, 3, "balcony"),
-        // the upper terrace, second row
-        new House(-86f, 43f, 180f, 8f, 7f, 2, 0, "chimney"),
-        new House(-72f, 44f, 180f, 9f, 7f, 2, 3, "gable"),
-        new House(-57f, 43f, 180f, 8f, 7f, 1, 2, "gable open"),
-        new House(-43f, 44f, 180f, 10f, 8f, 2, 0, "balcony stair open"),
-        new House(-28f, 43f, 180f, 8f, 7f, 2, 1, "chimney"),
-        new House(13f, 42f, 180f, 9f, 8f, 2, 0, "yard"),
-        // the west quarter, both sides of its lane
-        new House(-40f, 8f, 180f, 8f, 7f, 2, 0, "balcony open"),
-        new House(-54f, 9f, 180f, 9f, 7f, 2, 3, "stair"),
-        new House(-68f, 8f, 180f, 8f, 6f, 1, 2, "gable open"),
-        new House(-82f, 9f, 180f, 10f, 7f, 2, 1, "balcony chimney"),
-        new House(-40f, -9f, 0f, 8f, 8f, 2, 1, "open"),
-        new House(-55f, -10f, 0f, 9f, 7f, 2, 0, "chimney"),
-        new House(-69f, -10f, 0f, 9f, 7f, 2, 3, "ruin"),
-        new House(-84f, -9f, 0f, 8f, 7f, 2, 0, "stair open"),
-        // the coffee house at the foot of the east street, and the houses up the street
-        new House(39f, 2f, 270f, 8f, 10f, 1, 0, "open"),
-        new House(38.5f, 24f, 270f, 8f, 7f, 2, 3, "gable"),
-        new House(38.5f, 37f, 270f, 9f, 7f, 2, 0, "stair open"),
-        new House(38.5f, 49f, 270f, 8f, 7f, 1, 2, "gable open"),
-        // along the road out east
-        new House(54f, 16f, 180f, 9f, 7f, 2, 0, "balcony"),
-        new House(69f, 17f, 180f, 8f, 7f, 1, 2, "gable open"),
-        new House(84f, 16f, 180f, 10f, 8f, 2, 1, "chimney yard"),
-        new House(55f, -14f, 0f, 8f, 7f, 2, 3, "gable chimney"),
-        new House(71f, -15f, 0f, 9f, 7f, 2, 0, "stair open"),
-        new House(88f, -16f, 0f, 12f, 8f, 1, 2, "gable"),
-        // the lower quarter, first row facing the square's wall
-        new House(-86f, -27f, 0f, 9f, 7f, 2, 1, ""),
-        new House(-72f, -27f, 0f, 8f, 7f, 2, 0, "balcony open"),
-        new House(-58f, -27f, 0f, 10f, 8f, 2, 3, "gable"),
-        new House(-44f, -27f, 0f, 8f, 7f, 1, 2, "gable"),
-        new House(-30f, -27f, 0f, 9f, 7f, 2, 0, "stair open"),
-        new House(-16f, -27f, 0f, 8f, 7f, 2, 1, "chimney"),
-        new House(4f, -27f, 0f, 8f, 7f, 2, 0, "balcony"),
-        new House(16f, -27f, 0f, 8f, 7f, 2, 3, "open"),
-        // the lower quarter, second row facing the groves
-        new House(-80f, -45f, 180f, 8f, 7f, 1, 2, "gable yard"),
-        new House(-64f, -45f, 180f, 9f, 7f, 2, 0, "open"),
-        new House(-48f, -46f, 180f, 8f, 7f, 2, 3, "gable balcony"),
-        new House(-32f, -45f, 180f, 10f, 8f, 2, 1, "yard"),
-        new House(-16f, -45f, 180f, 8f, 7f, 1, 2, "gable open"),
-        new House(0f, -45f, 180f, 9f, 7f, 2, 0, "chimney"),
-        new House(15f, -45f, 180f, 8f, 7f, 2, 1, "stair open"),
-        // down the south east street
-        new House(38.5f, -30f, 270f, 8f, 7f, 2, 0, "balcony"),
-        new House(38.5f, -46f, 270f, 8f, 7f, 1, 2, "gable open"),
-        // farms and the old houses out on the hill
-        new House(-30f, -78f, 0f, 10f, 8f, 2, 2, "gable chimney"),
-        new House(-13f, -81f, 0f, 12f, 8f, 1, 2, "gable"),
-        new House(44f, -80f, 20f, 9f, 7f, 1, 3, "gable open"),
-        new House(-40f, 66f, 160f, 8f, 7f, 1, 2, "ruin"),
-        new House(30f, 78f, 200f, 6f, 5f, 1, 2, "gable"),
-        new House(68f, 44f, 230f, 9f, 7f, 2, 0, "chimney"),
-    };
-
-    /// <summary>The cobbled streets and lanes, and the dirt tracks out to the farms and up the hill.</summary>
-    private static void Streets()
-    {
-        cobbles.Clear(); tracks.Clear();
-        Vector2[] L(params float[] p) { var a = new Vector2[p.Length / 2]; for (int i = 0; i < a.Length; i++) a[i] = new Vector2(p[i * 2], p[i * 2 + 1]); return a; }
-        cobbles.Add((L(29.5f, -6f, 29.5f, 53f), 9f));         // the east street up to the terrace
-        cobbles.Add((L(30f, -6f, 30f, -57f), 8f));            // the street down to the lower quarter
-        cobbles.Add((L(30f, 1f, 105f, 1f), 7f));              // the road out east
-        cobbles.Add((L(-26f, 0f, -99f, 0f), 6f));             // the west quarter's lane
-        cobbles.Add((L(-99f, 19.3f, 24f, 19.3f), 4.4f));      // the terrace lane along the wall
-        cobbles.Add((L(-97f, 34.5f, -17f, 34.5f), 5f));       // the terrace's back lane
-        cobbles.Add((L(-6f, 21f, -6f, 29f), 19f));            // the mosque's courtyard
-        cobbles.Add((L(-99f, -21.6f, 27f, -21.6f), 4.6f));    // the lower lane under the wall
-        cobbles.Add((L(-99f, -36.2f, 27f, -36.2f), 9f));      // the lower quarter's middle lane
-        tracks.Add((L(30f, -57f, 22f, -72f, -12f, -86f, -32f, -84f), 2.6f));
-        tracks.Add((L(22f, -72f, 44f, -86f), 2.4f));
-        tracks.Add((L(30f, 53f, 37f, 66f, 30f, 77f), 2.4f));
-        tracks.Add((L(-97f, 22f, -82f, 50f, -58f, 62f, -40f, 64f), 2.4f));
-        tracks.Add((L(-6f, 48f, -9f, 62f, -2f, 78f), 2.2f));
-        tracks.Add((L(105f, 1f, 130f, 6f), 3f));
-    }
-
     public static MapLayout Build()
     {
         rng = new System.Random(41);
         night.Clear(); mats.Clear(); roofMeshes.Clear();
-        rockMeshes = null; sphereMesh = null;
+        rockMeshes = null; sphereMesh = null; millTower = null; millCap = null;
         root = new GameObject("Map_HillVillage").transform;
         nature = new GameObject("Nature").transform;
         nature.SetParent(root, false);
-        LoadTrees();
-        Levels();
-        var houses = Houses();
-        foreach (var hs in houses)
-            if (Built(hs.X, hs.Z) < 0.95f) HousePad(new Vector3(hs.X, 0, hs.Z), hs.W, hs.D, hs.Yaw);
-        Streets();
+        EnsureTrees();
+        Plan();
         BuildGround();
 
         // the terrace walls between the levels, and the stairs against them
@@ -1553,33 +1009,64 @@ public static class HillVillageBuilder
         TreeAt(broadleaf, new Vector3(-13f, 4.5f, 25f), 1.9f);
         TreeAt(broadleaf, new Vector3(2.5f, 4.5f, 44f), 1.6f);
 
-        // the houses
+        // the houses, the compounds' walls and gates, the garden walls along the lanes
         var hp = new GameObject("Houses").transform;
         hp.SetParent(root, false);
         foreach (var hs in houses) { BuildHouse(hs, hp); Physics.SyncTransforms(); }
+        foreach (var c in compounds) CompoundWalls(c);
+        foreach (var g in gardens) GardenWall(g);
+        Physics.SyncTransforms();
+        // the windmills on the west hill turned to the village, the cemetery and the dusty square before it
+        for (int i = 0; i < windmills.Count; i++) Windmill(windmills[i], R(78f, 102f), i);
+        Cemetery(cemetery);
+        DustySquare();
+        // pavements along the main street and the road
+        foreach (var lane in lanes.Where(l => l.Kerb)) { Pavement(lane, 1); Pavement(lane, 2); }
+        Physics.SyncTransforms();
 
-        // street lamps: the square, the terrace wall, the streets and lanes
-        foreach (var (x, z, two) in new[]
+        // the electricity poles and their wires along the main lanes
+        var poleSpots = new List<Vector2>();
+        foreach (var lane in lanes.Where(l => l.Main))
         {
-            (-24.5f, -15.5f, true), (24.5f, -15.5f, true), (-24.5f, 12.8f, true), (24.5f, 12.8f, false), (-14.5f, -10.5f, true), (2.5f, -10.5f, true),
-            (-90f, 16.4f, false), (-66f, 16.4f, false), (-42f, 16.4f, false), (-18f, 16.4f, false), (12f, 16.4f, false),
-            (34.6f, 10f, false), (34.6f, 22f, false), (34.6f, 34f, false), (34.6f, 46f, false),
-            (34.6f, -12f, false), (34.6f, -26f, false), (34.6f, -40f, false), (34.6f, -52f, false),
-            (50f, 5.2f, false), (66f, 5.2f, false), (82f, 5.2f, false), (98f, 5.2f, false),
-            (-34f, 3.6f, false), (-48f, 3.6f, false), (-62f, 3.6f, false), (-76f, 3.6f, false), (-92f, 3.6f, false),
-            (-88f, -23.4f, false), (-64f, -23.4f, false), (-40f, -23.4f, false), (-22f, -23.4f, false), (10f, -23.4f, false),
-            (-70f, -31.8f, false), (-38f, -31.8f, false), (-6f, -31.8f, false),
-        })
+            Vector3[] prev = null;
+            Vector2 prevAt = default;
+            foreach (var q in AlongLane(lane, 26f, 2, 0.3f, 5f))
+            {
+                var (_, t) = lane.At(Project(lane, q));
+                var ends = Pole(new Vector3(q.x, Y(q.x, q.y), q.y), YawOf(t));
+                bool clear = Enumerable.Range(1, 9).All(i => LaneDistance(Vector2.Lerp(prevAt, q, i / 10f)) < 0.6f);
+                if (prev != null && (q - prevAt).magnitude < 34f && clear)
+                    for (int i = 0; i < 3; i++) Wire(prev[i], ends[i], R(0.35f, 0.7f));
+                prev = ends; prevAt = q;
+                poleSpots.Add(q);
+            }
+        }
+        // street lamps: the square's, then along the lanes on alternate sides
+        foreach (var (x, z, two) in new[] { (-24.5f, -15.5f, true), (24.5f, -15.5f, true), (-24.5f, 12.8f, true), (24.5f, 12.8f, false), (-14.5f, -10.5f, true), (2.5f, -10.5f, true) })
             GlobeLamp(new Vector3(x, Y(x, z), z), two);
+        var lampSpots = new List<Vector2>();
+        foreach (var lane in lanes.Where(l => l.Width >= 3.5f))
+            foreach (var q in AlongLane(lane, lane.Main ? 24f : 28f, 0, 0.35f, 9f))
+            {
+                if (poleSpots.Any(p => (p - q).sqrMagnitude < 9f) || lampSpots.Any(p => (p - q).sqrMagnitude < 100f) || Mathf.Abs(q.x) < 27f && q.y > -19f && q.y < 17f) continue;
+                GlobeLamp(new Vector3(q.x, Y(q.x, q.y), q.y), false);
+                lampSpots.Add(q);
+            }
+        StreetProps();
 
-        Vegetation(houses);
+        Vegetation();
         Farmland();
 
-        // ammunition crates: in the square, by the mosque, up the streets, in the lanes, the groves and on the hill
+        // ammunition crates: in the square, along the lanes of every quarter, in the groves and on the hill
         var supply = new GameObject("AmmoCrates").transform;
         supply.SetParent(root, false);
-        foreach (var (x, z) in new[] { (-20f, -14.5f), (8f, 23f), (36f, 20f), (60f, 3f), (-60f, -22.5f), (-70f, 2.5f), (18f, -62f), (-30f, 72f), (33f, -38f) })
-            Obstacles.AmmoCrate(supply, new Vector3(x, Y(x, z), z), R(0f, 360f));
+        var crates = new List<Vector2> { new Vector2(-20f, -14.5f), new Vector2(18f, -62f), new Vector2(-30f, 72f) };
+        foreach (var (name, frac, side) in new[] { ("TerraceLane", 0.3f, 1), ("UpperLane", 0.55f, 2), ("EastStreet", 0.65f, 2), ("Road", 0.4f, 1), ("WestLane", 0.45f, 1), ("UnderWall", 0.6f, 1), ("MiddleLane", 0.2f, 2), ("StreetDown", 0.75f, 1) })
+        {
+            var lane = LaneNamed(name);
+            crates.AddRange(AlongLane(lane, 999f, side, 0.7f, lane.Length * frac));
+        }
+        foreach (var q in crates) Obstacles.AmmoCrate(supply, new Vector3(q.x, Y(q.x, q.y), q.y), R(0f, 360f));
         // invisible walls just outside the playable area
         foreach (var (c, s) in new[]
         {
@@ -1600,20 +1087,134 @@ public static class HillVillageBuilder
         var layout = new MapLayout { Name = "HILL VILLAGE", Root = root.gameObject, Center = Vector3.zero, Radius = Half };
         var boards = new GameObject("Boards").transform;
         boards.SetParent(root, false);
+        Vector3 Beside(string lane, float frac, int side)
+        {
+            var l = LaneNamed(lane);
+            var q = AlongLane(l, 999f, side, 0.45f, l.Length * frac).DefaultIfEmpty(l.At(l.Length * frac).p).First();
+            return new Vector3(q.x, 0f, q.y);
+        }
+        Vector3 On(string lane, float frac) { var l = LaneNamed(lane); var q = l.At(l.Length * frac).p; return new Vector3(q.x, 0f, q.y); }
         foreach (var (near, readers, ar, en) in new[]
         {
             (new Vector3(-17f, 0f, -14.5f), new Vector3(-6f, 0f, -5f), "الساحة", "THE SQUARE"),
-            (new Vector3(-12f, 4.5f, 19.6f), new Vector3(-6f, 4.5f, 30f), "المسجد", "THE MOSQUE"),
-            (new Vector3(-40f, -2.5f, -34f), new Vector3(-40f, -2.5f, -40f), "الحي السفلي", "THE LOWER QUARTER"),
+            (new Vector3(-12.5f, 4.5f, 20.9f), new Vector3(-6f, 4.5f, 30f), "المسجد", "THE MOSQUE"),
+            (Beside("UnderWall", 0.55f, 1), On("UnderWall", 0.55f), "الحي السفلي", "THE LOWER QUARTER"),
+            (Beside("WestLane", 0.3f, 2), On("WestLane", 0.3f), "الحي الغربي", "THE WEST QUARTER"),
             (new Vector3(12f, 0f, -63f), new Vector3(12f, 0f, -55f), "بساتين الزيتون", "THE OLIVE GROVES"),
             (new Vector3(-12f, 0f, 55f), new Vector3(-12f, 0f, 45f), "تل الصنوبر", "THE PINE HILL"),
-            (new Vector3(58f, 0f, 6.5f), new Vector3(40f, 0f, 1f), "الطريق الشرقي", "THE EAST ROAD"),
+            (Beside("Road", 0.22f, 1), On("Road", 0.22f), "الطريق الشرقي", "THE EAST ROAD"),
+            (new Vector3(-103f, 0f, 2.2f), new Vector3(-99f, 0f, 0.6f), "طواحين الهواء", "THE WINDMILLS"),
+            (new Vector3(59.5f, 0f, -12.5f), new Vector3(64f, 0f, -6f), "المقبرة", "THE CEMETERY"),
         })
             Signboards.Stand(boards, new Vector3(near.x, 0, near.z), readers, ar, en);
         Navigation(layout);
         root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "HillVillage", null, night).ToArray();
-        Debug.Log($"[HillVillage] built: {houses.Count} houses, {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
+        Debug.Log($"[HillVillage] built: {houses.Count} houses ({string.Join(", ", houses.GroupBy(h => h.Kind).Select(g => g.Key + " " + g.Count()))}), {compounds.Count} compounds, {gardens.Count} gardens, {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
         return layout;
+    }
+
+    /// <summary>The dusty square before the cemetery: a row of broad trees along its wall, a burnt-out car, benches, barrels.</summary>
+    private static void DustySquare()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            var p = new Vector3(56.5f + i * 3.9f + R(-0.4f, 0.4f), 0, -26f + R(-0.4f, 0.4f));
+            p.y = Y(p.x, p.z);
+            TreeAt(broadleaf, p, R(1.3f, 1.7f));
+        }
+        Obstacles.CarWreck(root, new Vector3(65.5f, Y(65.5f, -17.5f), -17.5f), 32f);
+        Bench(new Vector3(58.5f, Y(58.5f, -23.2f), -23.2f), 180f);
+        Bench(new Vector3(70f, Y(70f, -23.2f), -23.2f), 180f);
+        for (int i = 0; i < 3; i++) Barrel(new Vector3(56.2f + i * 0.62f, Y(56.2f + i * 0.62f, -14f), -14f), i != 1);
+    }
+
+    /// <summary>Is there room for a small thing here (a sphere above the ground clear of walls)?</summary>
+    private static bool Room(Vector2 q, float radius)
+    {
+        var p = new Vector3(q.x, Y(q.x, q.y), q.y);
+        return !Physics.CheckSphere(p + Vector3.up * (radius + 0.15f), radius, World.EnvMask, QueryTriggerInteraction.Ignore);
+    }
+
+    /// <summary>
+    /// The things by the houses along the lanes: rubbish bags at a corner, barrels, firewood stacked
+    /// against a side wall, pots of flowers by a door, a bench against a front, pallets by the sheds and
+    /// on the road; shipping containers at the edges of the village and burnt-out cars in the lanes.
+    /// </summary>
+    private static void StreetProps()
+    {
+        Physics.SyncTransforms();
+        foreach (var h in houses)
+        {
+            if (h.Lane < 0 || h.Side == 0 || h.Kind == Kind.Wing || h.Ruin) continue;
+            double r = rng.NextDouble();
+            float sx = Chance(0.5) ? -1f : 1f;
+            if (r < 0.13)
+            {
+                var q = h.ToWorld(sx * (h.W / 2f - 0.6f), h.D / 2f + 0.75f);
+                if (Room(q, 0.5f)) Rubbish(new Vector3(q.x, Y(q.x, q.y), q.y));
+            }
+            else if (r < 0.21)
+            {
+                int n = rng.Next(1, 4);
+                for (int i = 0; i < n; i++)
+                {
+                    var q = h.ToWorld(sx * (h.W / 2f + 0.4f), h.D / 2f - 0.6f - i * 0.65f);
+                    if (Room(q, 0.32f)) Barrel(new Vector3(q.x, Y(q.x, q.y), q.y), Chance(0.6));
+                }
+            }
+            else if (r < 0.3 && (h.Kind == Kind.Classic || h.Kind == Kind.Cottage || h.Kind == Kind.Tower) && h.D > 4.5f)
+            {
+                var q = h.ToWorld(sx * (h.W / 2f + 0.7f), 0f);
+                if (Room(q, 0.4f))
+                {
+                    var spot = h.ToWorld(sx * (h.W / 2f + 0.02f), 0f);
+                    var t = new GameObject("Woodpile").transform;
+                    t.SetParent(root, false);
+                    t.SetPositionAndRotation(new Vector3(spot.x, Y(spot.x, spot.y), spot.y), Quaternion.Euler(0, h.Yaw + sx * 90f, 0));
+                    Firewood(t, new Vector3(0, 0, 0.31f), Mathf.Min(2.4f, h.D - 1.6f));
+                }
+            }
+            else if (r < 0.37 && (QuarterOf(h) == RoadQ || QuarterOf(h) == FringeQ || h.Kind == Kind.Shed))
+            {
+                var q = h.ToWorld(sx * (h.W / 2f + 1f), h.D / 2f - 1f);
+                if (Room(q, 0.7f)) Pallets(new Vector3(q.x, Y(q.x, q.y), q.y), h.Yaw + R(-20f, 20f));
+            }
+            else if (r < 0.47 && h.Kind != Kind.Shed && h.Kind != Kind.Shop && !h.OutsideStair)
+            {
+                foreach (float px in new[] { -0.95f, 0.95f })
+                {
+                    var q = h.ToWorld(px, h.D / 2f + 0.3f);
+                    var p = new Vector3(q.x, Y(q.x, q.y), q.y);
+                    Cylinder("DoorPot", root, p, 0.2f, 0.42f, Terracotta, false, 10);
+                    var leaves = Sphere("DoorPlant", root, p + Vector3.up * 0.62f, 0.3f, Chance(0.4) ? Flowers : Leaves);
+                    leaves.transform.localScale = new Vector3(0.6f, 0.5f, 0.6f);
+                }
+            }
+            else if (r < 0.52 && h.Kind != Kind.Shed)
+            {
+                var q = h.ToWorld(sx * (h.W / 2f - 1.6f), h.D / 2f + 0.45f);
+                if (Room(q, 0.45f)) Bench(new Vector3(q.x, Y(q.x, q.y), q.y), h.Yaw + 180f);
+            }
+        }
+        // shipping containers at the edges of the village, red and blue, as in the pictures
+        foreach (var (x, z, yaw, red) in new[] { (51f, -75.5f, 20f, true), (54f, -84.5f, 105f, false), (97f, -13f, 90f, false), (-46f, -61f, 5f, true), (92f, 22f, 75f, true) })
+        {
+            var c = new Vector3(x, Y(x, z), z);
+            if (!Physics.CheckBox(c + Vector3.up * 1.4f, new Vector3(1.3f, 1.2f, 3.1f), Quaternion.Euler(0, yaw, 0), World.EnvMask, QueryTriggerInteraction.Ignore))
+                ShippingContainer(c - Vector3.up * 0.05f, yaw, red);
+        }
+        // burnt-out cars left at the side of the lanes
+        foreach (var (name, frac, side) in new[] { ("Road", 0.62f, 2), ("MiddleLane", 0.42f, 1), ("WestLane", 0.72f, 2), ("SouthLane", 0.3f, 1) })
+        {
+            var lane = LaneNamed(name);
+            var (p, t) = lane.At(lane.Length * frac);
+            var n = side == 1 ? new Vector2(-t.y, t.x) : new Vector2(t.y, -t.x);
+            var q = p + n * (lane.Width / 2f - 1.15f);
+            var c = new Vector3(q.x, Y(q.x, q.y), q.y);
+            float yaw = YawOf(t) + R(-8f, 8f);
+            if (!Physics.CheckBox(c + Vector3.up * 0.9f, new Vector3(0.95f, 0.6f, 2.2f), Quaternion.Euler(0, yaw, 0), World.EnvMask, QueryTriggerInteraction.Ignore))
+                Obstacles.CarWreck(root, c, yaw);
+        }
     }
 
     /// <summary>
@@ -1621,7 +1222,7 @@ public static class HillVillageBuilder
     /// and on the east slope, trees by the houses, rocks on the steep ground, and dry grass everywhere
     /// the ground is not paved or trodden.
     /// </summary>
-    private static void Vegetation(List<House> houses)
+    private static void Vegetation()
     {
         Physics.SyncTransforms();
         int pinesPlaced = 0;
@@ -1666,7 +1267,7 @@ public static class HillVillageBuilder
         {
             var hs = houses[rng.Next(houses.Count)];
             var p = new Vector3(hs.X + R(-9f, 9f), 0, hs.Z + R(-9f, 9f));
-            if (LineDistance(cobbles, p.x, p.z) < 1.5f || Mathf.Abs(p.x) < 27f && p.z > -17f && p.z < 15f) continue;
+            if (LaneDistance(new Vector2(p.x, p.z)) < 1.5f || Mathf.Abs(p.x) < 27f && p.z > -17f && p.z < 15f) continue;
             p.y = Y(p.x, p.z);
             if (!Free(p, 1.4f)) continue;
             TreeAt(Chance(0.3) ? palms[rng.Next(palms.Length)] : Chance(0.5) ? broadleaf : olives[rng.Next(olives.Length)], p, R(0.8f, 1.3f));
@@ -1689,7 +1290,7 @@ public static class HillVillageBuilder
         for (int i = 0, placed = 0; i < 9000 && placed < 1700; i++)
         {
             float x = R(-Half - 25f, Half + 25f), z = R(-Half - 25f, Half + 25f);
-            if (LineDistance(cobbles, x, z) < 0.6f || (Mathf.Abs(x) < 26.5f && z > -17.5f && z < 15.5f)) continue;
+            if (LaneDistance(new Vector2(x, z)) < 0.6f || (Mathf.Abs(x) < 26.5f && z > -17.5f && z < 15.5f)) continue;
             float built = Built(x, z);
             if (built > 0.6f && !Chance(0.12)) continue;
             if (z > 60f && !Chance(0.35)) continue;
@@ -1719,9 +1320,11 @@ public static class HillVillageBuilder
                 x += len + R(2f, 5f);
             }
         var hayMat = Mats.Pbr("K_Hay", "Ground104", new Color(1f, 0.86f, 0.52f), 0.05f);
-        foreach (var (x, z) in new[] { (86f, -23f), (89.5f, -23.5f), (93f, -22.5f), (-18f, -88f), (-14.5f, -88.5f), (-11f, -88f) })
+        Physics.SyncTransforms();
+        foreach (var (x, z) in new[] { (84f, -44f), (87.5f, -44.5f), (91f, -43.5f), (-18f, -88f), (-14.5f, -88.5f), (-11f, -88f), (-36f, -72f) })
         {
             float gy = Y(x, z);
+            if (Physics.CheckSphere(new Vector3(x, gy + 0.9f, z), 0.8f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
             var bale = MeshGen.Object("HayBale", MeshGen.Cylinder(0.7f, 1.3f, 1.5f, 16), hayMat, root, new Vector3(x - 0.65f, gy + 0.68f, z));
             bale.transform.rotation = Quaternion.Euler(0, 0, 90f);
             var c = bale.AddComponent<CapsuleCollider>();
@@ -1793,12 +1396,25 @@ public static class HillVillageBuilder
         layout.Links = links.Where(l => reached[l.x] && reached[l.y]).Select(l => new Vector2Int(index[l.x], index[l.y])).ToArray();
         // the spawn points: spread over the levels, each on open ground
         var spawns = new List<Vector3>();
-        foreach (var (x, z) in new[] { (-82f, 19.5f), (18f, 19.5f), (31f, 47f), (70f, 2f), (32f, -50f), (-40f, -36f), (-88f, 0.5f), (-6f, 58f), (-18f, -12f) })
+        var spots = new List<Vector2> { new Vector2(-18f, -12f), new Vector2(-6f, 58f) };
+        foreach (var (name, frac) in new[] { ("TerraceLane", 0.12f), ("UpperLane", 0.6f), ("EastStreet", 0.85f), ("Road", 0.72f), ("StreetDown", 0.8f), ("MiddleLane", 0.3f), ("MiddleLane", 0.85f), ("WestLane", 0.85f), ("MosqueLane", 0.5f) })
         {
-            var p = new Vector3(x, Y(x, z), z);
-            if (Physics.CheckCapsule(p + Vector3.up * 0.6f, p + Vector3.up * 1.6f, 0.4f, mask, QueryTriggerInteraction.Ignore))
-                Debug.LogWarning($"[HillVillage] spawn point {x},{z} is blocked");
-            spawns.Add(p);
+            var lane = LaneNamed(name);
+            spots.Add(lane.At(lane.Length * frac).p);
+        }
+        foreach (var q in spots)
+        {
+            Vector3 best = new Vector3(q.x, Y(q.x, q.y), q.y);
+            bool ok = false;
+            foreach (var (dx, dz) in new[] { (0f, 0f), (1.5f, 0f), (-1.5f, 0f), (0f, 1.5f), (0f, -1.5f), (3f, 0f), (-3f, 0f), (0f, 3f), (0f, -3f) })
+            {
+                var p = new Vector3(q.x + dx, Y(q.x + dx, q.y + dz), q.y + dz);
+                if (Physics.CheckCapsule(p + Vector3.up * 0.6f, p + Vector3.up * 1.6f, 0.4f, mask, QueryTriggerInteraction.Ignore)) continue;
+                best = p; ok = true;
+                break;
+            }
+            if (!ok) Debug.LogWarning($"[HillVillage] spawn point {q.x},{q.y} is blocked");
+            spawns.Add(best);
         }
         layout.Spawns = spawns.ToArray();
         Debug.Log($"[HillVillage] navigation: {kept.Count} waypoints of {points.Count}, {layout.Links.Length} links");

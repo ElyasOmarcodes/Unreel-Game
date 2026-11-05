@@ -584,7 +584,7 @@ public static class VillageBuilder
                 Block("Leg", t, new Vector3(w * 0.15f + x, 0.2f, yardZ - 1.5f + z), new Vector3(0.08f, 0.4f, 0.08f), OldWood, 0.02f, false);
         if (climbTree) ClimbingTree(t, t.TransformPoint(new Vector3(w * 0.25f, 0, yardZ + 0.5f)), t.TransformDirection(Vector3.back));
         else if (r.NextDouble() < 0.7)
-            Nature.Tree(Nature.Trees, rng, t.TransformPoint(new Vector3(w * 0.25f, 0, yardZ + 0.5f)), 6f, 8f, t);
+            HillVillageBuilder.RealTree(r.NextDouble() < 0.5 ? "broadleaf" : "olive", rng, t.TransformPoint(new Vector3(w * 0.25f, 0, yardZ + 0.5f)), 6f, 8f, t);
     }
 
     /// <summary>
@@ -630,7 +630,7 @@ public static class VillageBuilder
         MeshGen.TexCylinder("TreeSeatTop", Vector3.up * 0.9f, 4.35f, 0.12f, MudPlaster, 2.5f, t, false);
         global::Buildings.Stairs(t, new Vector3(0, 0, -5.9f), Vector3.forward, 0.9f, 1.6f, Flagstone);
         global::Buildings.Stairs(t, new Vector3(0, 0, 5.9f), Vector3.back, 0.9f, 1.6f, Flagstone);
-        Nature.Tree(Nature.Trees, rng, Vector3.up * 1f, 11f, 13f, t);
+        HillVillageBuilder.RealTree("broadleaf", rng, Vector3.up * 1f, 11f, 13f, t);
         // two rows of shops facing the square
         foreach (float side in new[] { -1f, 1f })
         {
@@ -844,7 +844,7 @@ public static class VillageBuilder
             {
                 float bz = z + s * R(10f, 13f);
                 if (Mathf.Abs(x - 12f) < 6f || Mathf.Abs(x + 48f) < 5f || rng.NextDouble() < 0.35) continue;
-                Nature.Tree(rng.NextDouble() < 0.5 ? Nature.Pines : Nature.Trees, rng, new Vector3(x, Y(x, bz), bz), 9f, 13f, nature);
+                HillVillageBuilder.RealTree(rng.NextDouble() < 0.5 ? "pine" : "broadleaf", rng, new Vector3(x, Y(x, bz), bz), 9f, 13f, nature);
             }
         }
         // orchards on the north west, trees scattered over the fields
@@ -853,22 +853,30 @@ public static class VillageBuilder
             {
                 float x = -76f + i * 6.5f + R(-0.8f, 0.8f), z = 22f + k * 6.5f + R(-0.8f, 0.8f);
                 if (FlatWeight(x, z) > 0.2f) continue;
-                Nature.Tree(Nature.Trees, rng, new Vector3(x, Y(x, z), z), 4.5f, 6f, nature);
+                HillVillageBuilder.RealTree("olive", rng, new Vector3(x, Y(x, z), z), 4.5f, 6f, nature);
             }
         for (int i = 0; i < 46; i++)
         {
             float x = R(-Half + 6f, Half - 6f), z = R(-Half + 6f, Half - 6f);
             if (FlatWeight(x, z) > 0.1f || PathWeight(x, z) > 0.1f || Mathf.Abs(z - RiverZ(x)) < 10f || new Vector2(x, z).magnitude < 24f) continue;
             if (Physics.CheckSphere(new Vector3(x, Y(x, z) + 1f, z), 3f)) continue;
-            Nature.Tree(rng.NextDouble() < 0.25 ? Nature.Pines : Nature.Trees, rng, new Vector3(x, Y(x, z), z), 7f, 11f, nature);
-            Nature.Place(Nature.Bushes[rng.Next(Nature.Bushes.Length)], new Vector3(x + R(-2f, 2f), Y(x, z), z + R(-2f, 2f)), R(0, 360), R(0.9f, 1.5f), nature);
+            HillVillageBuilder.RealTree(rng.NextDouble() < 0.25 ? "pine" : "broadleaf", rng, new Vector3(x, Y(x, z), z), 7f, 11f, nature);
+            HillVillageBuilder.RealTree("bush", rng, new Vector3(x + R(-2f, 2f), Y(x, z), z + R(-2f, 2f)), 0.9f, 1.5f, nature);
         }
         // grass and flowers on the fields (few: they are drawn one by one)
         for (int i = 0; i < 200; i++)
         {
             float x = R(-Half, Half), z = R(-Half, Half);
             if (FlatWeight(x, z) > 0.05f || PathWeight(x, z) > 0.1f || Mathf.Abs(z - RiverZ(x)) < 7f) continue;
-            Nature.Place(Nature.Ground[rng.Next(Nature.Ground.Length)], new Vector3(x, Y(x, z), z), R(0, 360), R(0.4f, 0.8f), nature);
+            HillVillageBuilder.RealTree("grass", rng, new Vector3(x, Y(x, z), z), 0.45f, 0.85f, nature);
+        }
+        // more dry grass, drawn with numbers of its own (the rest of the map stays where it was)
+        var tufts = new System.Random(7);
+        for (int i = 0; i < 700; i++)
+        {
+            float x = -Half + (float)tufts.NextDouble() * 2f * Half, z = -Half + (float)tufts.NextDouble() * 2f * Half;
+            if (FlatWeight(x, z) > 0.05f || PathWeight(x, z) > 0.1f || Mathf.Abs(z - RiverZ(x)) < 6f) continue;
+            HillVillageBuilder.RealTree("grass", tufts, new Vector3(x, Y(x, z), z), 0.4f, 0.9f, nature);
         }
         // mud walls on the field terraces: cover on the north west hill
         for (int i = 0; i < 6; i++)
