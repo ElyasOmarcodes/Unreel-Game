@@ -899,7 +899,7 @@ public static partial class HillVillageBuilder
                 Box("ShedWall", h, new Vector3(sx * (w / 2f - pw / 2f), wallH / 2f, d / 2f - t / 2f), new Vector3(pw, wallH, t), wall, true, 2.5f);
             }
             Box("ShedLintel", h, new Vector3(0, wallH - 0.2f, d / 2f - t / 2f), new Vector3(gw, 0.4f, t), Wood, true, 1.5f);
-            var leaf = Box("ShedDoor", h, new Vector3(-gw / 2f - 0.3f, 1.1f, d / 2f + gw / 4f), new Vector3(0.06f, 2.1f, gw / 2f), Chance(0.5) ? GreyWood : RollerShutter, true, 1.4f);
+            var leaf = Box("ShedDoor", h, new Vector3(-gw / 2f - 0.3f, 1.1f, d / 2f + gw / 4f), new Vector3(0.06f, 2.1f, gw / 2f), Chance(0.5) ? GreyWood : DoorWood, true, 1.4f);
         }
         else
             foreach (float sx in new[] { -1f, 1f })
