@@ -705,7 +705,7 @@ namespace UA
                 (12, "26b-hill-house-close", new Vector3(-26f, -0.8f, -35.4f), new Vector3(-27f, 0.5f, -27f)),
                 (12, "26c-hill-saray", new Vector3(-85f, -0.6f, -41.5f), new Vector3(-85f, -0.5f, -53f)),
                 (12, "26d-hill-saray-east", new Vector3(62f, 7.6f, 22f), new Vector3(62f, 8f, 38f)),
-                (12, "27-hill-olive-groves", new Vector3(12f, -1.5f, -76f), new Vector3(-20f, -9f, -106f)),
+                (12, "27-hill-olive-groves", new Vector3(14f, 9f, -84f), new Vector3(-20f, -7f, -112f)),
                 (12, "28-hill-from-the-pines", new Vector3(0f, 19f, 70f), new Vector3(-6f, 3f, 10f)),
                 (12, "29-hill-east-road", new Vector3(100f, 8.4f, 4f), new Vector3(50f, 2f, 2f)),
                 (12, "29d-hill-cemetery", new Vector3(64f, 2.6f, -11f), new Vector3(64f, -1f, -36f)),
