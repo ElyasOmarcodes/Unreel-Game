@@ -689,11 +689,12 @@ namespace UA
                 (5, "60c-zahra-night-gate", new Vector3(-53.5f, 2.2f, -107f), new Vector3(-53.5f, 7f, -124f)),
                 // the hill village (an Aegean village after the reference picture)
                 (12, "20-hill-square", new Vector3(19f, 7f, -16f), new Vector3(-10f, 2f, 6f)),
-                (12, "20b-hill-square-to-mosque", new Vector3(-6f, 2f, -14f), new Vector3(-6f, 8f, 26f)),
+                (12, "20b-hill-square-to-mansion", new Vector3(-6f, 2f, -14f), new Vector3(-6f, 8f, 26f)),
                 (12, "20c-hill-platform", new Vector3(-16f, 1.8f, -12f), new Vector3(-6f, 1.5f, -5f)),
-                (12, "21-hill-overview", new Vector3(70f, 45f, -95f), new Vector3(0f, 0f, 10f)),
-                (12, "21b-hill-from-above", new Vector3(0f, 150f, -40f), new Vector3(0f, 0f, 0f)),
-                (12, "22-hill-mosque", new Vector3(12f, 6.4f, 19f), new Vector3(-6f, 9f, 35f)),
+                (12, "21-hill-overview", new Vector3(95f, 60f, -125f), new Vector3(-10f, 0f, 10f)),
+                (12, "21b-hill-from-above", new Vector3(0f, 210f, -60f), new Vector3(0f, 0f, 5f)),
+                (12, "22-hill-mansion", new Vector3(-6f, 6.4f, 19.5f), new Vector3(-6f, 9f, 35f)),
+                (12, "22b-hill-mansion-garden", new Vector3(5f, 7f, 22.5f), new Vector3(-13f, 5f, 30f)),
                 (12, "23-hill-east-street", new Vector3(30f, 1.8f, 6f), new Vector3(30f, 4.5f, 45f)),
                 (12, "23b-hill-shops", new Vector3(25f, 1.7f, -5f), new Vector3(38f, 2.6f, 9f)),
                 (12, "24-hill-terrace-lane", new Vector3(-16f, 6.3f, 18.8f), new Vector3(-80f, 5.5f, 22f)),
@@ -708,7 +709,8 @@ namespace UA
                 (12, "28-hill-from-the-pines", new Vector3(0f, 19f, 70f), new Vector3(-6f, 3f, 10f)),
                 (12, "29-hill-east-road", new Vector3(100f, 8.4f, 4f), new Vector3(50f, 2f, 2f)),
                 (12, "29d-hill-cemetery", new Vector3(64f, 2.6f, -11f), new Vector3(64f, -1f, -36f)),
-                (12, "29e-hill-windmills", new Vector3(-95f, 12f, -12f), new Vector3(-119f, 21f, 42f)),
+                (12, "29e-hill-windmills", new Vector3(-126f, 14f, -14f), new Vector3(-149f, 24f, 40f)),
+                (12, "29g-hill-road", new Vector3(45f, 32f, 62f), new Vector3(10f, 20f, 100f)),
                 (12, "29f-hill-roofs", new Vector3(22f, 14f, -64f), new Vector3(-20f, -2f, -35f)),
                 (13, "29b-hill-square-sunset", new Vector3(19f, 7f, -16f), new Vector3(-10f, 2f, 6f)),
                 (14, "29c-hill-square-night", new Vector3(19f, 7f, -16f), new Vector3(-10f, 2f, 6f)),
@@ -870,6 +872,24 @@ namespace UA
                 cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(l.transform.position + Vector3.up * 1.5f - from));
                 yield return Wait(0.5f);
                 yield return Shot($"95{(char)('a' + ladders++)}-citylord-ladder");
+            }
+            // the hill village: its wooden ladders up to the flat roofs, its walled yards
+            World.I.ApplyLighting(12);
+            yield return Until(() => World.I.MapReady, 30);
+            int hillShots = 0;
+            foreach (var l in UnityEngine.Object.FindObjectsByType<Ladder>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Take(3).ToList())
+            {
+                var from = l.transform.position - l.Into * 6f + Vector3.up * 2.5f + Vector3.Cross(Vector3.up, l.Into) * 3f;
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(l.transform.position + Vector3.up * 2f - from));
+                yield return Wait(0.5f);
+                yield return Shot($"29{(char)('h' + hillShots++)}-hill-ladder");
+            }
+            foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Where(x => x.name == "PlotGate").Take(6).Where((x, i) => i % 2 == 0).ToList())
+            {
+                var from = t.position + new Vector3(6f, 7f, 6f);
+                cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(t.position - t.forward * 2f - from));
+                yield return Wait(0.5f);
+                yield return Shot($"29{(char)('h' + hillShots++)}-hill-yard");
             }
             // the street lamps at the edges of the streets and walks (STEEL CITY, Old Town, Al-Zahra)
             int lampShot = 0;

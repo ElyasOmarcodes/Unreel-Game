@@ -12,7 +12,9 @@ public static partial class HillVillageBuilder
         var ci = CultureInfo.InvariantCulture;
         string F(float f) => f.ToString("0.###", ci);
         var sb = new StringBuilder("{\"houses\":[");
-        sb.Append(string.Join(",", houses.Select(h => $"[{F(h.X)},{F(h.Z)},{F(h.Yaw)},{F(h.W)},{F(h.D)},{h.Floors},\"{h.Kind}\",{h.Roof},{h.Colour},{(h.Yard ? 1 : 0)},{F(h.YardDepth)},{(h.Gallery ? 1 : 0)}]")));
+        sb.Append(string.Join(",", houses.Select(h => $"[{F(h.X)},{F(h.Z)},{F(h.Yaw)},{F(h.W)},{F(h.D)},{h.Floors},\"{h.Kind}\",{h.Roof},{h.Colour},{(h.Yard ? 1 : 0)},{F(h.YardDepth)},{(h.Gallery ? 1 : 0)},{(h.Ladder ? 1 : 0)}]")));
+        sb.Append("],\"plots\":[");
+        sb.Append(string.Join(",", plots.Select(q => $"[{F(q.Area.X)},{F(q.Area.Z)},{F(q.Area.Yaw)},{F(q.Area.W)},{F(q.Area.D)},{(q.Big ? 1 : 0)}]")));
         sb.Append("],\"lanes\":[");
         sb.Append(string.Join(",", lanes.Select(l => "{\"w\":" + F(l.Width) + ",\"p\":[" + string.Join(",", l.P.Select(p => $"[{F(p.x)},{F(p.y)}]")) + "]}")));
         sb.Append("],\"tracks\":[");
@@ -30,7 +32,7 @@ public static partial class HillVillageBuilder
         sb.Append(string.Join(",", poles.Select(p => $"[{F(p.x)},{F(p.y)}]")));
         sb.Append("],\"height\":[");
         var rows = new System.Collections.Generic.List<string>();
-        for (float z = 140; z >= -140; z -= 1f) rows.Add("[" + string.Join(",", Enumerable.Range(0, 281).Select(i => F(GroundHeight(-140 + i, z)))) + "]");
+        for (float z = 165; z >= -165; z -= 1f) rows.Add("[" + string.Join(",", Enumerable.Range(0, 331).Select(i => F(GroundHeight(-165 + i, z)))) + "]");
         sb.Append(string.Join(",", rows));
         sb.Append("]}");
         return sb.ToString();
@@ -41,7 +43,7 @@ public static class Program
     public static void Main(string[] a)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var s = HillVillageBuilder.Dump(a.Length > 1 ? int.Parse(a[1]) : 44);
+        var s = HillVillageBuilder.Dump(a.Length > 1 ? int.Parse(a[1]) : 46);
         System.IO.File.WriteAllText(a[0], s);
         System.Console.WriteLine($"plan in {sw.ElapsedMilliseconds} ms");
     }

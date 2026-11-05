@@ -227,6 +227,7 @@ SOLO|تنها|فردي|SOLO
 respawning...|بازگشت به میدان...|العودة إلى الميدان...|reapareciendo...
 TOP {0}|برترین {0}|الأعلى {0}|MEJOR {0}
 AMMO AND GRENADES REFILLED|مهمات و نارنجک ها پر شد|تمت تعبئة الذخيرة والقنابل|MUNICIÓN Y GRANADAS RECARGADAS
+AMMO IS FULL|مهمات پر است|الذخيرة ممتلئة|LA MUNICIÓN ESTÁ LLENA
 DO NOT SHOOT THE BOARDS|به تابلوها شلیک نکن|لا تطلق النار على اللوحات|NO DISPARES A LOS LETREROS
 the shot comes back on you|گلوله به خودت برمی گردد|الطلقة ترتد عليك|el disparo se vuelve contra ti
 TOO FAR AWAY|خیلی دور است|بعيد جدا|DEMASIADO LEJOS

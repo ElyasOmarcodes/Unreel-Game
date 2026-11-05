@@ -480,6 +480,12 @@ namespace UA
                 pair.Value.color = pair.Key == Controls.Button.Fire || pair.Key == Controls.Button.FireLeft
                     ? new Color(1f, 0.3f, 0.2f, (held ? 0.55f : 0.32f) * alpha)
                     : new Color(1, 1, 1, (held || active ? 0.4f : 0.14f) * alpha);
+                if (pair.Key == Controls.Button.Ammo)
+                {
+                    // nothing missing: the button stays, faded
+                    foreach (var g in pair.Value.GetComponentsInChildren<Graphic>())
+                        if (g != pair.Value) { var gc = g.color; gc.a = Controls.AmmoFull ? 0.4f : 1f; g.color = gc; }
+                }
             }
             if (buttonLabels.TryGetValue(Controls.Button.Grenade, out var grenadeLabel))
                 grenadeLabel.text = "x" + (lp != null ? lp.Grenades : 0);

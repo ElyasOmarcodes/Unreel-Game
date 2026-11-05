@@ -2,7 +2,7 @@ import json, math, sys
 import numpy as np
 from PIL import Image, ImageDraw
 d = json.load(open(sys.argv[1]))
-S = 4.0; E = 140
+S = 4.0; E = 165
 R = int(2 * E * S)
 H = np.array(d["height"])  # rows z=140..-140, cols x=-140..140
 gy, gx = np.gradient(H)
@@ -24,13 +24,22 @@ for k in d["keep"]:
 cols = {"Classic": (230, 120, 70), "Tower": (200, 60, 40), "Flat": (150, 150, 160), "Shop": (90, 140, 220), "Cottage": (210, 170, 90), "Shed": (120, 90, 60), "Wing": (170, 80, 170)}
 def turn(yaw, x, z):
     a = math.radians(yaw); c, s = math.cos(a), math.sin(a); return (x * c + z * s, -x * s + z * c)
+def rect(x, z, yaw, w, dd):
+    return [turn(yaw, sx * w / 2, sz * dd / 2) for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+for q in d.get("plots", []):
+    x, z, yaw, w, dd, big = q
+    pts = rect(x, z, yaw, w, dd)
+    dr.polygon([px(x + p[0], z + p[1]) for p in pts], fill=(150, 175, 110, 255), outline=(95, 85, 70, 255), width=3)
 for h in d["houses"]:
-    x, z, yaw, w, dd, fl, kind, roof, col, yard, ydep, gal = h
+    x, z, yaw, w, dd, fl, kind, roof, col, yard, ydep, gal = h[:12]
     pts = [turn(yaw, sx * w / 2, sz * dd / 2) for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
     c = cols[kind]; c = tuple(int(v * (0.75 + 0.12 * fl)) for v in c)
     dr.polygon([px(x + p[0], z + p[1]) for p in pts], fill=c + (255,), outline=(40, 30, 20, 255))
     f = turn(yaw, 0, dd / 2 + 0.6)
     dr.line([px(x, z), px(x + f[0], z + f[1])], fill=(0, 0, 0, 160), width=2)
+    if len(h) > 12 and h[12]:
+        lp = turn(yaw, -w / 2 - 1.2, 0)
+        dr.ellipse([px(x + lp[0] - 0.9, z + lp[1] + 0.9), px(x + lp[0] + 0.9, z + lp[1] - 0.9)], fill=(255, 255, 0, 255), outline=(0, 0, 0, 255))
     if yard:
         yp = [turn(yaw, sx * (w / 2 + 1.2), dd / 2 + (ydep if sz else 0)) for sx, sz in ((-1, 0), (-1, 1), (1, 1), (1, 0))]
         dr.line([px(x + p[0], z + p[1]) for p in yp], fill=(110, 100, 90, 255), width=3)

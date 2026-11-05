@@ -74,8 +74,15 @@ public static partial class HillVillageBuilder
         new Color(0.42f, 0.44f, 0.45f), new Color(0.86f, 0.86f, 0.82f), new Color(0.82f, 0.52f, 0.56f),
     };
 
-    /// <summary>Painted iron (railings): the house's paint, or the pink of the concrete balconies (5).</summary>
-    private static Material RailOf(int paint) => AssetSetup.Solid("K_Rail" + paint, railColours[Mathf.Clamp(paint, 0, railColours.Length - 1)], 0.45f, 0.45f);
+    /// <summary>
+    /// Painted iron (railings): the house's paint, or the pink of the concrete balconies (5). Four tins
+    /// of paint for all the railings (fewer materials: fewer draw calls on a phone).
+    /// </summary>
+    private static Material RailOf(int paint)
+    {
+        int tin = paint == 5 ? 5 : paint == 4 ? 4 : paint == 2 || paint == 3 ? 3 : 1;
+        return AssetSetup.Solid("K_Rail" + tin, railColours[tin], 0.45f, 0.45f);
+    }
 
     private static readonly Color[] signColours =
     {
@@ -290,7 +297,7 @@ public static partial class HillVillageBuilder
     /// the old ones, balcony, outside stair, roof (hip, gable, flat behind a parapet or lean-to) and what
     /// stands on it, porch, chimney, the front steps when the door is above the street, and its yard.
     /// </summary>
-    private static void BuildHouse(House hs, Transform parent)
+    private static Transform BuildHouse(House hs, Transform parent)
     {
         var rot = Quaternion.Euler(0, hs.Yaw, 0);
         var centre = new Vector3(hs.X, 0, hs.Z);
@@ -301,7 +308,7 @@ public static partial class HillVillageBuilder
         h.SetPositionAndRotation(new Vector3(centre.x, baseY, centre.z), rot);
         float w = hs.W, d = hs.D;
         float drop = baseY - lo + 0.4f;
-        if (hs.Kind == Kind.Shed) { Shed(h, hs, drop); return; }
+        if (hs.Kind == Kind.Shed) { Shed(h, hs, drop); return h; }
         bool flat = hs.Roof == 2, shop = hs.Kind == Kind.Shop, old = hs.Style >= 2;
         var plaster = WallOf(hs.Colour);
         var upper = hs.Style == 0 || hs.Style == 1 ? plaster : hs.Style == 2 ? Stone : OldPlaster;
@@ -320,7 +327,7 @@ public static partial class HillVillageBuilder
             var bc = (s < 2 ? o : new Vector3(o.x, 0, 0)) + n * (Thick / 2f + 0.03f) + Vector3.up * ((band - drop) / 2f);
             Box("StoneBand", h, bc, SideSize(u, bandLen, band + drop, 0.06f), flat ? Coping : Stone, false, 2.6f);
         }
-        if (hs.Ruin) { Ruin(h, hs, lower); return; }
+        if (hs.Ruin) { Ruin(h, hs, lower); return h; }
 
         float groundH = shop ? 3.6f : Storey;
         float FloorY(int f) => f == 0 ? 0f : groundH + (f - 1) * Storey;
@@ -483,7 +490,24 @@ public static partial class HillVillageBuilder
             Box("ShopPavement", h, new Vector3(0, -down / 2f - 0.02f, d / 2f + 0.6f), new Vector3(w + 0.2f, down + 0.04f, 1.2f), Paving, true, 3f);
         }
         if (hs.Yard) Yard(h, hs, w, d);
+        // the wooden ladder (CityLord's) up the left wall to the flat roof, where the parapet is open
+        if (hs.Ladder && hs.Roof == 2)
+        {
+            var outward = h.TransformDirection(Vector3.left);
+            var wall = h.TransformPoint(new Vector3(-w / 2f - 0.02f, 0f, 0f));
+            var outside = h.TransformPoint(new Vector3(-w / 2f - 0.7f, 0f, 0f));
+            float gy = Y(outside.x, outside.z);
+            var foot = new Vector3(wall.x, gy, wall.z);
+            float roofY = baseY + top + 0.24f;
+            Physics.SyncTransforms();
+            CityLordBuilder.PlaceLadder(h, foot, outward, roofY - gy);
+            ladderLinks.Add((foot + outward * 2.4f, h.TransformPoint(new Vector3(-w / 2f + 1.1f, top + 0.24f, 0f))));
+        }
+        return h;
     }
+
+    /// <summary>Where the ladders stand: a spot on the ground before each and one on the roof it reaches (the bots' way up).</summary>
+    private static readonly List<(Vector3 bottom, Vector3 top)> ladderLinks = new List<(Vector3, Vector3)>();
 
     /// <summary>Dressed stone quoins at the corners, alternately long and short, from 'from' to 'top'.</summary>
     private static void Quoins(Transform h, float w, float d, float from, float top)
@@ -740,6 +764,7 @@ public static partial class HillVillageBuilder
                 Box("ParapetCap", h, p + Vector3.up * (py + ph + 0.03f), alongX ? new Vector3(b - a + 0.04f, 0.06f, 0.26f) : new Vector3(0.26f, 0.06f, b - a + 0.04f), Coping, false, 2f);
             }
             if (s == 3 && hs.RoofStair) { Part(-len / 2f, stairZ - 0.7f); Part(stairZ + 0.7f, len / 2f); }
+            else if (s == 2 && hs.Ladder) { Part(-len / 2f, -0.75f); Part(0.75f, len / 2f); }
             else Part(-len / 2f, len / 2f);
         }
         if (hs.RoofStair)
@@ -980,6 +1005,76 @@ public static partial class HillVillageBuilder
         tp.y = Y(tp.x, tp.z);
         Physics.SyncTransforms();
         if (Free(tp, 1.2f)) TreeAt(Chance(0.4) ? olives[rng.Next(olives.Length)] : Chance(0.5) ? broadleaf : palms[rng.Next(palms.Length)], tp, R(0.65f, 0.95f));
+    }
+
+    /// <summary>
+    /// The walls round a house's plot (from the plan): stone or whitewashed, low round the small yards and
+    /// higher round the big ones, following the ground; a gate before the house's door; in the big ones
+    /// a tree or two, a vegetable bed, a bench.
+    /// </summary>
+    private static void PlotWalls(Plot pl)
+    {
+        var a = pl.Area; var home = pl.Home;
+        float W = a.W, D = a.D, hgt = pl.Height;
+        var wall = pl.Stone ? Stone : WallOf(home.Colour == 4 ? 0 : home.Colour);
+        var cap = pl.Stone ? Coping : Roof;
+        float gate = a.ToLocal(home.C).x;
+        Vector3 L(float x, float z) { var p = a.ToWorld(x, z); return new Vector3(p.x, 0f, p.y); }
+        void Run(Vector3 p0, Vector3 p1, float gapFrom, float gapTo)
+        {
+            float len = Vector3.Distance(p0, p1);
+            var dir = (p1 - p0) / len;
+            float yaw = Quaternion.LookRotation(dir).eulerAngles.y;
+            for (float s = 0f; s < len - 0.05f; s += 1.6f)
+            {
+                float s0 = s, s1 = Mathf.Min(len, s + 1.6f);
+                if (s1 > gapFrom && s0 < gapTo) { if (s0 < gapFrom) s1 = gapFrom; else if (s1 > gapTo) s0 = gapTo; else continue; }
+                if (s1 - s0 < 0.1f) continue;
+                var m = p0 + dir * ((s0 + s1) / 2f);
+                float gy = Y(m.x, m.z);
+                MeshGen.TexBox("PlotWall", new Vector3(m.x, gy + hgt / 2f - 0.3f, m.z), new Vector3(0.35f, hgt + 0.6f, s1 - s0 + 0.02f), wall, 2.6f, root, yaw);
+                MeshGen.TexBox("PlotCoping", new Vector3(m.x, gy + hgt + 0.04f, m.z), new Vector3(0.45f, 0.08f, s1 - s0 + 0.05f), cap, 2f, root, yaw, false);
+            }
+        }
+        float hw = W / 2f - 0.18f, hd = D / 2f - 0.18f;
+        Run(L(-hw, -hd), L(hw, -hd), -1f, -1f);
+        Run(L(hw, -hd), L(hw, hd), -1f, -1f);
+        Run(L(-hw, -hd), L(-hw, hd), -1f, -1f);
+        float g0 = gate + hw - 0.9f, g1 = gate + hw + 0.9f;
+        Run(L(-hw, hd), L(hw, hd), g0, g1);
+        // the gate: two painted leaves, one swung in
+        var gp = L(gate, hd);
+        float gy0 = Y(gp.x, gp.z);
+        var along = (L(hw, hd) - L(-hw, hd)).normalized;
+        float gyaw = Quaternion.LookRotation(along).eulerAngles.y;
+        var paint = PaintOf(home.Paint);
+        MeshGen.TexBox("PlotGate", new Vector3(gp.x, gy0 + hgt * 0.45f, gp.z) - along * 0.45f, new Vector3(0.05f, hgt * 0.85f, 0.85f), paint, 1.4f, root, gyaw);
+        MeshGen.TexBox("PlotGate", new Vector3(gp.x, gy0 + hgt * 0.45f, gp.z) + along * 0.45f, new Vector3(0.05f, hgt * 0.85f, 0.85f), paint, 1.4f, root, gyaw + 70f);
+        if (!pl.Big) return;
+        // the big yard: a tree or two in front of the house, a vegetable bed, a bench
+        var front = a.ToLocal(home.ToWorld(0f, home.D / 2f));
+        float yardDepth = hd - front.y;
+        Physics.SyncTransforms();
+        for (int i = 0; i < 2; i++)
+        {
+            float tx = (i == 0 ? -1f : 1f) * R(1.8f, hw - 1f);
+            if (Mathf.Abs(tx - gate) < 1.6f || yardDepth < 3f) continue;
+            var tp = L(tx, front.y + yardDepth * R(0.4f, 0.7f));
+            tp.y = Y(tp.x, tp.z);
+            if (Free(tp, 1f)) TreeAt(Chance(0.45) ? olives[rng.Next(olives.Length)] : Chance(0.5) ? broadleaf : palms[rng.Next(palms.Length)], tp, R(0.6f, 0.95f));
+        }
+        var side = a.ToLocal(home.ToWorld(home.W / 2f, 0f));
+        if (hw - side.x > 2.2f)
+        {
+            var bed = L((side.x + hw) / 2f, 0f);
+            float by = Y(bed.x, bed.z);
+            MeshGen.TexBox("VegetableBed", new Vector3(bed.x, by + 0.1f, bed.z), new Vector3(Mathf.Min(2.2f, hw - side.x - 0.8f), 0.22f, Mathf.Min(4f, D - 2f)), Mats.Pbr("K_Soil", "Ground104", new Color(0.7f, 0.6f, 0.5f), 0.05f), 2f, root, a.Yaw, false);
+            for (int k = 0; k < 4; k++)
+            {
+                var leaf = Sphere("Greens", root, new Vector3(bed.x, by + 0.28f, bed.z) + Quaternion.Euler(0, a.Yaw, 0) * new Vector3(R(-0.5f, 0.5f), 0, R(-1.4f, 1.4f)), 0.22f, Leaves);
+                leaf.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+        }
     }
 
     /// <summary>A compound's outer wall with its gate (wooden leaves open inwards, a little tiled roof over it), a well and a tree inside.</summary>

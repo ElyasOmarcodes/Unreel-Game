@@ -14,7 +14,7 @@ namespace UA
 
         public static bool Enabled;
         /// <summary>The ammo button only exists while the player stands at an ammo box.</summary>
-        public static bool AmmoAvailable, HealAvailable;
+        public static bool AmmoAvailable, AmmoFull, HealAvailable;
         public static Vector2 Move;
         public static Vector2 Look;
         public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, ScorePressed, PronePressed, GrenadePressed, AmmoPressed, HealPressed;

@@ -10,8 +10,8 @@ using UnityEngine;
 /// sides of every lane, each its own size and height (HillVillageHouses.cs builds them): old stone and
 /// whitewashed houses, tower houses, flat-roofed concrete houses, shop houses with iron balconies,
 /// cottages, sheds, courtyard compounds, walled gardens. This file builds the ground, the terrace walls
-/// and stairs, the paved square (meydan) with its platform, fountain and coffee house, the mosque and
-/// its minaret on the upper terrace, the windmills, poles, lamps and props, the olive groves below and
+/// and stairs, the paved square (meydan) with its platform, fountain and coffee house, the agha's
+/// mansion and its garden on the upper terrace, the windmills, poles, lamps and props, the olive groves below and
 /// the pine forest on the hill above, and the bots' waypoints. Every texture is a Poly Haven scan
 /// (CC0); the trees are pictures of Poly Haven's olive, pine and plane-like trees rendered from three
 /// sides and from above (impostors, see Tools/impostor.py), the palms and grass made the same way;
@@ -60,8 +60,6 @@ public static partial class HillVillageBuilder
     private static Material LampGreen => AssetSetup.Solid("K_LampGreen", new Color(0.13f, 0.24f, 0.18f), 0.55f, 0.5f);
     private static Material GlobeDay => AssetSetup.Solid("K_Globe", new Color(0.95f, 0.95f, 0.93f), 0.85f, 0f);
     private static Material GlobeNight => AssetSetup.Mat("K_GlobeNight", new Color(1f, 0.92f, 0.75f), 0.5f, 0f, null, null, null, null, new Color(3.4f, 2.8f, 1.8f));
-    private static Material Lead => AssetSetup.Solid("K_Lead", new Color(0.42f, 0.44f, 0.46f), 0.5f, 0.6f);
-    private static Material Carpet => AssetSetup.Solid("K_Carpet", new Color(0.45f, 0.08f, 0.07f), 0.05f, 0f);
     private static Material Water => AssetSetup.Solid("K_Water", new Color(0.1f, 0.16f, 0.16f), 0.95f, 0f);
     private static Material Cloth => AssetSetup.Solid("K_Cloth", new Color(0.72f, 0.18f, 0.12f), 0.1f, 0f);
 
@@ -80,10 +78,11 @@ public static partial class HillVillageBuilder
     // ------------------------------------------------------------------ the ground mesh
 
     /// <summary>
-    /// Grid lines: 1 m apart over the village (the steps between the levels fall inside the terrace
-    /// walls), 2 m and then 6 m further out. The same lines both ways: a rectilinear grid, no cracks.
+    /// Grid lines along one axis: 1 m apart near the retaining walls (the step between two levels falls
+    /// inside the 2.1 m wall), 2 m over the village, 4 m and then 8 m further out. Fewer triangles than a
+    /// fine grid everywhere (the phone draws the ground in fewer vertices); rectilinear, so no cracks.
     /// </summary>
-    private static List<float> GridLines()
+    private static List<float> GridLines(params float[] walls)
     {
         var lines = new List<float>();
         float x = -Size / 2f;
@@ -91,7 +90,8 @@ public static partial class HillVillageBuilder
         {
             lines.Add(x);
             float a = Mathf.Abs(x);
-            x += a < 104f ? 1f : a < 140f ? 2f : 6f;
+            bool nearWall = walls.Any(w => Mathf.Abs(x - w) < 4f);
+            x += nearWall ? 1f : a < Half + 12f ? 2f : a < Edge + 10f ? 4f : 8f;
         }
         lines.Add(Size / 2f);
         return lines;
@@ -170,33 +170,35 @@ public static partial class HillVillageBuilder
     /// </summary>
     private static void BuildGround()
     {
-        var lines = GridLines();
-        int n = lines.Count;
-        var heights = new float[n, n];
-        for (int j = 0; j < n; j++)
-            for (int i = 0; i < n; i++)
-                heights[i, j] = GroundHeight(lines[i], lines[j]);
+        // the retaining walls run along x = 24 and 26 and along z = 16 and -18
+        var xs = GridLines(24f, 26f);
+        var zs = GridLines(16f, -18f);
+        int nx = xs.Count, nz = zs.Count;
+        var heights = new float[nx, nz];
+        for (int j = 0; j < nz; j++)
+            for (int i = 0; i < nx; i++)
+                heights[i, j] = GroundHeight(xs[i], zs[j]);
         var mat = GroundMaterial();
         var parent = new GameObject("Ground").transform;
         parent.SetParent(root, false);
         const int chunk = 96;
         int made = 0;
-        for (int cj = 0; cj < n - 1; cj += chunk)
-            for (int ci = 0; ci < n - 1; ci += chunk)
+        for (int cj = 0; cj < nz - 1; cj += chunk)
+            for (int ci = 0; ci < nx - 1; ci += chunk)
             {
-                int ni = Mathf.Min(chunk, n - 1 - ci) + 1, nj = Mathf.Min(chunk, n - 1 - cj) + 1;
+                int ni = Mathf.Min(chunk, nx - 1 - ci) + 1, nj = Mathf.Min(chunk, nz - 1 - cj) + 1;
                 var v = new Vector3[ni * nj];
                 var c = new Color[ni * nj];
                 for (int j = 0; j < nj; j++)
                     for (int i = 0; i < ni; i++)
                     {
                         int gi = ci + i, gj = cj + j;
-                        float x = lines[gi], z = lines[gj];
+                        float x = xs[gi], z = zs[gj];
                         v[j * ni + i] = new Vector3(x, heights[gi, gj], z);
-                        float dx = lines[Mathf.Min(n - 1, gi + 1)] - lines[Mathf.Max(0, gi - 1)];
-                        float dz = lines[Mathf.Min(n - 1, gj + 1)] - lines[Mathf.Max(0, gj - 1)];
-                        float hx = (heights[Mathf.Min(n - 1, gi + 1), gj] - heights[Mathf.Max(0, gi - 1), gj]) / dx;
-                        float hz = (heights[gi, Mathf.Min(n - 1, gj + 1)] - heights[gi, Mathf.Max(0, gj - 1)]) / dz;
+                        float dx = xs[Mathf.Min(nx - 1, gi + 1)] - xs[Mathf.Max(0, gi - 1)];
+                        float dz = zs[Mathf.Min(nz - 1, gj + 1)] - zs[Mathf.Max(0, gj - 1)];
+                        float hx = (heights[Mathf.Min(nx - 1, gi + 1), gj] - heights[Mathf.Max(0, gi - 1), gj]) / dx;
+                        float hz = (heights[gi, Mathf.Min(nz - 1, gj + 1)] - heights[gi, Mathf.Max(0, gj - 1)]) / dz;
                         float up = 1f / Mathf.Sqrt(1f + hx * hx + hz * hz);
                         c[j * ni + i] = Splat(x, z, up, heights[gi, gj]);
                     }
@@ -229,7 +231,7 @@ public static partial class HillVillageBuilder
                 made++;
             }
         Physics.SyncTransforms();
-        Debug.Log($"[HillVillage] ground: {n}x{n} grid in {made} chunks");
+        Debug.Log($"[HillVillage] ground: {nx}x{nz} grid in {made} chunks");
     }
 
     /// <summary>Vertex colour of the ground: r dusty earth, g dry grass, b pine needles, a rock.</summary>
@@ -243,7 +245,7 @@ public static partial class HillVillageBuilder
         float track = Mathf.InverseLerp(1.6f, 0f, LineDistance(tracks, x, z));
         float dirt = Mathf.Clamp01(Mathf.Max(village * (0.55f + 0.5f * noise) - 0.15f * fine, track));
         // the pine forest on the hill and its edges: a floor of needles
-        float forest = Mathf.Clamp01(Mathf.InverseLerp(52f, 74f, z) * Mathf.InverseLerp(0.2f, 0.6f, noise + 0.3f) + Mathf.InverseLerp(Half + 4f, Half + 30f, Mathf.Max(Mathf.Abs(x), Mathf.Abs(z))) * 0.7f);
+        float forest = Mathf.Clamp01(Mathf.InverseLerp(70f, 95f, z) * Mathf.InverseLerp(0.2f, 0.6f, noise + 0.3f) + Mathf.InverseLerp(Half + 4f, Half + 30f, Mathf.Max(Mathf.Abs(x), Mathf.Abs(z))) * 0.7f);
         forest *= 1f - dirt;
         float rock = Mathf.Clamp01(steep * 1.3f) * (1f - village);
         float grass = Mathf.Clamp01(1f - dirt - forest - rock);
@@ -298,7 +300,7 @@ public static partial class HillVillageBuilder
         return go;
     }
 
-    /// <summary>A cone (the minaret's cap), its own mesh.</summary>
+    /// <summary>A cone (the windmills' caps), its own mesh.</summary>
     private static Mesh Cone(float radius, float height, int segments)
     {
         var v = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
@@ -618,10 +620,12 @@ public static partial class HillVillageBuilder
     }
 
     /// <summary>A tree (or tuft of grass) standing at p, turned at random, its trunk stopping players and bullets.</summary>
-    private static GameObject TreeAt(TreeKind kind, Vector3 p, float scale)
+    private static GameObject TreeAt(TreeKind kind, Vector3 p, float scale, bool scenery = false)
     {
         var go = new GameObject(kind.Grass ? "Grass" : "Tree_" + kind.Name);
         go.transform.SetParent(nature, false);
+        // the forest and the groves round the village: drawn only so far on the weaker phones
+        if (scenery) go.layer = Settings.SceneryLayer;
         go.transform.SetPositionAndRotation(p - Vector3.up * 0.08f * scale, Quaternion.Euler(0, R(0f, 360f), 0));
         go.transform.localScale = Vector3.one * scale;
         go.AddComponent<MeshFilter>().sharedMesh = kind.Mesh;
@@ -683,95 +687,69 @@ public static partial class HillVillageBuilder
         go.AddComponent<MeshCollider>().sharedMesh = mesh;
     }
 
-    // ------------------------------------------------------------------ the mosque
+    // ------------------------------------------------------------------ the agha's mansion
 
     /// <summary>
-    /// The village mosque on the upper terrace: a prayer hall of dressed stone under a tiled hip roof,
-    /// two rows of windows, a porch on wooden posts in front; inside a carpet, the mihrab and the minbar;
-    /// the minaret at its corner with a balcony and a pointed lead cap. A walled courtyard with a plane tree.
+    /// The agha's mansion (konak) on the upper terrace, where the village looks up to it from the square:
+    /// a big house of three storeys, stone below and cream plaster above, under a wide hip roof; open
+    /// inside, a stair up; over its door a bay (cumba) of two storeys juts out on stone columns and
+    /// carved brackets, full of shuttered windows. Its walled garden before it: a pool with a jet of
+    /// water, cypresses, plane trees, a pavilion, benches, a paved walk to the door.
     /// </summary>
-    private static void Mosque(Vector3 c)
+    private static void Mansion(Vector3 c)
     {
-        var t = new GameObject("Mosque").transform;
-        t.SetParent(root, false);
-        t.SetPositionAndRotation(new Vector3(c.x, c.y + 0.45f, c.z), Quaternion.Euler(0, 180f, 0));
-        const float w = 12f, d = 13f, hgt = 7.2f;
-        Box("Plinth", t, new Vector3(0, -0.4f, 0), new Vector3(w + 0.4f, 0.9f, d + 0.4f), Masonry, true, 3f);
-        for (int s = 0; s < 4; s++)
+        var hs = new House { X = c.x, Z = c.z, Yaw = 180f, W = 15f, D = 11f, Floors = 3, Kind = Kind.Classic, Style = 1, Colour = 1, Paint = 2, Roof = 0, Open = true, Chimney = true };
+        var h = BuildHouse(hs, root);
+        h.name = "Mansion";
+        float w = hs.W, d = hs.D;
+        const float bw = 5.4f, bo = 1.2f;
+        float y0 = Storey - 0.1f, y1 = 3f * Storey + 0.3f;
+        var paint = PaintOf(2);
+        // the bay: its walls of cream plaster, three shuttered windows a floor in front, one at each side
+        Box("Cumba", h, new Vector3(0, (y0 + y1) / 2f, d / 2f + bo / 2f), new Vector3(bw, y1 - y0, bo), CreamPlaster, true, 2.5f);
+        Box("CumbaFloor", h, new Vector3(0, y0 - 0.08f, d / 2f + bo / 2f + 0.05f), new Vector3(bw + 0.2f, 0.16f, bo + 0.1f), Wood, false, 1.5f);
+        for (int f = 1; f <= 2; f++)
         {
-            var (_, _, _, len) = Side(s, w, d);
-            var ops = new List<Opening>();
-            if (s == 0) ops.Add(new Opening { U = 0f, Width = 1.8f, Bottom = 0f, Top = 3.0f, Kind = 1 });
-            int nWin = s < 2 ? 3 : 4;
-            for (int i = 0; i < nWin; i++)
+            float wy = f * Storey + 1.55f;
+            for (int k = -1; k <= 1; k++)
             {
-                float u = -len / 2f + len * (i + 1) / (nWin + 1);
-                if (s == 0 && Mathf.Abs(u) < 1.6f) continue;
-                ops.Add(new Opening { U = u, Width = 1.0f, Bottom = 1.1f, Top = 3.0f, Kind = 0 });
+                var wc = new Vector3(k * 1.6f, wy, d / 2f + bo + 0.01f);
+                Box("CumbaGlass", h, wc, new Vector3(0.95f, 1.4f, 0.02f), Glass, false);
+                Box("CumbaFrame", h, wc + Vector3.forward * 0.02f, new Vector3(1.1f, 0.08f, 0.06f), paint, false, 1.4f);
+                Box("CumbaFrame", h, wc + Vector3.forward * 0.02f + Vector3.up * 0.72f, new Vector3(1.1f, 0.08f, 0.06f), paint, false, 1.4f);
+                Box("CumbaFrame", h, wc + Vector3.forward * 0.02f - Vector3.up * 0.72f, new Vector3(1.15f, 0.08f, 0.1f), Coping, false, 1.4f);
+                foreach (float sx in new[] { -1f, 1f })
+                    Box("CumbaShutter", h, wc + new Vector3(sx * 0.27f, 0, 0.05f), new Vector3(0.46f, 1.4f, 0.03f), paint, false, 0.7f);
             }
-            WallStorey(t, s, w, d, 0f, hgt, Masonry, ops.Where(o => o.Kind == 1).ToList(), true);
-            foreach (var op in ops)
+            foreach (float sx in new[] { -1f, 1f })
             {
-                if (op.Kind == 1) { DressOpening(t, s, w, d, 0f, op, true, true, true, false, DoorWood, 0, false); continue; }
-                var (o, u2, n, _) = Side(s, w, d);
-                var face = o + n * (Thick / 2f);
-                var wc = face + u2 * op.U + Vector3.up * 2.05f;
-                // tall lower windows behind iron grilles in a stone frame, small arched ones above
-                Box("Glass", t, wc + n * 0.005f, SideSize(u2, 1.0f, 1.9f, 0.02f), Glass, false);
-                Box("StoneFrame", t, wc + n * 0.04f + Vector3.up * 1.05f, SideSize(u2, 1.4f, 0.24f, 0.1f), Coping, false);
-                Box("StoneFrame", t, wc + n * 0.04f - Vector3.up * 1.0f, SideSize(u2, 1.4f, 0.12f, 0.2f), Coping, false);
-                for (int k = 1; k <= 5; k++)
-                    Box("Grille", t, wc + u2 * (-0.5f + k / 6f) + n * 0.06f, SideSize(u2, 0.025f, 1.9f, 0.025f), Iron, false);
-                var up = face + u2 * op.U + Vector3.up * 4.9f;
-                Box("Glass", t, up + n * 0.005f, SideSize(u2, 0.7f, 1.0f, 0.02f), Glass, false);
-                Sphere("Arch", t, t.TransformPoint(up + Vector3.up * 0.5f + n * 0.005f), 0.36f, Glass).transform.localScale = new Vector3(0.72f, 0.72f, 0.05f);
-                Box("StoneFrame", t, up + n * 0.04f - Vector3.up * 0.55f, SideSize(u2, 1.0f, 0.1f, 0.18f), Coping, false);
-                if (Chance(0.5)) NightLights.Window(t, t.TransformPoint(wc + n * 0.03f), t.TransformDirection(n), 0.9f, 1.7f, night);
+                var sc = new Vector3(sx * (bw / 2f + 0.01f), wy, d / 2f + bo / 2f);
+                Box("CumbaGlass", h, sc, new Vector3(0.02f, 1.3f, 0.6f), Glass, false);
+                Box("CumbaFrame", h, sc + new Vector3(sx * 0.02f, 0.68f, 0), new Vector3(0.05f, 0.08f, 0.75f), paint, false, 1.4f);
             }
+            Box("CumbaBand", h, new Vector3(0, f * Storey - 0.05f, d / 2f + bo + 0.03f), new Vector3(bw + 0.06f, 0.16f, 0.06f), Wood, false, 1.5f);
         }
-        // a cornice under the eaves
-        foreach (int s in new[] { 0, 1, 2, 3 })
+        // its little tiled roof under the eaves, the brackets and the two stone columns under it
+        Tilted("CumbaRoof", h, new Vector3(0, y1 + 0.12f, d / 2f + bo / 2f + 0.25f), new Vector3(bw + 0.5f, 0.1f, bo + 0.7f), 16f, Roof, true, 2.2f);
+        foreach (float sx in new[] { -1f, -0.35f, 0.35f, 1f })
+            Beam("CumbaBracket", h, h.TransformPoint(new Vector3(sx * (bw / 2f - 0.25f), y0 - 1.1f, d / 2f + 0.05f)), h.TransformPoint(new Vector3(sx * (bw / 2f - 0.25f), y0 - 0.1f, d / 2f + bo - 0.1f)), 0.12f, Wood);
+        foreach (float sx in new[] { -1f, 1f })
         {
-            var (o, u, n, len) = Side(s, w, d);
-            Box("Cornice", t, (s < 2 ? o : new Vector3(o.x, 0, 0)) + n * (Thick / 2f + 0.06f) + Vector3.up * (hgt - 0.15f), SideSize(u, (s < 2 ? len : d) + 0.24f, 0.3f, 0.12f), Coping, false);
+            var col = h.TransformPoint(new Vector3(sx * (bw / 2f - 0.3f), 0f, d / 2f + bo - 0.3f));
+            Cylinder("PorchColumn", root, col, 0.2f, y0, Masonry, true, 10);
+            Box("ColumnCap", h, new Vector3(sx * (bw / 2f - 0.3f), y0 - 0.12f, d / 2f + bo - 0.3f), new Vector3(0.55f, 0.2f, 0.55f), Coping, false);
         }
-        RoofOver(t, w, d, hgt, true, Masonry);
-        // inside: the carpet, the mihrab niche in the qibla wall (the back), the minbar beside it
-        Box("Carpet", t, new Vector3(0, 0.03f, 0), new Vector3(w - 1f, 0.04f, d - 1f), Carpet, true);
-        Box("Mihrab", t, new Vector3(0, 1.8f, -d / 2f + 0.5f), new Vector3(1.6f, 3.4f, 0.2f), Coping, false);
-        Box("MihrabNiche", t, new Vector3(0, 1.6f, -d / 2f + 0.62f), new Vector3(1.0f, 2.6f, 0.06f), Glass, false);
-        for (int i = 0; i < 8; i++)
-            Box("Minbar", t, new Vector3(2.4f, 0.18f + i * 0.2f, -d / 2f + 1.2f + i * 0.35f), new Vector3(0.9f, 0.36f + i * 0.4f, 0.35f), Wood, true);
-        // the porch: a raised stone floor, four posts, a tiled roof
-        Box("PorchFloor", t, new Vector3(0, -0.2f, d / 2f + 1.9f), new Vector3(w + 0.4f, 0.5f, 3.8f), Masonry, true, 3f);
-        for (int i = 0; i < 4; i++)
-        {
-            float x = -w / 2f + 0.5f + i * (w - 1f) / 3f;
-            Box("PorchPost", t, new Vector3(x, 1.75f, d / 2f + 3.4f), new Vector3(0.3f, 3.5f, 0.3f), Wood, true, 1.5f);
-        }
-        Box("PorchBeam", t, new Vector3(0, 3.55f, d / 2f + 3.4f), new Vector3(w + 0.6f, 0.3f, 0.3f), Wood, false, 1.5f);
-        var porchRoof = MeshGen.Object("PorchRoof", HipRoof(w + 1.2f, 4.6f, 0.9f, 2.2f), Roof, t, t.TransformPoint(new Vector3(0, 3.7f, d / 2f + 1.9f)), t.eulerAngles.y);
-        porchRoof.AddComponent<MeshCollider>().sharedMesh = porchRoof.GetComponent<MeshFilter>().sharedMesh;
-        // the minaret: square stone base, round shaft, a balcony, the upper shaft, the lead cone
-        var m = t.TransformPoint(new Vector3(-w / 2f - 1.6f, 0, d / 2f - 1.4f));
-        float gy = c.y;
-        MeshGen.TexBox("MinaretBase", new Vector3(m.x, gy + 1.6f, m.z), new Vector3(2.8f, 4.0f, 2.8f), Masonry, 3f, t, t.eulerAngles.y);
-        Cylinder("MinaretFoot", t, new Vector3(m.x, gy + 3.6f, m.z), 1.2f, 0.8f, Coping, false, 8);
-        Cylinder("MinaretShaft", t, new Vector3(m.x, gy + 4.4f, m.z), 0.95f, 11.2f, Masonry, true, 12);
-        Cylinder("Serefe", t, new Vector3(m.x, gy + 15.3f, m.z), 1.55f, 0.25f, Coping, false, 16);
-        Cylinder("SerefeUnder", t, new Vector3(m.x, gy + 14.8f, m.z), 1.15f, 0.5f, Coping, false, 12);
-        for (int i = 0; i < 16; i++)
-        {
-            float a = i * Mathf.PI * 2f / 16f;
-            MeshGen.TexBox("SerefeRail", new Vector3(m.x + Mathf.Cos(a) * 1.45f, gy + 16.0f, m.z + Mathf.Sin(a) * 1.45f), new Vector3(0.06f, 0.95f, 0.06f), Iron, 1f, t, 0f, false);
-        }
-        Cylinder("SerefeRing", t, new Vector3(m.x, gy + 16.45f, m.z), 1.48f, 0.06f, Iron, false, 16);
-        Cylinder("MinaretUpper", t, new Vector3(m.x, gy + 15.55f, m.z), 0.8f, 3.0f, Plaster, false, 12);
-        var cap = MeshGen.Object("MinaretCap", Cone(0.98f, 3.6f, 14), Lead, t, new Vector3(m.x, gy + 18.5f, m.z));
-        Cylinder("Finial", t, new Vector3(m.x, gy + 22.0f, m.z), 0.05f, 1.2f, Lead, false, 6);
-        Sphere("FinialBall", t, new Vector3(m.x, gy + 22.5f, m.z), 0.13f, Lead);
-        Sphere("FinialBall", t, new Vector3(m.x, gy + 22.85f, m.z), 0.09f, Lead);
-        NightLights.Halo(t, new Vector3(m.x, gy + 16.2f, m.z), 3.2f, new Color(0.4f, 0.75f, 0.5f), night);
+        // the garden before the house: the walk to the door, the pool, cypresses, the pavilion, benches
+        float gy = 4.5f;
+        MeshGen.TexBox("GardenWalk", new Vector3(-6f, gy + 0.02f, 26.3f), new Vector3(2.6f, 0.08f, 9.4f), Paving, 3f, root);
+        MeshGen.TexBox("PoolRim", new Vector3(-12.6f, gy + 0.25f, 26.5f), new Vector3(6.2f, 0.5f, 3.6f), Masonry, 3f, root);
+        MeshGen.TexBox("PoolWater", new Vector3(-12.6f, gy + 0.46f, 26.5f), new Vector3(5.6f, 0.06f, 3f), Water, 2f, root, 0f, false);
+        Cylinder("PoolJet", root, new Vector3(-12.6f, gy + 0.45f, 26.5f), 0.12f, 0.9f, Coping, false, 8);
+        Pergola(new Vector3(1.6f, gy + 0.03f, 26f), 4f, 4.6f);
+        foreach (var (x, z) in new[] { (-15.6f, 22.6f), (3.8f, 22.6f), (-15.6f, 31f), (-15.6f, 46.4f), (4.6f, 46.4f) })
+            ZahraBuilder.CypressFor(root, new Vector3(x, gy, z), R(7f, 9f), rng);
+        foreach (var (x, z, yaw) in new[] { (-12.6f, 23.3f, 0f), (-12.6f, 29.7f, 180f) })
+            Bench(new Vector3(x, gy + 0.02f, z), yaw);
     }
 
     // ------------------------------------------------------------------ the square
@@ -950,7 +928,8 @@ public static partial class HillVillageBuilder
 
     public static MapLayout Build()
     {
-        rng = new System.Random(44);
+        rng = new System.Random(46);
+        ladderLinks.Clear();
         night.Clear(); mats.Clear(); roofMeshes.Clear();
         rockMeshes = null; sphereMesh = null; millTower = null; millCap = null;
         root = new GameObject("Map_HillVillage").transform;
@@ -963,9 +942,9 @@ public static partial class HillVillageBuilder
         // the terrace walls between the levels, and the stairs against them
         var walls = new GameObject("TerraceWalls").transform;
         walls.SetParent(root, false);
-        TerraceWall(walls, true, 16f, -100f, 24f, -1f, (-7.5f, -4.5f), (-61.2f, -58.8f));
+        TerraceWall(walls, true, 16f, -132f, 24f, -1f, (-7.5f, -4.5f), (-61.2f, -58.8f), (-101.2f, -98.8f));
         TerraceWall(walls, false, 24f, 16f, 42f, 1f);
-        TerraceWall(walls, true, -18f, -100f, 26f, -1f, (-7.5f, -4.5f), (-60.2f, -57.8f));
+        TerraceWall(walls, true, -18f, -132f, 26f, -1f, (-7.5f, -4.5f), (-60.2f, -57.8f), (-100.2f, -97.8f));
         TerraceWall(walls, false, 26f, -42f, -18f, -1f);
         // up from the square to the mosque: two flights against the wall meeting at a landing on its axis
         Steps(walls, new Vector3(-15.0f, 0f, 13.85f), Vector3.right, 4.5f, 2.2f, Vector3.back);
@@ -975,13 +954,16 @@ public static partial class HillVillageBuilder
         Steps(walls, new Vector3(-11.7f, -2.5f, -20.15f), Vector3.right, 2.5f, 2.2f, Vector3.back);
         Steps(walls, new Vector3(-0.3f, -2.5f, -20.15f), Vector3.left, 2.5f, 2.2f, Vector3.back);
         MeshGen.TexBox("Landing", new Vector3(-6f, -1.4f, -20.15f), new Vector3(3f, 2.8f, 2.2f), Masonry, 3f, walls);
-        // the west quarter's stairs up to the terrace and down to the lower quarter
-        float westUp = GroundHeight(-66f, 12f), westDown = GroundHeight(-59f, -15f);
-        Steps(walls, new Vector3(-66.2f, westUp, 13.85f), Vector3.right, 4.5f - westUp, 2.0f, Vector3.back);
-        MeshGen.TexBox("Landing", new Vector3(-60f, (4.5f + westUp) / 2f - 0.2f, 13.85f), new Vector3(2.4f, 4.5f - westUp + 0.4f, 2.2f), Masonry, 3f, walls);
-        int downCount = Mathf.CeilToInt((westDown + 2.5f) / 0.18f);
-        Steps(walls, new Vector3(-58.8f - downCount * 0.3f - 1.2f, -2.5f, -20.15f), Vector3.right, westDown + 2.5f, 2.0f, Vector3.back);
-        MeshGen.TexBox("Landing", new Vector3(-59f, (westDown - 2.5f) / 2f - 0.2f, -20.15f), new Vector3(2.4f, westDown + 2.9f, 2.2f), Masonry, 3f, walls);
+        // the west quarter's stairs up to the terrace and down to the lower quarter, twice along it
+        foreach (float sx in new[] { -60f, -100f })
+        {
+            float westUp = GroundHeight(sx - 6f, 12f), westDown = GroundHeight(sx + 1f, -15f);
+            Steps(walls, new Vector3(sx - 6.2f, westUp, 13.85f), Vector3.right, 4.5f - westUp, 2.0f, Vector3.back);
+            MeshGen.TexBox("Landing", new Vector3(sx, (4.5f + westUp) / 2f - 0.2f, 13.85f), new Vector3(2.4f, 4.5f - westUp + 0.4f, 2.2f), Masonry, 3f, walls);
+            int downCount = Mathf.CeilToInt((westDown + 2.5f) / 0.18f);
+            Steps(walls, new Vector3(sx + 1.2f - downCount * 0.3f - 1.2f, -2.5f, -20.15f), Vector3.right, westDown + 2.5f, 2.0f, Vector3.back);
+            MeshGen.TexBox("Landing", new Vector3(sx + 1f, (westDown - 2.5f) / 2f - 0.2f, -20.15f), new Vector3(2.4f, westDown + 2.9f, 2.2f), Masonry, 3f, walls);
+        }
 
         // the square: paved, its platform, planters with palms and the plane tree, the fountain, the coffee house's terrace
         MeshGen.TexBox("SquarePaving", new Vector3(0f, -0.1f, -1f), new Vector3(52f, 0.26f, 31.9f), Paving, 4f, root);
@@ -995,8 +977,8 @@ public static partial class HillVillageBuilder
         foreach (var (x, z, yaw) in new[] { (-21f, 13.4f, 180f), (8f, 13.4f, 180f), (-24.5f, -2f, 90f), (-24.5f, -9f, 90f), (-20f, -16f, 0f), (10f, -16f, 0f), (17f, -16f, 0f), (-80f, 16.3f, 180f), (-54f, 16.3f, 180f), (-30f, 16.3f, 180f) })
             Bench(new Vector3(x, GroundHeight(x, z) + (Mathf.Abs(z - 16.3f) < 0.1f ? 0.03f : 0.03f), z), yaw);
 
-        // the mosque and its courtyard (a low wall round it, the gate towards the stairs), two plane trees
-        Mosque(new Vector3(-6f, 4.5f, 36.5f));
+        // the agha's mansion and its walled garden (the gate towards the stairs)
+        Mansion(new Vector3(-6f, 4.5f, 36.5f));
         foreach (var (a, b) in new[] { (new Vector2(-17f, 21.5f), new Vector2(-8f, 21.5f)), (new Vector2(-4f, 21.5f), new Vector2(6f, 21.5f)), (new Vector2(6f, 21.5f), new Vector2(6f, 47.5f)), (new Vector2(6f, 47.5f), new Vector2(-17f, 47.5f)), (new Vector2(-17f, 47.5f), new Vector2(-17f, 21.5f)) })
         {
             var p = (a + b) / 2f; float len = Vector2.Distance(a, b);
@@ -1006,7 +988,7 @@ public static partial class HillVillageBuilder
         }
         foreach (var x in new[] { -8f, -4f })
             Cylinder("GatePier", root, new Vector3(x, 4.5f, 21.5f), 0.35f, 2.2f, Masonry, true, 8);
-        TreeAt(broadleaf, new Vector3(-13f, 4.5f, 25f), 1.9f);
+        TreeAt(broadleaf, new Vector3(-13f, 4.5f, 44.5f), 1.7f);
         TreeAt(broadleaf, new Vector3(2.5f, 4.5f, 44f), 1.6f);
 
         // the houses, the compounds' walls and gates, the garden walls along the lanes
@@ -1015,6 +997,7 @@ public static partial class HillVillageBuilder
         foreach (var hs in houses) { BuildHouse(hs, hp); Physics.SyncTransforms(); }
         foreach (var c in compounds) CompoundWalls(c);
         foreach (var g in gardens) GardenWall(g);
+        foreach (var pl in plots) PlotWalls(pl);
         Physics.SyncTransforms();
         // the windmills on the west hill turned to the village, the cemetery and the dusty square before it
         for (int i = 0; i < windmills.Count; i++) Windmill(windmills[i], R(78f, 102f), i);
@@ -1060,8 +1043,9 @@ public static partial class HillVillageBuilder
         // ammunition crates: in the square, along the lanes of every quarter, in the groves and on the hill
         var supply = new GameObject("AmmoCrates").transform;
         supply.SetParent(root, false);
-        var crates = new List<Vector2> { new Vector2(-20f, -14.5f), new Vector2(18f, -62f), new Vector2(-30f, 72f) };
-        foreach (var (name, frac, side) in new[] { ("TerraceLane", 0.3f, 1), ("UpperLane", 0.55f, 2), ("EastStreet", 0.65f, 2), ("Road", 0.4f, 1), ("WestLane", 0.45f, 1), ("UnderWall", 0.6f, 1), ("MiddleLane", 0.2f, 2), ("StreetDown", 0.75f, 1) })
+        var crates = new List<Vector2> { new Vector2(-20f, -14.5f) };
+        foreach (var (name, frac, side) in new[] { ("TerraceLane", 0.3f, 1), ("UpperLane", 0.55f, 2), ("EastStreet", 0.65f, 2), ("Road", 0.4f, 1), ("WestLane", 0.45f, 1), ("UnderWall", 0.6f, 1), ("MiddleLane", 0.2f, 2), ("StreetDown", 0.75f, 1),
+                                                     ("SouthLane", 0.5f, 1), ("HillRoad", 0.5f, 1), ("HighLane", 0.4f, 2), ("SlopeLane", 0.5f, 2), ("WestLane", 0.9f, 2), ("UnderWall", 0.9f, 1) })
         {
             var lane = LaneNamed(name);
             crates.AddRange(AlongLane(lane, 999f, side, 0.7f, lane.Length * frac));
@@ -1097,19 +1081,19 @@ public static partial class HillVillageBuilder
         foreach (var (near, readers, ar, en) in new[]
         {
             (new Vector3(-17f, 0f, -14.5f), new Vector3(-6f, 0f, -5f), "الساحة", "THE SQUARE"),
-            (new Vector3(-12.5f, 4.5f, 20.9f), new Vector3(-6f, 4.5f, 30f), "المسجد", "THE MOSQUE"),
+            (new Vector3(-12.5f, 4.5f, 20.9f), new Vector3(-6f, 4.5f, 30f), "قصر الآغا", "THE AGHA'S MANSION"),
             (Beside("UnderWall", 0.55f, 1), On("UnderWall", 0.55f), "الحي السفلي", "THE LOWER QUARTER"),
             (Beside("WestLane", 0.3f, 2), On("WestLane", 0.3f), "الحي الغربي", "THE WEST QUARTER"),
-            (new Vector3(12f, 0f, -63f), new Vector3(12f, 0f, -55f), "بساتين الزيتون", "THE OLIVE GROVES"),
-            (new Vector3(-12f, 0f, 55f), new Vector3(-12f, 0f, 45f), "تل الصنوبر", "THE PINE HILL"),
+            (new Vector3(14f, 0f, -77f), new Vector3(14f, 0f, -69f), "بساتين الزيتون", "THE OLIVE GROVES"),
+            (Beside("HillRoad", 0.18f, 2), On("HillRoad", 0.18f), "تل الصنوبر", "THE PINE HILL"),
             (Beside("Road", 0.22f, 1), On("Road", 0.22f), "الطريق الشرقي", "THE EAST ROAD"),
-            (new Vector3(-103f, 0f, 2.2f), new Vector3(-99f, 0f, 0.6f), "طواحين الهواء", "THE WINDMILLS"),
+            (Beside("WestLane", 0.985f, 2), On("WestLane", 0.97f), "طواحين الهواء", "THE WINDMILLS"),
             (new Vector3(59.5f, 0f, -12.5f), new Vector3(64f, 0f, -6f), "المقبرة", "THE CEMETERY"),
         })
             Signboards.Stand(boards, new Vector3(near.x, 0, near.z), readers, ar, en);
         Navigation(layout);
-        root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "HillVillage", null, night).ToArray();
-        Debug.Log($"[HillVillage] built: {houses.Count} houses ({string.Join(", ", houses.GroupBy(h => h.Kind).Select(g => g.Key + " " + g.Count()))}), {compounds.Count} compounds, {gardens.Count} gardens, {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
+        root.gameObject.AddComponent<MapScene>().NightLights = MapOptimizer.Merge(root, "HillVillage", null, night, 60f).ToArray();
+        Debug.Log($"[HillVillage] built: {houses.Count} houses ({string.Join(", ", houses.GroupBy(h => h.Kind).Select(g => g.Key + " " + g.Count()))}), {compounds.Count} compounds, {gardens.Count} gardens, {plots.Count} plots, {ladderLinks.Count} ladders, {root.GetComponentsInChildren<Renderer>().Length} renderers, {layout.Waypoints.Length} waypoints, {layout.Spawns.Length} spawns");
         return layout;
     }
 
@@ -1230,40 +1214,40 @@ public static partial class HillVillageBuilder
         {
             float x = R(-Edge + 4f, Edge - 4f), z = R(-Edge + 4f, Edge - 4f);
             float edge = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
-            float want = z > 50f ? Mathf.InverseLerp(50f, 80f, z) * 0.9f : edge > Half - 12f ? Mathf.InverseLerp(Half - 12f, Half + 10f, edge) * 0.85f : 0f;
-            if (!Chance(want) || Built(x, z) > 0.25f || LineDistance(tracks, x, z) < 2.5f) continue;
+            float want = z > 66f ? Mathf.InverseLerp(66f, 96f, z) * 0.9f : edge > Half - 12f ? Mathf.InverseLerp(Half - 12f, Half + 10f, edge) * 0.85f : 0f;
+            if (!Chance(want) || Built(x, z) > 0.25f || LineDistance(tracks, x, z) < 2.5f || LaneDistance(new Vector2(x, z)) < 3f) continue;
             var p = new Vector3(x, Y(x, z), z);
             if (!Free(p, 2.2f)) continue;
-            TreeAt(pines[rng.Next(pines.Length)], p, R(0.7f, 1.05f));
+            TreeAt(pines[rng.Next(pines.Length)], p, R(0.7f, 1.05f), true);
             Physics.SyncTransforms();
             pinesPlaced++;
         }
         int olivesPlaced = 0;
         // the groves below the village: rows across the slope
-        for (float z = -62f; z > -Half - 2f; z -= 7f)
-            for (float x = -96f; x < 96f; x += 7.5f)
+        for (float z = -80f; z > -Half - 2f; z -= 7f)
+            for (float x = -122f; x < 122f; x += 7.5f)
             {
                 float px = x + R(-1.2f, 1.2f) + (Mathf.RoundToInt(z) % 2 == 0 ? 3.7f : 0f), pz = z + R(-1f, 1f);
                 if (Chance(0.18) || Built(px, pz) > 0.3f || LineDistance(tracks, px, pz) < 3f) continue;
                 var p = new Vector3(px, Y(px, pz), pz);
                 if (!Free(p, 1.8f)) continue;
-                TreeAt(olives[rng.Next(olives.Length)], p, R(0.85f, 1.2f));
+                TreeAt(olives[rng.Next(olives.Length)], p, R(0.85f, 1.2f), true);
                 olivesPlaced++;
             }
         // and on the east slope above the road
-        for (float z = 24f; z < 66f; z += 8f)
-            for (float x = 48f; x < 98f; x += 8f)
+        for (float z = 18f; z < 54f; z += 8f)
+            for (float x = 48f; x < 122f; x += 8f)
             {
                 float px = x + R(-1.5f, 1.5f), pz = z + R(-1.5f, 1.5f);
                 if (Chance(0.35) || Built(px, pz) > 0.3f) continue;
                 var p = new Vector3(px, Y(px, pz), pz);
                 if (!Free(p, 1.8f)) continue;
-                TreeAt(olives[rng.Next(olives.Length)], p, R(0.8f, 1.15f));
+                TreeAt(olives[rng.Next(olives.Length)], p, R(0.8f, 1.15f), true);
                 olivesPlaced++;
             }
         Physics.SyncTransforms();
         // a few broad trees and palms near the houses at the edges of the village
-        for (int i = 0, placed = 0; i < 300 && placed < 16; i++)
+        for (int i = 0, placed = 0; i < 400 && placed < 24; i++)
         {
             var hs = houses[rng.Next(houses.Count)];
             var p = new Vector3(hs.X + R(-9f, 9f), 0, hs.Z + R(-9f, 9f));
@@ -1274,26 +1258,35 @@ public static partial class HillVillageBuilder
             Physics.SyncTransforms();
             placed++;
         }
-        // rocks on the steep banks and in the forest
-        for (int i = 0, placed = 0; i < 900 && placed < 70; i++)
+        // outcrops of rock on the slopes and in the forest (as on the hills in the picture): a big block
+        // with smaller ones round it, good cover out of the village
+        for (int i = 0, placed = 0; i < 1400 && placed < 60; i++)
         {
             float x = R(-Edge + 4f, Edge - 4f), z = R(-Edge + 4f, Edge - 4f);
-            if (Built(x, z) > 0.2f) continue;
+            if (Built(x, z) > 0.2f || LaneDistance(new Vector2(x, z)) < 3f || LineDistance(tracks, x, z) < 2f) continue;
             float slope = Mathf.Abs(GroundHeight(x + 1f, z) - GroundHeight(x - 1f, z)) + Mathf.Abs(GroundHeight(x, z + 1f) - GroundHeight(x, z - 1f));
-            if (slope < 0.7f && !(z > 55f && Chance(0.3))) continue;
+            if (slope < 0.45f && !(z > 75f && Chance(0.3))) continue;
             var p = new Vector3(x, Y(x, z), z);
-            if (!Free(p, 1.2f)) continue;
-            Rock(p, R(0.6f, 1.8f));
+            if (!Free(p, 2f)) continue;
+            Rock(p, R(1.4f, 3.2f));
+            int around = rng.Next(1, 5);
+            for (int k = 0; k < around; k++)
+            {
+                var q = p + Quaternion.Euler(0, R(0f, 360f), 0) * Vector3.forward * R(1.6f, 3.5f);
+                q.y = Y(q.x, q.z);
+                Rock(q, R(0.5f, 1.4f));
+            }
+            Physics.SyncTransforms();
             placed++;
         }
         // dry grass: tufts in the open, fewer in the forest, some along the foot of the walls in the village
-        for (int i = 0, placed = 0; i < 9000 && placed < 1700; i++)
+        for (int i = 0, placed = 0; i < 9000 && placed < 1300; i++)
         {
             float x = R(-Half - 25f, Half + 25f), z = R(-Half - 25f, Half + 25f);
             if (LaneDistance(new Vector2(x, z)) < 0.6f || (Mathf.Abs(x) < 26.5f && z > -17.5f && z < 15.5f)) continue;
             float built = Built(x, z);
             if (built > 0.6f && !Chance(0.12)) continue;
-            if (z > 60f && !Chance(0.35)) continue;
+            if (z > 75f && !Chance(0.35)) continue;
             var p = new Vector3(x, Y(x, z), z);
             if (Physics.CheckSphere(p + Vector3.up * 0.5f, 0.35f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
             TreeAt(grass, p, R(0.6f, 1.25f));
@@ -1305,8 +1298,8 @@ public static partial class HillVillageBuilder
     /// <summary>Dry stone walls across the groves (cover in the open), round hay bales by the barns.</summary>
     private static void Farmland()
     {
-        foreach (float z0 in new[] { -66f, -79f, -92f })
-            for (float x = -94f; x < 94f;)
+        foreach (float z0 in new[] { -82f, -95f, -108f })
+            for (float x = -120f; x < 120f;)
             {
                 float len = R(6f, 14f);
                 if (Chance(0.3)) { x += len; continue; }
@@ -1321,7 +1314,7 @@ public static partial class HillVillageBuilder
             }
         var hayMat = Mats.Pbr("K_Hay", "Ground104", new Color(1f, 0.86f, 0.52f), 0.05f);
         Physics.SyncTransforms();
-        foreach (var (x, z) in new[] { (84f, -44f), (87.5f, -44.5f), (91f, -43.5f), (-18f, -88f), (-14.5f, -88.5f), (-11f, -88f), (-36f, -72f) })
+        foreach (var (x, z) in new[] { (84f, -46f), (87.5f, -46.5f), (91f, -45.5f), (-18f, -102f), (-14.5f, -102.5f), (-11f, -102f), (-42f, -86f) })
         {
             float gy = Y(x, z);
             if (Physics.CheckSphere(new Vector3(x, gy + 0.9f, z), 0.8f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
@@ -1377,6 +1370,25 @@ public static partial class HillVillageBuilder
                         links.Add(new Vector2Int(ia, ib));
                     }
             }
+        // up the ladders: from the ground before each to the roof it reaches
+        int Closest(Vector3 at, float reach, float rise)
+        {
+            int best = -1; float bestD = reach * reach;
+            for (int i = 0; i < points.Count; i++)
+            {
+                var d = points[i] - at;
+                if (Mathf.Abs(d.y) > rise) continue;
+                d.y = 0;
+                if (d.sqrMagnitude < bestD) { bestD = d.sqrMagnitude; best = i; }
+            }
+            return best;
+        }
+        int climbs = 0;
+        foreach (var (bottom, topAt) in ladderLinks)
+        {
+            int a = Closest(bottom, 3.2f, 1.2f), b = Closest(topAt, 2.6f, 0.8f);
+            if (a >= 0 && b >= 0 && a != b) { links.Add(new Vector2Int(a, b)); climbs++; }
+        }
         // keep what can be walked to from the square
         var nb = new List<int>[points.Count];
         for (int i = 0; i < nb.Length; i++) nb[i] = new List<int>();
@@ -1396,8 +1408,9 @@ public static partial class HillVillageBuilder
         layout.Links = links.Where(l => reached[l.x] && reached[l.y]).Select(l => new Vector2Int(index[l.x], index[l.y])).ToArray();
         // the spawn points: spread over the levels, each on open ground
         var spawns = new List<Vector3>();
-        var spots = new List<Vector2> { new Vector2(-18f, -12f), new Vector2(-6f, 58f) };
-        foreach (var (name, frac) in new[] { ("TerraceLane", 0.12f), ("UpperLane", 0.6f), ("EastStreet", 0.85f), ("Road", 0.72f), ("StreetDown", 0.8f), ("MiddleLane", 0.3f), ("MiddleLane", 0.85f), ("WestLane", 0.85f), ("MosqueLane", 0.5f) })
+        var spots = new List<Vector2> { new Vector2(-18f, -12f) };
+        foreach (var (name, frac) in new[] { ("TerraceLane", 0.12f), ("UpperLane", 0.6f), ("EastStreet", 0.85f), ("Road", 0.72f), ("StreetDown", 0.8f), ("MiddleLane", 0.3f), ("MiddleLane", 0.85f), ("WestLane", 0.85f), ("MansionLane", 0.5f),
+                                              ("HillRoad", 0.55f), ("HighLane", 0.3f), ("SouthLane", 0.6f), ("SlopeLane", 0.45f) })
         {
             var lane = LaneNamed(name);
             spots.Add(lane.At(lane.Length * frac).p);
@@ -1417,6 +1430,6 @@ public static partial class HillVillageBuilder
             spawns.Add(best);
         }
         layout.Spawns = spawns.ToArray();
-        Debug.Log($"[HillVillage] navigation: {kept.Count} waypoints of {points.Count}, {layout.Links.Length} links");
+        Debug.Log($"[HillVillage] navigation: {kept.Count} waypoints of {points.Count}, {layout.Links.Length} links ({climbs} up ladders)");
     }
 }

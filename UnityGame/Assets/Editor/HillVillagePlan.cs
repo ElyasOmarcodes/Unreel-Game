@@ -14,9 +14,9 @@ using UnityEngine;
 /// </summary>
 public static partial class HillVillageBuilder
 {
-    public const float Half = 100f;            // the village, its groves and the near hill (bots, spawns)
+    public const float Half = 125f;            // the village, its groves and the near hill (bots, spawns)
     private const float Edge = Half + 40f;     // players can climb the slopes around it up to here
-    private const float Size = 420f;           // the ground reaches this far (the view to the hills)
+    private const float Size = 520f;           // the ground reaches this far (the view to the hills)
 
     private static System.Random rng;
     private static float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
@@ -84,12 +84,13 @@ public static partial class HillVillageBuilder
     {
         float h = 0.07f * z;
         h += 1.8f * Mathf.Sin(x / 29f + 0.5f) * Mathf.Cos(z / 23f) + 0.9f * Mathf.Sin((x - z) / 17f);
-        h += 26f * Gauss(x, z, 10f, 128f, 46f);       // the pine hill
-        h += 11f * Gauss(x, z, -122f, 40f, 34f);      // the west hill (the windmills)
-        h += 9f * Gauss(x, z, 118f, 64f, 30f);        // the north east hill
-        h -= 3.5f * Gauss(x, z, 30f, -112f, 40f);     // the hollow below the olive groves
+        h += 28f * Gauss(x, z, 10f, 150f, 52f);       // the pine hill (the road winds up it)
+        h += 11f * Gauss(x, z, -152f, 40f, 38f);      // the west hill (the windmills)
+        h += 9f * Gauss(x, z, 142f, 80f, 34f);        // the north east hill
+        h -= 3.5f * Gauss(x, z, 30f, -136f, 44f);     // the hollow below the olive groves
+        // round the edges the land rises gently to the hills (no wall of earth)
         float edge = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
-        h += Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Half - 8f, Half + 50f, edge)) * (16f + 6f * Mathf.Sin(x / 21f + z / 27f));
+        h += Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Half - 5f, Half + 85f, edge)) * (14f + 5f * Mathf.Sin(x / 21f + z / 27f));
         return h;
     }
 
@@ -114,24 +115,25 @@ public static partial class HillVillageBuilder
 
     /// <summary>
     /// The levels: the square in the middle; the west quarter rising gently from it; the upper terrace
-    /// (mosque) 4.5 m above behind a stone wall, reached by stairs and by the east street sloping up
-    /// along its wall; the lower quarter 2.5 m below the square, with its own sloping street down in the
-    /// south east; the road out to the east climbing the slope.
+    /// (the agha's mansion) 4.5 m above behind a stone wall, reached by stairs and by the east street
+    /// sloping up along its wall; the lower quarter 2.5 m below the square, with its own sloping street
+    /// down in the south east; the road out to the east climbing the slope. Their open edges blend into
+    /// the land over 16 to 24 m: gentle slopes, no banks.
     /// </summary>
     private static void Levels()
     {
         pads.Clear();
-        Flat(-26f, -18f, 26f, 16f, 0f, 6f, 6f, 0f, 0f);                          // the square (meydan)
-        Ramp(-96f, -18f, -26f, 16f, 1, -96f, 3f, -26f, 0f, 10f, 0f, 0f, 0f);     // the west quarter
-        Flat(-96f, 16f, 24f, 50f, 4.5f, 10f, 0f, 0f, 12f);                       // the upper terrace
-        Ramp(24f, -6f, 42f, 52f, 2, 16f, 0f, 40f, 4.5f, 0f, 10f, 6f, 10f);       // the east street up
-        Flat(-96f, -56f, 26f, -18f, -2.5f, 12f, 0f, 12f, 0f);                    // the lower quarter
-        Ramp(26f, -56f, 42f, -6f, 2, -40f, -2.5f, -18f, 0f, 0f, 10f, 12f, 0f);   // the street down
-        Ramp(42f, -8f, 104f, 10f, 1, 42f, 0f, 104f, 7f, 0f, 0f, 6f, 6f);         // the road out east
+        Flat(-26f, -18f, 26f, 16f, 0f, 6f, 6f, 0f, 0f);                            // the square (meydan)
+        Ramp(-128f, -18f, -26f, 16f, 1, -128f, 3.5f, -26f, 0f, 22f, 0f, 0f, 0f);   // the west quarter
+        Flat(-128f, 16f, 24f, 62f, 4.5f, 22f, 0f, 0f, 24f);                        // the upper terrace
+        Ramp(24f, -6f, 42f, 64f, 2, 16f, 0f, 40f, 4.5f, 0f, 16f, 6f, 20f);         // the east street up
+        Flat(-128f, -72f, 26f, -18f, -2.5f, 22f, 0f, 22f, 0f);                     // the lower quarter
+        Ramp(26f, -72f, 42f, -6f, 2, -40f, -2.5f, -18f, 0f, 0f, 16f, 22f, 0f);     // the street down
+        Ramp(42f, -8f, 130f, 10f, 1, 42f, 0f, 130f, 8.5f, 0f, 0f, 16f, 16f);       // the road out east
     }
 
     /// <summary>A level spot for a house standing on the open slope (its own pad, blended in).</summary>
-    private static float HousePad(Vector3 c, float w, float d, float yaw, float margin = 6f)
+    private static float HousePad(Vector3 c, float w, float d, float yaw, float margin = 10f)
     {
         var a = Turn(yaw, w, d); var b = Turn(yaw, w, -d);
         float ex = Mathf.Max(Mathf.Abs(a.x), Mathf.Abs(b.x)) / 2f + 2f, ez = Mathf.Max(Mathf.Abs(a.y), Mathf.Abs(b.y)) / 2f + 2f;
@@ -253,42 +255,51 @@ public static partial class HillVillageBuilder
     {
         lanes.Clear(); cobbles.Clear(); tracks.Clear();
         // main streets first: their frontages fill first
-        AddLane("EastStreet", 8.6f, StreetQ, 2, true, 29.2f, -7f, 30.6f, 5f, 29.4f, 17f, 30.9f, 29f, 29.8f, 41f, 30.4f, 53f).Kerb = true;
-        AddLane("Road", 7f, RoadQ, 3, true, 33f, 1f, 44f, 1.6f, 58f, -0.6f, 72f, 1.8f, 88f, 0.2f, 104f, 1.4f).Kerb = true;
-        AddLane("StreetDown", 7.2f, StreetQ, 3, true, 30f, -7f, 31.4f, -19f, 29.6f, -31f, 31f, -44f, 30f, -57f);
-        AddLane("WestLane", 5.6f, WestQ, 3, true, -25f, 0.5f, -34f, 2f, -44f, -0.4f, -54f, 2.4f, -64f, 0.2f, -72f, 1.6f, -80f, 1.2f, -88f, -0.6f, -99f, 0.6f);
+        AddLane("EastStreet", 8.6f, StreetQ, 2, true, 29.2f, -7f, 30.6f, 5f, 29.4f, 17f, 30.9f, 29f, 29.8f, 41f, 30.4f, 53f, 30f, 64f).Kerb = true;
+        AddLane("Road", 7f, RoadQ, 3, true, 33f, 1f, 44f, 1.6f, 58f, -0.6f, 72f, 1.8f, 88f, 0.2f, 104f, 1.4f, 118f, 0.6f, 130f, 1.6f).Kerb = true;
+        AddLane("StreetDown", 7.2f, StreetQ, 3, true, 30f, -7f, 31.4f, -19f, 29.6f, -31f, 31f, -44f, 30f, -57f, 31f, -71f);
+        AddLane("WestLane", 5.6f, WestQ, 3, true, -25f, 0.5f, -34f, 2f, -44f, -0.4f, -54f, 2.4f, -64f, 0.2f, -72f, 1.6f, -80f, 1.2f, -88f, -0.6f, -98f, 1.4f, -108f, -0.8f, -118f, 1.2f, -130f, 0.4f);
         AddLane("WestPlaza", 11f, WestQ, 3, false, -82f, 1f, -76.5f, 1.4f, -71f, 1.2f);
-        AddLane("TerraceLane", 4.6f, TerraceQ, 1, true, -99f, 20f, -84f, 20.8f, -70f, 19.8f, -56f, 21.2f, -42f, 19.9f, -28f, 20.7f, -16f, 19.6f, -6f, 18.6f, 6f, 19.2f, 16f, 19.8f, 22f, 19.4f);
-        AddLane("UpperLane", 4f, TerraceQ, 3, true, -99f, 40f, -88f, 37.5f, -76f, 39.8f, -64f, 37f, -52f, 40.2f, -40f, 37.6f, -29f, 39.6f, -21.5f, 37.5f, -19.8f, 44f, -20.6f, 51f, -23f, 58f);
-        AddLane("MosqueLane", 3.6f, TerraceQ, 2, false, 7.5f, 19.5f, 10.5f, 28f, 11f, 38f, 14f, 46f, 22f, 48.5f, 31f, 48f);
-        AddLane("UnderWall", 4.4f, LowerQ, 1, true, 27f, -22f, 16f, -22.4f, 4f, -23.6f, -6f, -24f, -16f, -23.4f, -30f, -22.2f, -44f, -23f, -56f, -23.8f, -67f, -24.2f, -78f, -22.6f, -90f, -23f, -99f, -22.2f);
-        AddLane("MiddleLane", 5.4f, LowerQ, 3, true, 27f, -37.5f, 15f, -40f, 2f, -35.6f, -12f, -39f, -26f, -35.4f, -40f, -40.2f, -54f, -36.2f, -68f, -40.4f, -80f, -38.6f, -99f, -37.8f);
-        AddLane("SouthLane", 3.6f, LowerQ, 3, false, 25f, -51f, 10f, -49.5f, -6f, -52.5f, -22f, -50f, -38f, -52.6f, -54f, -50.6f, -70f, -52f);
-        AddLane("WallFoot", 2.2f, WestQ, 0, false, -27f, 13.3f, -44f, 13.2f, -58f, 13.3f, -69f, 13.3f, -82f, 13.2f, -96f, 13.3f);
+        AddLane("TerraceLane", 4.6f, TerraceQ, 1, true, -130f, 20.4f, -114f, 19.8f, -99f, 20.6f, -84f, 20.8f, -70f, 19.8f, -56f, 21.2f, -42f, 19.9f, -28f, 20.7f, -16f, 19.6f, -6f, 18.6f, 6f, 19.2f, 16f, 19.8f, 22f, 19.4f);
+        AddLane("UpperLane", 4.2f, TerraceQ, 3, true, -130f, 39f, -116f, 41.5f, -102f, 38.5f, -88f, 40.5f, -76f, 38.2f, -64f, 40.6f, -52f, 38.2f, -40f, 40.8f, -29f, 38.6f, -21.5f, 39.5f, -19.8f, 46f, -20.6f, 52f, -23f, 59f, -22f, 66f);
+        AddLane("HighLane", 3.8f, TerraceQ, 3, false, -128f, 58.5f, -112f, 60.5f, -98f, 61f, -84f, 61.2f, -70f, 58.2f, -56f, 60.4f, -42f, 58f, -31f, 60.2f, -23.5f, 59.5f);
+        AddLane("MansionLane", 3.6f, TerraceQ, 2, false, 7.5f, 19.5f, 10.5f, 28f, 11f, 38f, 14f, 46f, 22f, 48.5f, 31f, 48f);
+        AddLane("UnderWall", 4.4f, LowerQ, 1, true, 27f, -22f, 16f, -22.4f, 4f, -23.6f, -6f, -24f, -16f, -23.4f, -30f, -22.2f, -44f, -23f, -56f, -23.8f, -67f, -24.2f, -78f, -22.6f, -90f, -23f, -102f, -22.4f, -116f, -23.2f, -130f, -22.6f);
+        AddLane("MiddleLane", 5.4f, LowerQ, 3, true, 27f, -41f, 15f, -44f, 2f, -39.8f, -12f, -43.4f, -26f, -39.6f, -40f, -44.4f, -54f, -40.6f, -68f, -44.6f, -80f, -42.2f, -92f, -43f, -104f, -41.6f, -116f, -43.4f, -130f, -42.2f);
+        AddLane("SouthLane", 4f, LowerQ, 3, false, 26f, -60f, 10f, -58.6f, -6f, -61.6f, -22f, -59f, -38f, -61.8f, -54f, -59.6f, -70f, -61.4f, -86f, -60f);
+        AddLane("WallFoot", 2.2f, WestQ, 0, false, -27f, 13.3f, -44f, 13.2f, -58f, 13.3f, -69f, 13.3f, -82f, 13.2f, -96f, 13.3f, -110f, 13.2f, -130f, 13.3f);
+        // out of the village: along the slope north east, and the road winding up the pine hill in hairpins
+        AddLane("SlopeLane", 4.2f, FringeQ, 3, false, 31f, 58f, 44f, 61f, 58f, 58.5f, 72f, 62f, 86f, 58.5f, 100f, 62.5f, 114f, 60f);
+        AddLane("HillRoad", 4.8f, FringeQ, 3, true, 30f, 64f, 27f, 74f, 15f, 80f, -1f, 82f, -13f, 88f, -6f, 97f, 10f, 100f, 26f, 106f, 33f, 115f, 21f, 122f, 2f, 124f);
         // alleys
-        AddLane("AlleyT1", 2.6f, TerraceQ, 0, false, -80f, 22f, -81.5f, 30f, -79.5f, 37.5f);
-        AddLane("AlleyT2", 2.4f, TerraceQ, 0, false, -46f, 21.5f, -44.5f, 29f, -46.5f, 37.5f);
+        AddLane("AlleyT1", 2.6f, TerraceQ, 0, false, -80f, 22.3f, -81.5f, 30f, -79.5f, 37.8f);
+        AddLane("AlleyT2", 2.4f, TerraceQ, 0, false, -46f, 22f, -44.5f, 29f, -46.5f, 38.4f);
+        AddLane("AlleyT3", 2.4f, TerraceQ, 0, false, -110f, 22.4f, -111.5f, 30f, -109.5f, 39.6f);
+        AddLane("AlleyT4", 2.4f, TerraceQ, 0, false, -62f, 42.5f, -63.5f, 50f, -61.5f, 58f);
         AddLane("AlleyW1", 2.8f, WestQ, 0, false, -60f, 3f, -64f, 8f, -68.5f, 12.8f);
         AddLane("AlleyW2", 2.8f, WestQ, 0, false, -56f, -1f, -57.5f, -8f, -59.5f, -15.5f);
         AddLane("AlleyW3", 2.2f, WestQ, 0, false, -36f, -2f, -37f, -9f, -35f, -15f);
-        AddLane("AlleyL1", 2.4f, LowerQ, 0, false, -19f, -25f, -20.5f, -31f, -18.5f, -37f);
-        AddLane("AlleyL2", 2.6f, LowerQ, 0, false, -49f, -25.5f, -47.5f, -31f, -49.5f, -37.5f);
-        AddLane("AlleyL3", 2.6f, LowerQ, 0, false, 11f, -24.5f, 9.5f, -31f, 11f, -38f);
-        AddLane("AlleyL4", 2.4f, LowerQ, 0, false, -31f, -41.5f, -30f, -46f, -31.5f, -50.5f);
-        AddLane("AlleyL5", 2.4f, LowerQ, 0, false, -62f, -41.5f, -61f, -46f, -62.5f, -50.5f);
+        AddLane("AlleyW4", 2.8f, WestQ, 0, false, -100f, 3f, -104f, 8f, -108.5f, 12.8f);
+        AddLane("AlleyW5", 2.8f, WestQ, 0, false, -96f, -1f, -97.5f, -8f, -99.5f, -15.5f);
+        AddLane("AlleyL1", 2.4f, LowerQ, 0, false, -19f, -25.4f, -20.5f, -32f, -18.5f, -38.6f);
+        AddLane("AlleyL2", 2.6f, LowerQ, 0, false, -49f, -25.8f, -47.5f, -32f, -49.5f, -39f);
+        AddLane("AlleyL3", 2.6f, LowerQ, 0, false, 11f, -24.8f, 9.5f, -32f, 11f, -39.6f);
+        AddLane("AlleyL6", 2.6f, LowerQ, 0, false, -96f, -25f, -97.5f, -32f, -95.5f, -39.6f);
+        AddLane("AlleyL4", 2.4f, LowerQ, 0, false, -31f, -46.8f, -30f, -52.5f, -31.5f, -57.6f);
+        AddLane("AlleyL5", 2.4f, LowerQ, 0, false, -62f, -46.8f, -61f, -52.5f, -62.5f, -58f);
 
-        AddTrack(2.6f, 30f, -57f, 24f, -68f, 8f, -78f, -12f, -86f, -32f, -84f);
-        AddTrack(2.4f, 22f, -71f, 33f, -79f, 44f, -86f);
-        AddTrack(2.2f, -6f, -54f, -9f, -64f, -10f, -75f);
-        AddTrack(2.4f, 30.4f, 53f, 37f, 66f, 30f, 77f);
-        AddTrack(2.4f, -99f, 40f, -92f, 52f, -74f, 61f, -52f, 64f, -40f, 64f);
-        AddTrack(2.2f, -23f, 58f, -20f, 70f, -10f, 80f);
-        AddTrack(3f, 104f, 1.4f, 118f, 4f, 132f, 6f);
-        AddTrack(2.6f, -99f, 0.6f, -106f, -2f, -110f, 8f, -112f, 20f, -116f, 32f, -117f, 44f);
+        AddTrack(2.6f, 31f, -71f, 24f, -80f, 8f, -90f, -12f, -98f, -32f, -96f);
+        AddTrack(2.4f, 22f, -83f, 33f, -91f, 44f, -98f);
+        AddTrack(2.2f, -6f, -63f, -9f, -74f, -10f, -86f);
+        AddTrack(2.4f, -128f, 58.5f, -134f, 66f, -120f, 74f, -100f, 78f, -80f, 80f);
+        AddTrack(2.2f, -22f, 66f, -18f, 78f, -12f, 87f);
+        AddTrack(3f, 130f, 1.6f, 144f, 4f, 158f, 6f);
+        AddTrack(2.6f, -130f, 0.4f, -137f, -2f, -141f, 8f, -143f, 20f, -147f, 32f, -148f, 44f);
         AddTrack(2.6f, 62f, 4.5f, 61.5f, 14f, 62f, 23f);
         AddTrack(3f, 64f, -3.5f, 63.5f, -10f, 64f, -14f);
         AddTrack(12f, 56f, -19f, 72f, -19f);        // the dusty square before the cemetery
-        AddTrack(2.4f, -70f, -52f, -72f, -60f, -80f, -67f, -90f, -70f);
+        AddTrack(2.4f, -86f, -60f, -92f, -68f, -102f, -74f, -114f, -78f);
+        AddTrack(2.4f, 114f, 60f, 124f, 66f, 132f, 76f);
     }
 
     // ------------------------------------------------------------------ houses
@@ -305,6 +316,8 @@ public static partial class HillVillageBuilder
         public int Paint;            // shutters, doors, railings: 0 blue, 1 green, 2 brown, 3 grey, 4 white
         public int Roof;             // 0 hip, 1 gable, 2 flat behind a parapet, 3 lean-to
         public bool Balcony, OutsideStair, Chimney, Open, Ruin, Yard, Gallery, RoofStair, Porch, Unfinished, Dish, Aircon;
+        public bool Plotted;         // it stands in a walled plot of its own (see Plot)
+        public bool Ladder;          // the CityLord wooden ladder up its left wall to the flat roof
         public float YardDepth = 5f;
         public int Lane = -1, Side;  // the lane it fronts and on which side
         public float S0, S1;         // its frontage along the lane
@@ -348,6 +361,10 @@ public static partial class HillVillageBuilder
 
     private static readonly List<House> houses = new List<House>();
 
+    /// <summary>A walled plot round a house: its ground (a rectangle, as a footprint), small or big, stone or whitewashed walls.</summary>
+    private class Plot { public House Area, Home; public bool Big, Stone; public float Height; }
+    private static readonly List<Plot> plots = new List<Plot>();
+
     /// <summary>Ground kept clear of houses: the square, the courtyard, the terrace walls and stairs, the landmarks.</summary>
     private static readonly List<(float x0, float z0, float x1, float z1)> keepOut = new List<(float, float, float, float)>();
 
@@ -367,17 +384,22 @@ public static partial class HillVillageBuilder
     /// on open land not too steep, where it gets its own levelled spot), and either joined wall to wall
     /// to a neighbour standing square with it or clear of every other house by a passage a man can walk.
     /// </summary>
-    private static bool Fits(House h)
+    private static bool Fits(House h, House home = null)
     {
         float reach = Half - 3f;
         if (QuarterOf(h) == FringeQ) reach = Half + 4f;
-        float hi = float.MinValue, lo = float.MaxValue, built = 0f;
         foreach (var p in h.Outline(0.9f).Concat(Interior(h)))
         {
             if (Mathf.Abs(p.x) > reach || Mathf.Abs(p.y) > reach) return false;
             if (KeptOut(p)) return false;
             if (LaneDistance(p) < 0.3f) return false;
             if (LineDistance(tracks, p.x, p.y) < 0.8f) return false;
+        }
+        // the slope under the house itself (a walled plot's walls follow the ground)
+        float hi = float.MinValue, lo = float.MaxValue, built = 0f;
+        var under = home ?? h;
+        foreach (var p in under.Outline(0.9f).Concat(Interior(under)))
+        {
             float y = GroundHeight(p.x, p.y);
             hi = Mathf.Max(hi, y); lo = Mathf.Min(lo, y);
             built = Mathf.Max(built, Built(p.x, p.y));
@@ -401,6 +423,15 @@ public static partial class HillVillageBuilder
                 if (Mathf.Min(turn, 90f - turn) > 2.5f) return false;
             }
             else if (gap < 1.2f) return false;
+        }
+        // nothing inside another house's walled plot, and not right against its wall
+        foreach (var pl in plots)
+        {
+            var o = pl.Area;
+            if ((o.C - h.C).sqrMagnitude > reachSq + (o.W + o.D) * (o.W + o.D) + 30f) continue;
+            if (o.Inside(h.C) || h.Inside(o.C)) return false;
+            foreach (var p in h.Outline(0.4f)) if (o.Distance(p) < 0.3f) return false;
+            foreach (var p in o.Outline(0.4f)) if (h.Distance(p) < 0.3f) return false;
         }
         return true;
     }
@@ -433,7 +464,7 @@ public static partial class HillVillageBuilder
                 if (p.y < 26f && p.y > -24f && r < 0.7) return Kind.Shop;
                 return r < 0.55 ? Kind.Classic : r < 0.9 ? Kind.Flat : Kind.Tower;
             case RoadQ: return r < 0.42 ? Kind.Flat : r < 0.62 ? Kind.Classic : r < 0.8 ? Kind.Shed : Kind.Shop;
-            default: return r < 0.3 ? Kind.Cottage : r < 0.55 ? Kind.Shed : r < 0.85 ? Kind.Classic : Kind.Flat;
+            default: return r < 0.2 ? Kind.Cottage : r < 0.33 ? Kind.Shed : r < 0.72 ? Kind.Classic : Kind.Flat;
         }
     }
 
@@ -454,12 +485,13 @@ public static partial class HillVillageBuilder
     /// <summary>The space left to the next house: none (joined), a passage, or a garden behind a wall.</summary>
     private static float Gap(int quarter, Kind k)
     {
+        // the village breathes: few houses joined, passages between them, gardens and yards
         double r = rng.NextDouble();
-        float joined = quarter == SquareQ || quarter == StreetQ ? 0.6f : quarter == TerraceQ || quarter == WestQ ? 0.5f : quarter == LowerQ ? 0.42f : 0.15f;
+        float joined = quarter == SquareQ || quarter == StreetQ ? 0.45f : quarter == TerraceQ || quarter == WestQ ? 0.26f : quarter == LowerQ ? 0.2f : 0.03f;
         if (k == Kind.Shed || k == Kind.Cottage) joined *= 0.5f;
         if (r < joined) return 0.08f;
-        if (r < joined + 0.3f) return R(1.3f, 2.6f);
-        return R(4f, quarter == FringeQ || quarter == RoadQ ? 12f : 8f);
+        if (r < joined + 0.22f) return R(1.8f, 3.4f);
+        return R(5f, quarter == FringeQ || quarter == RoadQ ? 18f : 12f);
     }
 
     /// <summary>The look of a house: its plaster, paint, roof and what it has (balcony, stairs, chimney...).</summary>
@@ -525,7 +557,8 @@ public static partial class HillVillageBuilder
 
     /// <summary>
     /// Houses along one side of a lane, one after another: each of the quarter's kinds, its own size,
-    /// set back its own distance, its front square to the lane where it stands.
+    /// set back its own distance, its front square to the lane where it stands. Some stand in a walled
+    /// plot of their own, a small yard round the house or a big one with room for trees.
     /// </summary>
     private static void Frontage(int laneIndex, int side)
     {
@@ -543,10 +576,15 @@ public static partial class HillVillageBuilder
             float slope = Mathf.Abs(GroundHeight(pb.x, pb.y) - GroundHeight(pa.x, pa.y)) / Mathf.Max(0.5f, Vector2.Distance(pa, pb));
             if (slope > 0.04f) w = Mathf.Min(w, Mathf.Max(4.5f, 0.85f * StepTolerance(kind) / slope));
             float setback = kind == Kind.Shop || lane.Quarter == SquareQ || lane.Quarter == StreetQ && Chance(0.7) ? R(0.25f, 0.8f)
-                : kind != Kind.Shed && Chance(0.16) ? R(3.8f, 6f) : R(0.3f, 2.2f);
-            House placed = null;
+                : kind != Kind.Shed && Chance(0.08) ? R(3.8f, 6f) : R(0.3f, 2.2f);
+            // a walled plot: margins in front, at the sides and behind the house
+            double plotChance = lane.Quarter == FringeQ ? 0.75 : lane.Quarter == RoadQ ? 0.5 : lane.Quarter == SquareQ || lane.Quarter == StreetQ ? 0.04 : 0.38;
+            bool plot = kind != Kind.Shop && kind != Kind.Shed && Chance(plotChance);
+            bool big = Chance(0.8);
+            float bf = R(3.6f, 6.5f), bs = R(2f, 4f), bk = R(1.2f, 3f), sf = R(2f, 3f), ss = R(0.9f, 1.5f), sk = R(0.7f, 1.2f);
+            House placed = null, area = null;
             // joined to the house before: square with it, wall to wall, its front a little in or out
-            if (last != null && lastGap < 0.2f)
+            if (last != null && lastGap < 0.2f && !plot)
             {
                 var (_, t0) = lane.At(last.S1);
                 float sign = Vector2.Dot(Turn(last.Yaw, 1f, 0f), t0) >= 0f ? 1f : -1f;
@@ -564,22 +602,34 @@ public static partial class HillVillageBuilder
             {
                 float ww = w * (1f - 0.08f * attempt), dd = Mathf.Max(3.6f, d * (attempt < 2 ? 1.2f - 0.2f * attempt : 1.1f - 0.13f * attempt));
                 if (attempt >= 4) setback = R(0.3f, 1f);
-                var (p, t) = lane.At(s + ww / 2f);
+                // a big plot that does not fit becomes a small one
+                if (plot && big && attempt == 3) big = false;
+                float pf = plot ? (big ? bf : sf) : 0f, ps = plot ? (big ? bs : ss) : 0f, pk = plot ? (big ? bk : sk) : 0f;
+                float aw = (big ? ww : ww * 1f) + 2f * ps, ad = dd + pf + pk, back = plot ? R(0.3f, 1.2f) : setback;
+                var (p, t) = lane.At(s + aw / 2f);
                 var normal = side == 1 ? new Vector2(-t.y, t.x) : new Vector2(t.y, -t.x);
-                var c = p + normal * (lane.Width / 2f + setback + dd / 2f);
-                var h = new House { X = c.x, Z = c.y, Yaw = YawOf(-normal), W = ww, D = dd, Floors = floors, Kind = kind, Lane = laneIndex, Side = side, S0 = s, S1 = s + ww };
+                var c = p + normal * (lane.Width / 2f + back + ad / 2f);
+                var h = new House { X = c.x, Z = c.y, Yaw = YawOf(-normal), W = aw, D = ad, Floors = floors, Kind = kind, Lane = laneIndex, Side = side, S0 = s, S1 = s + aw };
                 // where the lane bends towards the front corners, the house steps back from it
                 float need = h.Outline(0.9f).Where(q => Vector2.Dot(q - h.C, -normal) > 0f).Max(q => 0.35f - LaneDistance(q));
                 if (need > 0f && need < 2.5f) { h.X += normal.x * need; h.Z += normal.y * need; }
-                if (Fits(h)) placed = h;
+                if (!plot) { if (Fits(h)) placed = h; continue; }
+                // the house in its plot: behind its front yard, a little to one side or the other
+                var hc = h.ToWorld(R(-ps * 0.5f, ps * 0.5f), ad / 2f - pf - dd / 2f);
+                var home = new House { X = hc.x, Z = hc.y, Yaw = h.Yaw, W = ww, D = dd, Floors = floors, Kind = kind, Lane = laneIndex, Side = side, S0 = h.S0, S1 = h.S1, Plotted = true };
+                if (!Fits(h, home)) continue;
+                area = h;
+                placed = home;
             }
             if (placed == null) { s += 0.8f; last = null; continue; }
             Dress(placed);
-            if (setback > 3.5f && placed.Kind != Kind.Shed) { placed.Yard = true; placed.YardDepth = setback - 0.2f; }
+            if (!plot && setback > 3.5f && placed.Kind != Kind.Shed) { placed.Yard = true; placed.YardDepth = setback - 0.2f; }
             houses.Add(placed);
+            if (area != null) plots.Add(new Plot { Area = area, Home = placed, Big = big, Stone = Chance(0.55), Height = big ? R(1.5f, 2.1f) : R(1.1f, 1.6f) });
             // a walled garden in the gap to the house before, its wall along the lane
-            if (last != null && lastGap > 3.5f && placed.S0 - last.S1 < 13f && !placed.Yard && !last.Yard) GardenBetween(last, placed, lane, side);
+            if (last != null && lastGap > 3.5f && placed.S0 - last.S1 < 13f && !placed.Yard && !last.Yard && !placed.Plotted && !last.Plotted) GardenBetween(last, placed, lane, side);
             float gap = Gap(lane.Quarter, kind);
+            if (plot && gap < 0.2f) gap = R(1.6f, 3f);
             last = placed; lastGap = gap;
             s = placed.S1 + gap;
         }
@@ -620,14 +670,14 @@ public static partial class HillVillageBuilder
     {
         var regions = new[]
         {
-            (-96f, 18f, 22f, 50f, TerraceQ), (-96f, -17f, -27f, 12f, WestQ), (-96f, -56f, 26f, -21f, LowerQ),
-            (34f, -56f, 48f, 52f, StreetQ), (42f, -16f, 104f, 18f, RoadQ),
+            (-128f, 18f, 22f, 62f, TerraceQ), (-128f, -17f, -27f, 12f, WestQ), (-128f, -72f, 26f, -21f, LowerQ),
+            (34f, -72f, 48f, 64f, StreetQ), (42f, -16f, 128f, 18f, RoadQ),
         };
         foreach (var (x0, z0, x1, z1, q) in regions)
-            for (int i = 0; i < 1500; i++)
+            for (int i = 0; i < 260; i++)
             {
                 var p = new Vector2(R(x0, x1), R(z0, z1));
-                if (LaneDistance(p) < 2f || KeptOut(p) || houses.Any(o => o.Distance(p) < 2.2f)) continue;
+                if (LaneDistance(p) < 2f || KeptOut(p) || houses.Any(o => o.Distance(p) < 6.5f) || plots.Any(o => o.Area.Distance(p) < 3f)) continue;
                 // the nearest lane point: face it
                 Vector2 near = p; float best = float.MaxValue; int laneAt = -1;
                 for (int l = 0; l < lanes.Count; l++)
@@ -739,17 +789,19 @@ public static partial class HillVillageBuilder
     /// </summary>
     private static void Plan()
     {
-        houses.Clear(); gardens.Clear(); compounds.Clear(); windmills.Clear(); keepOut.Clear();
+        houses.Clear(); gardens.Clear(); compounds.Clear(); windmills.Clear(); keepOut.Clear(); plots.Clear();
         Levels();
         Lanes();
         keepOut.Add((-27f, -19f, 27f, 17f));             // the square
-        keepOut.Add((-18f, 20.5f, 7f, 48.5f));            // the mosque's courtyard
-        keepOut.Add((-100f, 14.6f, 24.5f, 18f));          // the terrace wall
-        keepOut.Add((-100f, -20.2f, 27f, -15.6f));        // the lower wall
+        keepOut.Add((-18f, 20.5f, 7f, 48.5f));            // the mansion's garden
+        keepOut.Add((-131f, 14.6f, 24.5f, 18f));          // the terrace wall
+        keepOut.Add((-131f, -20.2f, 27f, -15.6f));        // the lower wall
         keepOut.Add((22.4f, 15f, 25.8f, 43f));            // the terrace wall along the east street
         keepOut.Add((24.4f, -43f, 27.8f, -17f));          // the lower wall along the street down
         keepOut.Add((-69f, 12f, -57f, 18f));              // the west stairs up
         keepOut.Add((-69f, -22.5f, -56.5f, -15.6f));      // the west stairs down
+        keepOut.Add((-109f, 12f, -97f, 18f));             // the far west stairs up
+        keepOut.Add((-111f, -22.5f, -96.5f, -15.6f));     // the far west stairs down
         keepOut.Add((-13.5f, -22.6f, 1.5f, -15.6f));      // the square's stairs down
         // the dusty square and the cemetery behind it, south of the road
         cemetery = new Vector3(64f, 0f, -37f);
@@ -759,15 +811,15 @@ public static partial class HillVillageBuilder
         keepOut.Add((55f, -25f, 73f, -4.5f));
         keepOut.Add((64f - CemeteryW / 2f - 1f, -37f - CemeteryD / 2f - 1f, 64f + CemeteryW / 2f + 1f, -37f + CemeteryD / 2f + 1f));
         // three windmills along the ridge of the west hill
-        foreach (var (x, z) in new[] { (-118f, 30f), (-122f, 43f), (-117f, 56f) })
+        foreach (var (x, z) in new[] { (-147f, 27f), (-151f, 40f), (-146f, 53f) })
         {
             float y = GroundHeight(x, z);
-            Flat(x - 4f, z - 4f, x + 4f, z + 4f, y, 4f, 4f, 4f, 4f);
+            Flat(x - 4f, z - 4f, x + 4f, z + 4f, y, 9f, 9f, 9f, 9f);
             windmills.Add(new Vector3(x, y, z));
         }
         // the compounds: behind the upper lane, in the lower quarter's west corner, on the east slope
-        AddCompound(-62f, 49.6f, 180f, 20f, 14f, false);
-        AddCompound(-85f, -50f, 0f, 19f, 13f, false);
+        AddCompound(-95f, 50.2f, 180f, 20f, 14f, false);
+        AddCompound(-108f, -54f, 0f, 19f, 13f, false);
         AddCompound(62f, 32f, 180f, 22f, 16f, true);
         // houses along the lanes, main streets first
         var order = Enumerable.Range(0, lanes.Count).Where(i => lanes[i].Sides != 0).OrderBy(i => lanes[i].Main ? 0 : 1).ToList();
@@ -786,16 +838,16 @@ public static partial class HillVillageBuilder
             houses.Add(h);
             return h;
         }
-        Farm(new House(-30f, -78f, 0f, 10f, 8f, 2, 2), Kind.Classic);
-        Farm(new House(-15.5f, -80f, 0f, 9f, 5.5f, 1, 2), Kind.Shed);
-        var white = Farm(new House(44f, -80f, 20f, 9f, 7f, 1, 0), Kind.Flat);
+        Farm(new House(-30f, -92f, 0f, 10f, 8f, 2, 2), Kind.Classic);
+        Farm(new House(-15.5f, -94f, 0f, 9f, 5.5f, 1, 2), Kind.Shed);
+        var white = Farm(new House(46f, -94f, 20f, 9f, 7f, 1, 0), Kind.Flat);
         if (white != null) { white.Porch = true; white.Colour = 0; white.Unfinished = false; }
-        Farm(new House(30f, 78f, 200f, 6f, 5f, 1, 2), Kind.Cottage);
-        var ruin = Farm(new House(-40f, 66f, 160f, 8f, 7f, 1, 2), Kind.Classic);
+        var ruin = Farm(new House(-58f, 76f, 160f, 8f, 7f, 1, 2), Kind.Classic);
         if (ruin != null) { ruin.Ruin = true; ruin.Open = true; }
-        Farm(new House(84f, 30f, 230f, 9f, 7f, 2, 0), Kind.Classic);
-        Farm(new House(-70f, 64f, 170f, 6f, 5f, 1, 3), Kind.Cottage);
-        Farm(new House(86f, -36f, 10f, 7f, 5f, 1, 2), Kind.Shed);
+        Farm(new House(88f, 30f, 230f, 9f, 7f, 2, 0), Kind.Classic);
+        Farm(new House(-92f, 76f, 170f, 6f, 5f, 1, 3), Kind.Cottage);
+        Farm(new House(88f, -38f, 10f, 7f, 5f, 1, 2), Kind.Shed);
+        Farm(new House(-70f, -94f, 15f, 8f, 6f, 1, 2), Kind.Cottage);
         CheckExtras();
         // the houses standing on open ground get their own levelled spot
         foreach (var h in houses)
@@ -818,6 +870,8 @@ public static partial class HillVillageBuilder
                     if (KeptOut(p) || LaneDistance(p) < -laneSlack || LineDistance(tracks, p.x, p.y) < 0.3f) return false;
                     foreach (var o in houses) if (o != h && o.Distance(p) < 0.25f) return false;
                     foreach (var g in gardens) if (SegmentDistance(p, g.A, g.B) < 0.4f) return false;
+                    foreach (var pl in plots)
+                        if (pl.Home == h ? !pl.Area.Inside(p, -0.35f) : pl.Area.Distance(p) < 0.35f) return false;
                 }
             return true;
         }
@@ -827,6 +881,9 @@ public static partial class HillVillageBuilder
             if (h.OutsideStair && !Clear(h, -w / 2f, -w / 2f + 1.3f + 17 * 0.3f, d / 2f, d / 2f + 1.3f, 0.8f)) h.OutsideStair = false;
             if (h.Porch && !Clear(h, -2.8f, 2.8f, d / 2f, d / 2f + 2.5f, 0.3f)) h.Porch = false;
             if (h.RoofStair && !Clear(h, w / 2f, w / 2f + 1.3f, -d / 2f, d / 2f, 0.6f)) h.RoofStair = false;
+            // the wooden ladder up to a flat roof (the CityLord one): room before the left wall for its lean
+            bool flatRoof = h.Roof == 2 && (h.Kind == Kind.Flat || h.Kind == Kind.Shop) && h.Floors <= 3 && !h.RoofStair;
+            if (flatRoof && Chance(h.Kind == Kind.Shop ? 0.4 : 0.6) && Clear(h, -w / 2f - 3.4f, -w / 2f, -0.8f, 0.8f, 1.2f)) h.Ladder = true;
             if (h.Yard && (!Clear(h, -w / 2f - 0.6f, w / 2f + 0.6f, d / 2f + h.YardDepth - 0.3f, d / 2f + h.YardDepth + 0.3f, -0.05f)
                 || !Clear(h, -w / 2f - 0.6f, -w / 2f - 0.6f, d / 2f + 0.3f, d / 2f + h.YardDepth, -0.05f) || !Clear(h, w / 2f + 0.6f, w / 2f + 0.6f, d / 2f + 0.3f, d / 2f + h.YardDepth, -0.05f))) h.Yard = false;
         }

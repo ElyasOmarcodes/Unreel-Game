@@ -22,7 +22,7 @@ public static class MapOptimizer
     /// Merges the map under root. Pieces listed in nightOnly (lit windows, lamp glass) are merged
     /// apart; the merged renderers are returned so the world switches them on at night.
     /// </summary>
-    public static List<Renderer> Merge(Transform root, string name, ICollection<Renderer> keep = null, ICollection<Renderer> nightOnly = null)
+    public static List<Renderer> Merge(Transform root, string name, ICollection<Renderer> keep = null, ICollection<Renderer> nightOnly = null, float cell = Cell)
     {
         // glows face the camera around their own centre: never batched, never merged
         foreach (var r in root.GetComponentsInChildren<Renderer>(true))
@@ -34,7 +34,7 @@ public static class MapOptimizer
         string path = $"{Folder}/{name}.asset";
         AssetDatabase.DeleteAsset(path);
         var toLocal = root.worldToLocalMatrix;
-        var groups = new Dictionary<(Material mat, int x, int z, ShadowCastingMode shadows, bool detail, bool night), List<CombineInstance>>();
+        var groups = new Dictionary<(Material mat, int x, int z, ShadowCastingMode shadows, bool detail, bool night, bool scenery), List<CombineInstance>>();
         var merged = new List<MeshRenderer>();
         int before = 0;
         // pieces of the model kits used again and again (walls, windows, props) are not merged: copies
@@ -68,12 +68,14 @@ public static class MapOptimizer
             var matrix = toLocal * r.localToWorldMatrix;
             if (matrix.determinant <= 0f) continue;   // mirrored pieces keep their own renderer
             var b = r.bounds;
-            if (Mathf.Max(b.size.x, b.size.z) > Cell) continue;   // ground and other big pieces gain nothing
-            bool detail = !isNight && Mathf.Max(b.size.x, b.size.y, b.size.z) < 1.6f && b.min.y < 2.5f;
-            int cx = Mathf.FloorToInt(b.center.x / Cell), cz = Mathf.FloorToInt(b.center.z / Cell);
+            if (Mathf.Max(b.size.x, b.size.z) > cell) continue;   // ground and other big pieces gain nothing
+            // scenery far out (forests, groves, hills) keeps its layer: the camera stops drawing it at a distance on weaker phones
+            bool scenery = r.gameObject.layer == UA.Settings.SceneryLayer;
+            bool detail = !isNight && !scenery && Mathf.Max(b.size.x, b.size.y, b.size.z) < 1.6f && b.min.y < 2.5f;
+            int cx = Mathf.FloorToInt(b.center.x / cell), cz = Mathf.FloorToInt(b.center.z / cell);
             for (int s = 0; s < mats.Length; s++)
             {
-                var key = (mats[s], isNight ? 0 : cx, isNight ? 0 : cz, r.shadowCastingMode, detail, isNight);
+                var key = (mats[s], isNight ? 0 : cx, isNight ? 0 : cz, r.shadowCastingMode, detail, isNight, scenery);
                 if (!groups.TryGetValue(key, out var list)) groups[key] = list = new List<CombineInstance>();
                 list.Add(new CombineInstance { mesh = Part(mesh, s), subMeshIndex = 0, transform = matrix });
             }
@@ -105,7 +107,7 @@ public static class MapOptimizer
                 else AssetDatabase.AddObjectToAsset(mesh, path);
                 var go = new GameObject($"Merged_{g.Key.mat.name}");
                 go.transform.SetParent(parent, false);
-                go.layer = g.Key.detail ? DetailLayer : 0;
+                go.layer = g.Key.scenery ? UA.Settings.SceneryLayer : g.Key.detail ? DetailLayer : 0;
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 var r = go.AddComponent<MeshRenderer>();
                 r.sharedMaterial = g.Key.mat;

@@ -56,6 +56,7 @@ namespace UA
         private void OnDestroy()
         {
             Controls.AmmoAvailable = false;
+            Controls.AmmoFull = false;
             Controls.HealAvailable = false;
             if (I == this) I = null;
         }
@@ -211,9 +212,11 @@ namespace UA
             bloodMate = alive && !Healing && Time.time >= nextGive ? WoundedMate(s) : null;
             Controls.HealAvailable = bloodMate != null;
 
-            // ammo crates: the button shows while standing next to one and something is missing
+            // ammo crates: the button shows while standing next to one (dimmed when nothing is missing:
+            // the extra magazines from kills can make the reserve fuller than a crate fills it)
             bool atBox = alive && AmmoBox.Nearest(transform.position) != null;
-            Controls.AmmoAvailable = atBox && NeedsSupplies;
+            Controls.AmmoAvailable = atBox;
+            Controls.AmmoFull = atBox && !NeedsSupplies;
             if (atBox && Controls.AmmoPressed) Resupply();
 
             // spread for the crosshair and the next shot
@@ -453,8 +456,15 @@ namespace UA
         /// <summary>Everything full again: magazines, reserve ammunition and grenades.</summary>
         public void Resupply()
         {
+            if (!NeedsSupplies) { App.I?.Toast("AMMO IS FULL"); return; }
             reloadEnd = 0;
-            Refill();
+            // full magazines and at least the standard reserve: a crate never takes away what kills gave
+            for (int i = 0; i < 2; i++)
+            {
+                var def = Weapons.Get(i == 0 ? agent.State.Primary : agent.State.Secondary);
+                Mag[i] = def.MagSize;
+                Reserve[i] = Mathf.Max(Reserve[i], def.Reserve);
+            }
             Grenades = Grenade.Max;
             Sfx.Play(Weapons.ReloadSound(Current), 0.9f, 1.1f);
             App.I?.Toast("AMMO AND GRENADES REFILLED");
