@@ -41,7 +41,7 @@ public static class Program
     public static void Main(string[] a)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var s = HillVillageBuilder.Dump(41);
+        var s = HillVillageBuilder.Dump(a.Length > 1 ? int.Parse(a[1]) : 44);
         System.IO.File.WriteAllText(a[0], s);
         System.Console.WriteLine($"plan in {sw.ElapsedMilliseconds} ms");
     }

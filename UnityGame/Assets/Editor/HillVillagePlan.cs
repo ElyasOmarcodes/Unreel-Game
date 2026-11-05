@@ -382,8 +382,9 @@ public static partial class HillVillageBuilder
             hi = Mathf.Max(hi, y); lo = Mathf.Min(lo, y);
             built = Mathf.Max(built, Built(p.x, p.y));
         }
-        // on a level or a sloping street the foundation takes up to 1.7 m; on open land the house gets its own level spot
-        if (hi - lo > 1.7f && !(built < 0.03f && hi - lo < 3.5f)) return false;
+        // on a level or a sloping street the foundation takes up the fall (a shop's floor must stay near
+        // the street); on open land the house gets its own level spot
+        if (hi - lo > StepTolerance(h.Kind) && !(built < 0.03f && hi - lo < 3.5f)) return false;
         float reachSq = (h.W + h.D) * (h.W + h.D);
         foreach (var o in houses)
         {
@@ -403,6 +404,9 @@ public static partial class HillVillageBuilder
         }
         return true;
     }
+
+    /// <summary>How far the ground may fall across a house's footprint (its foundation shows that much).</summary>
+    private static float StepTolerance(Kind k) => k == Kind.Shop ? 0.85f : 1.3f;
 
     private static IEnumerable<Vector2> Interior(House h)
     {
@@ -534,6 +538,10 @@ public static partial class HillVillageBuilder
             var (p0, _) = lane.At(s);
             var kind = PickKind(lane.Quarter, p0);
             var (w, d, floors) = Dims(kind, lane.Quarter);
+            // on a sloping street the houses are narrower, each on its own step down the slope
+            var (pa, _) = lane.At(Mathf.Max(0f, s - 2f)); var (pb, _) = lane.At(s + 2f);
+            float slope = Mathf.Abs(GroundHeight(pb.x, pb.y) - GroundHeight(pa.x, pa.y)) / Mathf.Max(0.5f, Vector2.Distance(pa, pb));
+            if (slope > 0.04f) w = Mathf.Min(w, Mathf.Max(4.5f, 0.85f * StepTolerance(kind) / slope));
             float setback = kind == Kind.Shop || lane.Quarter == SquareQ || lane.Quarter == StreetQ && Chance(0.7) ? R(0.25f, 0.8f)
                 : kind != Kind.Shed && Chance(0.16) ? R(3.8f, 6f) : R(0.3f, 2.2f);
             House placed = null;

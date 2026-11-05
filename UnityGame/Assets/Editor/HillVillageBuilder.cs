@@ -950,7 +950,7 @@ public static partial class HillVillageBuilder
 
     public static MapLayout Build()
     {
-        rng = new System.Random(41);
+        rng = new System.Random(44);
         night.Clear(); mats.Clear(); roofMeshes.Clear();
         rockMeshes = null; sphereMesh = null; millTower = null; millCap = null;
         root = new GameObject("Map_HillVillage").transform;

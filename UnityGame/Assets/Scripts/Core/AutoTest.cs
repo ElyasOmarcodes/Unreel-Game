@@ -708,7 +708,7 @@ namespace UA
                 (12, "28-hill-from-the-pines", new Vector3(0f, 19f, 70f), new Vector3(-6f, 3f, 10f)),
                 (12, "29-hill-east-road", new Vector3(100f, 8.4f, 4f), new Vector3(50f, 2f, 2f)),
                 (12, "29d-hill-cemetery", new Vector3(64f, 2.6f, -11f), new Vector3(64f, -1f, -36f)),
-                (12, "29e-hill-windmills", new Vector3(-100f, 8f, 10f), new Vector3(-120f, 24f, 42f)),
+                (12, "29e-hill-windmills", new Vector3(-95f, 12f, -12f), new Vector3(-119f, 21f, 42f)),
                 (12, "29f-hill-roofs", new Vector3(22f, 14f, -64f), new Vector3(-20f, -2f, -35f)),
                 (13, "29b-hill-square-sunset", new Vector3(19f, 7f, -16f), new Vector3(-10f, 2f, 6f)),
                 (14, "29c-hill-square-night", new Vector3(19f, 7f, -16f), new Vector3(-10f, 2f, 6f)),

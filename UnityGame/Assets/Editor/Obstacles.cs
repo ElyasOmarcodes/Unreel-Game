@@ -9,8 +9,9 @@ using UnityEngine;
 public static class Obstacles
 {
     private static Material Sandbag => Mats.Pbr("Sandbag", "Concrete042A", new Color(0.72f, 0.64f, 0.46f), 0.25f);
-    private static Material Rust => Mats.Pbr("RustPlates", "MetalPlates013", Color.white, 0.7f);
-    private static Material Burned => Mats.Pbr("Burned", "MetalPlates013", new Color(0.32f, 0.29f, 0.27f), 0.5f);
+    private static Material Rust => Mats.Pbr("RustPlates", "RustyMetal02", new Color(0.95f, 0.85f, 0.78f), 0.35f, 0.35f);
+    private static Material Burned => Mats.Pbr("Burned", "RustyMetal02", new Color(0.4f, 0.35f, 0.32f), 0.3f, 0.3f);
+    private static Material Soot => AssetSetup.Solid("Wreck_Soot", new Color(0.05f, 0.045f, 0.04f), 0.15f, 0f);
     private static Material Concrete => Mats.Pbr("Concrete", "Concrete034", Color.white, 0.6f);
     private static Material Steel => Mats.Pbr("HedgehogSteel", "Metal032", new Color(0.35f, 0.36f, 0.37f), 0.7f);
     private static Material Crate => Mats.Pbr("Wood", "Wood049", new Color(0.85f, 0.75f, 0.6f), 0.5f);
@@ -59,16 +60,49 @@ public static class Obstacles
         SandbagWall(t, t.TransformPoint(new Vector3(1.6f, 0, 0.2f)), yaw + 90f, 2.2f);
     }
 
-    /// <summary>Burned out car on its rims.</summary>
+    /// <summary>
+    /// A burnt-out car sunk on its rims: a rounded body of rusted, scorched sheet, the bonnet buckled
+    /// open, the cabin's glass gone between its pillars, the seats burnt to their frames, bumpers and
+    /// rims of bare rust. The body and roof stop bullets; the empty windows do not.
+    /// </summary>
     public static void CarWreck(Transform parent, Vector3 pos, float yaw)
     {
         var t = Root(parent, "CarWreck", pos, yaw);
-        Box("Body", t, new Vector3(0, 0.55f, 0), new Vector3(1.8f, 0.62f, 4.3f), Burned, 1.2f);
-        Box("Cabin", t, new Vector3(0, 1.08f, -0.25f), new Vector3(1.55f, 0.48f, 2.1f), Burned, 1.2f);
-        Box("Hood", t, new Vector3(0.05f, 0.9f, 1.55f), new Vector3(1.6f, 0.06f, 1.1f), Rust, 1f, 8f, false);
+        t.rotation = Quaternion.Euler(2f * Mathf.Sin(pos.x * 1.7f + pos.z), yaw, 3f * Mathf.Sin(pos.z * 1.3f - pos.x));
+        Box("Body", t, new Vector3(0, 0.56f, 0), new Vector3(1.78f, 0.6f, 4.3f), Burned, 1.2f, 0f, true, 0.14f);
+        Box("Sill", t, new Vector3(0, 0.3f, 0), new Vector3(1.7f, 0.12f, 3.4f), Soot, 1f, 0f, false);
+        // the bonnet, buckled up at its front edge; the boot lid
+        var bonnet = Box("Bonnet", t, new Vector3(0, 0.92f, 1.5f), new Vector3(1.62f, 0.05f, 1.15f), Rust, 1f, 0f, false);
+        bonnet.transform.rotation = t.rotation * Quaternion.Euler(-9f, 3f, 2f);
+        Box("Boot", t, new Vector3(0, 0.89f, -1.72f), new Vector3(1.62f, 0.05f, 0.8f), Burned, 1f, 0f, false);
+        // the cabin: pillars, the roof, the empty windows; the seats' frames inside
+        foreach (float x in new[] { -0.74f, 0.74f })
+        {
+            var a = Box("PillarA", t, new Vector3(x, 1.12f, 0.62f), new Vector3(0.08f, 0.56f, 0.08f), Burned, 1f, 0f, false);
+            a.transform.rotation = t.rotation * Quaternion.Euler(-32f, 0, 0);
+            Box("PillarB", t, new Vector3(x, 1.12f, -0.25f), new Vector3(0.08f, 0.5f, 0.1f), Burned, 1f, 0f, false);
+            var c = Box("PillarC", t, new Vector3(x, 1.1f, -1.05f), new Vector3(0.08f, 0.52f, 0.14f), Burned, 1f, 0f, false);
+            c.transform.rotation = t.rotation * Quaternion.Euler(28f, 0, 0);
+        }
+        Box("Roof", t, new Vector3(0, 1.4f, -0.22f), new Vector3(1.48f, 0.06f, 1.55f), Burned, 1.2f, 0f, true, 0.02f);
+        Box("Dash", t, new Vector3(0, 0.95f, 0.55f), new Vector3(1.5f, 0.18f, 0.3f), Soot, 1f, 0f, false);
+        foreach (float z in new[] { 0.05f, -0.75f })
+        {
+            Box("SeatFrame", t, new Vector3(0, 0.9f, z), new Vector3(1.3f, 0.06f, 0.5f), Rust, 1f, 0f, false);
+            Box("SeatBack", t, new Vector3(0, 1.12f, z - 0.25f), new Vector3(1.3f, 0.45f, 0.05f), Soot, 1f, 0f, false);
+        }
+        Box("BumperFront", t, new Vector3(0, 0.42f, 2.17f), new Vector3(1.74f, 0.16f, 0.12f), Rust, 1f, 0f, false);
+        Box("BumperBack", t, new Vector3(0, 0.44f, -2.17f), new Vector3(1.74f, 0.16f, 0.12f), Rust, 1f, 0f, false);
+        foreach (float x in new[] { -0.55f, 0.55f })
+        {
+            Box("Lamp", t, new Vector3(x, 0.66f, 2.16f), new Vector3(0.36f, 0.14f, 0.04f), Soot, 1f, 0f, false);
+            Box("TailLamp", t, new Vector3(x + Mathf.Sign(x) * 0.15f, 0.68f, -2.16f), new Vector3(0.24f, 0.12f, 0.04f), Soot, 1f, 0f, false);
+        }
+        // the wheel arches black with soot, the rims down on the ground
         foreach (var (x, z) in new[] { (0.85f, 1.35f), (-0.85f, 1.35f), (0.85f, -1.35f), (-0.85f, -1.35f) })
         {
-            var rim = MeshGen.Object("Rim", MeshGen.Cylinder(0.24f, 0.2f, 1f, 14), Rust, t, t.TransformPoint(new Vector3(x - Mathf.Sign(x) * 0.1f, 0.24f, z)));
+            Box("Arch", t, new Vector3(x, 0.42f, z), new Vector3(0.06f, 0.5f, 0.78f), Soot, 1f, 0f, false);
+            var rim = MeshGen.Object("Rim", MeshGen.Cylinder(0.24f, 0.18f, 1f, 14), Rust, t, t.TransformPoint(new Vector3(x - Mathf.Sign(x) * 0.12f, 0.22f, z)));
             rim.transform.rotation = t.rotation * Quaternion.Euler(0, 0, 90);
         }
     }
