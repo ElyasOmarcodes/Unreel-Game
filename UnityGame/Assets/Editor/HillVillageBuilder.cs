@@ -1201,7 +1201,7 @@ public static partial class HillVillageBuilder
             if (!Chance(want) || Built(x, z) > 0.25f || LineDistance(tracks, x, z) < 2.5f || LaneDistance(new Vector2(x, z)) < 3f) continue;
             var p = new Vector3(x, Y(x, z), z);
             if (!Free(p, 2.2f)) continue;
-            TreeAt(pines[rng.Next(pines.Length)], p, R(0.7f, 1.05f), true);
+            TreeAt(pines[rng.Next(pines.Length)], p, R(0.7f, 1.05f), Mathf.Max(Mathf.Abs(x), Mathf.Abs(z)) > Edge);
             Physics.SyncTransforms();
             pinesPlaced++;
         }

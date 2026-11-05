@@ -84,8 +84,8 @@ public static partial class HillVillageBuilder
     {
         float h = 0.07f * z;
         h += 1.8f * Mathf.Sin(x / 29f + 0.5f) * Mathf.Cos(z / 23f) + 0.9f * Mathf.Sin((x - z) / 17f);
-        h += 28f * Gauss(x, z, 10f, 150f, 52f);       // the pine hill (the road winds up it)
-        h += 11f * Gauss(x, z, -152f, 40f, 38f);      // the west hill (the windmills)
+        h += 20f * Gauss(x, z, 10f, 170f, 60f);       // the pine hill (the road winds up it)
+        h += 6f * Gauss(x, z, -156f, 40f, 40f);       // the west hill (the windmills)
         h += 9f * Gauss(x, z, 142f, 80f, 34f);        // the north east hill
         h -= 3.5f * Gauss(x, z, 30f, -136f, 44f);     // the hollow below the olive groves
         // round the edges the land rises gently to the hills (no wall of earth)
@@ -133,7 +133,7 @@ public static partial class HillVillageBuilder
     }
 
     /// <summary>A level spot for a house standing on the open slope (its own pad, blended in).</summary>
-    private static float HousePad(Vector3 c, float w, float d, float yaw, float margin = 10f)
+    private static float HousePad(Vector3 c, float w, float d, float yaw, float margin = 14f)
     {
         var a = Turn(yaw, w, d); var b = Turn(yaw, w, -d);
         float ex = Mathf.Max(Mathf.Abs(a.x), Mathf.Abs(b.x)) / 2f + 2f, ez = Mathf.Max(Mathf.Abs(a.y), Mathf.Abs(b.y)) / 2f + 2f;
@@ -406,7 +406,7 @@ public static partial class HillVillageBuilder
         }
         // on a level or a sloping street the foundation takes up the fall (a shop's floor must stay near
         // the street); on open land the house gets its own level spot
-        if (hi - lo > StepTolerance(h.Kind) && !(built < 0.03f && hi - lo < 3.5f)) return false;
+        if (hi - lo > StepTolerance(h.Kind) && !(built < 0.03f && hi - lo < 2.5f)) return false;
         float reachSq = (h.W + h.D) * (h.W + h.D);
         foreach (var o in houses)
         {
