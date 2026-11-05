@@ -45,9 +45,9 @@ public static class HillVillageBuilder
     }
 
     // whitewash over the stone, well kept; the same plaster flaking off the stones (the older houses)
-    private static Material Plaster => Scan("Plaster", "WhitePlaster", new Color(1f, 0.98f, 0.94f), 0.12f, 2.5f, 0.8f);
-    private static Material OldPlaster => Scan("OldPlaster", "PlasterStone", new Color(1.05f, 1.02f, 0.96f), 0.1f, 2.8f);
-    private static Material CreamPlaster => Scan("CreamPlaster", "WhitePlaster", new Color(0.98f, 0.9f, 0.76f), 0.12f, 2.5f, 0.8f);
+    private static Material Plaster => Scan("Plaster", "WhitePlaster", new Color(1.32f, 1.32f, 1.3f), 0.12f, 2.5f, 0.5f);
+    private static Material OldPlaster => Scan("OldPlaster", "PlasterStone", new Color(1.22f, 1.2f, 1.15f), 0.1f, 2.8f);
+    private static Material CreamPlaster => Scan("CreamPlaster", "WhitePlaster", new Color(1.3f, 1.24f, 1.1f), 0.12f, 2.5f, 0.5f);
     // rough field stone (house walls, garden walls) and the dressed stones in mortar (terrace walls)
     private static Material Stone => Scan("Stone", "OldStone", new Color(1f, 0.96f, 0.9f), 0.12f, 2.6f, 1.2f);
     private static Material Masonry => Scan("Masonry", "MortarStone", new Color(1f, 0.97f, 0.92f), 0.12f, 3.2f, 1.2f);
@@ -240,13 +240,13 @@ public static class HillVillageBuilder
         mat.SetTexture("_Dirt", T("DryGround_BaseColor.jpg"));
         mat.SetTexture("_Gravel", T("PineFloor_BaseColor.jpg"));
         mat.SetTexture("_Rock", T("RockFace_BaseColor.jpg"));
-        mat.SetColor("_GrassTint", new Color(1.05f, 1.02f, 0.9f));
+        mat.SetColor("_GrassTint", new Color(0.86f, 0.96f, 0.74f));
         mat.SetVector("_Tiles", new Vector4(7f, 5f, 4f, 7f));
         var area = new Rect(-Half - 10f, -Half - 10f, (Half + 10f) * 2f, (Half + 10f) * 2f);
         mat.SetTexture("_Path", T("Cobble_BaseColor.jpg"));
         mat.SetTexture("_PathMask", CobbleMask(area, 1024));
         mat.SetVector("_PathArea", new Vector4(area.xMin, area.yMin, area.width, 2.2f));
-        mat.SetColor("_PathTint", new Color(0.98f, 0.94f, 0.88f));
+        mat.SetColor("_PathTint", new Color(1.35f, 1.3f, 1.22f));
         AssetDatabase.CreateAsset(mat, matPath);
         return mat;
     }
@@ -766,6 +766,8 @@ public static class HillVillageBuilder
         h.SetParent(parent, false);
         h.SetPositionAndRotation(new Vector3(centre.x, baseY, centre.z), rot);
         float w = hs.W, d = hs.D;
+        // half the old houses freshly whitewashed: the village is white with stone between, as in the picture
+        if (hs.Style >= 2 && !hs.Ruin && Chance(0.45)) hs.Style = 0;
         bool old = hs.Style >= 2;
         var upper = hs.Style == 0 ? (Chance(0.3) ? CreamPlaster : Plaster) : hs.Style == 1 ? Plaster : hs.Style == 2 ? Stone : OldPlaster;
         var lower = hs.Style == 1 || hs.Style == 2 ? Stone : upper;
@@ -1088,7 +1090,7 @@ public static class HillVillageBuilder
 
     /// <summary>Is there room for a tree here (no wall, house or other tree within 'radius')?</summary>
     private static bool Free(Vector3 p, float radius) =>
-        !Physics.CheckCapsule(p + Vector3.up * 0.6f, p + Vector3.up * 3f, radius, World.EnvMask, QueryTriggerInteraction.Ignore);
+        !Physics.CheckCapsule(p + Vector3.up * (radius + 0.5f), p + Vector3.up * (radius + 3f), radius, World.EnvMask, QueryTriggerInteraction.Ignore);
 
     // ------------------------------------------------------------------ rocks
 
@@ -1623,7 +1625,7 @@ public static class HillVillageBuilder
     {
         Physics.SyncTransforms();
         int pinesPlaced = 0;
-        for (int i = 0; i < 2600 && pinesPlaced < 340; i++)
+        for (int i = 0; i < 5000 && pinesPlaced < 460; i++)
         {
             float x = R(-Edge + 4f, Edge - 4f), z = R(-Edge + 4f, Edge - 4f);
             float edge = Mathf.Max(Mathf.Abs(x), Mathf.Abs(z));
