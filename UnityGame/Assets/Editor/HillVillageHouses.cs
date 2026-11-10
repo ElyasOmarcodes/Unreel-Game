@@ -773,6 +773,7 @@ public static partial class HillVillageBuilder
             var foot = h.TransformPoint(new Vector3(w / 2f + 0.62f, 0f, stairZ + count * 0.3f));
             StepsDown(h, foot, h.TransformDirection(Vector3.back), rise, 1.1f, h.TransformDirection(Vector3.right), 0.6f, Coping);
         }
+        if (hs.Plain) return;
         var spots = new List<Vector3>();
         Vector3 Spot(float margin)
         {

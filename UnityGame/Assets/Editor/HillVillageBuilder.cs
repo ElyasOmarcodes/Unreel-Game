@@ -10,8 +10,8 @@ using UnityEngine;
 /// sides of every lane, each its own size and height (HillVillageHouses.cs builds them): old stone and
 /// whitewashed houses, tower houses, flat-roofed concrete houses, shop houses with iron balconies,
 /// cottages, sheds, courtyard compounds, walled gardens. This file builds the ground, the terrace walls
-/// and stairs, the paved square (meydan) with its platform, fountain and coffee house, the agha's
-/// mansion and its garden on the upper terrace, the windmills, poles, lamps and props, the olive groves below and
+/// and stairs, the paved square (meydan) with its platform, fountain and coffee house, the Grand
+/// Hall and its garden on the upper terrace, the clock tower, the windmills, poles, lamps and props, the olive groves below and
 /// the pine forest on the hill above, and the bots' waypoints. Every texture is a Poly Haven scan
 /// (CC0); the trees are pictures of Poly Haven's olive, pine and plane-like trees rendered from three
 /// sides and from above (impostors, see Tools/impostor.py), the palms and grass made the same way;
@@ -687,69 +687,235 @@ public static partial class HillVillageBuilder
         go.AddComponent<MeshCollider>().sharedMesh = mesh;
     }
 
-    // ------------------------------------------------------------------ the agha's mansion
+    // ------------------------------------------------------------------ the grand hall and the clock tower
 
     /// <summary>
-    /// The agha's mansion (konak) on the upper terrace, where the village looks up to it from the square:
-    /// a big house of three storeys, stone below and cream plaster above, under a wide hip roof; open
-    /// inside, a stair up; over its door a bay (cumba) of two storeys juts out on stone columns and
-    /// carved brackets, full of shuttered windows. Its walled garden before it: a pool with a jet of
-    /// water, cypresses, plane trees, a pavilion, benches, a paved walk to the door.
+    /// The Grand Hall on the upper terrace, the biggest house of the village, looking down on the square:
+    /// three storeys of white plaster between stone pilasters under a heavy cornice, tall windows, a
+    /// flat roof behind its parapet with a pediment over the middle; before its door a portico of four
+    /// stone columns on a stepped base carrying a balustraded terrace; flag poles either side. Open
+    /// inside with a stair; a ladder at its side up to the roof. Its garden: a pool, cypresses, plane
+    /// trees, a pavilion, benches.
     /// </summary>
-    private static void Mansion(Vector3 c)
+    private static void Hall(Vector3 c)
     {
-        var hs = new House { X = c.x, Z = c.z, Yaw = 180f, W = 15f, D = 11f, Floors = 3, Kind = Kind.Classic, Style = 1, Colour = 1, Paint = 2, Roof = 0, Open = true, Chimney = true };
+        var hs = new House { X = c.x, Z = c.z, Yaw = 180f, W = 17f, D = 12f, Floors = 3, Kind = Kind.Classic, Style = 0, Colour = 0, Paint = 3, Roof = 2, Open = true, Plain = true, Ladder = true };
         var h = BuildHouse(hs, root);
-        h.name = "Mansion";
-        float w = hs.W, d = hs.D;
-        const float bw = 5.4f, bo = 1.2f;
-        float y0 = Storey - 0.1f, y1 = 3f * Storey + 0.3f;
-        var paint = PaintOf(2);
-        // the bay: its walls of cream plaster, three shuttered windows a floor in front, one at each side
-        Box("Cumba", h, new Vector3(0, (y0 + y1) / 2f, d / 2f + bo / 2f), new Vector3(bw, y1 - y0, bo), CreamPlaster, true, 2.5f);
-        Box("CumbaFloor", h, new Vector3(0, y0 - 0.08f, d / 2f + bo / 2f + 0.05f), new Vector3(bw + 0.2f, 0.16f, bo + 0.1f), Wood, false, 1.5f);
-        for (int f = 1; f <= 2; f++)
+        h.name = "GrandHall";
+        float w = hs.W, d = hs.D, top = 3f * Storey;
+        // pilasters at the corners and between the bays, a plinth course, the cornice under the parapet
+        foreach (int side in new[] { 0, 1, 2, 3 })
         {
-            float wy = f * Storey + 1.55f;
-            for (int k = -1; k <= 1; k++)
+            var (o, u, n, len) = Side(side, w, d);
+            float full = side < 2 ? len : d;
+            var face = (side < 2 ? o : new Vector3(o.x, 0, 0)) + n * (Thick / 2f);
+            int bays = Mathf.RoundToInt(full / 3.4f);
+            for (int i = 0; i <= bays; i++)
             {
-                var wc = new Vector3(k * 1.6f, wy, d / 2f + bo + 0.01f);
-                Box("CumbaGlass", h, wc, new Vector3(0.95f, 1.4f, 0.02f), Glass, false);
-                Box("CumbaFrame", h, wc + Vector3.forward * 0.02f, new Vector3(1.1f, 0.08f, 0.06f), paint, false, 1.4f);
-                Box("CumbaFrame", h, wc + Vector3.forward * 0.02f + Vector3.up * 0.72f, new Vector3(1.1f, 0.08f, 0.06f), paint, false, 1.4f);
-                Box("CumbaFrame", h, wc + Vector3.forward * 0.02f - Vector3.up * 0.72f, new Vector3(1.15f, 0.08f, 0.1f), Coping, false, 1.4f);
-                foreach (float sx in new[] { -1f, 1f })
-                    Box("CumbaShutter", h, wc + new Vector3(sx * 0.27f, 0, 0.05f), new Vector3(0.46f, 1.4f, 0.03f), paint, false, 0.7f);
+                float at = -full / 2f + 0.3f + (full - 0.6f) * i / bays;
+                if (side == 0 && Mathf.Abs(at) < 4.6f) continue;   // the portico stands there
+                Box("Pilaster", h, face + u * at + n * 0.06f + Vector3.up * (top / 2f), SideSize(u, 0.55f, top, 0.12f), Coping, false, 2f);
+                Box("PilasterCap", h, face + u * at + n * 0.09f + Vector3.up * (top - 0.5f), SideSize(u, 0.75f, 0.22f, 0.18f), Coping, false, 2f);
+                Box("PilasterBase", h, face + u * at + n * 0.09f + Vector3.up * 0.3f, SideSize(u, 0.75f, 0.6f, 0.18f), Masonry, false, 3f);
             }
-            foreach (float sx in new[] { -1f, 1f })
-            {
-                var sc = new Vector3(sx * (bw / 2f + 0.01f), wy, d / 2f + bo / 2f);
-                Box("CumbaGlass", h, sc, new Vector3(0.02f, 1.3f, 0.6f), Glass, false);
-                Box("CumbaFrame", h, sc + new Vector3(sx * 0.02f, 0.68f, 0), new Vector3(0.05f, 0.08f, 0.75f), paint, false, 1.4f);
-            }
-            Box("CumbaBand", h, new Vector3(0, f * Storey - 0.05f, d / 2f + bo + 0.03f), new Vector3(bw + 0.06f, 0.16f, 0.06f), Wood, false, 1.5f);
+            Box("Cornice", h, face + n * 0.2f + Vector3.up * (top + 0.02f), SideSize(u, full + 0.8f, 0.3f, 0.5f), Coping, false, 2f);
+            Box("CorniceLip", h, face + n * 0.3f + Vector3.up * (top + 0.24f), SideSize(u, full + 1.0f, 0.14f, 0.7f), Coping, false, 2f);
         }
-        // its little tiled roof under the eaves, the brackets and the two stone columns under it
-        Tilted("CumbaRoof", h, new Vector3(0, y1 + 0.12f, d / 2f + bo / 2f + 0.25f), new Vector3(bw + 0.5f, 0.1f, bo + 0.7f), 16f, Roof, true, 2.2f);
-        foreach (float sx in new[] { -1f, -0.35f, 0.35f, 1f })
-            Beam("CumbaBracket", h, h.TransformPoint(new Vector3(sx * (bw / 2f - 0.25f), y0 - 1.1f, d / 2f + 0.05f)), h.TransformPoint(new Vector3(sx * (bw / 2f - 0.25f), y0 - 0.1f, d / 2f + bo - 0.1f)), 0.12f, Wood);
+        // the portico: a stepped base, four columns, the beam and the terrace they carry
+        const float pw = 9.6f, pd = 3.3f;
+        float pz = d / 2f + pd / 2f, colH = 2f * Storey - 0.55f;
+        Box("PorticoBase", h, new Vector3(0, 0.02f, pz), new Vector3(pw, 0.3f, pd), Paving, true, 3f);
+        Box("PorticoStep", h, new Vector3(0, -0.1f, pz + 0.3f), new Vector3(pw + 0.7f, 0.2f, pd + 0.4f), Masonry, true, 3f);
+        foreach (float x in new[] { -4.1f, -1.5f, 1.5f, 4.1f })
+        {
+            var foot = h.TransformPoint(new Vector3(x, 0.17f, d / 2f + pd - 0.55f));
+            Box("ColumnBase", h, new Vector3(x, 0.32f, d / 2f + pd - 0.55f), new Vector3(0.95f, 0.3f, 0.95f), Coping, true, 2f);
+            Cylinder("Column", h, foot + Vector3.up * 0.3f, 0.36f, colH - 0.6f, Coping, true, 16);
+            Box("ColumnCap", h, new Vector3(x, colH - 0.02f, d / 2f + pd - 0.55f), new Vector3(0.95f, 0.3f, 0.95f), Coping, false, 2f);
+        }
+        Box("PorticoBeam", h, new Vector3(0, colH + 0.33f, pz), new Vector3(pw + 0.2f, 0.4f, pd + 0.2f), Coping, true, 2f);
+        Box("PorticoTiles", h, new Vector3(0, colH + 0.54f, pz), new Vector3(pw, 0.03f, pd), Tiles, false, 1.5f);
+        float ty = colH + 0.55f;
+        BarRailing(h, new Vector3(-pw / 2f + 0.1f, ty, d / 2f + pd - 0.1f), new Vector3(pw / 2f - 0.1f, ty, d / 2f + pd - 0.1f), Iron);
+        BarRailing(h, new Vector3(-pw / 2f + 0.1f, ty, d / 2f + 0.1f), new Vector3(-pw / 2f + 0.1f, ty, d / 2f + pd - 0.1f), Iron);
+        BarRailing(h, new Vector3(pw / 2f - 0.1f, ty, d / 2f + 0.1f), new Vector3(pw / 2f - 0.1f, ty, d / 2f + pd - 0.1f), Iron);
+        // the pediment over the middle of the front, on the parapet's line
+        float py = top + 0.24f;
+        var ped = MeshGen.Object("Pediment", MeshGen.Gable(pw, 2.1f, 2.5f), Plaster, h, h.TransformPoint(new Vector3(0, py + 0.9f, d / 2f - 0.05f)), h.eulerAngles.y);
+        ped.transform.localScale = new Vector3(1f, 1f, 3f);
+        Box("PedimentBase", h, new Vector3(0, py + 0.45f, d / 2f - 0.05f), new Vector3(pw + 0.3f, 0.9f, 0.34f), Plaster, true, 2.5f);
+        Box("PedimentCornice", h, new Vector3(0, py + 0.92f, d / 2f + 0.05f), new Vector3(pw + 0.6f, 0.12f, 0.5f), Coping, false, 2f);
+        foreach (float sx in new[] { -1f, 1f })
+            Beam("PedimentRake", h, h.TransformPoint(new Vector3(sx * (pw / 2f + 0.15f), py + 0.95f, d / 2f + 0.08f)), h.TransformPoint(new Vector3(0, py + 3.1f, d / 2f + 0.08f)), 0.2f, Coping);
+        var eye = Cylinder("PedimentEye", h, h.TransformPoint(new Vector3(0, py + 1.75f, d / 2f + 0.14f)), 0.5f, 0.06f, Glass, false, 16);
+        eye.transform.rotation = h.rotation * Quaternion.Euler(90f, 0, 0);
+        // flag poles either side of the portico: long plain pennants
         foreach (float sx in new[] { -1f, 1f })
         {
-            var col = h.TransformPoint(new Vector3(sx * (bw / 2f - 0.3f), 0f, d / 2f + bo - 0.3f));
-            Cylinder("PorchColumn", root, col, 0.2f, y0, Masonry, true, 10);
-            Box("ColumnCap", h, new Vector3(sx * (bw / 2f - 0.3f), y0 - 0.12f, d / 2f + bo - 0.3f), new Vector3(0.55f, 0.2f, 0.55f), Coping, false);
+            var pole = h.TransformPoint(new Vector3(sx * (pw / 2f + 1.4f), 0f, d / 2f + pd));
+            Cylinder("FlagPole", root, pole, 0.06f, 9f, Aluminium, true, 8);
+            Box("Pennant", h, new Vector3(sx * (pw / 2f + 1.4f) + 0.55f, 7.9f, d / 2f + pd), new Vector3(1f, 1.9f, 0.03f), Cloth, false, 1f);
         }
-        // the garden before the house: the walk to the door, the pool, cypresses, the pavilion, benches
+        // the garden before the hall: the walk to the door, the pool, cypresses, the pavilion, benches
         float gy = 4.5f;
-        MeshGen.TexBox("GardenWalk", new Vector3(-6f, gy + 0.02f, 26.3f), new Vector3(2.6f, 0.08f, 9.4f), Paving, 3f, root);
-        MeshGen.TexBox("PoolRim", new Vector3(-12.6f, gy + 0.25f, 26.5f), new Vector3(6.2f, 0.5f, 3.6f), Masonry, 3f, root);
-        MeshGen.TexBox("PoolWater", new Vector3(-12.6f, gy + 0.46f, 26.5f), new Vector3(5.6f, 0.06f, 3f), Water, 2f, root, 0f, false);
-        Cylinder("PoolJet", root, new Vector3(-12.6f, gy + 0.45f, 26.5f), 0.12f, 0.9f, Coping, false, 8);
-        Pergola(new Vector3(1.6f, gy + 0.03f, 26f), 4f, 4.6f);
-        foreach (var (x, z) in new[] { (-15.6f, 22.6f), (3.8f, 22.6f), (-15.6f, 31f), (-15.6f, 46.4f), (4.6f, 46.4f) })
+        MeshGen.TexBox("GardenWalk", new Vector3(-6f, gy + 0.02f, 24.3f), new Vector3(2.8f, 0.08f, 5.6f), Paving, 3f, root);
+        MeshGen.TexBox("PoolRim", new Vector3(-12.4f, gy + 0.25f, 24.3f), new Vector3(6.2f, 0.5f, 3.2f), Masonry, 3f, root);
+        MeshGen.TexBox("PoolWater", new Vector3(-12.4f, gy + 0.46f, 24.3f), new Vector3(5.6f, 0.06f, 2.6f), Water, 2f, root, 0f, false);
+        Cylinder("PoolJet", root, new Vector3(-12.4f, gy + 0.45f, 24.3f), 0.12f, 0.9f, Coping, false, 8);
+        Pergola(new Vector3(2.4f, gy + 0.03f, 25f), 4f, 4.6f);
+        foreach (var (x, z) in new[] { (-16f, 28.6f), (5f, 29f), (-16f, 46.4f), (5f, 46.4f), (-9.4f, 22.6f), (-2.6f, 22.6f) })
             ZahraBuilder.CypressFor(root, new Vector3(x, gy, z), R(7f, 9f), rng);
-        foreach (var (x, z, yaw) in new[] { (-12.6f, 23.3f, 0f), (-12.6f, 29.7f, 180f) })
-            Bench(new Vector3(x, gy + 0.02f, z), yaw);
+        Bench(new Vector3(-12.4f, gy + 0.02f, 26.7f), 0f);
+    }
+
+    /// <summary>
+    /// The clock tower at the north side of the square, the village's high point: a square shaft of
+    /// stone 25 m high against the terrace wall. No door on the square: the way in is from the terrace
+    /// above, through the wall's parapet; inside, stone steps wind up round the walls past slit windows
+    /// to the look-out under the clock, open on all four sides over the whole village. Above it the
+    /// clock's four faces (lit at night) and a pointed tiled roof.
+    /// </summary>
+    private static void ClockTower(Vector3 c, float terrace)
+    {
+        var t = new GameObject("ClockTower").transform;
+        t.SetParent(root, false);
+        t.position = c;
+        const float w = 5.2f, wall = 0.55f, look = 15.3f, lookH = 3.1f;
+        float inner = w - 2f * wall;
+        // the foot: solid stone up to the terrace's level, a moulding round its top
+        Box("TowerFoot", t, new Vector3(0, terrace / 2f - 0.25f, 0), new Vector3(w + 0.5f, terrace + 0.5f, w + 0.5f), Masonry, true, 3f);
+        Box("TowerMoulding", t, new Vector3(0, terrace + 0.08f, 0), new Vector3(w + 0.8f, 0.2f, w + 0.8f), Coping, false, 2f);
+        Box("TowerFloor", t, new Vector3(0, terrace + 0.1f, 0), new Vector3(inner, 0.2f, inner), Paving, true, 3f);
+        // the shaft: four walls from the terrace to the look-out; the door in the north wall, slits in the others
+        float y0 = terrace + 0.2f, y1 = look;
+        for (int s = 0; s < 4; s++)
+        {
+            var n = Quaternion.Euler(0, s * 90f, 0) * Vector3.forward;       // 0 north, 1 east, 2 south, 3 west
+            var u = Quaternion.Euler(0, s * 90f, 0) * Vector3.right;
+            var mid = n * (w / 2f - wall / 2f);
+            float len = s % 2 == 0 ? w : w - 2f * wall;
+            void Piece(float a, float b, float lo, float hi)
+            {
+                if (b - a < 0.02f || hi - lo < 0.02f) return;
+                Box("TowerWall", t, mid + u * ((a + b) / 2f) + Vector3.up * ((lo + hi) / 2f), SideSize(u, b - a, hi - lo, wall), Stone, true, 2.6f);
+            }
+            if (s == 0)
+            {
+                // the doorway from the terrace
+                Piece(-len / 2f, -0.6f, y0, y1); Piece(0.6f, len / 2f, y0, y1); Piece(-0.6f, 0.6f, y0 + 2.2f, y1);
+                Box("TowerLintel", t, mid + n * (wall / 2f + 0.03f) + Vector3.up * (y0 + 2.35f), SideSize(u, 1.8f, 0.3f, 0.1f), Coping, false, 2f);
+            }
+            else
+            {
+                // slit windows one above another
+                float at = y0;
+                for (float sy = y0 + 2.2f; sy + 1.2f < y1 - 0.6f; sy += 3.3f)
+                {
+                    Piece(-len / 2f, len / 2f, at, sy);
+                    Piece(-len / 2f, -0.22f, sy, sy + 1.2f); Piece(0.22f, len / 2f, sy, sy + 1.2f);
+                    at = sy + 1.2f;
+                }
+                Piece(-len / 2f, len / 2f, at, y1);
+            }
+            // stone bands round the shaft
+            foreach (float by in new[] { y0 + 3.6f, y0 + 7.2f })
+                Box("TowerBand", t, n * (w / 2f + 0.04f) + Vector3.up * by, SideSize(u, w + 0.2f, 0.22f, 0.1f), Coping, false, 2f);
+        }
+        // the steps: flights round the walls, a landing in each corner, up to the look-out's floor
+        const float sw = 1.0f;
+        float run = inner - 2f * sw, rise = y1 - y0;
+        const int perFlight = 6;
+        int flights = Mathf.CeilToInt(rise / (0.18f * (perFlight + 1)));
+        float stepH = rise / (flights * (perFlight + 1));
+        float y = y0;
+        var stone = Masonry;
+        for (int f = 0; f < flights; f++)
+        {
+            // clockwise seen from above, the first flight along the east wall (the door is in the north one)
+            var along = Quaternion.Euler(0, ((f + 1) % 4) * 90f + 90f, 0) * Vector3.forward;
+            var outward = Quaternion.Euler(0, ((f + 1) % 4) * 90f, 0) * Vector3.forward;
+            var start = outward * (inner / 2f - sw / 2f) - along * (run / 2f);
+            for (int k = 0; k < perFlight; k++)
+            {
+                y += stepH;
+                var p = start + along * (run * (k + 0.5f) / perFlight);
+                Box("TowerStep", t, p + Vector3.up * (y - 0.1f), SideSize(along, run / perFlight + 0.02f, 0.2f, sw), stone, true, 2f);
+            }
+            y += stepH;
+            var corner = outward * (inner / 2f - sw / 2f) + along * (inner / 2f - sw / 2f);
+            Box("TowerLanding", t, corner + Vector3.up * (y - 0.1f), new Vector3(sw, 0.2f, sw), stone, true, 2f);
+            // a rail on the open side of the flight
+            Beam("TowerRail", t, t.TransformPoint(start - outward * (sw / 2f - 0.04f) + Vector3.up * (y - stepH * perFlight + 0.9f)), t.TransformPoint(start + along * run - outward * (sw / 2f - 0.04f) + Vector3.up * (y - stepH + 0.9f)), 0.05f, Iron, true);
+        }
+        // the look-out: its floor (open where the steps come up), corner piers, a parapet, the beam over
+        int last = flights % 4;
+        var lastOut = Quaternion.Euler(0, last * 90f, 0) * Vector3.forward;
+        var lastAlong = Quaternion.Euler(0, last * 90f + 90f, 0) * Vector3.forward;
+        // the floor in two parts: all but the strip along the last flight's wall
+        Box("LookoutFloor", t, -lastOut * (sw / 2f) + Vector3.up * (look - 0.1f), SideSize(lastAlong, inner, 0.2f, inner - sw), Paving, true, 3f);
+        for (int s = 0; s < 4; s++)
+        {
+            var n = Quaternion.Euler(0, s * 90f, 0) * Vector3.forward;
+            var u = Quaternion.Euler(0, s * 90f, 0) * Vector3.right;
+            Box("LookoutLedge", t, n * (w / 2f + 0.2f) + Vector3.up * (look - 0.05f), SideSize(u, w + 0.8f, 0.24f, 0.4f), Coping, false, 2f);
+            Box("LookoutParapet", t, n * (w / 2f - wall / 2f) + Vector3.up * (look + 0.5f), SideSize(u, w, 1.0f, wall), Stone, true, 2.6f);
+            Box("LookoutCope", t, n * (w / 2f - wall / 2f) + Vector3.up * (look + 1.03f), SideSize(u, w + 0.1f, 0.08f, wall + 0.12f), Coping, false, 2f);
+            Box("LookoutPier", t, n * (w / 2f - wall / 2f) + u * (w / 2f - wall / 2f) + Vector3.up * (look + lookH / 2f), new Vector3(wall + 0.1f, lookH, wall + 0.1f), Stone, true, 2.6f);
+            Box("LookoutBeam", t, n * (w / 2f - wall / 2f) + Vector3.up * (look + lookH - 0.25f), SideSize(u, w, 0.5f, wall), Stone, true, 2.6f);
+        }
+        // the clock: a block with a face on each side, lit at night
+        float cy = look + lookH;
+        Box("ClockSlab", t, new Vector3(0, cy + 0.1f, 0), new Vector3(w + 0.7f, 0.22f, w + 0.7f), Coping, true, 2f);
+        Box("ClockBlock", t, new Vector3(0, cy + 1.75f, 0), new Vector3(w - 0.3f, 3.1f, w - 0.3f), Plaster, true, 2.5f);
+        for (int s = 0; s < 4; s++)
+        {
+            var rot = Quaternion.Euler(0, s * 90f, 0);
+            var n = rot * Vector3.forward;
+            var face = t.TransformPoint(n * ((w - 0.3f) / 2f + 0.02f) + Vector3.up * (cy + 1.8f));
+            var ring = Cylinder("ClockRing", t, face, 1.25f, 0.06f, Iron, false, 24);
+            ring.transform.rotation = rot * Quaternion.Euler(90f, 0, 0);
+            var dial = Cylinder("ClockDial", t, face + n * 0.03f, 1.12f, 0.05f, GlobeDay, false, 24);
+            dial.transform.rotation = rot * Quaternion.Euler(90f, 0, 0);
+            var lit = Cylinder("ClockDialLit", t, face + n * 0.035f, 1.12f, 0.05f, GlobeNight, false, 24);
+            lit.transform.rotation = rot * Quaternion.Euler(90f, 0, 0);
+            var lr = lit.GetComponent<Renderer>();
+            lr.enabled = false; lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            night.Add(lr);
+            // the hours' marks and the two hands (ten past ten)
+            for (int m = 0; m < 12; m++)
+            {
+                var mark = MeshGen.Object("ClockMark", MeshGen.Box(new Vector3(0.07f, m % 3 == 0 ? 0.26f : 0.14f, 0.02f), 1f), Iron, t, face + n * 0.1f + rot * (Quaternion.Euler(0, 0, m * 30f) * Vector3.up * 0.93f));
+                mark.transform.rotation = rot * Quaternion.Euler(0, 0, m * 30f);
+            }
+            foreach (var (angle, length, thick) in new[] { (55f, 0.62f, 0.09f), (-60f, 0.9f, 0.06f) })
+            {
+                var hand = MeshGen.Object("ClockHand", MeshGen.Box(new Vector3(thick, length, 0.02f), 1f), Iron, t, face + n * 0.12f + rot * (Quaternion.Euler(0, 0, angle) * Vector3.up * (length / 2f - 0.08f)));
+                hand.transform.rotation = rot * Quaternion.Euler(0, 0, angle);
+            }
+        }
+        Box("ClockCornice", t, new Vector3(0, cy + 3.38f, 0), new Vector3(w + 0.5f, 0.2f, w + 0.5f), Coping, false, 2f);
+        var roofMesh = HipRoof(w + 0.9f, w + 0.9f, 4.2f, 2.2f);
+        var roof = MeshGen.Object("ClockRoof", roofMesh, Roof, t, t.TransformPoint(new Vector3(0, cy + 3.48f, 0)));
+        Cylinder("TowerFinial", t, t.TransformPoint(new Vector3(0, cy + 7.5f, 0)), 0.05f, 1.6f, Iron, false, 6);
+        Sphere("TowerBall", t, t.TransformPoint(new Vector3(0, cy + 7.75f, 0)), 0.18f, Iron);
+    }
+
+    /// <summary>A market stall on the square: posts, a counter with crates of fruit, a striped cloth roof.</summary>
+    private static void Stall(Vector3 p, float yaw, int colour)
+    {
+        var t = new GameObject("Stall").transform;
+        t.SetParent(root, false);
+        t.SetPositionAndRotation(p, Quaternion.Euler(0, yaw, 0));
+        foreach (var (x, z) in new[] { (-1.4f, -0.9f), (1.4f, -0.9f), (-1.4f, 0.9f), (1.4f, 0.9f) })
+            Box("StallPost", t, new Vector3(x, 1.15f, z), new Vector3(0.09f, 2.3f, 0.09f), Wood, false, 1.5f);
+        Box("StallCounter", t, new Vector3(0, 0.45f, 0.5f), new Vector3(2.9f, 0.9f, 0.9f), GreyWood, true, 1.5f);
+        var cloth = AssetSetup.Solid("K_Awning" + colour % 3, new[] { new Color(0.62f, 0.14f, 0.1f), new Color(0.14f, 0.36f, 0.22f), new Color(0.75f, 0.6f, 0.3f) }[colour % 3], 0.1f, 0f);
+        Tilted("StallRoof", t, new Vector3(0, 2.3f, 0.1f), new Vector3(3.3f, 0.04f, 2.5f), 9f, cloth, false, 1f);
+        for (int i = 0; i < 3; i++)
+        {
+            Box("StallCrate", t, new Vector3(-0.95f + i * 0.95f, 0.99f, 0.5f), new Vector3(0.8f, 0.18f, 0.6f), Wood, false, 1f);
+            Box("StallFruit", t, new Vector3(-0.95f + i * 0.95f, 1.1f, 0.5f), new Vector3(0.7f, 0.1f, 0.5f), i == 1 ? Leaves : i == 0 ? Flowers : Terracotta, false, 1f);
+        }
     }
 
     // ------------------------------------------------------------------ the square
@@ -942,7 +1108,7 @@ public static partial class HillVillageBuilder
         // the terrace walls between the levels, and the stairs against them
         var walls = new GameObject("TerraceWalls").transform;
         walls.SetParent(root, false);
-        TerraceWall(walls, true, 16f, -132f, 24f, -1f, (-7.5f, -4.5f), (-61.2f, -58.8f), (-101.2f, -98.8f));
+        TerraceWall(walls, true, 16f, -132f, 24f, -1f, (-7.5f, -4.5f), (-61.2f, -58.8f), (-101.2f, -98.8f), (11.9f, 14.1f));
         TerraceWall(walls, false, 24f, 16f, 42f, 1f);
         TerraceWall(walls, true, -18f, -132f, 26f, -1f, (-7.5f, -4.5f), (-60.2f, -57.8f), (-100.2f, -97.8f));
         TerraceWall(walls, false, 26f, -42f, -18f, -1f);
@@ -971,14 +1137,19 @@ public static partial class HillVillageBuilder
         Planter(new Vector3(-21f, 0.03f, -12f), palms[0], 0.85f);
         Planter(new Vector3(21f, 0.03f, -12f), palms[1], 0.75f);
         Planter(new Vector3(-21f, 0.03f, 8.5f), palms[1], 0.8f);
-        Planter(new Vector3(9f, 0.03f, 8.5f), broadleaf, 1.8f, 1.7f);
+        Planter(new Vector3(4f, 0.03f, 8.5f), broadleaf, 1.8f, 1.7f);
         Fountain(new Vector3(18f, 0.03f, 14.95f), 180f);
         Pergola(new Vector3(20f, 0.03f, 3f), 8f, 10f);
         foreach (var (x, z, yaw) in new[] { (-21f, 13.4f, 180f), (8f, 13.4f, 180f), (-24.5f, -2f, 90f), (-24.5f, -9f, 90f), (-20f, -16f, 0f), (10f, -16f, 0f), (17f, -16f, 0f), (-80f, 16.3f, 180f), (-54f, 16.3f, 180f), (-30f, 16.3f, 180f) })
             Bench(new Vector3(x, GroundHeight(x, z) + (Mathf.Abs(z - 16.3f) < 0.1f ? 0.03f : 0.03f), z), yaw);
 
-        // the agha's mansion and its walled garden (the gate towards the stairs)
-        Mansion(new Vector3(-6f, 4.5f, 36.5f));
+        // the Grand Hall and its walled garden (the gate towards the stairs); the clock tower against the
+        // terrace wall, entered from the terrace; market stalls on the square
+        Hall(new Vector3(-6f, 4.5f, 37f));
+        ClockTower(new Vector3(13f, 0f, 12.35f), 4.5f);
+        Stall(new Vector3(-17f, 0.03f, 1.5f), 90f, 0);
+        Stall(new Vector3(-17f, 0.03f, -3.5f), 90f, 1);
+        Stall(new Vector3(13f, 0.03f, -11f), 180f, 2);
         foreach (var (a, b) in new[] { (new Vector2(-17f, 21.5f), new Vector2(-8f, 21.5f)), (new Vector2(-4f, 21.5f), new Vector2(6f, 21.5f)), (new Vector2(6f, 21.5f), new Vector2(6f, 47.5f)), (new Vector2(6f, 47.5f), new Vector2(-17f, 47.5f)), (new Vector2(-17f, 47.5f), new Vector2(-17f, 21.5f)) })
         {
             var p = (a + b) / 2f; float len = Vector2.Distance(a, b);
@@ -1081,7 +1252,8 @@ public static partial class HillVillageBuilder
         foreach (var (near, readers, ar, en) in new[]
         {
             (new Vector3(-17f, 0f, -14.5f), new Vector3(-6f, 0f, -5f), "الساحة", "THE SQUARE"),
-            (new Vector3(-12.5f, 4.5f, 20.9f), new Vector3(-6f, 4.5f, 30f), "قصر الآغا", "THE AGHA'S MANSION"),
+            (new Vector3(-12.5f, 4.5f, 20.9f), new Vector3(-6f, 4.5f, 30f), "القاعة الكبرى", "THE GRAND HALL"),
+            (new Vector3(16.6f, 4.5f, 18.4f), new Vector3(13f, 4.5f, 19f), "برج الساعة", "THE CLOCK TOWER"),
             (Beside("UnderWall", 0.55f, 1), On("UnderWall", 0.55f), "الحي السفلي", "THE LOWER QUARTER"),
             (Beside("WestLane", 0.3f, 2), On("WestLane", 0.3f), "الحي الغربي", "THE WEST QUARTER"),
             (new Vector3(14f, 0f, -77f), new Vector3(14f, 0f, -69f), "بساتين الزيتون", "THE OLIVE GROVES"),

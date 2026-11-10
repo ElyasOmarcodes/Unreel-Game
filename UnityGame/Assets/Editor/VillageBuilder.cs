@@ -203,23 +203,120 @@ public static class VillageBuilder
         Physics.SyncTransforms();
     }
 
-    // the paths: from the bazaar to the bridge, the ford, the watchtower and the terraces
-    private static readonly Vector2[][] Paths =
+    // the paths: found over the land (see RoutePaths), from the bazaar to every compound's gate, the
+    // bridges, the ford, the watchtower and the farms
+    private static readonly List<Vector2[]> Paths = new List<Vector2[]>();
+
+    /// <summary>
+    /// Lays the stone paths where people would walk: out of the two ends of the bazaar, round the
+    /// compounds' walls, the shops, the huts and the watchtower's foot, over the river only by the
+    /// bridges and the ford, the easy way over the slopes, and up to the gate of every compound. Each
+    /// new path joins the ones already there (a net of lanes with branches, none running into a wall).
+    /// </summary>
+    private static void RoutePaths((Vector3 c, float w, float l, float yaw, bool upper, bool towers)[] compounds, (Vector3 p, float yaw)[] huts)
     {
-        new[] { new Vector2(0, 0), new Vector2(6, -20), new Vector2(10, -38), new Vector2(12, -60), new Vector2(14, -80) },
-        new[] { new Vector2(0, 0), new Vector2(-18, -18), new Vector2(-40, -36), new Vector2(-46, -60), new Vector2(-50, -80) },
-        new[] { new Vector2(0, 0), new Vector2(22, 18), new Vector2(40, 36), new Vector2(52, 50) },
-        new[] { new Vector2(0, 0), new Vector2(-22, 22), new Vector2(-40, 44), new Vector2(-50, 62) },
-        new[] { new Vector2(0, 0), new Vector2(40, -2), new Vector2(80, 4) },
-        new[] { new Vector2(0, 0), new Vector2(-40, 2), new Vector2(-80, -4) },
-        // out to the farms around the old village
-        new[] { new Vector2(-80, -4), new Vector2(-92, -40), new Vector2(-98, -66) },
-        new[] { new Vector2(80, 4), new Vector2(96, 36), new Vector2(100, 56) },
-        new[] { new Vector2(-80, -4), new Vector2(-94, 28), new Vector2(-100, 46) },
-        new[] { new Vector2(14, -80), new Vector2(30, -96), new Vector2(40, -98) },
-        new[] { new Vector2(-50, 62), new Vector2(-38, 84), new Vector2(-30, 94) },
-        new[] { new Vector2(80, 4), new Vector2(92, -36), new Vector2(98, -62) },
-    };
+        Paths.Clear();
+        const float cell = 2f;
+        int n = Mathf.RoundToInt(Half / cell);
+        int size = 2 * n + 1;
+        var blocked = new bool[size, size];
+        var isPath = new bool[size, size];
+        Vector2 At(int i, int k) => new Vector2((i - n) * cell, (k - n) * cell);
+        for (int i = 0; i < size; i++)
+            for (int k = 0; k < size; k++)
+            {
+                var p = At(i, k);
+                bool b = false;
+                foreach (var c in compounds)
+                {
+                    var local = Quaternion.Euler(0, -c.yaw, 0) * new Vector3(p.x - c.c.x, 0, p.y - c.c.z);
+                    if (Mathf.Abs(local.x) < c.w / 2f + 2.2f && Mathf.Abs(local.z) < c.l / 2f + 2.2f) b = true;
+                }
+                foreach (var h in huts) if ((new Vector2(h.p.x, h.p.z) - p).magnitude < 5f) b = true;
+                if (Mathf.Abs(p.x) < 15f && Mathf.Abs(Mathf.Abs(p.y) - 15.5f) < 5f) b = true;      // the rows of shops
+                if (p.magnitude < 7f) b = true;                                                    // the chinar's seat
+                if ((p - new Vector2(58f, 56f)).magnitude < 5f) b = true;                           // the watchtower
+                bool crossing = Mathf.Abs(p.x - 12f) < 1.5f || Mathf.Abs(p.x + 92f) < 1.5f || Mathf.Abs(p.x - 94f) < 1.5f || Mathf.Abs(p.x + 48f) < 1.5f;
+                if (Mathf.Abs(p.y - RiverZ(p.x)) < 8f && !crossing) b = true;                        // the river bed
+                blocked[i, k] = b;
+            }
+        void Mark(Vector2 p) { int i = Mathf.Clamp(Mathf.RoundToInt(p.x / cell) + n, 0, size - 1), k = Mathf.Clamp(Mathf.RoundToInt(p.y / cell) + n, 0, size - 1); isPath[i, k] = true; blocked[i, k] = false; }
+        // the bazaar's own lanes: across its square either side of the chinar, out of both ends
+        foreach (float sz in new[] { -8f, 8f })
+        {
+            Paths.Add(new[] { new Vector2(-20f, 0f), new Vector2(-10f, sz), new Vector2(10f, sz), new Vector2(20f, 0f) });
+            for (float x = -10f; x <= 10f; x += cell) Mark(new Vector2(x, sz));
+        }
+        Mark(new Vector2(-20f, 0f)); Mark(new Vector2(20f, 0f)); Mark(new Vector2(-14f, 4f)); Mark(new Vector2(14f, 4f)); Mark(new Vector2(-14f, -4f)); Mark(new Vector2(14f, -4f));
+        var targets = new List<Vector2>
+        {
+            new Vector2(12f, -80f), new Vector2(-48f, -80f), new Vector2(52f, 50f), new Vector2(-50f, 62f), new Vector2(80f, 4f), new Vector2(-80f, -4f),
+        };
+        // the gates of the compounds, then the far ends
+        for (int c = 0; c < compounds.Length; c++)
+        {
+            var k = compounds[c];
+            float gate = (float)(new System.Random(5 + c).NextDouble() - 0.5) * (k.w - 8f);
+            var g = k.c + Quaternion.Euler(0, k.yaw, 0) * new Vector3(gate, 0, -k.l / 2f - 3.4f);
+            targets.Add(new Vector2(g.x, g.z));
+        }
+        targets.AddRange(new[] { new Vector2(-92f, -66f), new Vector2(100f, 56f), new Vector2(-100f, 30f), new Vector2(40f, -92f), new Vector2(-30f, 84f), new Vector2(94f, -62f) });
+        var steps = new[] { (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1) };
+        foreach (var target in targets)
+        {
+            int ti = Mathf.Clamp(Mathf.RoundToInt(target.x / cell) + n, 1, size - 2), tk = Mathf.Clamp(Mathf.RoundToInt(target.y / cell) + n, 1, size - 2);
+            blocked[ti, tk] = false;
+            if (isPath[ti, tk]) continue;
+            // from the target outwards to the nearest path already laid (walking on a path costs less)
+            var cost = new float[size, size];
+            var from = new (int, int)[size, size];
+            for (int i = 0; i < size; i++) for (int k = 0; k < size; k++) cost[i, k] = float.MaxValue;
+            var open = new SortedSet<(float c, int i, int k)> { (0f, ti, tk) };
+            cost[ti, tk] = 0f;
+            (int, int) hit = (-1, -1);
+            while (open.Count > 0)
+            {
+                var (c0, i, k) = open.Min;
+                open.Remove(open.Min);
+                if (c0 > cost[i, k]) continue;
+                if (isPath[i, k]) { hit = (i, k); break; }
+                foreach (var (di, dk) in steps)
+                {
+                    int a = i + di, b = k + dk;
+                    if (a < 0 || b < 0 || a >= size || b >= size || blocked[a, b]) continue;
+                    if (di != 0 && dk != 0 && (blocked[a, k] || blocked[i, b])) continue;   // not through a corner
+                    var p = At(i, k); var q = At(a, b);
+                    float climb = Mathf.Abs(GroundHeight(q.x, q.y) - GroundHeight(p.x, p.y));
+                    float c1 = c0 + (q - p).magnitude * (1f + climb * 1.6f);
+                    if (c1 >= cost[a, b]) continue;
+                    cost[a, b] = c1;
+                    from[a, b] = (i, k);
+                    open.Add((c1, a, b));
+                }
+            }
+            if (hit.Item1 < 0) { Debug.LogWarning($"[Village] no path to {target}"); continue; }
+            var line = new List<Vector2>();
+            for (var at = hit; ; at = from[at.Item1, at.Item2])
+            {
+                line.Add(At(at.Item1, at.Item2));
+                isPath[at.Item1, at.Item2] = true;
+                if (at == (ti, tk)) break;
+            }
+            line[line.Count - 1] = target;
+            // fewer corners: every third point, then the corners cut (twice)
+            var pts = new List<Vector2>();
+            for (int i = 0; i < line.Count; i++) if (i % 3 == 0 || i == line.Count - 1) pts.Add(line[i]);
+            for (int pass = 0; pass < 2 && pts.Count > 2; pass++)
+            {
+                var cut = new List<Vector2> { pts[0] };
+                for (int i = 0; i + 1 < pts.Count; i++) { cut.Add(Vector2.Lerp(pts[i], pts[i + 1], 0.25f)); cut.Add(Vector2.Lerp(pts[i], pts[i + 1], 0.75f)); }
+                cut.Add(pts[pts.Count - 1]);
+                pts = cut;
+            }
+            Paths.Add(pts.ToArray());
+        }
+        Debug.Log($"[Village] {Paths.Count} paths routed");
+    }
 
     /// <summary>Distance from (x, z) to the nearest path (its middle line).</summary>
     private static float PathDistance(float x, float z)
@@ -789,6 +886,13 @@ public static class VillageBuilder
             flats.Add(new Rect(k.c.x - ex, k.c.z - ez, ex * 2f, ez * 2f));
         }
         flats.Add(new Rect(-16f, -21f, 32f, 42f));   // the bazaar square
+        var hutSpots = new[]
+        {
+            (new Vector3(-78f, 0, -40f), 20f), (new Vector3(76f, 0, -44f), -15f), (new Vector3(40f, 0, 76f), 180f), (new Vector3(-80f, 0, 32f), 90f),
+            (new Vector3(4f, 0, 112f), 170f), (new Vector3(112f, 0, -24f), -100f), (new Vector3(-110f, 0, 8f), 80f), (new Vector3(-62f, 0, -110f), 10f),
+            (new Vector3(96f, 0, 92f), 225f), (new Vector3(-100f, 0, 96f), 135f),
+        };
+        RoutePaths(compounds, hutSpots);
         BuildGround();
         int seed = 5;
         var ruins = new[] { 5, 8, 9, 13 };
@@ -800,12 +904,6 @@ public static class VillageBuilder
         // lone huts: by the fields and up on the hills around the village, some of them in ruins
         var huts = new GameObject("Huts").transform;
         huts.SetParent(root, false);
-        var hutSpots = new[]
-        {
-            (new Vector3(-78f, 0, -40f), 20f), (new Vector3(76f, 0, -44f), -15f), (new Vector3(40f, 0, 76f), 180f), (new Vector3(-80f, 0, 32f), 90f),
-            (new Vector3(4f, 0, 112f), 170f), (new Vector3(112f, 0, -24f), -100f), (new Vector3(-110f, 0, 8f), 80f), (new Vector3(-62f, 0, -110f), 10f),
-            (new Vector3(96f, 0, 92f), 225f), (new Vector3(-100f, 0, 96f), 135f),
-        };
         for (int i = 0; i < hutSpots.Length; i++)
         {
             var (p, yaw) = hutSpots[i];

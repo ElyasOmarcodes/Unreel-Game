@@ -317,6 +317,7 @@ public static partial class HillVillageBuilder
         public int Roof;             // 0 hip, 1 gable, 2 flat behind a parapet, 3 lean-to
         public bool Balcony, OutsideStair, Chimney, Open, Ruin, Yard, Gallery, RoofStair, Porch, Unfinished, Dish, Aircon;
         public bool Plotted;         // it stands in a walled plot of its own (see Plot)
+        public bool Plain;           // a flat roof with nothing standing on it
         public bool Ladder;          // the CityLord wooden ladder up its left wall to the flat roof
         public float YardDepth = 5f;
         public int Lane = -1, Side;  // the lane it fronts and on which side
