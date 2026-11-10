@@ -1533,6 +1533,82 @@ public static class ZahraBuilder
     }
 
     /// <summary>The Lower Garden: four parterres between raised walks, a pool at each end of the cross walk, a fountain.</summary>
+    /// <summary>
+    /// The pavilion over the crossing of the Lower Garden's walks: eight columns of pink and blue marble
+    /// on a low step, carved beams, a stepped roof of tiles under a gilded finial; open to the four
+    /// walks. Under it the fountain: a tiled basin, a marble stem, an upper bowl running over, jets of
+    /// water; bronze lamps hanging from the beams (lit at night).
+    /// </summary>
+    private static void GardenPavilion(Transform t, Vector3 c)
+    {
+        const float half = 3.5f, colH = 3.5f;
+        Box(t, "PavilionStep", c + new Vector3(0, 0.06f, 0), new Vector3(2f * half + 1.2f, 0.12f, 2f * half + 1.2f), Marble, 2f);
+        int k = 0;
+        foreach (float sx in new[] { -1f, 1f })
+            foreach (float sz in new[] { -1f, 1f })
+                foreach (var (dx, dz) in new[] { (half, 2.45f), (2.45f, half) })
+                {
+                    var foot = c + new Vector3(sx * dx, 0.12f, sz * dz);
+                    Box(t, "PavilionBase", foot + Vector3.up * 0.12f, new Vector3(0.6f, 0.24f, 0.6f), Marble, 1f);
+                    MeshGen.TexCylinder("PavilionColumn", foot + Vector3.up * 0.24f, 0.2f, colH - 0.6f, k++ % 2 == 0 ? MarblePink : MarbleBlue, 1f, t);
+                    Box(t, "PavilionCapital", foot + Vector3.up * (colH - 0.18f), new Vector3(0.62f, 0.36f, 0.62f), Capital, 1f, false);
+                }
+        float top = c.y + 0.12f + colH;
+        // the beams round it: marble, a band of red and a carved frieze over each opening
+        foreach (var (bx, bz, lx, lz) in new[] { (0f, half, 2f * half + 0.7f, 0.7f), (0f, -half, 2f * half + 0.7f, 0.7f), (half, 0f, 0.7f, 2f * half + 0.7f), (-half, 0f, 0.7f, 2f * half + 0.7f) })
+        {
+            Box(t, "PavilionBeam", new Vector3(c.x + bx, top + 0.3f, c.z + bz), new Vector3(lx, 0.6f, lz), Marble, 2f);
+            Box(t, "PavilionFrieze", new Vector3(c.x + bx * 1.01f, top + 0.3f, c.z + bz * 1.01f), new Vector3(lx + 0.06f, 0.34f, lz + 0.06f), Ataurique, 1.2f, false);
+            Box(t, "PavilionBand", new Vector3(c.x + bx, top + 0.66f, c.z + bz), new Vector3(lx + 0.14f, 0.12f, lz + 0.14f), Almagra, 1f, false);
+            HangingLamp(t, new Vector3(c.x + bx * 0.72f, top - 0.05f, c.z + bz * 0.72f), 0.7f);
+        }
+        Box(t, "PavilionCeiling", new Vector3(c.x, top + 0.66f, c.z), new Vector3(2f * half, 0.1f, 2f * half), Wood, 1.5f, false);
+        // the roof: tiles stepping in to the finial
+        for (int i = 0; i < 6; i++)
+        {
+            float w = 2f * half + 1.5f - i * 1.35f;
+            Box(t, "PavilionRoof", new Vector3(c.x, top + 0.9f + i * 0.42f, c.z), new Vector3(w, 0.44f, w), RoofTiles, 1.4f, i == 0);
+        }
+        MeshGen.TexCylinder("PavilionFinial", new Vector3(c.x, top + 3.3f, c.z), 0.09f, 1.3f, Gold, 1f, t, false);
+        Box(t, "PavilionFinialBall", new Vector3(c.x, top + 3.75f, c.z), new Vector3(0.34f, 0.34f, 0.34f), Gold, 1f, false, 45f);
+        // the fountain
+        MeshGen.TexCylinder("Fountain", c + Vector3.up * 0.12f, 1.9f, 0.55f, Tiles, 1f, t);
+        var water = MeshGen.TexCylinder("FountainWater", c + Vector3.up * 0.62f, 1.7f, 0.02f, Water, 2f, t, false);
+        water.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        MeshGen.TexCylinder("FountainStem", c + Vector3.up * 0.6f, 0.26f, 1.15f, Marble, 1f, t);
+        MeshGen.TexCylinder("FountainBowl", c + Vector3.up * 1.75f, 0.95f, 0.16f, MarbleBlue, 1f, t, false);
+        var upper = MeshGen.TexCylinder("FountainBowlWater", c + Vector3.up * 1.9f, 0.85f, 0.02f, Water, 2f, t, false);
+        upper.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        MeshGen.TexCylinder("FountainJet", c + Vector3.up * 1.9f, 0.04f, 0.9f, Water, 1f, t, false);
+        for (int i = 0; i < 8; i++)
+        {
+            var dir = Quaternion.Euler(0, i * 45f, 0) * Vector3.forward;
+            var fall = MeshGen.TexCylinder("FountainFall", c + dir * 0.9f + Vector3.up * 0.62f, 0.025f, 1.25f, Water, 1f, t, false);
+            fall.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+    }
+
+    /// <summary>Rose arbours over the garden's long walk: wooden frames under leaves, red and violet roses on them.</summary>
+    private static void RoseArbours(Transform t, float walk)
+    {
+        int n = 0;
+        for (float z = -83f; z <= -42f; z += 4.4f, n++)
+        {
+            if (Mathf.Abs(z + 61f) < 6.5f) continue;
+            foreach (float x in new[] { -7.25f, -2.75f })
+                Box(t, "ArbourPost", new Vector3(x, walk + 1.35f, z), new Vector3(0.14f, 2.7f, 0.14f), Wood, 1f);
+            Box(t, "ArbourBeam", new Vector3(-5f, walk + 2.76f, z), new Vector3(4.9f, 0.14f, 0.16f), Wood, 1f, false);
+            Box(t, "ArbourLeaves", new Vector3(-5f, walk + 2.98f, z), new Vector3(5.1f, 0.36f, 0.7f), HedgeMat, 1.1f, false);
+            foreach (float x in new[] { -7.25f, -2.75f })
+                Box(t, "ArbourVine", new Vector3(x, walk + 1.9f, z), new Vector3(0.3f, 1.7f, 0.4f), HedgeMat, 1.1f, false);
+            for (int i = 0; i < 7; i++)
+            {
+                float fx = -7.3f + 4.6f * (i + 0.5f) / 7f + 0.2f * Mathf.Sin(n * 3f + i * 2.1f);
+                Box(t, "Rose", new Vector3(fx, walk + 2.98f + 0.14f * Mathf.Sin(i * 1.7f + n), z + 0.36f * (i % 2 == 0 ? 1f : -1f)), new Vector3(0.2f, 0.2f, 0.1f), (i + n) % 3 == 0 ? Violet : Red, 1f, false);
+            }
+        }
+    }
+
     private static void LowerGarden()
     {
         var t = Node("LowerGarden", root, Vector3.zero, 0);
@@ -1552,9 +1628,8 @@ public static class ZahraBuilder
         for (int i = 0; i < walks.Count; i++)
             Slabs(t, "Walk", walks[i], pools.Concat(walks.Take(i)).ToList(), walk, 0.5f, Flags, 2.5f);
         foreach (var r in pools) Pool(t, r, walk);
-        MeshGen.TexCylinder("Fountain", new Vector3(-5f, walk, -61f), 1.6f, 0.6f, Tiles, 1f, t);
-        var fw = MeshGen.TexCylinder("FountainWater", new Vector3(-5f, walk + 0.55f, -61f), 1.4f, 0.02f, Water, 2f, t, false);
-        fw.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        GardenPavilion(t, new Vector3(-5f, walk, -61f));
+        RoseArbours(t, walk);
         var beds = new[] { Rect.MinMaxRect(area.xMin + 3f, -59f, -7f, area.yMax - 3f), Rect.MinMaxRect(-3f, -59f, area.xMax - 3f, area.yMax - 3f),
                            Rect.MinMaxRect(area.xMin + 3f, area.yMin + 3f, -7f, -63f), Rect.MinMaxRect(-3f, area.yMin + 3f, area.xMax - 3f, -63f) };
         bool Wet(Vector3 p, float margin) => pools.Any(r => p.x > r.xMin - margin && p.x < r.xMax + margin && p.z > r.yMin - margin && p.z < r.yMax + margin)
