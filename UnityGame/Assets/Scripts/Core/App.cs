@@ -137,6 +137,7 @@ namespace UA
                 Session.I.Paused = false;
                 Time.timeScale = 1f;
             }
+            if (Current == "settings" || Current == "layout" || Current == "profile" || Current == "create") PlayerPrefs.Save();   // what was set there is on the phone at once
             Current = name;
             foreach (var pair in screens) pair.Value.gameObject.SetActive(pair.Key == name);
             hud.SetVisible(name == "game");
@@ -378,8 +379,33 @@ namespace UA
             d.rectTransform.At(0.5f, 1f, 0, -300, 640, 180, 0.5f, 1f);
         }
 
+        /// <summary>The choices of the create page are kept between starts of the game (map, time of day, match time, bots).</summary>
+        private void SaveDraft()
+        {
+            PlayerPrefs.SetInt("draft_map", Draft.Map);
+            PlayerPrefs.SetInt("draft_minutes", Draft.Minutes);
+            PlayerPrefs.SetInt("draft_skill", Draft.BotSkill);
+            if (DraftPractice) PlayerPrefs.SetInt("draft_bots", Draft.Bots);
+            if (Draft.GroupName != "Group") PlayerPrefs.SetString("draft_group", Draft.GroupName);
+            PlayerPrefs.Save();
+        }
+
+        private bool draftLoaded;
+
+        private void LoadDraft()
+        {
+            if (draftLoaded) return;
+            draftLoaded = true;
+            int map = PlayerPrefs.GetInt("draft_map", Draft.Map);
+            if (map >= 0 && map < MatchConfig.MapNames.Length) Draft.Map = (byte)map;
+            Draft.Minutes = (byte)Mathf.Clamp(PlayerPrefs.GetInt("draft_minutes", Draft.Minutes), 1, 60);
+            Draft.BotSkill = (byte)Mathf.Clamp(PlayerPrefs.GetInt("draft_skill", Draft.BotSkill), 0, 2);
+            Draft.GroupName = PlayerPrefs.GetString("draft_group", Draft.GroupName);
+        }
+
         public void OpenCreate(bool practice)
         {
+            LoadDraft();
             DraftPractice = practice;
             if (Draft.GroupName == "Group")
                 Draft.GroupName = Rtl.HasRtl(Settings.PlayerName) ? "د " + Settings.PlayerName + " ګروپ" : Settings.PlayerName + "'s group";
@@ -388,7 +414,7 @@ namespace UA
             groupNameField.text = Draft.GroupName;
             groupNameField.transform.parent.gameObject.SetActive(!practice);
             passwordRow.SetActive(!practice);
-            if (practice && Draft.Bots == 0) Draft.Bots = 5;
+            if (practice) Draft.Bots = (byte)Mathf.Clamp(PlayerPrefs.GetInt("draft_bots", 5), 1, 9);
             // a group on Wi-Fi is for people: bots only in practice
             if (!practice) Draft.Bots = 0;
             foreach (var row in botRows) row.SetActive(practice);
@@ -427,27 +453,31 @@ namespace UA
             {
                 Settings.Team = (byte)((Settings.Team + d + MatchConfig.MaxTeams + 1) % (MatchConfig.MaxTeams + 1));
                 Draft.Mode = Settings.Team > 0 ? Mode.TeamDeathmatch : Mode.FreeForAll;
+                PlayerPrefs.Save();
             }, 1080);
             UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapTitles[MapSlot(Draft.Map)], d =>
             {
                 int slot = (MapSlot(Draft.Map) + MatchConfig.MapOrder.Length + d) % MatchConfig.MapOrder.Length;
                 Draft.Map = (byte)(MatchConfig.MapOrder[slot] + Draft.Map % 3);
                 World.I?.ApplyLighting(Draft.Map);   // the map behind the menu changes with the choice
+                SaveDraft();
             }, 1080);
             UIKit.Stepper(panel, "TIME OF DAY", -320, () => MatchConfig.TimeNames[Draft.Map % 3], d =>
             {
                 Draft.Map = (byte)(Draft.Map - Draft.Map % 3 + (Draft.Map % 3 + 3 + d) % 3);
                 World.I?.ApplyLighting(Draft.Map);
+                SaveDraft();
             }, 1080);
             UIKit.Stepper(panel, "MATCH TIME", -415, () => Draft.Minutes + " " + Loc.T("MIN"), d =>
             {
                 int i = System.Array.IndexOf(minutes, Draft.Minutes);
                 Draft.Minutes = minutes[Mathf.Clamp((i < 0 ? 1 : i) + d, 0, minutes.Length - 1)];
+                SaveDraft();
             }, 1080);
             botRows = new[]
             {
-                UIKit.Stepper(panel, "BOTS", -510, () => Draft.Bots == 0 ? "NONE" : Draft.Bots.ToString(), d => Draft.Bots = (byte)Mathf.Clamp(Draft.Bots + d, 0, 9), 1080).transform.parent.gameObject,
-                UIKit.Stepper(panel, "BOT SKILL", -605, () => MatchConfig.SkillNames[Draft.BotSkill], d => Draft.BotSkill = (byte)Mathf.Clamp(Draft.BotSkill + d, 0, 2), 1080).transform.parent.gameObject,
+                UIKit.Stepper(panel, "BOTS", -510, () => Draft.Bots == 0 ? "NONE" : Draft.Bots.ToString(), d => { Draft.Bots = (byte)Mathf.Clamp(Draft.Bots + d, 0, 9); SaveDraft(); }, 1080).transform.parent.gameObject,
+                UIKit.Stepper(panel, "BOT SKILL", -605, () => MatchConfig.SkillNames[Draft.BotSkill], d => { Draft.BotSkill = (byte)Mathf.Clamp(Draft.BotSkill + d, 0, 2); SaveDraft(); }, 1080).transform.parent.gameObject,
             };
             var back = UIKit.Btn(s, "BACK", Back, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, -300, 50, 380, 96, 0.5f, 0f);
@@ -465,6 +495,7 @@ namespace UA
         public void CreateFromDraft()
         {
             Draft.GroupName = Settings.Clean(groupNameField.text.Length > 0 ? groupNameField.text : Draft.GroupName, 24);
+            SaveDraft();
             var config = new MatchConfig
             {
                 GroupName = Draft.GroupName, Mode = Draft.Mode, Map = Draft.Map, Minutes = Draft.Minutes,
@@ -724,6 +755,11 @@ namespace UA
         {
             ShowScreen("settings");
         }
+
+        // everything the player set is written to the phone as soon as the game goes to the background:
+        // a game swiped away or closed by the phone never loses its settings
+        private void OnApplicationPause(bool paused) { if (paused) PlayerPrefs.Save(); }
+        private void OnApplicationFocus(bool focus) { if (!focus) PlayerPrefs.Save(); }
 
         private void BuildSettings()
         {

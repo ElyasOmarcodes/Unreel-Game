@@ -5,7 +5,9 @@ namespace UA
     /// <summary>
     /// Watches the frame rate during a match. When it stays well under the target for a while, the
     /// graphics come down one step at a time (resolution first, then quality, then 30 fps) so the game
-    /// stays smooth and the phone does not overheat or close the game. It never raises them by itself.
+    /// stays smooth and the phone does not overheat or close the game. Only for the match being played:
+    /// what the player saved in the settings is never changed, and after the match it applies again.
+    /// Once the player has chosen the graphics by hand, the guard leaves them alone altogether.
     /// </summary>
     public class PerfGuard : MonoBehaviour
     {
@@ -15,7 +17,8 @@ namespace UA
         private void Update()
         {
             var s = Session.I;
-            if (!Settings.AutoGraphics || s == null || !s.InMatch || !Application.isMobilePlatform) { elapsed = frames = 0; return; }
+            if (s == null || !s.InMatch) { elapsed = frames = 0; Settings.RestoreSaved(); return; }
+            if (!Settings.AutoGraphics || Settings.GraphicsByHand || !Application.isMobilePlatform) { elapsed = frames = 0; return; }
             elapsed += Time.unscaledDeltaTime;
             frames++;
             if (elapsed < Window) return;
@@ -25,10 +28,7 @@ namespace UA
             slowWindows = slow ? slowWindows + 1 : 0;
             if (slowWindows < 2) return;
             slowWindows = 0;
-            if (Settings.RenderScale > 60) Settings.RenderScale -= 10;
-            else if (Settings.Quality > 0) Settings.Quality -= 1;
-            else if (Settings.FrameRate > 30) Settings.FrameRate = 30;
-            else return;
+            if (!Settings.LowerForNow()) return;
             App.I?.Toast(Loc.F("GRAPHICS LOWERED FOR SMOOTH PLAY ({0} FPS)", Mathf.RoundToInt(fps)));
         }
     }

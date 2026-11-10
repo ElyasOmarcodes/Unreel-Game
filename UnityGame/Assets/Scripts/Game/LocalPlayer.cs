@@ -164,12 +164,23 @@ namespace UA
             velocity = Vector3.MoveTowards(velocity, wish, accel * dt);
             if (!alive) velocity = Vector3.zero;
             UpdateStance();
-            if (cc.enabled)
+            if (vaulting) VaultStep(dt, alive);
+            else if (cc.enabled)
             {
                 if (cc.isGrounded)
                 {
                     verticalSpeed = -2f;
-                    if (canMove && Controls.JumpPressed && s.Phase == Phase.Playing)
+                    // through a window: by walking into it for a moment, or with the jump button (which also
+                    // takes a low wall)
+                    bool mayVault = canMove && s.Phase == Phase.Playing && !prone;
+                    pushTime = mayVault && input.y > 0.5f ? pushTime + dt : 0f;
+                    var ahead = wish.sqrMagnitude > 0.1f ? wish : Quaternion.Euler(0, rig.Yaw, 0) * Vector3.forward;
+                    if (mayVault && (Controls.JumpPressed && TryVault(ahead, true) || pushTime > 0.15f && TryVault(ahead, false)))
+                    {
+                        pushTime = 0f;
+                        crouch = false;
+                    }
+                    else if (canMove && Controls.JumpPressed && s.Phase == Phase.Playing)
                     {
                         if (crouch || prone) { crouch = false; prone = false; }
                         // a running jump goes a little higher and further than one from standing
@@ -260,7 +271,7 @@ namespace UA
             state.MoveY = !alive ? 0f : local.z > norm * 1.02f ? 1f + Mathf.Clamp01((local.z - norm) / Mathf.Max(0.1f, (SprintSpeed - RunSpeed) * def.MoveSpeed)) : Mathf.Clamp(local.z / norm, -1f, 1f);
             state.Crouch = crouch;
             state.Prone = prone;
-            state.Grounded = !cc.enabled || cc.isGrounded;
+            state.Grounded = !vaulting && (!cc.enabled || cc.isGrounded);
             state.Aiming = Aiming;
             state.Weapon = def.Id;
         }
@@ -314,6 +325,98 @@ namespace UA
         /// Body height for standing / crouching / lying down. Standing up again is only refused when
         /// something solid is really above the player (then they stay down until there is room).
         /// </summary>
+        // through a window or over a low wall: carried along a short path (the body is taller than a window)
+        private bool vaulting;
+        private Vector3 vaultFrom, vaultSill, vaultTo, vaultDir;
+        private float vaultTime, vaultLength, pushTime;
+
+        /// <summary>
+        /// Is there a way through or over what stands before the player along 'dir'? A window: a sill up to
+        /// 1.4 m with an opening at least 0.75 m high and wide enough over it, a lintel above, and a floor
+        /// to land on beyond (walking into it goes through when the floor beyond is not far below; with the
+        /// jump button also out of an upper window). A low wall (up to 1.25 m, open above, lower ground
+        /// beyond): only with the jump button. Starts the vault when there is.
+        /// </summary>
+        private bool TryVault(Vector3 dir, bool byJump)
+        {
+            dir.y = 0;
+            if (dir.sqrMagnitude < 0.01f) return false;
+            dir.Normalize();
+            int mask = World.EnvMask | (1 << World.FenceLayer);
+            var feet = transform.position;
+            // something low in the way, met squarely: the sill
+            if (!Physics.Raycast(feet + Vector3.up * 0.3f, dir, out var low, 0.95f, mask, QueryTriggerInteraction.Ignore)) return false;
+            var into = -low.normal;
+            into.y = 0;
+            if (into.sqrMagnitude < 0.5f || Vector3.Dot(into.normalized, dir) < 0.6f) return false;
+            into.Normalize();
+            float wall = Vector3.Dot(low.point - feet, into);
+            float reach = wall + 0.75f;
+            // where the opening over it begins and where it ends
+            float bottom = -1f, top = -1f;
+            for (float h = 0.45f; h <= 2.9f; h += 0.1f)
+            {
+                bool blocked = Physics.Raycast(feet + Vector3.up * h, into, reach, mask, QueryTriggerInteraction.Ignore);
+                if (bottom < 0f)
+                {
+                    if (!blocked) bottom = h;
+                    else if (h > 1.4f) return false;
+                }
+                else if (blocked) { top = h; break; }
+            }
+            if (bottom < 0f) return false;
+            bool window = top > 0f;
+            if ((window ? top : 3f) - bottom < 0.75f) return false;
+            if (!window && (!byJump || bottom > 1.25f || bottom < 0.6f)) return false;
+            // room for the body through it: straight ahead, or a little to one side
+            var side = Vector3.Cross(Vector3.up, into);
+            float off = float.NaN;
+            foreach (float o in new[] { 0f, -0.2f, 0.2f, -0.4f, 0.4f })
+            {
+                var from = feet + side * o + Vector3.up * (bottom + 0.4f);
+                if (Physics.CheckSphere(from, 0.25f, mask, QueryTriggerInteraction.Ignore)) continue;
+                if (Physics.SphereCast(from, 0.27f, into, out _, reach + 0.45f, mask, QueryTriggerInteraction.Ignore)) continue;
+                off = o;
+                break;
+            }
+            if (float.IsNaN(off)) return false;
+            // ground to land on beyond, lower than the sill (not the top of a block, not a stair)
+            var over = feet + side * off + into * (reach + 0.45f);
+            float drop = byJump ? 3.6f : 1.4f;
+            if (!Physics.Raycast(over + Vector3.up * (bottom + 0.4f), Vector3.down, out var ground, bottom + 0.4f + drop, mask, QueryTriggerInteraction.Ignore)) return false;
+            if (ground.normal.y < 0.6f || ground.point.y > feet.y + bottom - 0.25f) return false;
+            var land = ground.point;
+            if (Physics.CheckCapsule(land + Vector3.up * 0.45f, land + Vector3.up * 1.3f, 0.3f, mask, QueryTriggerInteraction.Ignore)) return false;
+            vaultFrom = feet;
+            vaultSill = feet + side * off + into * (wall + 0.2f) + Vector3.up * (bottom + 0.05f);
+            // far down beyond (out of an upper window): carried only past the wall, the fall is its own
+            vaultTo = land.y < feet.y + bottom - 1.6f ? new Vector3(over.x, feet.y + bottom - 0.4f, over.z) : land;
+            vaultDir = into;
+            vaultTime = 0f;
+            vaultLength = Mathf.Clamp((Vector3.Distance(vaultFrom, vaultSill) + Vector3.Distance(vaultSill, vaultTo)) / 5.2f, 0.42f, 0.8f);
+            vaulting = true;
+            Aiming = false;
+            return true;
+        }
+
+        private void VaultStep(float dt, bool alive)
+        {
+            if (!alive) { vaulting = false; return; }
+            vaultTime += dt;
+            float t = Mathf.Clamp01(vaultTime / vaultLength);
+            // up onto the sill, then through and down
+            var p = t < 0.45f ? Vector3.Lerp(vaultFrom, vaultSill, Mathf.SmoothStep(0f, 1f, t / 0.45f))
+                              : Vector3.Lerp(vaultSill, vaultTo, Mathf.SmoothStep(0f, 1f, (t - 0.45f) / 0.55f));
+            bool was = cc.enabled;
+            cc.enabled = false;
+            transform.position = p;
+            cc.enabled = was;
+            if (t < 1f) return;
+            vaulting = false;
+            velocity = vaultDir * RunSpeed * 0.7f;
+            verticalSpeed = -1f;
+        }
+
         private void UpdateStance()
         {
             float want = prone ? ProneHeight : StandHeight;

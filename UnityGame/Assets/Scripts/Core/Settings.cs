@@ -52,11 +52,37 @@ namespace UA
         public static bool Welcomed { get => PlayerPrefs.GetInt("welcomed", 0) == 1; set { PlayerPrefs.SetInt("welcomed", value ? 1 : 0); PlayerPrefs.Save(); } }
 
         /// <summary>0 low, 1 medium, 2 high. The first start picks what the phone can carry.</summary>
-        public static int Quality { get => PlayerPrefs.GetInt("quality", DeviceClass); set { PlayerPrefs.SetInt("quality", Mathf.Clamp(value, 0, 2)); Apply(); } }
+        public static int Quality { get => nowQuality >= 0 ? nowQuality : PlayerPrefs.GetInt("quality", DeviceClass); set { nowQuality = -1; PlayerPrefs.SetInt("quality", Mathf.Clamp(value, 0, 2)); ByHand(); Apply(); } }
         /// <summary>Share of the screen's own resolution the game draws at, in percent (the screen still fills).</summary>
-        public static int RenderScale { get => PlayerPrefs.GetInt("renderScale", DeviceClass == 0 ? 65 : DeviceClass == 1 ? 80 : 90); set { PlayerPrefs.SetInt("renderScale", Mathf.Clamp(value, 50, 100)); Apply(); } }
+        public static int RenderScale { get => nowScale >= 0 ? nowScale : PlayerPrefs.GetInt("renderScale", DeviceClass == 0 ? 65 : DeviceClass == 1 ? 80 : 90); set { nowScale = -1; PlayerPrefs.SetInt("renderScale", Mathf.Clamp(value, 50, 100)); ByHand(); Apply(); } }
         /// <summary>Frames per second the game aims for (a steady 30 is smoother than a jumpy 60 on a weak phone).</summary>
-        public static int FrameRate { get => PlayerPrefs.GetInt("frameRate", 60); set { PlayerPrefs.SetInt("frameRate", value); Apply(); } }
+        public static int FrameRate { get => nowRate >= 0 ? nowRate : PlayerPrefs.GetInt("frameRate", 60); set { nowRate = -1; PlayerPrefs.SetInt("frameRate", value); ByHand(); Apply(); } }
+
+        // What the player set is kept as it is. The frame rate guard (PerfGuard) only lowers the graphics
+        // for the match being played, in memory; and never once the player has set them by hand.
+        private static int nowQuality = -1, nowScale = -1, nowRate = -1;
+        /// <summary>The player chose the graphics by hand: nothing changes them any more.</summary>
+        public static bool GraphicsByHand => PlayerPrefs.GetInt("gfxByHand", 0) == 1;
+        private static void ByHand() { PlayerPrefs.SetInt("gfxByHand", 1); PlayerPrefs.Save(); }
+
+        /// <summary>One step down for this match only (not saved): resolution, then quality, then 30 frames. False when at the bottom.</summary>
+        public static bool LowerForNow()
+        {
+            if (RenderScale > 60) nowScale = RenderScale - 10;
+            else if (Quality > 0) nowQuality = Quality - 1;
+            else if (FrameRate > 30) nowRate = 30;
+            else return false;
+            Apply();
+            return true;
+        }
+
+        /// <summary>Back to what is saved (after the match).</summary>
+        public static void RestoreSaved()
+        {
+            if (nowQuality < 0 && nowScale < 0 && nowRate < 0) return;
+            nowQuality = nowScale = nowRate = -1;
+            Apply();
+        }
         public static readonly int[] FrameRates = { 30, 60, 90 };
 
         /// <summary>
