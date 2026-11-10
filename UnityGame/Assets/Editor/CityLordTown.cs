@@ -586,10 +586,10 @@ public static partial class CityLordBuilder
         var placed = new List<Vector3>();
         Physics.SyncTransforms();
         var ladders = Object.FindObjectsByType<Ladder>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Select(l => l.transform.position).ToList();
-        for (float x = -40f; x <= 110f; x += 4f)
+        for (float x = -40f; x <= 174f; x += 4f)
             for (float z = -70f; z <= 60f; z += 4f)
             {
-                if (placed.Count >= 50) return placed.Count;
+                if (placed.Count >= 66) return placed.Count;
                 var top = root.TransformPoint(new Vector3(x, 25f, z));
                 RaycastHit hit = default;
                 bool any = false;

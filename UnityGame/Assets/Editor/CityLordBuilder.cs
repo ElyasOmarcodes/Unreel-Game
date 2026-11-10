@@ -90,6 +90,7 @@ public static partial class CityLordBuilder
             string path = S(o["path"]);
             if (!path.StartsWith("Map_v1") || !ActiveInHierarchy(path)) continue;
             var world = M(o["world_matrix"]);
+            if (EastGate(S(o["name"]), world.GetColumn(3))) continue;   // the gate into the East Depot
             var comps = L(o["components"]).Select(D).ToList();
             foreach (var c in comps)
             {
@@ -193,6 +194,9 @@ public static partial class CityLordBuilder
         // invisible fences just outside the fenced yards
         var lift = Vector3.up * Lift;
         play.center += lift;
+        // the town grown east: the East Depot, inside the same fences
+        var extraSpawns = new List<Vector3>();
+        play.Encapsulate(BuildEast(extraSpawns));
         foreach (var (c, sz) in new[]
                  {
                      (new Vector3(play.center.x, play.center.y, play.max.z + 1.5f), new Vector3(play.size.x + 6f, 80, 1)),
@@ -218,6 +222,7 @@ public static partial class CityLordBuilder
                 GameObjectUtility.SetStaticEditorFlags(tr.gameObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
 
         var spawns = objects.Where(o => S(o["path"]).StartsWith("Element/Network_Manager/spwan")).Select(o => (Vector3)M(o["world_matrix"]).GetColumn(3) + lift).ToList();
+        spawns.AddRange(extraSpawns);
         var layout = new MapLayout
         {
             Name = "STEEL CITY",
