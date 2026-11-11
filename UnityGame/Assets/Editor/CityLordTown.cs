@@ -595,7 +595,8 @@ public static partial class CityLordBuilder
                 bool any = false;
                 foreach (var h in Physics.RaycastAll(top, Vector3.down, 60f, World.EnvMask, QueryTriggerInteraction.Ignore))
                 {
-                    if (h.normal.y < 0.9f || root.InverseTransformPoint(h.point).y > StreetTop) continue;
+                    float ly = root.InverseTransformPoint(h.point).y;
+                    if (h.normal.y < 0.9f || ly > StreetTop || ly < -13.6f) continue;   // not on roofs, not out on the plain round the town
                     if (Physics.Raycast(h.point + Vector3.up * 4.6f, Vector3.down, 4.4f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;   // under a roof
                     // the street surface itself: the highest level ground below street top (not the big plane under the roads)
                     if (!any || h.point.y > hit.point.y) { hit = h; any = true; }
