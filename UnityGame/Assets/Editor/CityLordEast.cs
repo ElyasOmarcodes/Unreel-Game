@@ -120,12 +120,13 @@ public static partial class CityLordBuilder
         Copy("Pipes_set_v1_V_set_v2", 75.69f, -10.92f, -26.87f, 90f, 33.6f, 0f, -15f);
         Copy("Pipes_set_v1_H_set_v1", 79.64f, -10.94f, -10.23f, -80.3f, 30.2f, 0f, 1.5f);
         Copy("Pipes_set_v1_H_set_v2", 88.68f, -10.94f, -11.78f, -80.3f, 30.2f, 0f, 1.5f);
-        Copy("Pipes_set_v1_V_set_v2", 91.36f, -10.94f, -10.41f, 90f, 30.2f, 0f, 1.5f);
+        // the riser stands on the end of the run (in the old town the two miss each other by a metre): the pipe runs into its side
+        Copy("Pipes_set_v1_V_set_v2", 91.36f, -10.94f, -10.41f, 90f, 30.2f, 0f, 0f);
         Put("Industrial_pipe_v1", 127.6f, -49.4f, 0f, east);
         Physics.SyncTransforms();
         // the ways up: a ladder up the long hangar from the court; a ladder up the east hangar, from its roof
         // a plank to the look-out tower and a ladder to its top
-        PlaceLadder(e, new Vector3(111.5f, east, -14.72f + 0.05f), Vector3.forward, Roof(111.5f, -16f, east) - east);
+        PlaceLadder(e, new Vector3(111.5f - 5.84f + 0.05f, east, -30f), Vector3.left, Roof(111.5f - 4.6f, -30f, east) - east);
         float h3s = -9.4f - 6.75f, h3n = -9.4f + 6.75f;
         PlaceLadder(e, new Vector3(136f, east, h3n - 0.05f), Vector3.forward, Roof(136f, h3n - 1.2f, east) - east);
         float deck = Roof(136f, h3s + 0.7f, east) + 0.05f, topDeck = deck + 5.2f;
