@@ -34,27 +34,90 @@ public static partial class ZahraBuilder
         LBox(n, "Wall", new Vector3((u + len + e) / 2f, h / 2f, 0), new Vector3(len + e - u, h, th), m);
     }
 
-    /// <summary>A parapet with firing notches every few metres, and one full gap where a stair or a ladder arrives.</summary>
-    private static void Parapet(Transform t, Vector3 a, Vector3 b, float y, Material m, float gapAt = -1f, float gapW = 1.5f, float h = 0.95f)
+    /// <summary>
+    /// The low wall round a roof terrace as the Andalusian houses have it: plain lime-washed, under a
+    /// coping of tiles; one gap where a stair or a ladder arrives.
+    /// </summary>
+    private static void Parapet(Transform t, Vector3 a, Vector3 b, float y, Material m, float gapAt = -1f, float gapW = 1.5f, float h = 0.9f)
     {
-        float len = Vector3.Distance(a, b);
-        var holes = new System.Collections.Generic.List<(float, float, float, float)>();
-        for (float u = 1.5f; u < len - 1.2f; u += 2.4f)
-            if (gapAt < 0f || Mathf.Abs(u - gapAt) > gapW / 2f + 0.6f) holes.Add((u, 0.7f, 0.5f, h));
-        if (gapAt >= 0f) holes.Add((gapAt, gapW, 0f, h));
-        Face(t, a, b, y, h, 0.3f, m, holes.ToArray());
-    }
-
-    private static Material TownWall(System.Random r)
-    {
-        double k = r.NextDouble();
-        return k < 0.4 ? Plaster : k < 0.75 ? LimeOchre : Cream;
+        if (gapAt >= 0f) Face(t, a, b, y, h, 0.3f, m, (gapAt, gapW, 0f, h));
+        else Face(t, a, b, y, h, 0.3f, m);
+        var d = b - a;
+        float len = d.magnitude;
+        bool alongX = Mathf.Abs(d.x) > Mathf.Abs(d.z);
+        void Cope(float u0, float u1)
+        {
+            if (u1 - u0 < 0.1f) return;
+            var c = a + d.normalized * ((u0 + u1) / 2f) + Vector3.up * (y + h + 0.05f);
+            LBox(t, "Coping", c, alongX ? new Vector3(u1 - u0, 0.1f, 0.46f) : new Vector3(0.46f, 0.1f, u1 - u0), RoofTiles, 1f, false);
+        }
+        if (gapAt >= 0f) { Cope(-0.15f, gapAt - gapW / 2f); Cope(gapAt + gapW / 2f, len + 0.15f); }
+        else Cope(-0.15f, len + 0.15f);
     }
 
     /// <summary>
-    /// A flat-roofed house (front towards local -Z): a walled forecourt, an outside stair along the
-    /// front up to the roof terrace with its notched parapet, real windows in the sides and the back,
-    /// and (on most) a look-out room on the roof with a ladder to its top: the highest point of its street.
+    /// A horseshoe arch of red and cream voussoirs in its alfiz, set in an opening that Face left in a
+    /// wall from a to b: 'along' its middle from a, 'y0' its foot (a door: the floor; a window: the sill).
+    /// </summary>
+    private static void ArchIn(Transform t, Vector3 a, Vector3 b, float along, float y0, float width, float spring, float top, float th, Material wall)
+    {
+        var wa = t.TransformPoint(a); var wb = t.TransformPoint(b);
+        var dir = wb - wa; dir.y = 0; dir.Normalize();
+        var n = Node("Opening", t, wa + dir * along + Vector3.up * y0, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg - 90f);
+        Arch(n, 0, width, spring, top, th, 30f, wall);
+    }
+
+    /// <summary>A wall with horseshoe-arched openings: doors (sill 0) and windows wide enough to climb through.</summary>
+    private static void ArchWall(Transform t, Vector3 a, Vector3 b, float y0, float h, float th, Material wall, params (float at, float w, float sill, float spring)[] arches)
+    {
+        Face(t, a, b, y0, h, th, wall, arches.Select(o => (o.at, o.w, o.sill, h)).ToArray());
+        foreach (var o in arches) ArchIn(t, a, b, o.at, y0 + o.sill, o.w, o.spring, h - o.sill, th, wall);
+    }
+
+    /// <summary>The red dado (almagra) along the foot of a wall face and the stone plinth under it, as in the houses of Al-Zahra.</summary>
+    private static void Dado(Transform t, Vector3 a, Vector3 b, Vector3 outward, float from = 0f, float to = -1f)
+    {
+        var d = b - a;
+        float len = d.magnitude;
+        if (to < 0f) to = len;
+        if (to - from < 0.2f) return;
+        bool alongX = Mathf.Abs(d.x) > Mathf.Abs(d.z);
+        var c = a + d.normalized * ((from + to) / 2f) + outward * 0.03f;
+        LBox(t, "Plinth", c + Vector3.up * 0.2f, alongX ? new Vector3(to - from, 0.4f, 0.08f) : new Vector3(0.08f, 0.4f, to - from), Ashlar, 1.5f, false);
+        LBox(t, "Dado", c + Vector3.up * 0.75f, alongX ? new Vector3(to - from, 0.7f, 0.05f) : new Vector3(0.05f, 0.7f, to - from), Almagra, 1.5f, false);
+    }
+
+    private static Material TownWall(System.Random r) => r.NextDouble() < 0.6 ? Plaster : LimeOchre;
+
+    /// <summary>A four-sided tiled roof (a pyramid) over w x d with its overhang, the eaves at the node's own height.</summary>
+    private static void TiledCap(Transform t, Vector3 local, float w, float d, float rise)
+    {
+        string key = $"cap_{K(w)}_{K(d)}_{K(rise)}";
+        if (!meshes.TryGetValue(key, out var mesh) || mesh == null)
+        {
+            var bld = new Builder(1.6f);
+            var top = new Vector3(0, rise, 0);
+            var c = new[] { new Vector3(-w / 2, 0, -d / 2), new Vector3(w / 2, 0, -d / 2), new Vector3(w / 2, 0, d / 2), new Vector3(-w / 2, 0, d / 2) };
+            for (int i = 0; i < 4; i++)
+            {
+                var p0 = c[i]; var p1 = c[(i + 1) % 4];
+                var n = Vector3.Cross(p1 - p0, top - p0);
+                if (n.y < 0) n = -n;
+                bld.Face(n, p0, p1, top);
+            }
+            bld.Face(Vector3.down, c[0], c[1], c[2], c[3]);
+            mesh = bld.Save(key);
+            meshes[key] = mesh;
+        }
+        var roof = MeshObject(t, "TiledCap", mesh, RoofTiles, true);
+        roof.transform.localPosition = local;
+    }
+
+    /// <summary>
+    /// A house with a roof terrace in the manner of Al-Zahra (front towards local -Z): lime-washed walls
+    /// over a stone plinth and a red dado, a horseshoe-arched door in its alfiz, arched windows one can
+    /// climb through, a walled forecourt, an outside stair up to the terrace under its tiled coping, and
+    /// (on most) a mirador: a small room on the roof with arched openings all round under a tiled cap.
     /// </summary>
     private static void TerraceHouse(Vector3 c, float yaw, float w, float d, int seed)
     {
@@ -62,68 +125,61 @@ public static partial class ZahraBuilder
         var t = Node("TerraceHouse", root, c, yaw);
         var r = new System.Random(seed);
         var wall = TownWall(r);
-        const float th = 0.4f, h = 3.8f, yard = 3.3f;
+        const float th = 0.45f, h = 3.8f, yard = 3.3f;
         float hw = w / 2f, hd = d / 2f, zf = -hd + yard, top = h - 0.25f;
-        float door = hw - 1.6f;
+        float door = hw - 1.9f;
         // floors
         LBox(t, "HouseFloor", new Vector3(0, 0.05f, zf / 2f + hd / 2f), new Vector3(w, 0.1f, hd - zf), BrickFloor, 2f);
-        LBox(t, "YardFloor", new Vector3(0, 0.04f, (zf - hd) / 2f), new Vector3(w, 0.08f, yard), Paving, 2f, false);
+        LBox(t, "YardFloor", new Vector3(0, 0.04f, (zf - hd) / 2f), new Vector3(w, 0.08f, yard), Violet, 2f, false);
         LBox(t, "Carpet", new Vector3(-1f, 0.11f, (zf + hd) / 2f), new Vector3(3.2f, 0.02f, 2.2f), carpet, 1f, false);
-        // the four walls: the door in the front, windows to climb through in the others
-        Face(t, new Vector3(-hw + th / 2f, 0, zf), new Vector3(hw - th / 2f, 0, zf), 0, top, th, wall, (door + hw - th / 2f, 1.25f, 0f, 2.3f));
-        Face(t, new Vector3(-hw + th / 2f, 0, hd - th / 2f), new Vector3(hw - th / 2f, 0, hd - th / 2f), 0, top, th, wall,
-            (w * 0.28f, 1.2f, 1.05f, 2.3f), (w * 0.72f, 1.2f, 1.05f, 2.3f));
-        float side = hd - zf;
-        Face(t, new Vector3(-hw + th / 2f, 0, zf), new Vector3(-hw + th / 2f, 0, hd - th / 2f), 0, top, th, wall, (side * 0.6f, 1.2f, 1.05f, 2.3f));
-        Face(t, new Vector3(hw - th / 2f, 0, zf), new Vector3(hw - th / 2f, 0, hd - th / 2f), 0, top, th, wall, (side * 0.5f, 1.2f, 1.05f, 2.3f));
+        // the four walls: the arched door in the front, arched windows in the others
+        Vector3 fl = new Vector3(-hw + th / 2f, 0, zf), fr = new Vector3(hw - th / 2f, 0, zf);
+        Vector3 bl = new Vector3(-hw + th / 2f, 0, hd - th / 2f), br = new Vector3(hw - th / 2f, 0, hd - th / 2f);
+        float side = hd - th / 2f - zf, span = w - th;
+        ArchWall(t, fl, fr, 0, top, th, wall, (door + hw - th / 2f, 2.2f, 0f, 2.1f));
+        ArchWall(t, bl, br, 0, top, th, wall, (span * 0.27f, 1.7f, 1.0f, 0.85f), (span * 0.73f, 1.7f, 1.0f, 0.85f));
+        ArchWall(t, fl, bl, 0, top, th, wall, (side * 0.6f, 1.7f, 1.0f, 0.85f));
+        ArchWall(t, fr, br, 0, top, th, wall, (side * 0.5f, 1.7f, 1.0f, 0.85f));
         // a partition with a doorway: two rooms
-        Face(t, new Vector3(1.2f, 0, zf), new Vector3(1.2f, 0, hd - th / 2f), 0, top, 0.25f, wall, (side * 0.3f, 1.2f, 0f, 2.3f));
-        // the stone plinth and a red band under the roof, a wooden door leaf standing open
-        LBox(t, "Plinth", new Vector3(0, 0.35f, hd + 0.03f), new Vector3(w + 0.1f, 0.7f, 0.06f), Ashlar, 1.5f, false);
-        foreach (float s in new[] { -1f, 1f })
-            LBox(t, "Plinth", new Vector3(s * (hw + 0.03f), 0.35f, (zf + hd) / 2f), new Vector3(0.06f, 0.7f, side), Ashlar, 1.5f, false);
-        LBox(t, "Band", new Vector3(0, top - 0.2f, hd + 0.03f), new Vector3(w + 0.1f, 0.3f, 0.06f), Almagra, 1.5f, false);
-        LBox(t, "DoorLeaf", new Vector3(door + 0.66f, 1.15f, zf - 0.6f), new Vector3(0.08f, 2.3f, 1f), Wood, 1f, false);
-        // the roof terrace
+        Face(t, new Vector3(0.6f, 0, zf), new Vector3(0.6f, 0, hd - th / 2f), 0, top, 0.25f, wall, (side * 0.3f, 1.2f, 0f, 2.3f));
+        // plinth and red dado outside
+        Dado(t, bl + new Vector3(-th / 2f, 0, th / 2f), br + new Vector3(th / 2f, 0, th / 2f), Vector3.forward);
+        Dado(t, fl + new Vector3(-th / 2f, 0, 0), bl + new Vector3(-th / 2f, 0, 0), Vector3.left);
+        Dado(t, fr + new Vector3(th / 2f, 0, 0), br + new Vector3(th / 2f, 0, 0), Vector3.right);
+        LBox(t, "DoorLeaf", new Vector3(door + 0.75f, 1.1f, zf - 0.62f), new Vector3(0.08f, 2.2f, 1f), Wood, 1f, false);
+        // the roof terrace, tiles at its eaves all round
         LBox(t, "RoofSlab", new Vector3(0, h - 0.125f, (zf - th / 2f + hd) / 2f), new Vector3(w, 0.25f, hd - zf + th / 2f), Flags, 2f);
+        LBox(t, "Eaves", new Vector3(0, h - 0.32f, hd + 0.3f), new Vector3(w + 1.2f, 0.12f, 0.6f), RoofTiles, 1.5f, false);
+        foreach (float s in new[] { -1f, 1f })
+            LBox(t, "Eaves", new Vector3(s * (hw + 0.3f), h - 0.32f, (zf + hd) / 2f), new Vector3(0.6f, 0.12f, hd - zf), RoofTiles, 1.5f, false);
         // the stair along the front: up to the roof where the parapet is open
         int steps = Mathf.CeilToInt(h / 0.2f);
         float run = steps * 0.36f, sx = -hw + 0.3f, sz = zf - th / 2f - 0.6f;
         Buildings.Stairs(t, t.TransformPoint(new Vector3(sx, 0, sz)), t.TransformDirection(Vector3.right), h, 1.2f, Flags);
-        LBox(t, "StairWall", new Vector3(sx + run / 2f, h / 2f - 0.4f, sz - 0.68f), new Vector3(run, 0.16f, 0.16f), Wood, 1f, false);
-        float gap = sx + run - 0.7f + hw;   // along the front parapet, from its left end
+        LBox(t, "StairSide", new Vector3(sx + run / 2f, 0.5f, sz - 0.66f), new Vector3(run, 1f, 0.12f), wall, 2f, false);
+        float gap = sx + run - 0.7f + hw - 0.15f;   // along the front parapet, from its left end
         Parapet(t, new Vector3(-hw + 0.15f, 0, zf - 0.05f), new Vector3(hw - 0.15f, 0, zf - 0.05f), h, wall, gap, 1.5f);
         Parapet(t, new Vector3(-hw + 0.15f, 0, hd - 0.15f), new Vector3(hw - 0.15f, 0, hd - 0.15f), h, wall);
         Parapet(t, new Vector3(-hw + 0.15f, 0, zf - 0.05f), new Vector3(-hw + 0.15f, 0, hd - 0.15f), h, wall);
         Parapet(t, new Vector3(hw - 0.15f, 0, zf - 0.05f), new Vector3(hw - 0.15f, 0, hd - 0.15f), h, wall);
-        // the forecourt wall with its gate in front of the door
-        Face(t, new Vector3(-hw + 0.15f, 0, -hd + 0.15f), new Vector3(hw - 0.15f, 0, -hd + 0.15f), 0, 1.5f, 0.3f, wall, (door + hw - 0.15f, 1.7f, 0f, 1.5f));
+        // the forecourt wall under its tiles, the gate in front of the door; a pot of flowers, an orange tree
+        Parapet(t, new Vector3(-hw + 0.15f, 0, -hd + 0.15f), new Vector3(hw - 0.15f, 0, -hd + 0.15f), 0, wall, door + hw - 0.15f, 1.8f, 1.6f);
         foreach (float s in new[] { -1f, 1f })
-            Face(t, new Vector3(s * (hw - 0.15f), 0, -hd + 0.15f), new Vector3(s * (hw - 0.15f), 0, zf), 0, 1.5f, 0.3f, wall);
-        var pot = t.TransformPoint(new Vector3(door - 1.3f, 0.08f, -hd + 0.75f));
+            Parapet(t, new Vector3(s * (hw - 0.15f), 0, -hd + 0.15f), new Vector3(s * (hw - 0.15f), 0, zf), 0, wall, -1f, 1.5f, 1.6f);
+        var pot = t.TransformPoint(new Vector3(door - 1.5f, 0.08f, -hd + 0.75f));
         MeshGen.TexCylinder("Pot", pot, 0.28f, 0.55f, Terracotta, 1f, t, false);
         Small(Nature.Place("Bush_Common_Flowers", pot + Vector3.up * 0.5f, R(0, 360), 0.7f, t));
-        NightLights.Lamp(t, t.TransformPoint(new Vector3(door - 1.1f, 2.6f, zf - 0.32f)), new Vector3(0.2f, 0.3f, 0.2f), night, houses % 3 == 0 ? 2.6f : 0f);
-        // the look-out room on the roof, at the back on the left
+        NightLights.Lamp(t, t.TransformPoint(new Vector3(door - 1.5f, 2.6f, zf - 0.34f)), new Vector3(0.2f, 0.3f, 0.2f), night, houses % 3 == 0 ? 2.6f : 0f);
         if (r.NextDouble() < 0.7)
         {
-            const float rw = 4.2f, rh = 2.9f;
+            // the mirador on the roof, at the back on the left: arched openings all round, a tiled cap
+            const float rw = 4.4f, rh = 2.9f;
             float x0 = -hw + 0.15f, x1 = x0 + rw, z1 = hd - 0.15f, z0 = z1 - rw;
-            Face(t, new Vector3(x0, 0, z0), new Vector3(x1, 0, z0), h, rh, 0.3f, wall, (rw / 2f, 1.2f, 1f, 2.1f));
-            Face(t, new Vector3(x1, 0, z0), new Vector3(x1, 0, z1), h, rh, 0.3f, wall, (1.1f, 1.1f, 0f, 2.2f));
-            Face(t, new Vector3(x0, 0, z0), new Vector3(x0, 0, z1), h + 0.95f, rh - 0.95f, 0.3f, wall, (rw / 2f, 1.1f, 0.2f, 1.2f));
-            Face(t, new Vector3(x0, 0, z1), new Vector3(x1, 0, z1), h + 0.95f, rh - 0.95f, 0.3f, wall, (rw / 2f, 1.1f, 0.2f, 1.2f));
-            float ry = h + rh;
-            LBox(t, "RoofSlab", new Vector3((x0 + x1) / 2f, ry + 0.1f, (z0 + z1) / 2f), new Vector3(rw + 0.7f, 0.2f, rw + 0.7f), Flags, 2f);
-            LBox(t, "Eaves", new Vector3((x0 + x1) / 2f, ry - 0.06f, (z0 + z1) / 2f), new Vector3(rw + 0.9f, 0.12f, rw + 0.9f), RoofTiles, 1.5f, false);
-            float py = ry + 0.2f;
-            Parapet(t, new Vector3(x0 - 0.2f, 0, z0 - 0.2f), new Vector3(x1 + 0.2f, 0, z0 - 0.2f), py, wall, -1f, 1.5f, 0.8f);
-            Parapet(t, new Vector3(x0 - 0.2f, 0, z1 + 0.2f), new Vector3(x1 + 0.2f, 0, z1 + 0.2f), py, wall, -1f, 1.5f, 0.8f);
-            Parapet(t, new Vector3(x0 - 0.2f, 0, z0 - 0.2f), new Vector3(x0 - 0.2f, 0, z1 + 0.2f), py, wall, -1f, 1.5f, 0.8f);
-            Parapet(t, new Vector3(x1 + 0.2f, 0, z0 - 0.2f), new Vector3(x1 + 0.2f, 0, z1 + 0.2f), py, wall, 3.3f, 1.3f, 0.8f);
-            // the wooden ladder (Steel City's) up its side from the terrace
-            var outward = t.TransformDirection(Vector3.right);
-            CityLordBuilder.PlaceLadder(t, t.TransformPoint(new Vector3(x1 + 0.38f, h, z0 + 3.1f)), outward, rh + 0.2f);
+            ArchWall(t, new Vector3(x0, 0, z0), new Vector3(x1, 0, z0), h, rh, 0.3f, wall, (rw / 2f, 1.7f, 0.95f, 0.6f));
+            ArchWall(t, new Vector3(x1, 0, z0), new Vector3(x1, 0, z1), h, rh, 0.3f, wall, (rw / 2f, 1.9f, 0f, 1.6f));
+            ArchWall(t, new Vector3(x0, 0, z0), new Vector3(x0, 0, z1), h, rh, 0.3f, wall, (rw / 2f, 1.7f, 0.95f, 0.6f));
+            ArchWall(t, new Vector3(x0, 0, z1), new Vector3(x1, 0, z1), h, rh, 0.3f, wall, (rw / 2f, 1.7f, 0.95f, 0.6f));
+            TiledCap(t, new Vector3((x0 + x1) / 2f, h + rh, (z0 + z1) / 2f), rw + 1.1f, rw + 1.1f, 1.5f);
         }
         else
         {
@@ -168,12 +224,14 @@ public static partial class ZahraBuilder
         LBox(t, "ShopFloor", new Vector3(0, 0.07f, (za + hd) / 2f), new Vector3(w, 0.14f, hd - za), BrickFloor, 2f);
         // the shops: three open fronts, the partitions between them, a window in the back of the middle one
         float bay = (w - th) / 3f;
-        Face(t, new Vector3(-hw + th / 2f, 0, zs), new Vector3(hw - th / 2f, 0, zs), 0, top, th, wall,
-            (bay * 0.5f, 2.3f, 0f, 2.6f), (bay * 1.5f, 2.3f, 0f, 2.6f), (bay * 2.5f, 2.3f, 0f, 2.6f));
-        Face(t, new Vector3(-hw + th / 2f, 0, hd - th / 2f), new Vector3(hw - th / 2f, 0, hd - th / 2f), 0, top, th, wall, (bay * 1.5f, 1.2f, 1.05f, 2.3f));
+        ArchWall(t, new Vector3(-hw + th / 2f, 0, zs), new Vector3(hw - th / 2f, 0, zs), 0, top, th, wall,
+            (bay * 0.5f, 2.6f, 0f, 1.9f), (bay * 1.5f, 2.6f, 0f, 1.9f), (bay * 2.5f, 2.6f, 0f, 1.9f));
+        ArchWall(t, new Vector3(-hw + th / 2f, 0, hd - th / 2f), new Vector3(hw - th / 2f, 0, hd - th / 2f), 0, top, th, wall, (bay * 1.5f, 1.7f, 1.0f, 0.85f));
+        Dado(t, new Vector3(-hw, 0, hd), new Vector3(hw, 0, hd), Vector3.forward);
         foreach (float s in new[] { -1f, 1f })
         {
-            Face(t, new Vector3(s * (hw - th / 2f), 0, za), new Vector3(s * (hw - th / 2f), 0, hd - th / 2f), 0, top, th, wall, (walk / 2f, 1.5f, 0f, 2.6f));
+            ArchWall(t, new Vector3(s * (hw - th / 2f), 0, za), new Vector3(s * (hw - th / 2f), 0, hd - th / 2f), 0, top, th, wall, (walk / 2f + 0.1f, 1.9f, 0f, 1.9f));
+            Dado(t, new Vector3(s * hw, 0, zs + 0.3f), new Vector3(s * hw, 0, hd), s < 0 ? Vector3.left : Vector3.right);
             Face(t, new Vector3(s * bay / 2f, 0, zs), new Vector3(s * bay / 2f, 0, hd - th / 2f), 0, top, 0.25f, wall);
         }
         for (int i = 0; i < 3; i++)
