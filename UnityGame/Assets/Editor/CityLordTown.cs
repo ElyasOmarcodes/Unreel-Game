@@ -587,7 +587,7 @@ public static partial class CityLordBuilder
         Physics.SyncTransforms();
         var ladders = Object.FindObjectsByType<Ladder>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Select(l => l.transform.position).ToList();
         for (float x = -40f; x <= 174f; x += 4f)
-            for (float z = -70f; z <= 60f; z += 4f)
+            for (float z = -86f; z <= 60f; z += 4f)
             {
                 if (placed.Count >= 66) return placed.Count;
                 var top = root.TransformPoint(new Vector3(x, 25f, z));
