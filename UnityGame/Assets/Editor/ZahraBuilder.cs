@@ -24,7 +24,7 @@ using UnityEngine.UI;
 /// floors; cypresses, palms, orange trees, myrtle hedges and spring flowers. Textures are small and
 /// generated (ashlar, marble, carved ataurique) or the shared ambientCG sets.
 /// </summary>
-public static class ZahraBuilder
+public static partial class ZahraBuilder
 {
     public const float Half = 128f;
     private const float Lower = 0f, Middle = 4f, Upper = 10f;
@@ -2139,7 +2139,7 @@ public static class ZahraBuilder
             // the store rows against the walls (the hidden ways up)
             Rect.MinMaxRect(-124f, -59f, -118.5f, -40f), Rect.MinMaxRect(118.5f, -13f, 124f, 5f), Rect.MinMaxRect(48f, -124f, 66f, -118.5f),
         };
-        int seed = 100;
+        int seed = 100, plot = 0;
         void Plots(float[] xs, float[] zs, float y)
         {
             foreach (float x in xs)
@@ -2152,7 +2152,14 @@ public static class ZahraBuilder
                     taken.Add(area);
                     // the door towards the nearest street or the middle of the town
                     float yaw = Mathf.Abs(x - GateX) < 20f ? (x < GateX ? 90f : -90f) : z < -60f ? 180f : (rng.NextDouble() < 0.5 ? 0f : 90f * (x < 0 ? 1 : -1));
-                    CourtHouse(new Vector3(x, y, z), yaw, w, d, rng.NextDouble() < 0.3 ? 2 : 1, seed++);
+                    // not one courtyard house after another: terrace houses with a look-out, shop arcades, small market squares
+                    int kind = plot++ % 7;
+                    bool grand = rng.NextDouble() < 0.3;
+                    var at = new Vector3(x, y, z);
+                    if (kind == 1 || kind == 4) TerraceHouse(at, yaw, w, d, seed++);
+                    else if (kind == 3) ArcadeShops(at, yaw, w, d, seed++);
+                    else if (kind == 6) SoukSquare(at, yaw, w, d, seed++);
+                    else CourtHouse(at, yaw, w, d, grand ? 2 : 1, seed++);
                 }
         }
         Plots(new[] { -115f, -102f }, new[] { -116f, -102f, -88f, -74f, -60f, -46f }, Lower);
