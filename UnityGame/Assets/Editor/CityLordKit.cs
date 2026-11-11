@@ -276,7 +276,20 @@ public static partial class CityLordBuilder
         Physics.SyncTransforms();
         int mask = UA.World.EnvMask;
         float lean = 0f;
-        for (float a = Mathf.Min(50f, LadderLean); a > 1f; a -= 8f)
+        bool walk = false;
+        // first as the town's own ladder lies: so flat that one walks up it like a ramp (no climbing)
+        for (float a = Mathf.Clamp(LadderLean, 50f, 56f); a >= 47.5f && !walk; a -= 3f)
+        {
+            float run = height * Mathf.Tan(a * Mathf.Deg2Rad), len = height / Mathf.Cos(a * Mathf.Deg2Rad);
+            var r = Quaternion.LookRotation(outward) * Quaternion.Euler(-a, 0, 0);
+            var mid = foot + outward * (0.2f + run / 2f) + Vector3.up * (height / 2f) + r * Vector3.forward * 1.15f;
+            if (Physics.CheckBox(mid, new Vector3(0.5f, Mathf.Max(0.2f, len / 2f - 0.7f), 0.85f), r, mask, QueryTriggerInteraction.Ignore)) continue;
+            var end = foot + outward * (0.4f + run);
+            if (!Physics.Raycast(end + Vector3.up * 1f, Vector3.down, out var g, 2f, mask, QueryTriggerInteraction.Ignore) || Mathf.Abs(g.point.y - foot.y) > 0.25f) continue;
+            lean = a;
+            walk = true;
+        }
+        for (float a = Mathf.Min(42f, LadderLean); a > 1f && !walk; a -= 8f)
         {
             float run = height * Mathf.Tan(a * Mathf.Deg2Rad);
             // free space under the ladder (from the wall out to its foot) and level ground where it stands
@@ -287,6 +300,7 @@ public static partial class CityLordBuilder
             lean = a;
             break;
         }
+        if (!walk) Debug.Log($"[Ladder] no room to lay it flat at {foot} (height {height:0.0}): a climbing ladder");
         float slope = Mathf.Tan(lean * Mathf.Deg2Rad);
         float reach = height * slope;
         var piece = Kit("TallLadder");
@@ -304,11 +318,22 @@ public static partial class CityLordBuilder
         else
         {
             // stretched to its length, its rungs a little closer or further apart; narrower on short climbs
-            float length = height / Mathf.Cos(lean * Mathf.Deg2Rad) + 0.9f;
+            float length = height / Mathf.Cos(lean * Mathf.Deg2Rad) + (walk ? 0.35f : 0.9f);
             float sy = length / Mathf.Max(0.5f, piece.Bounds.size.y);
             go.transform.localScale = new Vector3(Mathf.Clamp(sy * 1.4f, 0.7f, 1f), sy, 1f);
         }
         go.transform.rotation = rot;
+        if (walk)
+        {
+            // walked like the town's own: a board under the feet along its whole length, no climbing zone
+            var board = new GameObject("LadderWalk");
+            board.transform.SetParent(go.transform.parent, false);
+            float len = height / Mathf.Cos(lean * Mathf.Deg2Rad) + 0.5f;
+            board.transform.SetPositionAndRotation(at + rot * new Vector3(0, len / 2f - 0.15f, 0), rot);
+            board.AddComponent<BoxCollider>().size = new Vector3(1.1f, len, 0.16f);
+            board.layer = go.layer;
+            return go;
+        }
         var ladder = go.AddComponent<UA.Ladder>();
         ladder.Into = -outward;
         ladder.Top = foot.y + height;

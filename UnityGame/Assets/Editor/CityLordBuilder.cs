@@ -196,21 +196,9 @@ public static partial class CityLordBuilder
         play.center += lift;
         // the town grown east: the East Depot, inside the same fences
         var extraSpawns = new List<Vector3>();
+        var oldPlay = play;
         play.Encapsulate(BuildEast(extraSpawns));
-        foreach (var (c, sz) in new[]
-                 {
-                     (new Vector3(play.center.x, play.center.y, play.max.z + 1.5f), new Vector3(play.size.x + 6f, 80, 1)),
-                     (new Vector3(play.center.x, play.center.y, play.min.z - 1.5f), new Vector3(play.size.x + 6f, 80, 1)),
-                     (new Vector3(play.max.x + 1.5f, play.center.y, play.center.z), new Vector3(1, 80, play.size.z + 6f)),
-                     (new Vector3(play.min.x - 1.5f, play.center.y, play.center.z), new Vector3(1, 80, play.size.z + 6f)),
-                 })
-        {
-            var wall = new GameObject("Edge");
-            wall.layer = World.FenceLayer;
-            wall.transform.SetParent(root, false);
-            wall.transform.position = c;
-            wall.AddComponent<BoxCollider>().size = sz;
-        }
+        TownEdge(root, oldPlay);
         // the four parts of the town: a name board in each, a number on every building
         Physics.SyncTransforms();
         int numbered = NameTown(outlines);

@@ -858,8 +858,35 @@ public static partial class HillVillageBuilder
             var n = Quaternion.Euler(0, s * 90f, 0) * Vector3.forward;
             var u = Quaternion.Euler(0, s * 90f, 0) * Vector3.right;
             Box("LookoutLedge", t, n * (w / 2f + 0.2f) + Vector3.up * (look - 0.05f), SideSize(u, w + 0.8f, 0.24f, 0.4f), Coping, false, 2f);
-            Box("LookoutParapet", t, n * (w / 2f - wall / 2f) + Vector3.up * (look + 0.5f), SideSize(u, w, 1.0f, wall), Stone, true, 2.6f);
-            Box("LookoutCope", t, n * (w / 2f - wall / 2f) + Vector3.up * (look + 1.03f), SideSize(u, w + 0.1f, 0.08f, wall + 0.12f), Coping, false, 2f);
+            // the parapet with a way out in its middle on to the wooden balcony
+            const float gap = 1.1f, bw = 1.35f;
+            foreach (float e in new[] { -1f, 1f })
+            {
+                float pl = (w - gap) / 2f;
+                Box("LookoutParapet", t, n * (w / 2f - wall / 2f) + u * (e * (gap / 2f + pl / 2f)) + Vector3.up * (look + 0.5f), SideSize(u, pl, 1.0f, wall), Stone, true, 2.6f);
+                Box("LookoutCope", t, n * (w / 2f - wall / 2f) + u * (e * (gap / 2f + pl / 2f)) + Vector3.up * (look + 1.03f), SideSize(u, pl + 0.05f, 0.08f, wall + 0.12f), Coping, false, 2f);
+            }
+            // the balcony: a deck of planks on timber brackets all round, a rail of posts and boards
+            float dl = s % 2 == 0 ? w + 2f * bw : w;
+            var dc = n * (w / 2f + bw / 2f);
+            Box("BalconyDeck", t, dc + Vector3.up * (look - 0.07f), SideSize(u, dl, 0.14f, bw), Wood, true, 1.5f);
+            Box("BalconyJoist", t, n * (w / 2f + bw - 0.08f) + Vector3.up * (look - 0.24f), SideSize(u, dl, 0.2f, 0.14f), DoorWood, false, 1.5f);
+            float rl = w + 2f * bw;
+            var rc = n * (w / 2f + bw - 0.06f);
+            Box("BalconyRail", t, rc + Vector3.up * (look + 1.02f), SideSize(u, rl, 0.09f, 0.12f), DoorWood, false, 1.5f);
+            Box("BalconyBoards", t, rc + Vector3.up * (look + 0.5f), SideSize(u, rl, 0.62f, 0.04f), Wood, false, 1.5f);
+            var block = new GameObject("BalconyRailBlock");
+            block.transform.SetParent(t, false);
+            block.transform.localPosition = rc + Vector3.up * (look + 0.55f);
+            block.AddComponent<BoxCollider>().size = SideSize(u, rl, 1.1f, 0.12f);
+            for (int k = -2; k <= 2; k++)
+                Box("BalconyPost", t, rc + u * (k * (rl - 0.14f) / 4f) + Vector3.up * (look + 0.5f), new Vector3(0.11f, 1.06f, 0.11f), DoorWood, false, 1.5f);
+            foreach (float e in new[] { -1f, 0f, 1f })
+            {
+                var top = t.TransformPoint(n * (w / 2f + bw - 0.15f) + u * (e * (w / 2f - 0.5f)) + Vector3.up * (look - 0.2f));
+                var foot = t.TransformPoint(n * (w / 2f + 0.05f) + u * (e * (w / 2f - 0.5f)) + Vector3.up * (look - 1.5f));
+                Beam("BalconyBracket", t, foot, top, 0.13f, DoorWood);
+            }
             Box("LookoutPier", t, n * (w / 2f - wall / 2f) + u * (w / 2f - wall / 2f) + Vector3.up * (look + lookH / 2f), new Vector3(wall + 0.1f, lookH, wall + 0.1f), Stone, true, 2.6f);
             Box("LookoutBeam", t, n * (w / 2f - wall / 2f) + Vector3.up * (look + lookH - 0.25f), SideSize(u, w, 0.5f, wall), Stone, true, 2.6f);
         }

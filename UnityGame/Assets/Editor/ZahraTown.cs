@@ -189,12 +189,12 @@ public static partial class ZahraBuilder
         // the roof: one terrace over shops and arcade, tiles at the eaves, a parapet all round
         LBox(t, "RoofSlab", new Vector3(0, h - 0.125f, (za - 0.2f + hd) / 2f), new Vector3(w, 0.25f, hd - za + 0.2f), Flags, 2f);
         LBox(t, "Eaves", new Vector3(0, h - 0.3f, za - 0.45f), new Vector3(w + 0.2f, 0.12f, 0.6f), RoofTiles, 1.5f, false);
-        Parapet(t, new Vector3(-hw + 0.15f, 0, za - 0.05f), new Vector3(hw - 0.15f, 0, za - 0.05f), h, wall);
+        Parapet(t, new Vector3(-hw + 0.15f, 0, za - 0.05f), new Vector3(hw - 0.15f, 0, za - 0.05f), h, wall, hw - 0.15f, 1.4f);
         Parapet(t, new Vector3(-hw + 0.15f, 0, hd - 0.15f), new Vector3(hw - 0.15f, 0, hd - 0.15f), h, wall);
         Parapet(t, new Vector3(-hw + 0.15f, 0, za - 0.05f), new Vector3(-hw + 0.15f, 0, hd - 0.15f), h, wall);
-        float len = hd - 0.1f - za;
-        Parapet(t, new Vector3(hw - 0.15f, 0, za - 0.05f), new Vector3(hw - 0.15f, 0, hd - 0.15f), h, wall, len - 1.6f, 1.3f);
-        CityLordBuilder.PlaceLadder(t, t.TransformPoint(new Vector3(hw + 0.02f, 0, hd - 1.65f)), t.TransformDirection(Vector3.right), h);
+        Parapet(t, new Vector3(hw - 0.15f, 0, za - 0.05f), new Vector3(hw - 0.15f, 0, hd - 0.15f), h, wall);
+        // the wooden ladder (laid flat enough to walk up) from the yard to the middle of the roof's front
+        CityLordBuilder.PlaceLadder(t, t.TransformPoint(new Vector3(0, 0.08f, za - 0.3f)), t.TransformDirection(Vector3.back), h - 0.08f);
         // the yard: two stalls, a lamp under the arcade
         var cloths = new[] { Red, Cream, MarbleBlue, Almagra };
         Stall(t, new Vector3(-hw + 2.2f, 0.08f, -hd + 1.6f), cloths[r.Next(4)], true);
