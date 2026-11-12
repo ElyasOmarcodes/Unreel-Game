@@ -1,0 +1,3783 @@
+{
+"remove": [
+{
+"name": "Oil_tank_v2",
+"x": 98,
+"z": -2,
+"r": 7
+},
+{
+"name": "Concrete_fence_v1_wall_set_v2",
+"x": 99.28,
+"z": -3.3
+},
+{
+"name": "Road_set_v1_s_bend_1",
+"x": 87,
+"z": 11.41
+},
+{
+"name": "Road_set_v1_s_tile_2",
+"x": 87,
+"z": 26.41
+},
+{
+"name": "Road_set_v1_b_floor",
+"x": 92,
+"z": -3.69
+},
+{
+"name": "Cargo_container_v1_LD2close",
+"x": 83.71,
+"z": -4.47
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"x": -22.79,
+"z": -53.54
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"x": 20.52,
+"z": -40.54
+}
+],
+"pieces": [
+{
+"name": "Road_set_v1_s_bend_1",
+"pos": [
+87.0,
+1.838,
+11.41
+],
+"yaw": 180
+},
+{
+"name": "Road_set_v1_s_bend_1f",
+"pos": [
+87.0,
+2.022,
+11.41
+],
+"yaw": 180
+},
+{
+"name": "Road_set_v1_s_bend_1",
+"pos": [
+87.0,
+1.838,
+1.41
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_bend_1f",
+"pos": [
+87.0,
+2.022,
+1.41
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_tile_1",
+"pos": [
+97.0,
+1.838,
+1.41
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+87.0,
+2.022,
+-8.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+97.0,
+2.022,
+-8.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+87.0,
+2.022,
+21.41
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+87.0,
+2.022,
+31.41
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_tile_2",
+"pos": [
+112.0,
+1.838,
+1.41
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_bend_1",
+"pos": [
+127.0,
+1.838,
+1.41
+],
+"yaw": 180
+},
+{
+"name": "Road_set_v1_s_bend_1f",
+"pos": [
+127.0,
+2.022,
+1.41
+],
+"yaw": 180
+},
+{
+"name": "Road_set_v1_s_tile_2",
+"pos": [
+127.0,
+1.838,
+-13.59
+],
+"yaw": 90
+},
+{
+"name": "Road_set_v1_s_bend_1",
+"pos": [
+127.0,
+1.838,
+-28.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_bend_1f",
+"pos": [
+127.0,
+2.022,
+-28.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_tile_1",
+"pos": [
+137.0,
+1.838,
+-28.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+107.0,
+2.022,
+-48.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+107.0,
+2.022,
+-38.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+107.0,
+2.022,
+-28.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+107.0,
+2.022,
+-18.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+107.0,
+2.022,
+-8.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+107.0,
+2.022,
+11.41
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+117.0,
+2.022,
+-48.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+117.0,
+2.022,
+-38.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+117.0,
+2.022,
+-28.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+117.0,
+2.022,
+-18.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+117.0,
+2.022,
+-8.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+117.0,
+2.022,
+11.41
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+127.0,
+2.022,
+-48.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+127.0,
+2.022,
+-38.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+137.0,
+2.022,
+-38.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+137.0,
+3.552,
+-18.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+137.0,
+3.552,
+1.41
+],
+"yaw": 0
+},
+{
+"name": "UNIConcrete_wall_v1_S_R_2f",
+"pos": [
+137.0,
+3.552,
+-8.59
+],
+"yaw": 180
+},
+{
+"name": "UNIConcrete_wall_v1_S_R_2",
+"pos": [
+132.9,
+2.022,
+-8.59
+],
+"yaw": 180
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+131.85,
+2.022,
+-18.59
+],
+"yaw": 180
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+131.85,
+2.022,
+1.41
+],
+"yaw": 180
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+137.0,
+2.022,
+-23.74
+],
+"yaw": 90
+},
+{
+"name": "Hangar_v4",
+"pos": [
+110.5,
+2.022,
+-15.5
+],
+"yaw": 0
+},
+{
+"name": "Hangar_v1_full",
+"pos": [
+111.0,
+2.022,
+11.2
+],
+"yaw": 90
+},
+{
+"name": "Hangar_v1_full",
+"pos": [
+137.6,
+3.552,
+1.3
+],
+"yaw": 90
+},
+{
+"name": "Pipes_set_v1_H_set_v1",
+"pos": [
+114.147,
+1.982,
+-31.672
+],
+"yaw": 9.7
+},
+{
+"name": "Pipes_set_v1_H_set_v2",
+"pos": [
+112.597,
+1.982,
+-40.712
+],
+"yaw": 9.7
+},
+{
+"name": "Pipes_set_v1_V_set_v2",
+"pos": [
+112.484,
+1.982,
+-43.396
+],
+"yaw": 180
+},
+{
+"name": "Oil_tank_v1",
+"pos": [
+106.834,
+2.012,
+-43.106
+],
+"yaw": 90
+},
+{
+"name": "Industrial_pipe_v1",
+"pos": [
+127.6,
+2.022,
+-49.4
+],
+"yaw": 0
+},
+{
+"name": "Cargo_container_v1_LD2close",
+"pos": [
+106.3,
+2.022,
+-32.2
+],
+"yaw": 90
+},
+{
+"name": "Cargo_container_v1_LD2close",
+"pos": [
+106.3,
+4.622,
+-32.2
+],
+"yaw": 95
+},
+{
+"name": "Cargo_container_v1_LD2close",
+"pos": [
+136.5,
+2.022,
+-39.2
+],
+"yaw": 90
+},
+{
+"name": "Cargo_container_v1_LD2close",
+"pos": [
+117.2,
+2.022,
+11.5
+],
+"yaw": 0
+},
+{
+"name": "Cargo_container_v1_LD2through",
+"pos": [
+118.312,
+2.022,
+-46.167
+],
+"yaw": 90
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+104.5,
+2.022,
+-1.2
+],
+"yaw": 11.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+105.95,
+2.022,
+-0.9
+],
+"yaw": 24.0
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+119.0,
+2.022,
+-8.5
+],
+"yaw": 34
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+120.45,
+2.022,
+-8.2
+],
+"yaw": 18.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+117.5,
+2.022,
+-21.0
+],
+"yaw": 24.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+118.95,
+2.022,
+-20.7
+],
+"yaw": 17
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+119.5,
+2.022,
+-30.5
+],
+"yaw": 39.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+120.95,
+2.022,
+-30.2
+],
+"yaw": 0.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+120.5,
+2.022,
+-50.5
+],
+"yaw": 7.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+121.95,
+2.022,
+-50.2
+],
+"yaw": 21.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+129.5,
+2.022,
+-40.0
+],
+"yaw": 31.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+130.95,
+2.022,
+-39.7
+],
+"yaw": 15
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+139.0,
+2.022,
+-37.5
+],
+"yaw": 19
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+140.45,
+2.022,
+-37.2
+],
+"yaw": 28.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+125.0,
+2.022,
+-5.2
+],
+"yaw": 2
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+126.45,
+2.022,
+-4.9
+],
+"yaw": 11.0
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+105.0,
+2.022,
+8.5
+],
+"yaw": 23
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+106.45,
+2.022,
+8.8
+],
+"yaw": 20.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+134.5,
+3.552,
+-21.5
+],
+"yaw": 24.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+135.95,
+3.552,
+-21.2
+],
+"yaw": 15.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+140.2,
+3.552,
+-10.5
+],
+"yaw": 24.399999999999864
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+141.65,
+3.552,
+-10.2
+],
+"yaw": 10.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+133.4,
+3.552,
+4.6
+],
+"yaw": 16.800000000000068
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+134.85,
+3.552,
+4.9
+],
+"yaw": 26.0
+},
+{
+"name": "Palet_v1_set",
+"pos": [
+116.5,
+2.022,
+-27.5
+],
+"yaw": 20
+},
+{
+"name": "Palet_v1_set",
+"pos": [
+123.6,
+2.022,
+-45.5
+],
+"yaw": 80
+},
+{
+"name": "Barrel_v3_quadro",
+"pos": [
+120.593,
+2.022,
+-12.5
+],
+"yaw": 0
+},
+{
+"name": "Barrel_v3_quadro",
+"pos": [
+140.6,
+3.552,
+-21.793
+],
+"yaw": 90
+},
+{
+"name": "Barrel_v2_quadro",
+"pos": [
+119.601,
+2.022,
+-24.0
+],
+"yaw": 0
+},
+{
+"name": "Generator_v1",
+"pos": [
+119.6,
+2.022,
+7.6
+],
+"yaw": 90
+},
+{
+"name": "Road_block_v1",
+"pos": [
+139.6,
+2.022,
+-27.0
+],
+"yaw": 80
+},
+{
+"name": "Road_block_v1",
+"pos": [
+139.8,
+2.022,
+-30.2
+],
+"yaw": 95
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+102.0,
+1.972,
+16.41
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+107.0,
+1.972,
+16.41
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+112.0,
+1.972,
+16.41
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+117.0,
+1.972,
+16.41
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+122.0,
+1.972,
+16.41
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+122.0,
+1.972,
+6.41
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+122.0,
+1.972,
+11.41
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+122.0,
+1.972,
+16.41
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+122.0,
+1.972,
+6.41
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+127.0,
+1.972,
+6.41
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+132.0,
+1.972,
+6.41
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+132.0,
+3.502,
+6.41
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+137.0,
+3.502,
+6.41
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+142.0,
+3.502,
+6.41
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+142.0,
+3.502,
+-23.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+142.0,
+3.502,
+-18.59
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+142.0,
+3.502,
+-13.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+142.0,
+3.502,
+-8.59
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+142.0,
+3.502,
+-3.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+142.0,
+3.502,
+1.41
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+142.0,
+3.502,
+6.41
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+142.0,
+1.972,
+-43.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+142.0,
+1.972,
+-38.59
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+142.0,
+1.972,
+-33.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+142.0,
+1.972,
+-28.59
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+142.0,
+1.972,
+-23.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+132.0,
+1.972,
+-43.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+137.0,
+1.972,
+-43.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+142.0,
+1.972,
+-43.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+132.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+132.0,
+1.972,
+-48.59
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+132.0,
+1.972,
+-43.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+102.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+107.0,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+112.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+117.0,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+122.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+127.0,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+132.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+72.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+77.0,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+82.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+87.0,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+92.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+97.0,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+102.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_tile_2",
+"pos": [
+-23.0,
+-0.162,
+-63.59
+],
+"yaw": 90
+},
+{
+"name": "Road_set_v1_s_bend_1",
+"pos": [
+-23.0,
+-0.162,
+-78.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_bend_1f",
+"pos": [
+-23.0,
+0.022,
+-78.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_tile_2",
+"pos": [
+-8.0,
+-0.162,
+-78.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_tile_2",
+"pos": [
+12.0,
+-0.162,
+-78.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_bend_1",
+"pos": [
+27.0,
+-0.162,
+-78.59
+],
+"yaw": -90
+},
+{
+"name": "Road_set_v1_s_bend_1f",
+"pos": [
+27.0,
+0.022,
+-78.59
+],
+"yaw": -90
+},
+{
+"name": "Road_set_v1_s_bend_1",
+"pos": [
+27.0,
+-0.162,
+-68.59
+],
+"yaw": 90
+},
+{
+"name": "Road_set_v1_s_bend_1f",
+"pos": [
+27.0,
+0.022,
+-68.59
+],
+"yaw": 90
+},
+{
+"name": "Road_set_v1_road_up_2m_HD",
+"pos": [
+42.0,
+-0.158,
+-68.59
+],
+"yaw": 180
+},
+{
+"name": "Road_set_v1_s_tile_2",
+"pos": [
+62.0,
+1.838,
+-68.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+-13.0,
+0.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+-13.0,
+0.022,
+-68.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+-3.0,
+2.022,
+-68.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+7.0,
+2.022,
+-68.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+17.0,
+2.022,
+-68.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+7.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+17.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+27.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+37.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+47.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+57.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+67.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+-2.5,
+2.022,
+-58.59
+],
+"yaw": 0,
+"scale": [
+0.9,
+1,
+1
+]
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+18.3,
+2.022,
+-50.59
+],
+"yaw": 0,
+"scale": [
+0.74,
+1,
+0.6
+]
+},
+{
+"name": "UNIConcrete_wall_v1_S_middle",
+"pos": [
+-3.056,
+0.022,
+-73.591
+],
+"yaw": 90,
+"scale": [
+1,
+1.1976047904191618,
+1
+]
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+7.0,
+0.022,
+-73.74
+],
+"yaw": 90,
+"scale": [
+1,
+1.1976,
+1
+]
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+17.0,
+0.022,
+-73.74
+],
+"yaw": 90,
+"scale": [
+1,
+1.1976,
+1
+]
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+22.15,
+0.022,
+-68.59
+],
+"yaw": 0,
+"scale": [
+1,
+1.1976,
+1
+]
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+-8.15,
+0.022,
+-68.59
+],
+"yaw": 180,
+"scale": [
+1,
+1.1976,
+1
+]
+},
+{
+"name": "UNIConcrete_wall_v1_S_middle",
+"pos": [
+26.944,
+0.022,
+-63.591
+],
+"yaw": 90,
+"scale": [
+1,
+1.1976047904191618,
+1
+]
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+37.0,
+0.022,
+-63.74
+],
+"yaw": 90,
+"scale": [
+1,
+1.1976,
+1
+]
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+47.0,
+1.022,
+-63.74
+],
+"yaw": 90,
+"scale": [
+1,
+0.6587,
+1
+]
+},
+{
+"name": "Oil_tank_v1",
+"pos": [
+2.2,
+2.022,
+-68.72
+],
+"yaw": 0
+},
+{
+"name": "Pipes_set_v1_V_set_v2",
+"pos": [
+2.49,
+2.022,
+-63.07
+],
+"yaw": 90
+},
+{
+"name": "Hangar_v1_full",
+"pos": [
+27.1,
+2.022,
+-58.9
+],
+"yaw": 0
+},
+{
+"name": "Cargo_container_v1_LD2close",
+"pos": [
+2.5,
+2.022,
+-57.4
+],
+"yaw": 90
+},
+{
+"name": "Cargo_container_v1_LD2close",
+"pos": [
+2.5,
+4.622,
+-57.4
+],
+"yaw": 95
+},
+{
+"name": "Cargo_container_v1_LD2close",
+"pos": [
+58.0,
+2.022,
+-57.8
+],
+"yaw": 90
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+69.7,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+72.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+70.85,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.1688
+]
+},
+{
+"name": "Cargo_container_v1_LD2close",
+"pos": [
+-13.5,
+0.022,
+-69.4
+],
+"yaw": 90
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+-20.0,
+0.022,
+-57.0
+],
+"yaw": 20
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+-18.55,
+0.022,
+-56.7
+],
+"yaw": 15
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+-25.5,
+0.022,
+-80.5
+],
+"yaw": 22.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+-24.05,
+0.022,
+-80.2
+],
+"yaw": 18.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+14.5,
+2.022,
+-70.5
+],
+"yaw": 23.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+15.95,
+2.022,
+-70.2
+],
+"yaw": 9.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+9.5,
+0.022,
+-81.6
+],
+"yaw": 29.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+10.95,
+0.022,
+-81.3
+],
+"yaw": 15.0
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+36.0,
+2.022,
+-58.5
+],
+"yaw": 16
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+37.45,
+2.022,
+-58.2
+],
+"yaw": 11.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+47.0,
+2.022,
+-56.8
+],
+"yaw": 14
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+48.45,
+2.022,
+-56.5
+],
+"yaw": 21.0
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+55.0,
+2.022,
+-61.0
+],
+"yaw": 31
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+56.45,
+2.022,
+-60.7
+],
+"yaw": 1
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+66.0,
+2.022,
+-57.0
+],
+"yaw": 29
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+67.45,
+2.022,
+-56.7
+],
+"yaw": 22
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+17.5,
+2.022,
+-50.0
+],
+"yaw": 10.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+18.95,
+2.022,
+-49.7
+],
+"yaw": 28
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+-4.5,
+2.022,
+-66.0
+],
+"yaw": 17.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+-3.05,
+2.022,
+-65.7
+],
+"yaw": 9
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+20.5,
+2.022,
+-60.5
+],
+"yaw": 33.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+21.95,
+2.022,
+-60.2
+],
+"yaw": 7.5
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+40.5,
+2.022,
+-61.8
+],
+"yaw": 14.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+41.95,
+2.022,
+-61.5
+],
+"yaw": 2.0
+},
+{
+"name": "Palet_v1_set",
+"pos": [
+-24.5,
+0.022,
+-72.0
+],
+"yaw": 20
+},
+{
+"name": "Barrel_v3_quadro",
+"pos": [
+20.493,
+0.022,
+-81.8
+],
+"yaw": 0
+},
+{
+"name": "Barrel_v2_quadro",
+"pos": [
+60.501,
+2.022,
+-61.6
+],
+"yaw": 0
+},
+{
+"name": "Palet_v1_set",
+"pos": [
+12.5,
+2.022,
+-56.2
+],
+"yaw": 70
+},
+{
+"name": "Road_block_v1",
+"pos": [
+69.6,
+2.022,
+-66.8
+],
+"yaw": 85
+},
+{
+"name": "Road_block_v1",
+"pos": [
+69.8,
+2.022,
+-70.3
+],
+"yaw": 97
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+-27.15,
+-0.028,
+-83.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+-27.15,
+-0.028,
+-79.592
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.7774
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+-27.15,
+-0.028,
+-75.593
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+-27.15,
+-0.028,
+-71.595
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.7774
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+-27.15,
+-0.028,
+-67.597
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+-27.15,
+-0.028,
+-63.598
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.7774
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+-27.15,
+-0.028,
+-59.6
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+-27.15,
+-0.028,
+-83.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+-22.221,
+-0.028,
+-83.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9763
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+-17.292,
+-0.028,
+-83.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+-12.362,
+-0.028,
+-83.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9763
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+-7.433,
+-0.028,
+-83.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+-2.504,
+-0.028,
+-83.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9763
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+2.425,
+-0.028,
+-83.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+7.354,
+-0.028,
+-83.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9763
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+12.283,
+-0.028,
+-83.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+17.213,
+-0.028,
+-83.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9763
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+22.142,
+-0.028,
+-83.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+27.071,
+-0.028,
+-83.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9763
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+32.0,
+-0.028,
+-83.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+32.0,
+-0.028,
+-83.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+32.0,
+-0.028,
+-78.59
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+32.0,
+-0.028,
+-73.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+32.0,
+-0.028,
+-73.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+37.0,
+-0.028,
+-73.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+42.0,
+-0.028,
+-73.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+42.0,
+0.972,
+-73.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+47.0,
+0.972,
+-73.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+52.0,
+0.972,
+-73.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+52.0,
+1.972,
+-73.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+57.0,
+1.972,
+-73.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+62.0,
+1.972,
+-73.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+67.0,
+1.972,
+-73.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+72.0,
+1.972,
+-73.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+72.0,
+1.972,
+-73.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+72.0,
+1.972,
+-68.59
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+72.0,
+1.972,
+-63.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+72.0,
+1.972,
+-58.59
+],
+"yaw": 0,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+72.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+-8.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+-3.0,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+2.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+7.0,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.9915
+]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+12.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+12.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+14.4,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+13.2,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.1795
+]
+}
+],
+"boxes": [
+{
+"name": "FloorJoint",
+"c": [
+92.0,
+1.972,
+-13.64
+],
+"size": [
+20.0,
+0.1,
+0.14
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "asphalt",
+"collider": false
+},
+{
+"name": "YardBase",
+"c": [
+112.0,
+0.022,
+-18.59
+],
+"size": [
+20.0,
+3.4,
+70.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "asphalt",
+"collider": true
+},
+{
+"name": "YardBase",
+"c": [
+127.0,
+0.022,
+-23.59
+],
+"size": [
+10.0,
+3.4,
+60.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "asphalt",
+"collider": true
+},
+{
+"name": "YardBase",
+"c": [
+137.0,
+0.022,
+-33.59
+],
+"size": [
+10.0,
+3.4,
+20.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "asphalt",
+"collider": true
+},
+{
+"name": "RaisedBase",
+"c": [
+137.0,
+0.922,
+-18.59
+],
+"size": [
+10.0,
+5.2,
+10.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RaisedBase",
+"c": [
+138.2,
+0.922,
+-8.59
+],
+"size": [
+7.6,
+5.2,
+10.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "StairBase",
+"c": [
+133.2,
+0.162,
+-8.59
+],
+"size": [
+2.4,
+3.68,
+10.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RaisedBase",
+"c": [
+137.0,
+0.922,
+1.41
+],
+"size": [
+10.0,
+5.2,
+10.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+131.85,
+2.882,
+-23.74
+],
+"size": [
+0.36,
+1.72,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+131.85,
+2.882,
+6.3
+],
+"size": [
+0.36,
+1.72,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+141.9,
+2.882,
+-23.74
+],
+"size": [
+0.36,
+1.72,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "AnnexBody",
+"c": [
+97.2,
+4.272,
+-40.6
+],
+"size": [
+6.7,
+4.5,
+13.7
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "kit:Hangar_v2_outbuilding",
+"collider": true
+},
+{
+"name": "TowerLeg",
+"c": [
+135.7,
+7.177,
+-20.5
+],
+"size": [
+0.26,
+7.45,
+0.26
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "TowerLeg",
+"c": [
+135.7,
+7.177,
+-17.5
+],
+"size": [
+0.26,
+7.45,
+0.26
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "TowerLeg",
+"c": [
+138.7,
+7.177,
+-20.5
+],
+"size": [
+0.26,
+7.45,
+0.26
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "TowerLeg",
+"c": [
+138.7,
+7.177,
+-17.5
+],
+"size": [
+0.26,
+7.45,
+0.26
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "TowerDeck",
+"c": [
+137.2,
+8.452,
+-19.0
+],
+"size": [
+3.7,
+0.2,
+3.7
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "TowerRoof",
+"c": [
+137.2,
+11.002,
+-19.0
+],
+"size": [
+4.2,
+0.14,
+4.2
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "TowerRail",
+"c": [
+138.92,
+9.602,
+-19.0
+],
+"size": [
+0.1,
+0.1,
+3.6
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "TowerRail",
+"c": [
+138.92,
+9.102,
+-19.0
+],
+"size": [
+0.14,
+1.1,
+3.6
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "none",
+"collider": true
+},
+{
+"name": "TowerBoard",
+"c": [
+138.92,
+8.902,
+-19.0
+],
+"size": [
+0.06,
+0.6,
+3.6
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "TowerRail",
+"c": [
+135.48,
+9.602,
+-19.0
+],
+"size": [
+0.1,
+0.1,
+3.6
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "TowerRail",
+"c": [
+135.48,
+9.102,
+-19.0
+],
+"size": [
+0.14,
+1.1,
+3.6
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "none",
+"collider": true
+},
+{
+"name": "TowerBoard",
+"c": [
+135.48,
+8.902,
+-19.0
+],
+"size": [
+0.06,
+0.6,
+3.6
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "TowerRail",
+"c": [
+137.2,
+9.602,
+-20.72
+],
+"size": [
+3.6,
+0.1,
+0.1
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "TowerRail",
+"c": [
+137.2,
+9.102,
+-20.72
+],
+"size": [
+3.6,
+1.1,
+0.14
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "none",
+"collider": true
+},
+{
+"name": "TowerBoard",
+"c": [
+137.2,
+8.902,
+-20.72
+],
+"size": [
+3.6,
+0.6,
+0.06
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "TowerBrace",
+"c": [
+135.7,
+6.802,
+-19.0
+],
+"size": [
+0.12,
+0.12,
+4.173
+],
+"yaw": 0.0,
+"pitch": -44.029,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "TowerBrace",
+"c": [
+137.2,
+6.802,
+-20.5
+],
+"size": [
+0.12,
+0.12,
+4.173
+],
+"yaw": 90.0,
+"pitch": 44.029,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "TowerBrace",
+"c": [
+138.7,
+6.802,
+-19.0
+],
+"size": [
+0.12,
+0.12,
+4.173
+],
+"yaw": 0.0,
+"pitch": -44.029,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "TowerBrace",
+"c": [
+137.2,
+6.802,
+-17.5
+],
+"size": [
+0.12,
+0.12,
+4.173
+],
+"yaw": 90.0,
+"pitch": 44.029,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "YardBase",
+"c": [
+2.2,
+-0.978,
+-68.79
+],
+"size": [
+59.6,
+1.4,
+30.4
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "asphalt",
+"collider": true
+},
+{
+"name": "YardBase",
+"c": [
+42.0,
+-1.128,
+-68.59
+],
+"size": [
+20.0,
+1.1,
+10.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "asphalt",
+"collider": true
+},
+{
+"name": "YardBase",
+"c": [
+62.0,
+0.022,
+-68.59
+],
+"size": [
+20.0,
+3.4,
+10.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "asphalt",
+"collider": true
+},
+{
+"name": "RaisedBase",
+"c": [
+7.0,
+0.157,
+-68.59
+],
+"size": [
+30.0,
+3.67,
+10.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RaisedBase",
+"c": [
+32.5,
+0.157,
+-58.59
+],
+"size": [
+79.0,
+3.67,
+10.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "PassBase",
+"c": [
+18.3,
+0.157,
+-50.545
+],
+"size": [
+7.4,
+3.67,
+6.09
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "PassBase",
+"c": [
+18.3,
+-0.238,
+-44.75
+],
+"size": [
+7.4,
+2.88,
+5.5
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "PassFall",
+"c": [
+18.3,
+1.63,
+-44.645
+],
+"size": [
+7.4,
+0.3,
+5.91
+],
+"yaw": 0,
+"pitch": 4.707,
+"mat": "asphalt",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+-8.15,
+1.072,
+-73.74
+],
+"size": [
+0.36,
+2.1,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+22.15,
+1.072,
+-73.74
+],
+"size": [
+0.36,
+2.1,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+22.15,
+1.072,
+-63.74
+],
+"size": [
+0.36,
+2.1,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+32.0,
+1.072,
+-63.74
+],
+"size": [
+0.36,
+2.1,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+42.0,
+1.072,
+-63.74
+],
+"size": [
+0.36,
+2.1,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RampSkirt",
+"c": [
+42.0,
+-0.278,
+-73.62
+],
+"size": [
+0.5,
+2.6,
+20.1
+],
+"yaw": 90,
+"pitch": -5.711,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "FactoryPlinth",
+"c": [
+44.64,
+0.312,
+-47.82
+],
+"size": [
+45.1,
+3.98,
+13.7
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RoofTowerLeg",
+"c": [
+28.7,
+16.968,
+-50.1
+],
+"size": [
+0.26,
+8.632,
+0.26
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "RoofTowerLeg",
+"c": [
+28.7,
+16.942,
+-45.5
+],
+"size": [
+0.26,
+8.685,
+0.26
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "RoofTowerLeg",
+"c": [
+33.3,
+16.968,
+-50.1
+],
+"size": [
+0.26,
+8.632,
+0.26
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "RoofTowerLeg",
+"c": [
+33.3,
+16.942,
+-45.5
+],
+"size": [
+0.26,
+8.685,
+0.26
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "RoofTowerDeck",
+"c": [
+31.0,
+18.834,
+-47.8
+],
+"size": [
+5.3,
+0.2,
+5.3
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "RoofTowerRoof",
+"c": [
+31.0,
+21.384,
+-47.8
+],
+"size": [
+5.8,
+0.14,
+5.8
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": true
+},
+{
+"name": "RoofTowerRail",
+"c": [
+28.48,
+19.984,
+-47.8
+],
+"size": [
+0.1,
+0.1,
+5.2
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "RoofTowerRail",
+"c": [
+28.48,
+19.484,
+-47.8
+],
+"size": [
+0.14,
+1.1,
+5.2
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "none",
+"collider": true
+},
+{
+"name": "RoofTowerBoard",
+"c": [
+28.48,
+19.284,
+-47.8
+],
+"size": [
+0.06,
+0.6,
+5.2
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "RoofTowerRail",
+"c": [
+31.0,
+19.984,
+-45.28
+],
+"size": [
+5.2,
+0.1,
+0.1
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "RoofTowerRail",
+"c": [
+31.0,
+19.484,
+-45.28
+],
+"size": [
+5.2,
+1.1,
+0.14
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "none",
+"collider": true
+},
+{
+"name": "RoofTowerBoard",
+"c": [
+31.0,
+19.284,
+-45.28
+],
+"size": [
+5.2,
+0.6,
+0.06
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "RoofTowerRail",
+"c": [
+31.0,
+19.984,
+-50.32
+],
+"size": [
+5.2,
+0.1,
+0.1
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "RoofTowerRail",
+"c": [
+31.0,
+19.484,
+-50.32
+],
+"size": [
+5.2,
+1.1,
+0.14
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "none",
+"collider": true
+},
+{
+"name": "RoofTowerBoard",
+"c": [
+31.0,
+19.284,
+-50.32
+],
+"size": [
+5.2,
+0.6,
+0.06
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "RoofTowerBrace",
+"c": [
+28.7,
+17.184,
+-47.8
+],
+"size": [
+0.12,
+0.12,
+5.438
+],
+"yaw": 0.0,
+"pitch": -32.229,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "RoofTowerBrace",
+"c": [
+31.0,
+17.184,
+-50.1
+],
+"size": [
+0.12,
+0.12,
+5.438
+],
+"yaw": 90.0,
+"pitch": 32.229,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "RoofTowerBrace",
+"c": [
+33.3,
+17.184,
+-47.8
+],
+"size": [
+0.12,
+0.12,
+5.438
+],
+"yaw": 0.0,
+"pitch": -32.229,
+"mat": "wood",
+"collider": false
+},
+{
+"name": "RoofTowerBrace",
+"c": [
+31.0,
+17.184,
+-45.5
+],
+"size": [
+0.12,
+0.12,
+5.438
+],
+"yaw": 90.0,
+"pitch": 32.229,
+"mat": "wood",
+"collider": false
+}
+],
+"ladders": [
+{
+"foot": [
+137.2,
+3.552,
+-17.15
+],
+"out": [
+0.0,
+0.0,
+1.0
+],
+"height": 5.0
+},
+{
+"foot": [
+107.38,
+2.022,
+11.2
+],
+"out": [
+-1.0,
+0.0,
+0.0
+],
+"height": 3.08
+},
+{
+"foot": [
+33.65,
+13.734,
+-47.8
+],
+"out": [
+1.0,
+0.0,
+0.0
+],
+"height": 5.2
+}
+],
+"ammo": [
+{
+"pos": [
+139.6,
+3.552,
+-1.0
+],
+"yaw": 20
+},
+{
+"pos": [
+29.8,
+18.934,
+-48.8
+],
+"yaw": 90
+},
+{
+"pos": [
+13.6,
+2.022,
+-66.5
+],
+"yaw": -70
+}
+],
+"boards": [
+{
+"at": [
+118.5,
+-10.9,
+4.9
+],
+"ps": "ختیځ انګړ",
+"en": "EAST YARD"
+},
+{
+"at": [
+-16,
+-12.9,
+-76
+],
+"ps": "جنوبي انګړ",
+"en": "SOUTH YARD"
+}
+],
+"spawns": [
+[
+116.0,
+2.122,
+-44.0
+],
+[
+-3.0,
+0.122,
+-81.0
+],
+[
+60.0,
+2.122,
+-60.0
+]
+],
+"yards": [
+[
+102,
+-53.59,
+122,
+16.41
+],
+[
+122,
+-53.59,
+132,
+6.41
+],
+[
+132,
+-43.59,
+142,
+6.41
+],
+[
+72,
+-53.59,
+102,
+-40
+],
+[
+-27.6,
+-83.99,
+32,
+-53.59
+],
+[
+32,
+-73.59,
+72,
+-53.59
+],
+[
+14.6,
+-53.59,
+22.0,
+-42
+]
+]
+}

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ArenaRush.Linux</RootNamespace>
+    <OutputPath>..\Bin\Linux\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+    <StrideCurrentPackagePath>$(MSBuildThisFileDirectory)..\ArenaRush.Game\ArenaRush.Game.sdpkg</StrideCurrentPackagePath>
+    <StridePlatform>Linux</StridePlatform>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ArenaRush.Game\ArenaRush.Game.csproj" />
+    <!-- EffectLogStore, used to write the recorded shader permutations in .sdeffectlog format -->
+    <PackageReference Include="Stride.Assets" Version="4.4.1" />
+  </ItemGroup>
+</Project>
