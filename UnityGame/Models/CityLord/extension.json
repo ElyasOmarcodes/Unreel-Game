@@ -449,6 +449,20 @@
 "yaw": 90
 },
 {
+"name": "Hangar_v2_outbuilding",
+"pos": [
+96.805,
+2.032,
+-40.4
+],
+"yaw": 90,
+"scale": [
+0.985,
+0.992,
+0.985
+]
+},
+{
 "name": "Industrial_pipe_v1",
 "pos": [
 127.6,
@@ -1304,13 +1318,94 @@
 "yaw": 0
 },
 {
-"name": "Road_set_v1_road_up_2m_HD_f",
+"name": "Road_set_v1_s_floor",
 "pos": [
-42.0,
+-13.0,
 0.022,
 -58.59
 ],
-"yaw": 180
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+-13.0,
+0.022,
+-68.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+-3.0,
+2.022,
+-68.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+7.0,
+2.022,
+-68.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+17.0,
+2.022,
+-68.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+7.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+17.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+27.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+37.0,
+2.022,
+-58.59
+],
+"yaw": 0
+},
+{
+"name": "Road_set_v1_s_floor",
+"pos": [
+47.0,
+2.022,
+-58.59
+],
+"yaw": 0
 },
 {
 "name": "Road_set_v1_s_floor",
@@ -1333,83 +1428,30 @@
 {
 "name": "Road_set_v1_s_floor",
 "pos": [
--13.0,
-0.022,
+-2.5,
+2.022,
 -58.59
 ],
-"yaw": 0
+"yaw": 0,
+"scale": [
+0.9,
+1,
+1
+]
 },
 {
 "name": "Road_set_v1_s_floor",
 "pos": [
--13.0,
-0.022,
--68.59
+18.3,
+2.022,
+-50.59
 ],
-"yaw": 0
-},
-{
-"name": "Road_set_v1_s_floor",
-"pos": [
--3.0,
-0.022,
--58.59
-],
-"yaw": 0
-},
-{
-"name": "Road_set_v1_s_floor",
-"pos": [
-7.0,
-0.022,
--58.59
-],
-"yaw": 0
-},
-{
-"name": "Road_set_v1_s_floor",
-"pos": [
-17.0,
-0.022,
--68.59
-],
-"yaw": 0
-},
-{
-"name": "Road_set_v1_s_floor",
-"pos": [
-17.0,
-0.022,
--58.59
-],
-"yaw": 0
-},
-{
-"name": "Road_set_v1_s_floor",
-"pos": [
-27.0,
-0.022,
--58.59
-],
-"yaw": 0
-},
-{
-"name": "Road_set_v1_s_floor",
-"pos": [
--3.0,
-1.552,
--68.59
-],
-"yaw": 0
-},
-{
-"name": "Road_set_v1_s_floor",
-"pos": [
-7.0,
-1.552,
--68.59
-],
-"yaw": 0
+"yaw": 0,
+"scale": [
+0.74,
+1,
+0.6
+]
 },
 {
 "name": "UNIConcrete_wall_v1_S_middle",
@@ -1418,7 +1460,12 @@
 0.022,
 -73.591
 ],
-"yaw": 90
+"yaw": 90,
+"scale": [
+1,
+1.1976047904191618,
+1
+]
 },
 {
 "name": "UNIConcrete_wall_v1_W_tile_1",
@@ -1427,7 +1474,40 @@
 0.022,
 -73.74
 ],
-"yaw": 90
+"yaw": 90,
+"scale": [
+1,
+1.1976,
+1
+]
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+17.0,
+0.022,
+-73.74
+],
+"yaw": 90,
+"scale": [
+1,
+1.1976,
+1
+]
+},
+{
+"name": "UNIConcrete_wall_v1_W_tile_1",
+"pos": [
+22.15,
+0.022,
+-68.59
+],
+"yaw": 0,
+"scale": [
+1,
+1.1976,
+1
+]
 },
 {
 "name": "UNIConcrete_wall_v1_W_tile_1",
@@ -1436,40 +1516,60 @@
 0.022,
 -68.59
 ],
-"yaw": 0
+"yaw": 0,
+"scale": [
+1,
+1.1976,
+1
+]
+},
+{
+"name": "UNIConcrete_wall_v1_S_middle",
+"pos": [
+26.944,
+0.022,
+-63.591
+],
+"yaw": 90,
+"scale": [
+1,
+1.1976047904191618,
+1
+]
 },
 {
 "name": "UNIConcrete_wall_v1_W_tile_1",
 "pos": [
-12.15,
+37.0,
 0.022,
--68.59
+-63.74
 ],
-"yaw": 0
+"yaw": 90,
+"scale": [
+1,
+1.1976,
+1
+]
 },
 {
 "name": "UNIConcrete_wall_v1_W_tile_1",
 "pos": [
--3.0,
-0.022,
--63.44
+47.0,
+1.022,
+-63.74
 ],
-"yaw": 90
-},
-{
-"name": "UNIConcrete_wall_v1_W_tile_1",
-"pos": [
-7.0,
-0.022,
--63.44
-],
-"yaw": 90
+"yaw": 90,
+"scale": [
+1,
+0.6587,
+1
+]
 },
 {
 "name": "Oil_tank_v1",
 "pos": [
 2.2,
-1.552,
+2.022,
 -68.72
 ],
 "yaw": 0
@@ -1478,7 +1578,7 @@
 "name": "Pipes_set_v1_V_set_v2",
 "pos": [
 2.49,
-1.552,
+2.022,
 -63.07
 ],
 "yaw": 90
@@ -1487,17 +1587,17 @@
 "name": "Hangar_v1_full",
 "pos": [
 27.1,
-0.022,
--59.3
+2.022,
+-58.9
 ],
 "yaw": 0
 },
 {
 "name": "Cargo_container_v1_LD2close",
 "pos": [
--13.5,
-0.022,
--69.0
+2.5,
+2.022,
+-57.4
 ],
 "yaw": 90
 },
@@ -1505,17 +1605,8 @@
 "name": "Cargo_container_v1_LD2close",
 "pos": [
 2.5,
-0.022,
--58.6
-],
-"yaw": 90
-},
-{
-"name": "Cargo_container_v1_LD2close",
-"pos": [
-2.5,
-2.622,
--58.6
+4.622,
+-57.4
 ],
 "yaw": 95
 },
@@ -1525,6 +1616,47 @@
 58.0,
 2.022,
 -57.8
+],
+"yaw": 90
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+69.7,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+72.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+70.85,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.1688
+]
+},
+{
+"name": "Cargo_container_v1_LD2close",
+"pos": [
+-13.5,
+0.022,
+-69.4
 ],
 "yaw": 90
 },
@@ -1568,7 +1700,7 @@
 "name": "Wooden_box_v1_LD2square",
 "pos": [
 14.5,
-0.022,
+2.022,
 -70.5
 ],
 "yaw": 23.5
@@ -1577,28 +1709,10 @@
 "name": "Wooden_box_v1_LD1square",
 "pos": [
 15.95,
-0.022,
+2.022,
 -70.2
 ],
 "yaw": 9.5
-},
-{
-"name": "Wooden_box_v1_LD2square",
-"pos": [
-23.5,
-0.022,
--65.2
-],
-"yaw": 7.5
-},
-{
-"name": "Wooden_box_v1_LD1square",
-"pos": [
-24.95,
-0.022,
--64.9
-],
-"yaw": 7.0
 },
 {
 "name": "Wooden_box_v1_LD2square",
@@ -1607,7 +1721,7 @@
 0.022,
 -81.6
 ],
-"yaw": 30.5
+"yaw": 29.5
 },
 {
 "name": "Wooden_box_v1_LD1square",
@@ -1616,61 +1730,61 @@
 0.022,
 -81.3
 ],
-"yaw": 16.0
+"yaw": 15.0
 },
 {
 "name": "Wooden_box_v1_LD2square",
 "pos": [
-34.0,
-0.222,
--62.5
+36.0,
+2.022,
+-58.5
 ],
-"yaw": 3
+"yaw": 16
 },
 {
 "name": "Wooden_box_v1_LD1square",
 "pos": [
-35.45,
-0.222,
--62.2
+37.45,
+2.022,
+-58.2
 ],
-"yaw": 22.5
+"yaw": 11.5
 },
 {
 "name": "Wooden_box_v1_LD2square",
 "pos": [
 47.0,
-1.522,
+2.022,
 -56.8
 ],
-"yaw": 15
+"yaw": 14
 },
 {
 "name": "Wooden_box_v1_LD1square",
 "pos": [
 48.45,
-1.522,
+2.022,
 -56.5
 ],
-"yaw": 22.0
+"yaw": 21.0
 },
 {
 "name": "Wooden_box_v1_LD2square",
 "pos": [
 55.0,
 2.022,
--62.0
+-61.0
 ],
-"yaw": 32
+"yaw": 31
 },
 {
 "name": "Wooden_box_v1_LD1square",
 "pos": [
 56.45,
 2.022,
--61.7
+-60.7
 ],
-"yaw": 27
+"yaw": 1
 },
 {
 "name": "Wooden_box_v1_LD2square",
@@ -1679,7 +1793,7 @@
 2.022,
 -57.0
 ],
-"yaw": 30
+"yaw": 29
 },
 {
 "name": "Wooden_box_v1_LD1square",
@@ -1688,61 +1802,79 @@
 2.022,
 -56.7
 ],
-"yaw": 23
+"yaw": 22
 },
 {
 "name": "Wooden_box_v1_LD2square",
 "pos": [
 17.5,
-0.886,
--47.5
+2.022,
+-50.0
 ],
-"yaw": 11.5
+"yaw": 10.5
 },
 {
 "name": "Wooden_box_v1_LD1square",
 "pos": [
 18.95,
-0.886,
--47.2
+2.022,
+-49.7
 ],
-"yaw": 11.5
+"yaw": 28
 },
 {
 "name": "Wooden_box_v1_LD2square",
 "pos": [
--6.0,
-1.552,
--65.5
+-4.5,
+2.022,
+-66.0
 ],
-"yaw": 3
+"yaw": 17.5
 },
 {
 "name": "Wooden_box_v1_LD1square",
 "pos": [
--4.55,
-1.552,
--65.2
+-3.05,
+2.022,
+-65.7
+],
+"yaw": 9
+},
+{
+"name": "Wooden_box_v1_LD2square",
+"pos": [
+20.5,
+2.022,
+-60.5
+],
+"yaw": 33.5
+},
+{
+"name": "Wooden_box_v1_LD1square",
+"pos": [
+21.95,
+2.022,
+-60.2
 ],
 "yaw": 7.5
 },
 {
 "name": "Wooden_box_v1_LD2square",
 "pos": [
-10.0,
-1.552,
--72.0
+40.5,
+2.022,
+-61.8
 ],
-"yaw": 35
+"yaw": 14.5
 },
 {
 "name": "Wooden_box_v1_LD1square",
 "pos": [
-11.45,
-1.552,
--71.7
+41.95,
+2.022,
+-61.5
 ],
-"yaw": 5
+"yaw": 2.0
 },
 {
 "name": "Palet_v1_set",
@@ -1767,9 +1899,18 @@
 "pos": [
 60.501,
 2.022,
--62.6
+-61.6
 ],
 "yaw": 0
+},
+{
+"name": "Palet_v1_set",
+"pos": [
+12.5,
+2.022,
+-56.2
+],
+"yaw": 70
 },
 {
 "name": "Road_block_v1",
@@ -2000,7 +2141,7 @@
 "name": "Concrete_fence_v1_column",
 "pos": [
 32.0,
-0.972,
+-0.028,
 -73.59
 ],
 "yaw": 0
@@ -2009,10 +2150,19 @@
 "name": "Concrete_fence_v1_wall_set_v1",
 "pos": [
 37.0,
-0.972,
+-0.028,
 -73.59
 ],
 "yaw": 90
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+42.0,
+-0.028,
+-73.59
+],
+"yaw": 0
 },
 {
 "name": "Concrete_fence_v1_column",
@@ -2135,7 +2285,7 @@
 "name": "Concrete_fence_v1_column",
 "pos": [
 -8.0,
--0.028,
+1.972,
 -53.59
 ],
 "yaw": 0
@@ -2144,7 +2294,7 @@
 "name": "Concrete_fence_v1_wall_set_v1",
 "pos": [
 -3.0,
--0.028,
+1.972,
 -53.59
 ],
 "yaw": 90
@@ -2153,7 +2303,7 @@
 "name": "Concrete_fence_v1_column",
 "pos": [
 2.0,
--0.028,
+1.972,
 -53.59
 ],
 "yaw": 0
@@ -2162,7 +2312,7 @@
 "name": "Concrete_fence_v1_wall_set_v1",
 "pos": [
 7.0,
--0.028,
+1.972,
 -53.59
 ],
 "yaw": 90
@@ -2171,10 +2321,42 @@
 "name": "Concrete_fence_v1_column",
 "pos": [
 12.0,
--0.028,
+1.972,
 -53.59
 ],
 "yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+12.0,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+14.4,
+1.972,
+-53.59
+],
+"yaw": 0
+},
+{
+"name": "Concrete_fence_v1_wall_set_v1",
+"pos": [
+13.2,
+1.972,
+-53.59
+],
+"yaw": 90,
+"scale": [
+1,
+1,
+0.1795
+]
 }
 ],
 "boxes": [
@@ -2199,12 +2381,12 @@
 "name": "YardBase",
 "c": [
 112.0,
-0.152,
+0.022,
 -18.59
 ],
 "size": [
 20.0,
-3.66,
+3.4,
 70.0
 ],
 "yaw": 0.0,
@@ -2216,12 +2398,12 @@
 "name": "YardBase",
 "c": [
 127.0,
-0.152,
+0.022,
 -23.59
 ],
 "size": [
 10.0,
-3.66,
+3.4,
 60.0
 ],
 "yaw": 0.0,
@@ -2233,12 +2415,12 @@
 "name": "YardBase",
 "c": [
 137.0,
-0.152,
+0.022,
 -33.59
 ],
 "size": [
 10.0,
-3.66,
+3.4,
 20.0
 ],
 "yaw": 0.0,
@@ -2247,37 +2429,37 @@
 "collider": true
 },
 {
-"name": "YardBase",
+"name": "RaisedBase",
 "c": [
 137.0,
-0.917,
+0.922,
 -18.59
 ],
 "size": [
 10.0,
-5.19,
+5.2,
 10.0
 ],
 "yaw": 0.0,
 "pitch": 0.0,
-"mat": "asphalt",
+"mat": "concrete",
 "collider": true
 },
 {
-"name": "YardBase",
+"name": "RaisedBase",
 "c": [
 138.2,
-0.917,
+0.922,
 -8.59
 ],
 "size": [
 7.6,
-5.19,
+5.2,
 10.0
 ],
 "yaw": 0.0,
 "pitch": 0.0,
-"mat": "asphalt",
+"mat": "concrete",
 "collider": true
 },
 {
@@ -2294,24 +2476,24 @@
 ],
 "yaw": 0.0,
 "pitch": 0.0,
-"mat": "asphalt",
+"mat": "concrete",
 "collider": true
 },
 {
-"name": "YardBase",
+"name": "RaisedBase",
 "c": [
 137.0,
-0.917,
+0.922,
 1.41
 ],
 "size": [
 10.0,
-5.19,
+5.2,
 10.0
 ],
 "yaw": 0.0,
 "pitch": 0.0,
-"mat": "asphalt",
+"mat": "concrete",
 "collider": true
 },
 {
@@ -2692,12 +2874,12 @@
 "name": "YardBase",
 "c": [
 2.0,
--0.848,
+-0.978,
 -68.59
 ],
 "size": [
 60.0,
-1.66,
+1.4,
 30.0
 ],
 "yaw": 0.0,
@@ -2709,13 +2891,13 @@
 "name": "YardBase",
 "c": [
 42.0,
--0.973,
--63.59
+-1.128,
+-68.59
 ],
 "size": [
 20.0,
-1.41,
-20.0
+1.1,
+10.0
 ],
 "yaw": 0.0,
 "pitch": 0.0,
@@ -2726,29 +2908,12 @@
 "name": "YardBase",
 "c": [
 62.0,
-0.152,
--63.59
-],
-"size": [
-20.0,
-3.66,
-20.0
-],
-"yaw": 0.0,
-"pitch": 0.0,
-"mat": "asphalt",
-"collider": true
-},
-{
-"name": "YardBase",
-"c": [
-2.0,
--0.083,
+0.022,
 -68.59
 ],
 "size": [
 20.0,
-3.19,
+3.4,
 10.0
 ],
 "yaw": 0.0,
@@ -2757,121 +2922,36 @@
 "collider": true
 },
 {
-"name": "RetainPost",
+"name": "RaisedBase",
 "c": [
--8.15,
-0.882,
--73.74
-],
-"size": [
-0.36,
-1.72,
-0.36
-],
-"yaw": 0.0,
-"pitch": 0.0,
-"mat": "concrete",
-"collider": true
-},
-{
-"name": "RetainPost",
-"c": [
-12.15,
-0.882,
--73.74
-],
-"size": [
-0.36,
-1.72,
-0.36
-],
-"yaw": 0.0,
-"pitch": 0.0,
-"mat": "concrete",
-"collider": true
-},
-{
-"name": "RetainPost",
-"c": [
--8.15,
-0.882,
--63.44
-],
-"size": [
-0.36,
-1.72,
-0.36
-],
-"yaw": 0.0,
-"pitch": 0.0,
-"mat": "concrete",
-"collider": true
-},
-{
-"name": "RetainPost",
-"c": [
-12.15,
-0.882,
--63.44
-],
-"size": [
-0.36,
-1.72,
-0.36
-],
-"yaw": 0.0,
-"pitch": 0.0,
-"mat": "concrete",
-"collider": true
-},
-{
-"name": "Footing",
-"c": [
-44.7,
-1.022,
--54.2
-],
-"size": [
-45.9,
-2.6,
-1.25
-],
-"yaw": 0.0,
-"pitch": 0.0,
-"mat": "concrete",
-"collider": true
-},
-{
-"name": "Footing",
-"c": [
-69.75,
-0.872,
--53.44
-],
-"size": [
-4.5,
-2.3,
-0.3
-],
-"yaw": 0.0,
-"pitch": 0.0,
-"mat": "concrete",
-"collider": true
-},
-{
-"name": "PassRamp",
-"c": [
-18.3,
-0.587,
--48.195
-],
-"size": [
 7.0,
-0.4,
-11.198
+0.157,
+-68.59
 ],
-"yaw": 0,
-"pitch": -8.071,
+"size": [
+30.0,
+3.67,
+10.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RaisedBase",
+"c": [
+32.5,
+0.157,
+-58.59
+],
+"size": [
+79.0,
+3.67,
+10.0
+],
+"yaw": 0.0,
+"pitch": 0.0,
 "mat": "concrete",
 "collider": true
 },
@@ -2879,13 +2959,13 @@
 "name": "PassBase",
 "c": [
 18.3,
--0.678,
--48.2
+0.157,
+-50.545
 ],
 "size": [
-7.0,
-1.6,
-10.8
+7.4,
+3.67,
+6.09
 ],
 "yaw": 0.0,
 "pitch": 0.0,
@@ -2893,16 +2973,16 @@
 "collider": true
 },
 {
-"name": "DoorWall",
+"name": "PassBase",
 "c": [
-70.6,
-3.672,
--53.59
+18.3,
+-0.238,
+-44.75
 ],
 "size": [
-2.8,
-3.3,
-0.5
+7.4,
+2.88,
+5.5
 ],
 "yaw": 0.0,
 "pitch": 0.0,
@@ -2910,19 +2990,121 @@
 "collider": true
 },
 {
-"name": "DoorLintel",
+"name": "PassFall",
 "c": [
-68.35,
-4.872,
--53.59
+18.3,
+1.63,
+-44.645
 ],
 "size": [
-1.7,
-0.9,
-0.5
+7.4,
+0.3,
+5.91
+],
+"yaw": 0,
+"pitch": 4.707,
+"mat": "asphalt",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+-8.15,
+1.072,
+-73.74
+],
+"size": [
+0.36,
+2.1,
+0.36
 ],
 "yaw": 0.0,
 "pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+22.15,
+1.072,
+-73.74
+],
+"size": [
+0.36,
+2.1,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+22.15,
+1.072,
+-63.74
+],
+"size": [
+0.36,
+2.1,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+32.0,
+1.072,
+-63.74
+],
+"size": [
+0.36,
+2.1,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RetainPost",
+"c": [
+42.0,
+1.072,
+-63.74
+],
+"size": [
+0.36,
+2.1,
+0.36
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "concrete",
+"collider": true
+},
+{
+"name": "RampSkirt",
+"c": [
+42.0,
+-0.278,
+-73.62
+],
+"size": [
+0.5,
+2.6,
+20.1
+],
+"yaw": 90,
+"pitch": -5.711,
 "mat": "concrete",
 "collider": true
 },
@@ -3248,23 +3430,6 @@
 "pitch": 44.029,
 "mat": "wood",
 "collider": false
-},
-{
-"name": "FenceEnd",
-"c": [
-13.45,
-1.622,
--53.59
-],
-"size": [
-2.9,
-3.3,
-0.5
-],
-"yaw": 0.0,
-"pitch": 0.0,
-"mat": "concrete",
-"collider": true
 }
 ],
 "ladders": [
@@ -3328,7 +3493,7 @@
 {
 "pos": [
 13.6,
-0.022,
+2.022,
 -66.5
 ],
 "yaw": -70
@@ -3409,9 +3574,9 @@
 -53.59
 ],
 [
-14.8,
+14.6,
 -53.59,
-21.8,
+22.0,
 -42
 ]
 ]

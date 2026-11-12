@@ -285,7 +285,8 @@ public static partial class CityLordBuilder
             var mid = foot + outward * (0.2f + run / 2f) + Vector3.up * (height / 2f) + r * Vector3.forward * 1.15f;
             if (Physics.CheckBox(mid, new Vector3(0.5f, Mathf.Max(0.2f, len / 2f - 0.7f), 0.85f), r, mask, QueryTriggerInteraction.Ignore)) continue;
             var end = foot + outward * (0.4f + run);
-            if (!Physics.Raycast(end + Vector3.up * 1f, Vector3.down, out var g, 2f, mask, QueryTriggerInteraction.Ignore) || Mathf.Abs(g.point.y - foot.y) > 0.25f) continue;
+            // level ground where it stands (where the ground has no collider yet, the caller's foot height is taken)
+            if (Physics.Raycast(end + Vector3.up * 1f, Vector3.down, out var g, 8f, mask, QueryTriggerInteraction.Ignore) && Mathf.Abs(g.point.y - foot.y) > 0.6f) continue;
             lean = a;
             walk = true;
         }
@@ -296,7 +297,8 @@ public static partial class CityLordBuilder
             var mid = foot + outward * (0.25f + run / 2f) + Vector3.up * (height / 2f + 0.25f);
             if (Physics.CheckBox(mid, new Vector3(0.6f, height / 2f - 0.2f, run / 2f + 0.15f), Quaternion.LookRotation(outward), mask, QueryTriggerInteraction.Ignore)) continue;
             var end = foot + outward * (0.4f + run);
-            if (!Physics.Raycast(end + Vector3.up * 1f, Vector3.down, out var g, 2f, mask, QueryTriggerInteraction.Ignore) || Mathf.Abs(g.point.y - foot.y) > 0.25f) continue;
+            // level ground where it stands (where the ground has no collider yet, the caller's foot height is taken)
+            if (Physics.Raycast(end + Vector3.up * 1f, Vector3.down, out var g, 8f, mask, QueryTriggerInteraction.Ignore) && Mathf.Abs(g.point.y - foot.y) > 0.3f) continue;
             lean = a;
             break;
         }

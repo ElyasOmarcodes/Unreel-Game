@@ -63,9 +63,25 @@ def floor(level, *cells):
         put('Road_set_v1_s_floor', x0 + 5, z0 + 5, 0, level)
 
 
-def base(x0, z0, x1, z1, level, name='YardBase'):
-    """The ground under a yard: down to under the plain."""
-    box(name, [(x0 + x1) / 2, (level - 0.04 + -14.6) / 2, (z0 + z1) / 2], [x1 - x0, level - 0.04 + 14.6, z1 - z0], 'asphalt')
+def base(x0, z0, x1, z1, level, name='YardBase', mat='asphalt', drop=0.3):
+    """The ground under a yard, down to under the plain; its top stays under the road tiles' carriageway."""
+    top = level - drop
+    box(name, [(x0 + x1) / 2, (top - 14.6) / 2, (z0 + z1) / 2], [x1 - x0, top + 14.6, z1 - z0], mat)
+
+
+def rbase(x0, z0, x1, z1, level, name='RaisedBase'):
+    """The body of a raised yard: concrete, as its retaining walls."""
+    base(x0, z0, x1, z1, level, name, 'concrete', 0.03)
+
+
+def door_end(x0, x1, z, level):
+    """The end of a wall beside a way through, as the town ends its walls: a column, and a short panel of the
+    same wall on to the next column (along x, from the column at x0 to the one at x1)."""
+    put('Concrete_fence_v1_column', x0, z, 0, level - 0.05)
+    put('Concrete_fence_v1_column', x1, z, 0, level - 0.05)
+    n = abs(x1 - x0) - 0.72
+    if n > 0.3:
+        put('Concrete_fence_v1_wall_set_v1', (x0 + x1) / 2, z, 90, level - 0.05, scale=[1, 1, round(n / 9.36, 4)])
 
 
 def straight(cx, cz, along_x, twenty, level):
@@ -183,10 +199,10 @@ straight(137, -28.59, True, False, E)
 floor(E, *[c for c in EY if c not in road_e and c not in PA])
 # the raised yard: its ground, retaining walls to the road, the stairs in the middle of its west side
 PE = E + RAISE
-base(132, -23.59, 142, -13.59, PE)
-base(134.4, -13.59, 142, -3.59, PE)       # the stairs are cut into this one
-base(132, -13.59, 134.4, -3.59, E + 0.02, 'StairBase')
-base(132, -3.59, 142, 6.41, PE)
+rbase(132, -23.59, 142, -13.59, PE)
+rbase(134.4, -13.59, 142, -3.59, PE)       # the stairs are cut into this one
+base(132, -13.59, 134.4, -3.59, E, 'StairBase', 'concrete', 0.02)
+rbase(132, -3.59, 142, 6.41, PE)
 floor(PE, (132, -23.59), (132, -3.59))
 put('UNIConcrete_wall_v1_S_R_2f', 137, -8.59, 180, PE)
 put('UNIConcrete_wall_v1_S_R_2', 132.9, -8.59, 180, E)
@@ -225,6 +241,9 @@ TANK = moved([tank_old[0], -10.91, tank_old[2]])
 at('Oil_tank_v1', TANK, 90)
 PIPE_END = moved(b1)
 
+# the old annex (C-5) was only made to be seen from the west: the same building again, turned round and a
+# hair smaller, gives it the east and south walls the new yard looks at
+put('Hangar_v2_outbuilding', 96.805, -40.4, 90, E + 0.01, scale=[0.985, 0.992, 0.985])
 # things in the court and the low yard
 put('Industrial_pipe_v1', 127.6, -49.4, 0, E)
 stack(106.3, -32.2, 90, E, True)
@@ -264,12 +283,15 @@ out['spawns'].append(r3([116, E + L + 0.1, -44]))
 out['yards'] += [[102, -53.59, 122, 16.41], [122, -53.59, 132, 6.41], [132, -43.59, 142, 6.41], [72, -53.59, 102, -40]]
 
 # ===================================================================== the South Yard and the back court
-# the road goes on south from its old west end, east along the south side, north, and up the ramp to the
-# east level behind the two factories. A raised yard north of the road, the back court on the slope.
-PW = W + RAISE
+# The road goes on south from its old west end, east along the south side, north, and up the ramp to the
+# east level behind the two factories. North of the road ONE raised yard, on the east level (the level the
+# factories and the old yards stand on): 2 m over the low road behind retaining walls, concrete stairs
+# down to the road in two places, level with the road where the ramp has climbed. It runs on between the
+# two halls into the old yard, and has a way through the wall at its east end.
+HI = 2.0 / 1.67                                  # the town's retaining wall and stairs, made 2 m high
 base(-28, -83.59, 32, -53.59, W)
-base(32, -73.59, 52, -53.59, W - 0.25)
-base(52, -73.59, 72, -53.59, E)
+base(32, -73.59, 52, -63.59, W - 0.3)
+base(52, -73.59, 72, -63.59, E)
 straight(-23, -63.59, False, True, W)
 bend(-23, -78.59, 0, W)
 straight(-8, -78.59, True, True, W)
@@ -278,36 +300,48 @@ bend(27, -78.59, -90, W)
 bend(27, -68.59, 90, W)
 put('Road_set_v1_road_up_2m_HD', 42, -68.59, 180, W - 0.18)
 straight(62, -68.59, True, True, E)
-put('Road_set_v1_road_up_2m_HD_f', 42, -58.59, 180, W)
-floor(E, (52, -63.59), (62, -63.59))
-floor(W, (-18, -63.59), (-18, -73.59), (-8, -63.59), (2, -63.59), (12, -73.59), (12, -63.59), (22, -63.59))
-# the raised yard (x -8..12, z -73.59..-63.59) with the tank; stairs down to the road on its south side
-base(-8, -73.59, 12, -63.59, PW)
-floor(PW, (-8, -73.59), (2, -73.59))
-put('UNIConcrete_wall_v1_S_middle', -3, -73.59 - 1.12, 90, W)
-retain(7, -73.74, True, W)
-retain(-8.15, -68.59, False, W)
-retain(12.15, -68.59, False, W)
-retain(-3, -63.44, True, W)
-retain(7, -63.44, True, W)
-for px, pz in ((-8.15, -73.74), (12.15, -73.74), (-8.15, -63.44), (12.15, -63.44)):
-    box('RetainPost', [px, W + 0.86, pz], [0.36, 1.72, 0.36], 'concrete')
-# a tank with its riser as in the old yard, on the raised yard; a shed in the corner by the court
+floor(W, (-18, -63.59), (-18, -73.59))
+# the raised yard
+rbase(-8, -73.59, 22, -63.59, E)
+rbase(-7, -63.59, 72, -53.59, E)
+rbase(14.6, -53.59, 22.0, -47.5, E, 'PassBase')
+base(14.6, -47.5, 22.0, -42.0, -11.37, 'PassBase', 'concrete', 0.35)
+floor(E, (-8, -73.59), (2, -73.59), (12, -73.59), (2, -63.59), (12, -63.59), (22, -63.59), (32, -63.59), (42, -63.59), (52, -63.59), (62, -63.59))
+put('Road_set_v1_s_floor', -2.5, -58.59, 0, E, scale=[0.9, 1, 1])
+# between the halls: the same floor, and a short fall of 0.47 m to the old yard's own level at its far end
+put('Road_set_v1_s_floor', 18.3, -50.59, 0, E, scale=[0.74, 1, 0.6])
+fa = np.array([18.3, E, -47.59]); fb = np.array([18.3, -11.385, -41.7]); fn = np.linalg.norm(fb - fa)
+box('PassFall', (fa + fb) / 2 - np.array([0, 0.15, 0]), [7.4, 0.3, fn], 'asphalt', 0, -math.degrees(math.asin((fb[1] - fa[1]) / fn)))
+# its retaining walls to the road: south side with the first stairs, the side to the bend, the north side
+# of the bend with the second stairs, then along the ramp, each wall no higher than the yard
+put('UNIConcrete_wall_v1_S_middle', -3, -73.59 - 1.12, 90, W, scale=[1, HI, 1])
+
+
+def retain_hi(x, z, along_x, low, sy=HI):
+    put('UNIConcrete_wall_v1_W_tile_1', x, z, 90 if along_x else 0, low, scale=[1, round(sy, 4), 1])
+
+
+retain_hi(7, -73.74, True, W)
+retain_hi(17, -73.74, True, W)
+retain_hi(22.15, -68.59, False, W)
+retain_hi(-8.15, -68.59, False, W)
+put('UNIConcrete_wall_v1_S_middle', 27, -63.59 - 1.12, 90, W, scale=[1, HI, 1])
+retain_hi(37, -63.74, True, W)                           # the ramp climbs along it from 0 to 1 m
+retain_hi(47, -63.74, True, W + 1.0, 1.1 / 1.67)         # and from 1 to 2 m along this one
+for px, pz in ((-8.15, -73.74), (22.15, -73.74), (22.15, -63.74), (32.0, -63.74), (42.0, -63.74)):
+    box('RetainPost', [px, W + 1.05, pz], [0.36, 2.1, 0.36], 'concrete')
+# a skirt under the fence where the road climbs along it
+ka = np.array([32, W - 1.3, -73.62]); kb = np.array([52, E - 1.3, -73.62]); kn = np.linalg.norm(kb - ka)
+box('RampSkirt', (ka + kb) / 2, [0.5, 2.6, kn], 'concrete', 90, -math.degrees(math.asin((kb[1] - ka[1]) / kn)))
+# on the raised yard: a tank with its riser as in the old yard, a shed, containers
 d = np.array([-73.2, 0, -36.2])
-at('Oil_tank_v1', [75.4 + d[0], PW, -32.52 + d[2]], 0)
-at('Pipes_set_v1_V_set_v2', [75.69 + d[0], PW, -26.87 + d[2]], 90)
-put('Hangar_v1_full', 27.1, -59.3, 0, W)
-# under the factories that stand out over the court, and the old yard's edge: a concrete footing
-box('Footing', [44.7, (-10.6 + W - 0.3) / 2, -54.2], [45.9, -10.6 - W + 0.3, 1.25], 'concrete')
-box('Footing', [69.75, (E + W - 0.3) / 2, -53.44], [4.5, E - W + 0.3, 0.3], 'concrete')
-# the way through to the old yard: a concrete ramp up between the two halls (x 14.8-21.8), west of the pipe factory
-ramp_a = np.array([18.3, W, -53.59]); ramp_b = np.array([18.3, -11.37, -42.8])
-n = np.linalg.norm(ramp_b - ramp_a)
-box('PassRamp', (ramp_a + ramp_b) / 2 - np.array([0, 0.2, 0]), [7.0, 0.4, n + 0.3], 'concrete', 0, -math.degrees(math.asin((ramp_b[1] - ramp_a[1]) / n)))
-box('PassBase', [18.3, -13.6, -48.2], [7.0, 1.6, 10.8], 'concrete')
-# and a narrow door at the east end of the court into the yard behind the factories
-box('DoorWall', [70.6, E + 1.65, -53.59], [2.8, 3.3, 0.5], 'concrete')
-box('DoorLintel', [68.35, E + 2.85, -53.59], [1.7, 0.9, 0.5], 'concrete')
+at('Oil_tank_v1', [75.4 + d[0], E, -32.52 + d[2]], 0)
+at('Pipes_set_v1_V_set_v2', [75.69 + d[0], E, -26.87 + d[2]], 90)
+put('Hangar_v1_full', 27.1, -58.9, 0, E)
+stack(2.5, -57.4, 90, E, True)
+stack(58, -57.8, 90, E, False)
+# the way through the wall at the east end of the yard, into the yard behind the factories
+door_end(69.7, 72, -53.59, E)
 # the look-out on the roof of the pipe factory (D-4): a ladder from the ridge, where the roof pipe comes over
 D4 = (31.0, -47.8)
 ridge = height.top(D4[0], D4[1])
@@ -316,32 +350,27 @@ tower(D4[0], D4[1], deck4, 3.0, lambda x, z: height.top(x, z), (1, 0, 0), 'RoofT
 ladder([D4[0] + 1.85, ridge, D4[1]], [1, 0, 0], 3.3)
 out['ammo'].append({'pos': r3([D4[0] - 0.7, deck4 + L, D4[1] - 0.6]), 'yaw': 90})
 # things
-stack(-13.5, -78.2 + 9.2, 90, W, False)
-stack(2.5, -58.6, 90, W, True)
-stack(58, -57.8, 90, E, False)
-for i, (x, z) in enumerate([(-20, -57), (-25.5, -80.5), (14.5, -70.5), (23.5, -65.2), (9.5, -81.6), (34, -62.5), (47, -56.8), (55, -62), (66, -57), (17.5, -47.5)]):
-    lv = W if x < 32 else E
-    if 32 <= x < 52: lv = W + (x - 32) / 10.0 + 0.0
-    if x == 17.5: lv = W + (z + 53.59) / 10.79 * 1.53
+stack(-13.5, -69.4, 90, W, False)
+for i, (x, z, lv) in enumerate([(-20, -57, W), (-25.5, -80.5, W), (14.5, -70.5, E), (9.5, -81.6, W), (36, -58.5, E), (47, -56.8, E), (55, -61, E),
+                                (66, -57, E), (17.5, -50, E), (-4.5, -66, E), (20.5, -60.5, E), (40.5, -61.8, E)]):
     crates(x, z, lv, i)
-for x, z in [(-6, -65.5), (10, -72)]:
-    crates(x, z, PW, 5)
 put('Palet_v1_set', -24.5, -72, 20, W)
 put('Barrel_v3_quadro', 20.5, -81.8, 0, W)
-put('Barrel_v2_quadro', 60.5, -62.6, 0, E)
+put('Barrel_v2_quadro', 60.5, -61.6, 0, E)
+put('Palet_v1_set', 12.5, -56.2, 70, E)
 put('Road_block_v1', 69.6, -66.8, 85, E)
 put('Road_block_v1', 69.8, -70.3, 97, E)
-out['ammo'].append({'pos': r3([13.6, W + L, -66.5]), 'yaw': -70})
+out['ammo'].append({'pos': r3([13.6, E + L, -66.5]), 'yaw': -70})
 for (ax, az, bx, bz, lv) in [
-    (-28, -83.59, -28, -53.59, W), (-28, -83.59, 32, -83.59, W), (32, -83.59, 32, -73.59, W), (32, -73.59, 52, -73.59, W + 1.0),
-    (52, -73.59, 72, -73.59, E), (72, -73.59, 72, -53.59, E), (-8, -53.59, 12, -53.59, W),
+    (-28, -83.59, -28, -53.59, W), (-28, -83.59, 32, -83.59, W), (32, -83.59, 32, -73.59, W), (32, -73.59, 42, -73.59, W), (42, -73.59, 52, -73.59, W + 1.0),
+    (52, -73.59, 72, -73.59, E), (72, -73.59, 72, -53.59, E), (-8, -53.59, 12, -53.59, E),
 ]:
     fence(ax, az, bx, bz, lv)
-box('FenceEnd', [13.45, W + 1.6, -53.59], [2.9, 3.3, 0.5], 'concrete')
+door_end(12, 14.4, -53.59, E)
 out['boards'].append({'at': [-16, W, -76], 'ps': 'جنوبي انګړ', 'en': 'SOUTH YARD'})
 out['spawns'].append(r3([-3, W + L + 0.1, -81]))
 out['spawns'].append(r3([60, E + L + 0.1, -60]))
-out['yards'] += [[-28, -83.59, 32, -53.59], [32, -73.59, 72, -53.59], [14.8, -53.59, 21.8, -42]]
+out['yards'] += [[-28, -83.59, 32, -53.59], [32, -73.59, 72, -53.59], [14.6, -53.59, 22.0, -42]]
 
 json.dump(out, open(os.path.join(town.BASE, 'extension.json'), 'w'), ensure_ascii=False, indent=0)
 print({k: len(v) for k, v in out.items()}, 'pipe end', np.round(PIPE_END, 2), 'tank', np.round(TANK, 2))
