@@ -382,7 +382,6 @@ namespace UA
         /// <summary>The choices of the create page are kept between starts of the game (map, time of day, match time, bots).</summary>
         private void SaveDraft()
         {
-            PlayerPrefs.SetInt("draft_map", Draft.Map);
             PlayerPrefs.SetInt("draft_minutes", Draft.Minutes);
             PlayerPrefs.SetInt("draft_skill", Draft.BotSkill);
             if (DraftPractice) PlayerPrefs.SetInt("draft_bots", Draft.Bots);
@@ -396,8 +395,7 @@ namespace UA
         {
             if (draftLoaded) return;
             draftLoaded = true;
-            int map = PlayerPrefs.GetInt("draft_map", Draft.Map);
-            if (map >= 0 && map < MatchConfig.MapNames.Length) Draft.Map = (byte)map;
+            // the map is not kept: after a start of the game the list begins again at its first map
             Draft.Minutes = (byte)Mathf.Clamp(PlayerPrefs.GetInt("draft_minutes", Draft.Minutes), 1, 60);
             Draft.BotSkill = (byte)Mathf.Clamp(PlayerPrefs.GetInt("draft_skill", Draft.BotSkill), 0, 2);
             Draft.GroupName = PlayerPrefs.GetString("draft_group", Draft.GroupName);

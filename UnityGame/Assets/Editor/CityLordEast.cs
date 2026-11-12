@@ -79,7 +79,13 @@ public static partial class CityLordBuilder
             }
             else
             {
-                var m = mat == "wood" ? wood : mat == "concrete" ? concrete : mat == "iron" ? RustyIron : asphalt;
+                Material m;
+                if (mat.StartsWith("kit:"))
+                {
+                    var k = Kit(mat.Substring(4));
+                    m = k != null && k.Materials.Length > 0 ? k.Materials[0] : concrete;
+                }
+                else m = mat == "wood" ? wood : mat == "concrete" ? concrete : mat == "iron" ? RustyIron : asphalt;
                 go = MeshGen.Object(S(b["name"]), MeshGen.Box(size, mat == "asphalt" ? 6f : 1.5f), m, e, centre);
             }
             go.transform.SetPositionAndRotation(centre, rot);

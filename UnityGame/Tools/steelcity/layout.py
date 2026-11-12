@@ -94,21 +94,28 @@ def bend(cx, cz, yaw, level):
     put('Road_set_v1_s_bend_1f', cx, cz, yaw, level, top=True)
 
 
-def fence(ax, az, bx, bz, level):
-    """Wall panels between columns along a side of the grid, 10 m each."""
+def fence(ax, az, bx, bz, level, start=True, end=True):
+    """The town's wall along a straight line: a column at each end and between the panels, the panels
+    (9.36 m) stretched or squeezed a little so they fill the run exactly. 'start'/'end' False leave out
+    the end column where the wall runs into another wall's own column."""
     along_x = abs(bx - ax) > abs(bz - az)
-    n = max(1, round((abs(bx - ax) if along_x else abs(bz - az)) / 10))
+    length = math.hypot(bx - ax, bz - az)
+    n = max(1, math.ceil(length / 10.2))
+    panel = length / n - 0.72
     for i in range(n + 1):
         t = i / n
-        put('Concrete_fence_v1_column', ax + (bx - ax) * t, az + (bz - az) * t, 0, level - 0.05)
+        if (i > 0 or start) and (i < n or end):
+            put('Concrete_fence_v1_column', ax + (bx - ax) * t, az + (bz - az) * t, 0, level - 0.05)
         if i == n: break
         t = (i + 0.5) / n
-        put('Concrete_fence_v1_wall_set_v1', ax + (bx - ax) * t, az + (bz - az) * t, 90 if along_x else 0, level - 0.05)
+        put('Concrete_fence_v1_wall_set_v1', ax + (bx - ax) * t, az + (bz - az) * t, 90 if along_x else 0, level - 0.05,
+            scale=[1, 1, round(panel / 9.36, 4)])
 
 
-def retain(x, z, along_x, low):
-    """A 10 m retaining wall (its middle at x, z) holding a raised yard over the level 'low'."""
-    put('UNIConcrete_wall_v1_W_tile_1', x, z, 90 if along_x else 0, low)
+def retain(x, z, along_x, low, yaw=None):
+    """A 10 m retaining wall (its middle at x, z) holding a raised yard over the level 'low'. Its face
+    (the side drawn) looks: yaw 0 east, 180 west, 90 south, -90 north: always towards the low side."""
+    put('UNIConcrete_wall_v1_W_tile_1', x, z, (90 if along_x else 0) if yaw is None else yaw, low)
 
 
 def stack(x, z, yaw, level, two=False):
@@ -206,8 +213,8 @@ rbase(132, -3.59, 142, 6.41, PE)
 floor(PE, (132, -23.59), (132, -3.59))
 put('UNIConcrete_wall_v1_S_R_2f', 137, -8.59, 180, PE)
 put('UNIConcrete_wall_v1_S_R_2', 132.9, -8.59, 180, E)
-retain(131.85, -18.59, False, E)
-retain(131.85, 1.41, False, E)
+retain(131.85, -18.59, False, E, 180)
+retain(131.85, 1.41, False, E, 180)
 retain(137, -23.74, True, E)
 for px, pz in ((131.85, -23.74), (131.85, 6.3), (141.9, -23.74)):
     box('RetainPost', [px, E + 0.86, pz], [0.36, 1.72, 0.36], 'concrete')
@@ -241,9 +248,9 @@ TANK = moved([tank_old[0], -10.91, tank_old[2]])
 at('Oil_tank_v1', TANK, 90)
 PIPE_END = moved(b1)
 
-# the old annex (C-5) was only made to be seen from the west: the same building again, turned round and a
-# hair smaller, gives it the east and south walls the new yard looks at
-put('Hangar_v2_outbuilding', 96.805, -40.4, 90, E + 0.01, scale=[0.985, 0.992, 0.985])
+# the old annex (C-5) was only made to be seen from the west: its east side and south end are open. A solid
+# body of its own wall material inside its footprint, under its roof, closes it
+box('AnnexBody', [97.2, (E + -6.4) / 2, -40.6], [6.7, -6.4 - E, 13.7], 'kit:Hangar_v2_outbuilding')
 # things in the court and the low yard
 put('Industrial_pipe_v1', 127.6, -49.4, 0, E)
 stack(106.3, -32.2, 90, E, True)
@@ -289,7 +296,7 @@ out['yards'] += [[102, -53.59, 122, 16.41], [122, -53.59, 132, 6.41], [132, -43.
 # down to the road in two places, level with the road where the ramp has climbed. It runs on between the
 # two halls into the old yard, and has a way through the wall at its east end.
 HI = 2.0 / 1.67                                  # the town's retaining wall and stairs, made 2 m high
-base(-28, -83.59, 32, -53.59, W)
+base(-27.6, -83.99, 32, -53.59, W)
 base(32, -73.59, 52, -63.59, W - 0.3)
 base(52, -73.59, 72, -63.59, E)
 straight(-23, -63.59, False, True, W)
@@ -317,14 +324,14 @@ box('PassFall', (fa + fb) / 2 - np.array([0, 0.15, 0]), [7.4, 0.3, fn], 'asphalt
 put('UNIConcrete_wall_v1_S_middle', -3, -73.59 - 1.12, 90, W, scale=[1, HI, 1])
 
 
-def retain_hi(x, z, along_x, low, sy=HI):
-    put('UNIConcrete_wall_v1_W_tile_1', x, z, 90 if along_x else 0, low, scale=[1, round(sy, 4), 1])
+def retain_hi(x, z, along_x, low, sy=HI, yaw=None):
+    put('UNIConcrete_wall_v1_W_tile_1', x, z, (90 if along_x else 0) if yaw is None else yaw, low, scale=[1, round(sy, 4), 1])
 
 
 retain_hi(7, -73.74, True, W)
 retain_hi(17, -73.74, True, W)
 retain_hi(22.15, -68.59, False, W)
-retain_hi(-8.15, -68.59, False, W)
+retain_hi(-8.15, -68.59, False, W, HI, 180)
 put('UNIConcrete_wall_v1_S_middle', 27, -63.59 - 1.12, 90, W, scale=[1, HI, 1])
 retain_hi(37, -63.74, True, W)                           # the ramp climbs along it from 0 to 1 m
 retain_hi(47, -63.74, True, W + 1.0, 1.1 / 1.67)         # and from 1 to 2 m along this one
@@ -340,15 +347,18 @@ at('Pipes_set_v1_V_set_v2', [75.69 + d[0], E, -26.87 + d[2]], 90)
 put('Hangar_v1_full', 27.1, -58.9, 0, E)
 stack(2.5, -57.4, 90, E, True)
 stack(58, -57.8, 90, E, False)
+# the two factories (D-4, D-6) were made standing on nothing: their walls start 0.3 m over the new yard
+# and 0.75 m over the old one. A concrete plinth under their whole footprint, its top at their walls' foot
+box('FactoryPlinth', [44.64, (-10.62 - 14.6) / 2, -47.82], [45.1, 14.6 - 10.62, 13.7], 'concrete')
 # the way through the wall at the east end of the yard, into the yard behind the factories
 door_end(69.7, 72, -53.59, E)
 # the look-out on the roof of the pipe factory (D-4): a ladder from the ridge, where the roof pipe comes over
 D4 = (31.0, -47.8)
 ridge = height.top(D4[0], D4[1])
-deck4 = ridge + 3.3
-tower(D4[0], D4[1], deck4, 3.0, lambda x, z: height.top(x, z), (1, 0, 0), 'RoofTower')
-ladder([D4[0] + 1.85, ridge, D4[1]], [1, 0, 0], 3.3)
-out['ammo'].append({'pos': r3([D4[0] - 0.7, deck4 + L, D4[1] - 0.6]), 'yaw': 90})
+deck4 = ridge + 5.2
+tower(D4[0], D4[1], deck4, 4.6, lambda x, z: height.top(x, z), (1, 0, 0), 'RoofTower')
+ladder([D4[0] + 2.65, ridge, D4[1]], [1, 0, 0], 5.2)
+out['ammo'].append({'pos': r3([D4[0] - 1.2, deck4 + L, D4[1] - 1.0]), 'yaw': 90})
 # things
 stack(-13.5, -69.4, 90, W, False)
 for i, (x, z, lv) in enumerate([(-20, -57, W), (-25.5, -80.5, W), (14.5, -70.5, E), (9.5, -81.6, W), (36, -58.5, E), (47, -56.8, E), (55, -61, E),
@@ -362,7 +372,7 @@ put('Road_block_v1', 69.6, -66.8, 85, E)
 put('Road_block_v1', 69.8, -70.3, 97, E)
 out['ammo'].append({'pos': r3([13.6, E + L, -66.5]), 'yaw': -70})
 for (ax, az, bx, bz, lv) in [
-    (-28, -83.59, -28, -53.59, W), (-28, -83.59, 32, -83.59, W), (32, -83.59, 32, -73.59, W), (32, -73.59, 42, -73.59, W), (42, -73.59, 52, -73.59, W + 1.0),
+    (-27.15, -83.59, -27.15, -59.6, W), (-27.15, -83.59, 32, -83.59, W), (32, -83.59, 32, -73.59, W), (32, -73.59, 42, -73.59, W), (42, -73.59, 52, -73.59, W + 1.0),
     (52, -73.59, 72, -73.59, E), (72, -73.59, 72, -53.59, E), (-8, -53.59, 12, -53.59, E),
 ]:
     fence(ax, az, bx, bz, lv)
@@ -370,7 +380,7 @@ door_end(12, 14.4, -53.59, E)
 out['boards'].append({'at': [-16, W, -76], 'ps': 'جنوبي انګړ', 'en': 'SOUTH YARD'})
 out['spawns'].append(r3([-3, W + L + 0.1, -81]))
 out['spawns'].append(r3([60, E + L + 0.1, -60]))
-out['yards'] += [[-28, -83.59, 32, -53.59], [32, -73.59, 72, -53.59], [14.6, -53.59, 22.0, -42]]
+out['yards'] += [[-27.6, -83.99, 32, -53.59], [32, -73.59, 72, -53.59], [14.6, -53.59, 22.0, -42]]
 
 json.dump(out, open(os.path.join(town.BASE, 'extension.json'), 'w'), ensure_ascii=False, indent=0)
 print({k: len(v) for k, v in out.items()}, 'pipe end', np.round(PIPE_END, 2), 'tank', np.round(TANK, 2))

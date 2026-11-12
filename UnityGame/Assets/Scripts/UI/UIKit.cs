@@ -20,6 +20,13 @@ namespace UA
         }
     }
 
+    /// <summary>The value of a stepper, read again every time its page is shown (it can change while the page is hidden).</summary>
+    public class StepperValue : MonoBehaviour
+    {
+        public Func<string> Value;
+        private void OnEnable() { if (Value != null) GetComponent<Text>().text = Loc.T(Value()); }
+    }
+
     public static class UIKit
     {
         public static Font Font;
@@ -256,6 +263,7 @@ namespace UA
             l.resizeTextMaxSize = 34;
             var v = Txt(row, value(), 36, TextAnchor.MiddleCenter, Accent);
             v.rectTransform.At(1f, 0.5f, -230, 0, 300, 84);
+            v.gameObject.AddComponent<StepperValue>().Value = value;
             var minus = Btn(row, "<", () => { change(-1); v.text = Loc.T(value()); }, 40);
             minus.GetComponent<RectTransform>().At(1f, 0.5f, -430, 0, 90, 70);
             var plus = Btn(row, ">", () => { change(1); v.text = Loc.T(value()); }, 40);
@@ -277,6 +285,7 @@ namespace UA
             v.resizeTextForBestFit = true;
             v.resizeTextMinSize = 16;
             v.resizeTextMaxSize = 27;
+            v.gameObject.AddComponent<StepperValue>().Value = value;
             var minus = Btn(row, "<", () => { change(-1); v.text = Loc.T(value()); }, 36);
             minus.GetComponent<RectTransform>().At(0f, 0.5f, 8, 0, 64, 64, 0f, 0.5f);
             var plus = Btn(row, ">", () => { change(1); v.text = Loc.T(value()); }, 36);

@@ -714,7 +714,7 @@ public static class VillageBuilder
             }
         // the ladder up from the yard to the open edge of the platform
         Physics.SyncTransforms();
-        CityLordBuilder.PlaceLadder(t, foot + outward * half, outward, high);
+        CityLordBuilder.PlaceLadder(t, foot + outward * half, outward, high, true);
     }
 
     /// <summary>The bazaar: shops on a raised platform with steps, around a big plane tree on a round seat.</summary>

@@ -499,8 +499,8 @@ public static partial class HillVillageBuilder
             var foot = new Vector3(wall.x, gy, wall.z);
             float roofY = baseY + top + 0.24f;
             Physics.SyncTransforms();
-            CityLordBuilder.PlaceLadder(h, foot, outward, roofY - gy);
-            ladderLinks.Add((foot + outward * ((roofY - gy) * 1.35f + 1.2f), h.TransformPoint(new Vector3(-w / 2f + 1.1f, top + 0.24f, 0f))));
+            if (CityLordBuilder.PlaceLadder(h, foot, outward, roofY - gy) != null)
+                ladderLinks.Add((CityLordBuilder.LastLadderFoot, h.TransformPoint(new Vector3(-w / 2f + 1.1f, top + 0.24f, 0f))));
         }
         return h;
     }

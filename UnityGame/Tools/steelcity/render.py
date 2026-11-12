@@ -38,6 +38,16 @@ def material(c):
             if n.type == 'BSDF_PRINCIPLED':
                 n.inputs['Base Color'].default_value = (*c, 1)
                 n.inputs['Roughness'].default_value = 0.85
+        if os.environ.get('CULL') == '1':
+            # as the game draws: only the front of a face, its back is see-through
+            nt = m.node_tree
+            bsdf = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+            outn = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+            geo = nt.nodes.new('ShaderNodeNewGeometry'); tr = nt.nodes.new('ShaderNodeBsdfTransparent'); mix = nt.nodes.new('ShaderNodeMixShader')
+            nt.links.new(geo.outputs['Backfacing'], mix.inputs[0])
+            nt.links.new(bsdf.outputs[0], mix.inputs[1])
+            nt.links.new(tr.outputs[0], mix.inputs[2])
+            nt.links.new(mix.outputs[0], outn.inputs['Surface'])
         _mats[key] = m
     return _mats[key]
 

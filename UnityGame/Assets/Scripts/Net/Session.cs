@@ -434,7 +434,7 @@ namespace UA
                         if (!p.Alive && now >= p.RespawnAt) Respawn(p);
                         if (p.Alive && p.Health < 100 && now - p.LastDamageTime > 5f) p.Health = Mathf.Min(100, p.Health + 12f * dt);
                     }
-                    if (TimeLeft <= 0 || LimitReached()) EndMatch();
+                    if (TimeLeft <= 0) EndMatch();   // a match lasts its whole time, however many kills
                     break;
                 case Phase.Ended:
                     TimeLeft = Mathf.Max(0, phaseEnd - now);
@@ -445,12 +445,6 @@ namespace UA
             if ((lobbyTimer -= dt) <= 0) { lobbyTimer = Phase == Phase.Lobby ? 0.25f : 1f; SendLobby(); }
             if (Phase != Phase.Lobby && (snapshotTimer -= dt) <= 0) { snapshotTimer = 0.05f; SendSnapshot(); }
             if (!Practice && (announceTimer -= dt) <= 0) { announceTimer = 1f; Announce(null); }
-        }
-
-        private bool LimitReached()
-        {
-            // a team by its kills together, a player alone by their own
-            return TeamScore.Any(t => t >= Config.KillLimit) || Players.Values.Any(p => p.Team == 0 && p.Kills >= MatchConfig.SoloKillLimit);
         }
 
         /// <summary>
