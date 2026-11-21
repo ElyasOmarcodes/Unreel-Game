@@ -82,7 +82,7 @@ namespace UA
             killer = a;
             victim = b;
             def = Weapons.Get(k.Weapon);
-            bool gun = k.Weapon != Weapons.Grenade.Id;
+            bool gun = k.Weapon < Weapons.Count;
             to = victim.Chest;
             from = gun && killer.Muzzle != null ? killer.Muzzle.position : killer.Chest;
             var dir = to - from;

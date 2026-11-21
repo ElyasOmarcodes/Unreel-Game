@@ -10,18 +10,22 @@ namespace UA
     [DefaultExecutionOrder(-100)]
     public class Controls : MonoBehaviour
     {
-        public enum Button { Fire, FireLeft, Aim, Jump, Crouch, Reload, Swap, Pause, Score, Prone, Grenade, Ammo, Heal }
+        public enum Button { Fire, FireLeft, Aim, Jump, Crouch, Reload, Swap, Pause, Score, Prone, Grenade, Ammo, Heal, Pick, Plant, Detonate, Coord }
 
         public static bool Enabled;
         /// <summary>The ammo button only exists while the player stands at an ammo box.</summary>
         public static bool AmmoAvailable, AmmoFull, HealAvailable;
+        /// <summary>ADVANCED: something to pick up within reach, C4 to plant, own charges to set off. Debug: the place button.</summary>
+        public static bool PickAvailable, PlantAvailable, DetonateAvailable, CoordAvailable;
+        public static string PickLabel = "";
         public static Vector2 Move;
         public static Vector2 Look;
         public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, ScorePressed, PronePressed, GrenadePressed, AmmoPressed, HealPressed;
+        public static bool PickPressed, PlantPressed, DetonatePressed, CoordPressed;
 
         // automated test input
         public static Vector2 SimMove, SimLook;
-        public static bool SimFire, SimScore, SimGrenade, SimSwap, SimCrouch, SimJump, SimProne, SimAim, SimReload;
+        public static bool SimFire, SimScore, SimGrenade, SimSwap, SimCrouch, SimJump, SimProne, SimAim, SimReload, SimPick, SimPlant, SimDetonate;
 
         // for drawing the stick
         public static bool StickActive;
@@ -51,6 +55,10 @@ namespace UA
                 case Button.Reload: return new Vector2(w - 369, 536);
                 case Button.Swap: return new Vector2(w - 214, 907);
                 case Button.Ammo: return new Vector2(w / 2f + 61, 413);
+                case Button.Pick: return new Vector2(w / 2f + 250, 413);
+                case Button.Plant: return new Vector2(845, 838);
+                case Button.Detonate: return new Vector2(978, 838);
+                case Button.Coord: return new Vector2(w / 2f, 700);
                 // top right, as in Battle of Agents: RANK (the scoreboard) and STOP (pause)
                 case Button.Pause: return new Vector2(w - 75, 1038);
                 default: return new Vector2(w - 312, 1038);
@@ -78,6 +86,7 @@ namespace UA
                 case Button.FireLeft: return 90;
                 case Button.Aim: return 68;
                 case Button.Swap: return 62;
+                case Button.Pick: return 66;
                 case Button.Pause: return 46;
                 case Button.Score: return 50;
                 default: return 56;
@@ -88,6 +97,11 @@ namespace UA
         public static Vector2 ButtonCenter(Button b) => DefaultCenter(b) + new Vector2(PlayerPrefs.GetFloat($"btn2_{b}_x", 0f), PlayerPrefs.GetFloat($"btn2_{b}_y", 0f));
         public static float ButtonRadius(Button b) => DefaultRadius(b) * PlayerPrefs.GetFloat($"btn2_{b}_s", 1f);
         public static bool ButtonVisible(Button b) => PlayerPrefs.GetInt($"btn2_{b}_on", 1) == 1;
+
+        /// <summary>The buttons that show only when their action is possible.</summary>
+        public static bool ButtonLive(Button b) =>
+            (b != Button.Ammo || AmmoAvailable) && (b != Button.Heal || HealAvailable) && (b != Button.Pick || PickAvailable)
+            && (b != Button.Plant || PlantAvailable) && (b != Button.Detonate || DetonateAvailable) && (b != Button.Coord || CoordAvailable);
 
         public static void SaveButton(Button b, Vector2 center, float scale, bool visible)
         {
@@ -109,6 +123,7 @@ namespace UA
         private void Update()
         {
             bool fireTap = false, aim = false, jump = false, crouch = false, reload = false, swap = false, pause = false, prone = false, grenade = false, ammo = false, heal = false;
+            bool pick = false, plant = false, detonate = false, coord = false;
             Move = Vector2.zero;
             Look = Vector2.zero;
             Held.Clear();
@@ -126,7 +141,7 @@ namespace UA
                     var f = new Finger { Last = p };
                     foreach (var b in AllButtons)
                     {
-                        if (ButtonVisible(b) && (b != Button.Ammo || AmmoAvailable) && (b != Button.Heal || HealAvailable) && Hit(b, p)) { f.Button = b; break; }
+                        if (ButtonVisible(b) && ButtonLive(b) && Hit(b, p)) { f.Button = b; break; }
                     }
                     if (f.Button == null)
                     {
@@ -148,6 +163,10 @@ namespace UA
                             case Button.Grenade: grenade = true; break;
                             case Button.Ammo: ammo = true; break;
                             case Button.Heal: heal = true; break;
+                            case Button.Pick: pick = true; break;
+                            case Button.Plant: plant = true; break;
+                            case Button.Detonate: detonate = true; break;
+                            case Button.Coord: coord = true; break;
                         }
                     }
                     fingers[t.fingerId] = f;
@@ -199,6 +218,10 @@ namespace UA
                 if (Input.GetKeyDown(KeyCode.G)) grenade = true;
                 if (Input.GetKeyDown(KeyCode.F)) ammo = true;
                 if (Input.GetKeyDown(KeyCode.H)) heal = true;
+                if (Input.GetKeyDown(KeyCode.E)) pick = true;
+                if (Input.GetKeyDown(KeyCode.B)) plant = true;
+                if (Input.GetKeyDown(KeyCode.V)) detonate = true;
+                if (Input.GetKeyDown(KeyCode.P)) coord = true;
                 if (Input.GetKeyDown(KeyCode.R)) reload = true;
                 if (Input.GetKeyDown(KeyCode.Q) || Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Alpha2)) swap = true;
                 if (Input.GetKey(KeyCode.Tab)) Held.Add(Button.Score);
@@ -233,6 +256,11 @@ namespace UA
             GrenadePressed = grenade;
             AmmoPressed = ammo;
             HealPressed = heal;
+            PickPressed = pick || SimPick;
+            PlantPressed = plant || SimPlant;
+            DetonatePressed = detonate || SimDetonate;
+            SimPick = SimPlant = SimDetonate = false;
+            CoordPressed = coord;
         }
     }
 }

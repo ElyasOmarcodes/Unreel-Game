@@ -17,7 +17,9 @@ namespace UA
         private float healEnd, nextGive;
         private byte healTarget;
         private Agent bloodMate;
-        private float nextThrow;
+        private float nextThrow, nextPick, nextBomb;
+        // the weapons last seen in the two slots (a new one from the ground comes with fresh magazines)
+        private byte seenPrimary = 255, seenSecondary = 255, seenPick;
         public bool Reloading => reloadEnd > 0;
         public float ReloadProgress => Reloading ? 1f - (reloadEnd - Time.time) / Current.ReloadTime : 0f;
         public float Spread { get; private set; }
@@ -58,12 +60,14 @@ namespace UA
             Controls.AmmoAvailable = false;
             Controls.AmmoFull = false;
             Controls.HealAvailable = false;
+            Controls.PickAvailable = Controls.PlantAvailable = Controls.DetonateAvailable = Controls.CoordAvailable = false;
             if (I == this) I = null;
         }
 
         public void OnRespawn()
         {
             Refill();
+            nextPick = nextBomb = 0f;
             Grenades = Grenade.PerLife;
             healEnd = 0;
             nextGive = 0;
@@ -84,6 +88,9 @@ namespace UA
         private void Refill()
         {
             if (agent == null || agent.State == null) return;
+            seenPrimary = agent.State.Primary;
+            seenSecondary = agent.State.Secondary;
+            seenPick = agent.State.PickSeq;
             for (int i = 0; i < 2; i++)
             {
                 var def = Weapons.Get(i == 0 ? agent.State.Primary : agent.State.Secondary);
@@ -102,6 +109,7 @@ namespace UA
             bool canMove = alive && (s.Phase == Phase.Playing || s.Phase == Phase.Countdown) && Controls.Enabled && !KillCam.Active;
             bool canShoot = alive && s.Phase == Phase.Playing && Controls.Enabled && !KillCam.Active;
             float dt = Time.deltaTime;
+            NewWeapons(state);
 
             // look
             if (Controls.Enabled)
@@ -229,6 +237,8 @@ namespace UA
             Controls.AmmoAvailable = atBox;
             Controls.AmmoFull = atBox && !NeedsSupplies;
             if (atBox && Controls.AmmoPressed) Resupply();
+            Advanced(s, state, alive && canShoot);
+            Debugging(s, rig);
 
             // spread for the crosshair and the next shot
             float moving = Mathf.Clamp01(velocity.magnitude / RunSpeed);
@@ -571,6 +581,92 @@ namespace UA
             Grenades = Grenade.Max;
             Sfx.Play(Weapons.ReloadSound(Current), 0.9f, 1.1f);
             App.I?.Toast("AMMO AND GRENADES REFILLED");
+        }
+
+        /// <summary>
+        /// A weapon taken from the ground (the host put it in the slot of the one in the hand): it comes with a
+        /// full magazine and two more. The same weapon taken again fills it up the same way.
+        /// </summary>
+        private void NewWeapons(PlayerState state)
+        {
+            if (state.Primary == seenPrimary && state.Secondary == seenSecondary && state.PickSeq == seenPick) return;
+            bool picked = state.PickSeq != seenPick;
+            for (int i = 0; i < 2; i++)
+            {
+                byte id = i == 0 ? state.Primary : state.Secondary;
+                byte was = i == 0 ? seenPrimary : seenSecondary;
+                if (id == was && !(picked && id == state.LastPicked && i == Slot)) continue;
+                var def = Weapons.Get(id);
+                Mag[i] = def.MagSize;
+                Reserve[i] = def.MagSize * 2;
+                if (i == Slot) { reloadEnd = 0; Aiming = false; nextFire = Time.time + 0.4f; }
+            }
+            seenPrimary = state.Primary;
+            seenSecondary = state.Secondary;
+            seenPick = state.PickSeq;
+        }
+
+        /// <summary>ADVANCED: PICK UP for what lies within reach, PLANT for a carried charge, DETONATE for the planted ones.</summary>
+        private void Advanced(Session s, PlayerState state, bool can)
+        {
+            var near = can && s.Advanced ? LootView.Nearest(transform.position) : null;
+            // a vest no better than the one worn is not offered
+            if (near != null && near.Kind == LootKind.Armor && state.Armor >= near.Item) near = null;
+            Controls.PickAvailable = near != null;
+            Controls.PickLabel = near != null ? LootView.Label(near) : "";
+            if (near != null && Controls.PickPressed && Time.time >= nextPick)
+            {
+                nextPick = Time.time + 0.35f;
+                s.ActionLocal(1, near.Id);
+                Sfx.Play(near.Kind == LootKind.Crate ? "reload" : Sfx.Has("dry_1") ? "dry_1" : "click", 0.8f, near.Kind == LootKind.Crate ? 0.7f : 1.1f);
+            }
+            Controls.PlantAvailable = can && s.Advanced && state.C4 > 0;
+            bool planted = false;
+            foreach (var c in s.Charges) if (c.Owner == s.LocalId) { planted = true; break; }
+            Controls.DetonateAvailable = can && planted;
+            if (Controls.PlantAvailable && Controls.PlantPressed && Time.time >= nextBomb) Plant(s);
+            if (Controls.DetonateAvailable && Controls.DetonatePressed && Time.time >= nextBomb)
+            {
+                nextBomb = Time.time + 0.6f;
+                s.ActionLocal(3);
+                Sfx.Play("click", 0.9f, 1.6f);
+            }
+        }
+
+        /// <summary>A charge on the wall or the ground the crosshair is on (within 3 m), else at the feet.</summary>
+        private void Plant(Session s)
+        {
+            nextBomb = Time.time + 0.8f;
+            var dir = CameraRig.I.AimRay().direction;
+            Vector3 at, normal;
+            if (Physics.Raycast(agent.Eye, dir, out var hit, 3f, World.EnvMask, QueryTriggerInteraction.Ignore)) { at = hit.point; normal = hit.normal; }
+            else if (Physics.Raycast(transform.position + Vector3.up * 0.5f, Vector3.down, out hit, 2f, World.EnvMask, QueryTriggerInteraction.Ignore)) { at = hit.point; normal = hit.normal; }
+            else return;
+            s.ActionLocal(2, 0, at, normal);
+            agent.PlayReload();
+            Sfx.Play(Sfx.Has("dry_1") ? "dry_1" : "click", 0.9f, 0.8f);
+        }
+
+        /// <summary>
+        /// Debug (switched on in the layout editor): the place under the crosshair, east (x), north (z) and
+        /// height, copied for a report of a fault in the map.
+        /// </summary>
+        private void Debugging(Session s, CameraRig rig)
+        {
+            Controls.CoordAvailable = Settings.DebugCoords && s.InMatch;
+            if (!Controls.CoordAvailable || !Controls.CoordPressed) return;
+            var ray = rig.AimRay();
+            if (!Physics.Raycast(ray, out var hit, 600f, World.EnvMask | (1 << World.FenceLayer), QueryTriggerInteraction.Ignore)) { App.I?.Toast("NOTHING UNDER THE CROSSHAIR"); return; }
+            var p = hit.point;
+            int map = s.Config.Map;
+            string name = map >= 0 && map < MatchConfig.MapNames.Length ? MatchConfig.MapNames[map] : "MAP " + map;
+            string text = $"{name}  E={p.x:0.0}  N={p.z:0.0}  H={p.y:0.0}";
+            // Steel City is lifted in the world: its own height too (the map's documents use it)
+            if (World.LayoutOf(map) == World.CityLordLayout) text += $"  (map H={p.y - 12.922f:0.0})";
+            text += $"  [{hit.collider.name}]";
+            GUIUtility.systemCopyBuffer = text;
+            App.Log("coord " + text);
+            App.I?.Toast("COPIED: " + text);
         }
 
         /// <summary>A kill gives back one magazine for both weapons and a grenade (up to 3).</summary>

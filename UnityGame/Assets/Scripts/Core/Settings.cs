@@ -141,6 +141,8 @@ namespace UA
         public static bool AimAssist { get => PlayerPrefs.GetInt("aimAssist", 1) == 1; set => PlayerPrefs.SetInt("aimAssist", value ? 1 : 0); }
         public static float ControlsOpacity { get => PlayerPrefs.GetFloat("ctrlAlpha", 1f); set => PlayerPrefs.SetFloat("ctrlAlpha", Mathf.Clamp(value, 0.3f, 1.5f)); }
         public static bool ShowFps { get => PlayerPrefs.GetInt("fps", 0) == 1; set => PlayerPrefs.SetInt("fps", value ? 1 : 0); }
+        /// <summary>Debug: a button on the battle screen that copies the place under the crosshair (switched on by a hidden tap in the layout editor).</summary>
+        public static bool DebugCoords { get => PlayerPrefs.GetInt("debug_coords", 0) == 1; set { PlayerPrefs.SetInt("debug_coords", value ? 1 : 0); PlayerPrefs.Save(); } }
         public static byte Primary { get => (byte)PlayerPrefs.GetInt("primary", 0); set => PlayerPrefs.SetInt("primary", value); }
         public static byte Secondary { get => (byte)PlayerPrefs.GetInt("secondary", 4); set => PlayerPrefs.SetInt("secondary", value); }
         /// <summary>The team number this player plays in: 0 alone (the default), 1 .. 10 with whoever picks the same.</summary>

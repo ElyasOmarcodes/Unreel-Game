@@ -214,6 +214,20 @@ RELOAD|پرکردن|تعبئة|RECARGAR
 SWAP|تعویض|تبديل|CAMBIAR
 PRONE|درازکش|انبطاح|TUMBARSE
 AMMO|مهمات|ذخيرة|MUNICIÓN
+GAME TYPE|نوع بازی|نوع اللعبة|TIPO DE JUEGO
+SIMPLE|ساده|بسيط|SIMPLE
+ADVANCED|پیشرفته|متقدم|AVANZADO
+PICK UP|بردار|التقط|RECOGER
+OPEN CRATE|باز کردن جعبه|افتح الصندوق|ABRIR CAJA
+LIGHT VEST|جلیقه سبک|سترة خفيفة|CHALECO LIGERO
+HEAVY VEST|جلیقه سنگین|سترة ثقيلة|CHALECO PESADO
+VEST|جلیقه|السترة|CHALECO
+DETONATE|انفجار|تفجير|DETONAR
+PLACE|مکان|المكان|LUGAR
+FUEL DRUM|بشکه سوخت|برميل وقود|BIDÓN
+DEBUG: PLACE BUTTON ON|اشکال زدایی: دکمه مکان روشن|التصحيح: زر المكان يعمل|DEPURACIÓN: BOTÓN DE LUGAR ACTIVADO
+DEBUG: PLACE BUTTON OFF|اشکال زدایی: دکمه مکان خاموش|التصحيح: زر المكان متوقف|DEPURACIÓN: BOTÓN DE LUGAR DESACTIVADO
+NOTHING UNDER THE CROSSHAIR|زیر نشانه چیزی نیست|لا شيء تحت التصويب|NADA BAJO LA MIRA
 BLOOD|خون|دم|SANGRE
 GRENADE|نارنجک|قنبلة|GRANADA
 HEADSHOT!|شلیک به سر!|في الرأس!|¡A LA CABEZA!

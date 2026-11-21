@@ -70,6 +70,7 @@ namespace UA
         {
             I = this;
             agentPrefabs = new[] { Resources.Load<GameObject>("Agent") };
+            LootView.Ensure();
             ApplyLighting(0);
         }
 

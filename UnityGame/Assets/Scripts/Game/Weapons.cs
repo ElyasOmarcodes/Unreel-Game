@@ -77,6 +77,9 @@ namespace UA
 
         /// <summary>Not a gun: used for kill feed and damage rules of frag grenades.</summary>
         public static readonly WeaponDef Grenade = new WeaponDef { Id = 20, Name = "GRENADE", Primary = true, Damage = 100, HeadMultiplier = 1f };
+        /// <summary>Not guns either: a fuel drum that was shot, a remote charge (kill feed and damage rules).</summary>
+        public static readonly WeaponDef Barrel = new WeaponDef { Id = 21, Name = "FUEL DRUM", Primary = true, Damage = 100, HeadMultiplier = 1f };
+        public static readonly WeaponDef C4 = new WeaponDef { Id = 22, Name = "C4", Primary = true, Damage = 100, HeadMultiplier = 1f };
 
         /// <summary>The recorded reload of the weapon's kind (rifle, pistol, shotgun), or the old generic one.</summary>
         public static string ReloadSound(WeaponDef def)
@@ -85,7 +88,7 @@ namespace UA
             return Sfx.Has(name) ? name : "reload";
         }
 
-        public static WeaponDef Get(int id) => id == Grenade.Id ? Grenade : All[Mathf.Clamp(id, 0, All.Length - 1)];
+        public static WeaponDef Get(int id) => id == Grenade.Id ? Grenade : id == Barrel.Id ? Barrel : id == C4.Id ? C4 : All[Mathf.Clamp(id, 0, All.Length - 1)];
     }
 
     /// <summary>Deterministic shot directions, so host and clients compute the same shotgun pellets.</summary>

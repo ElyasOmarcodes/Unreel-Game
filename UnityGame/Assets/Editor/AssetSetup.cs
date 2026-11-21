@@ -81,6 +81,7 @@ public static class AssetSetup
         AssetDatabase.DeleteAsset("Assets/Resources/Agent_F.prefab");
         BuildGunLineup();
         BuildWeaponPrefabs();
+        LootAssets.Build();
         AssetDatabase.SaveAssets();
     }
 

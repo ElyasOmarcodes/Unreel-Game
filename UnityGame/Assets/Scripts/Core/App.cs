@@ -384,6 +384,7 @@ namespace UA
         {
             PlayerPrefs.SetInt("draft_minutes", Draft.Minutes);
             PlayerPrefs.SetInt("draft_skill", Draft.BotSkill);
+            PlayerPrefs.SetInt("draft_kind", Draft.Kind);
             if (DraftPractice) PlayerPrefs.SetInt("draft_bots", Draft.Bots);
             if (Draft.GroupName != "Group") PlayerPrefs.SetString("draft_group", Draft.GroupName);
             PlayerPrefs.Save();
@@ -398,6 +399,7 @@ namespace UA
             // the map is not kept: after a start of the game the list begins again at its first map
             Draft.Minutes = (byte)Mathf.Clamp(PlayerPrefs.GetInt("draft_minutes", Draft.Minutes), 1, 60);
             Draft.BotSkill = (byte)Mathf.Clamp(PlayerPrefs.GetInt("draft_skill", Draft.BotSkill), 0, 2);
+            Draft.Kind = (byte)Mathf.Clamp(PlayerPrefs.GetInt("draft_kind", 0), 0, 1);
             Draft.GroupName = PlayerPrefs.GetString("draft_group", Draft.GroupName);
         }
 
@@ -424,8 +426,8 @@ namespace UA
         {
             var s = MakeScreen("create");
             createTitle = UIKit.Title(s, "CREATE GROUP", -40, 66);
-            var panel = UIKit.Panel(s, 1180, 800, -40);
-            var nameRow = UIKit.Node(panel, "NameRow").At(0.5f, 1f, 0, -30, 1080, 84, 0.5f, 1f);
+            var panel = UIKit.Panel(s, 1180, 800, -20);
+            var nameRow = UIKit.Node(panel, "NameRow").At(0.5f, 1f, 0, -26, 1080, 84, 0.5f, 1f);
             var nameLabel = UIKit.Txt(nameRow, "GROUP NAME", 34, TextAnchor.MiddleLeft, UIKit.Muted);
             nameLabel.rectTransform.Fill();
             nameLabel.rectTransform.offsetMin = new Vector2(30, 0);
@@ -433,7 +435,7 @@ namespace UA
             groupNameField.GetComponent<RectTransform>().At(1f, 0.5f, -20, 0, 560, 74, 1f, 0.5f);
             groupNameField.onEndEdit.AddListener(v => Draft.GroupName = Settings.Clean(v, 24));
             // optional password: only friends who know it can join
-            var passRow = UIKit.Node(panel, "PasswordRow").At(0.5f, 1f, 0, -510, 1080, 84, 0.5f, 1f);
+            var passRow = UIKit.Node(panel, "PasswordRow").At(0.5f, 1f, 0, -576, 1080, 84, 0.5f, 1f);
             passwordRow = passRow.gameObject;
             var passBg = UIKit.Img(passRow, new Color(1, 1, 1, 0.04f), UIKit.Rounded);
             passBg.rectTransform.Fill();
@@ -447,26 +449,32 @@ namespace UA
             byte[] minutes = { 3, 5, 8, 10, 15, 20, 30, 45, 60 };
             // TEAM NUMBER: one number, 0 by default = everyone fights alone; the players who pick the same
             // number (here, when joining or in the lobby) are one team; MAP and TIME OF DAY apart; no player limit
-            UIKit.Stepper(panel, "TEAM NUMBER", -130, () => TeamLabel(Settings.Team), d =>
+            // GAME TYPE: SIMPLE, everyone with the weapons they chose; ADVANCED, two pistols and the rest found on the map
+            UIKit.Stepper(panel, "GAME TYPE", -116, () => MatchConfig.KindNames[Draft.Kind % 2], d =>
+            {
+                Draft.Kind = (byte)((Draft.Kind + 1) % 2);
+                SaveDraft();
+            }, 1080);
+            UIKit.Stepper(panel, "TEAM NUMBER", -208, () => TeamLabel(Settings.Team), d =>
             {
                 Settings.Team = (byte)((Settings.Team + d + MatchConfig.MaxTeams + 1) % (MatchConfig.MaxTeams + 1));
                 Draft.Mode = Settings.Team > 0 ? Mode.TeamDeathmatch : Mode.FreeForAll;
                 PlayerPrefs.Save();
             }, 1080);
-            UIKit.Stepper(panel, "MAP", -225, () => MatchConfig.MapTitles[MapSlot(Draft.Map)], d =>
+            UIKit.Stepper(panel, "MAP", -300, () => MatchConfig.MapTitles[MapSlot(Draft.Map)], d =>
             {
                 int slot = (MapSlot(Draft.Map) + MatchConfig.MapOrder.Length + d) % MatchConfig.MapOrder.Length;
                 Draft.Map = (byte)(MatchConfig.MapOrder[slot] + Draft.Map % 3);
                 World.I?.ApplyLighting(Draft.Map);   // the map behind the menu changes with the choice
                 SaveDraft();
             }, 1080);
-            UIKit.Stepper(panel, "TIME OF DAY", -320, () => MatchConfig.TimeNames[Draft.Map % 3], d =>
+            UIKit.Stepper(panel, "TIME OF DAY", -392, () => MatchConfig.TimeNames[Draft.Map % 3], d =>
             {
                 Draft.Map = (byte)(Draft.Map - Draft.Map % 3 + (Draft.Map % 3 + 3 + d) % 3);
                 World.I?.ApplyLighting(Draft.Map);
                 SaveDraft();
             }, 1080);
-            UIKit.Stepper(panel, "MATCH TIME", -415, () => Draft.Minutes + " " + Loc.T("MIN"), d =>
+            UIKit.Stepper(panel, "MATCH TIME", -484, () => Draft.Minutes + " " + Loc.T("MIN"), d =>
             {
                 int i = System.Array.IndexOf(minutes, Draft.Minutes);
                 Draft.Minutes = minutes[Mathf.Clamp((i < 0 ? 1 : i) + d, 0, minutes.Length - 1)];
@@ -474,8 +482,8 @@ namespace UA
             }, 1080);
             botRows = new[]
             {
-                UIKit.Stepper(panel, "BOTS", -510, () => Draft.Bots == 0 ? "NONE" : Draft.Bots.ToString(), d => { Draft.Bots = (byte)Mathf.Clamp(Draft.Bots + d, 0, 9); SaveDraft(); }, 1080).transform.parent.gameObject,
-                UIKit.Stepper(panel, "BOT SKILL", -605, () => MatchConfig.SkillNames[Draft.BotSkill], d => { Draft.BotSkill = (byte)Mathf.Clamp(Draft.BotSkill + d, 0, 2); SaveDraft(); }, 1080).transform.parent.gameObject,
+                UIKit.Stepper(panel, "BOTS", -576, () => Draft.Bots == 0 ? "NONE" : Draft.Bots.ToString(), d => { Draft.Bots = (byte)Mathf.Clamp(Draft.Bots + d, 0, 9); SaveDraft(); }, 1080).transform.parent.gameObject,
+                UIKit.Stepper(panel, "BOT SKILL", -668, () => MatchConfig.SkillNames[Draft.BotSkill], d => { Draft.BotSkill = (byte)Mathf.Clamp(Draft.BotSkill + d, 0, 2); SaveDraft(); }, 1080).transform.parent.gameObject,
             };
             var back = UIKit.Btn(s, "BACK", Back, 36, null, "arrow_back");
             back.GetComponent<RectTransform>().At(0.5f, 0f, -300, 50, 380, 96, 0.5f, 0f);
@@ -497,7 +505,7 @@ namespace UA
             var config = new MatchConfig
             {
                 GroupName = Draft.GroupName, Mode = Draft.Mode, Map = Draft.Map, Minutes = Draft.Minutes,
-                MaxPlayers = 255, Bots = Draft.Bots, BotSkill = Draft.BotSkill,
+                MaxPlayers = 255, Bots = Draft.Bots, BotSkill = Draft.BotSkill, Kind = Draft.Kind,
                 Password = DraftPractice ? "" : passwordField.text.Trim(),
             };
             if (!Session.I.Host(config, DraftPractice, Settings.Team))
@@ -711,7 +719,7 @@ namespace UA
                 return;
             }
             lobbyTitle.text = s.Practice ? Loc.T("PRACTICE") : Rtl.Shape(s.Config.GroupName.ToUpperInvariant());
-            lobbyInfo.text = $"{Loc.T(tdm ? "TEAMS" : "EVERYONE ALONE")}   -   {Loc.T(MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length])}   -   {s.Config.Minutes} {Loc.T("MIN")}   -   "
+            lobbyInfo.text = $"{Loc.T(tdm ? "TEAMS" : "EVERYONE ALONE")}   -   {Loc.T(MatchConfig.KindNames[s.Config.Kind % 2])}   -   {Loc.T(MatchConfig.MapNames[s.Config.Map % MatchConfig.MapNames.Length])}   -   {s.Config.Minutes} {Loc.T("MIN")}   -   "
                 + Loc.Pair("BOTS", $"{s.Config.Bots} ({Loc.T(MatchConfig.SkillNames[s.Config.BotSkill % 3])})");
             lobbyIp.text = s.Practice ? Loc.T("Only you and the bots - no network used") :
                 s.IsHost ? Loc.Pair("Friends: JOIN GROUP, or type this IP", s.HostAddresses.Length > 0 ? s.HostAddresses : Loc.T("(no Wi-Fi found)"))

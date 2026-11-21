@@ -56,7 +56,7 @@ namespace UA
         public void OnRespawn()
         {
             target = null;
-            mag = Weapons.Get(agent.State.Primary).MagSize;
+            mag = Weapons.Get(Best(agent.State)).MagSize;
             grenades = Grenade.PerLife;
             nextGrenade = Time.time + Random.Range(4f, 10f);
             yaw = agent.State.Yaw;
@@ -80,8 +80,11 @@ namespace UA
             if (s == null || st == null || world == null || !st.Alive || !cc.enabled) return;
             float dt = Time.deltaTime;
             bool playing = s.Phase == Phase.Playing && !KillCam.Active;
-            var def = Weapons.Get(st.Primary);
+            // the better of its two weapons (ADVANCED: what it found on the map)
+            var def = Weapons.Get(Best(st));
+            if (def.Id != st.Weapon) { mag = def.MagSize; reloadEnd = 0; }
             st.Weapon = def.Id;
+            if (playing && s.Advanced && target == null && Time.time >= nextLoot) TakeLoot(s);
             // nobody in the sights and a badly wounded team mate next to it: blood for the team mate
             if (playing && target == null && Time.time >= nextHeal && st.Team > 0)
             {
@@ -208,8 +211,9 @@ namespace UA
                 if (path.Count == 0 && Time.time >= pauseUntil)
                 {
                     int from = Nearest(world, transform.position);
-                    goal = mode == Mode.Hunt ? Nearest(world, lastKnown) : PatrolGoal(s, world, from);
-                    run = mode == Mode.Hunt || Random.value < 0.45f;
+                    int lootGoal = mode == Mode.Hunt ? -1 : LootGoal(s, world);
+                    goal = mode == Mode.Hunt ? Nearest(world, lastKnown) : lootGoal >= 0 ? lootGoal : PatrolGoal(s, world, from);
+                    run = lootGoal >= 0 || mode == Mode.Hunt || Random.value < 0.45f;
                     if (from >= 0 && goal >= 0) FindPath(world, from, goal);
                 }
                 if (Time.time < pauseUntil)
@@ -352,6 +356,60 @@ namespace UA
                 clear = i;
             }
             return clear >= 0 ? clear : nearest;
+        }
+
+        private float nextLoot;
+
+        /// <summary>How good a weapon is for a bot: rifles, snipers and the machine gun 2, the shotgun 1.5, sub-machine guns 1, pistols 0.</summary>
+        private static float Rank(int id)
+        {
+            var d = Weapons.Get(id);
+            if (d.Pellets > 1) return 1.5f;
+            if (d.Primary) return d.Auto || d.Scope ? 2f : 1.5f;
+            return d.Auto ? 1f : 0f;
+        }
+
+        private static byte Best(PlayerState st) => Rank(st.Secondary) > Rank(st.Primary) ? st.Secondary : st.Primary;
+
+        /// <summary>ADVANCED: what the bot would like from the ground (a real weapon while it has only pistols, a crate, a better vest).</summary>
+        private LootItem Wanted(Session s, float reach)
+        {
+            var st = agent.State;
+            bool needGun = Rank(Best(st)) < 2f;
+            LootItem best = null;
+            float bestD = reach;
+            foreach (var l in s.Loot)
+            {
+                float d = Vector3.Distance(l.Pos, transform.position);
+                if (d >= bestD) continue;
+                bool want = l.Kind == LootKind.Weapon && needGun && Rank(l.Item) > Rank(Best(st))
+                            || l.Kind == LootKind.Crate && d < Mathf.Min(reach, 30f)
+                            || l.Kind == LootKind.Armor && l.Item > st.Armor && st.Armor < 50 && d < Mathf.Min(reach, 25f);
+                if (!want) continue;
+                bestD = d;
+                best = l;
+            }
+            return best;
+        }
+
+        private int LootGoal(Session s, World world)
+        {
+            if (!s.Advanced) return -1;
+            var l = Wanted(s, 45f);
+            return l != null ? Nearest(world, l.Pos) : -1;
+        }
+
+        /// <summary>Within reach of something it wants: takes it (a crate is opened, its content taken the next time).</summary>
+        private void TakeLoot(Session s)
+        {
+            nextLoot = Time.time + 0.4f;
+            var l = Wanted(s, Session.PickReach);
+            if (l == null) return;
+            if (s.BotPickup(agent.Id, l.Id))
+            {
+                agent.PlayReload();
+                path.Clear();
+            }
         }
 
         /// <summary>

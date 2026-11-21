@@ -42,8 +42,27 @@ namespace UA
             { Controls.Button.Reload, ("autorenew", "RELOAD") }, { Controls.Button.Swap, ("swap_horiz", "SWAP") },
             { Controls.Button.Pause, ("pause", "STOP") }, { Controls.Button.Score, ("leaderboard", "RANK") },
             { Controls.Button.Grenade, ("grenade", "GRENADE") }, { Controls.Button.Ammo, ("ammo", "AMMO") },
-            { Controls.Button.Heal, ("bloodtype", "BLOOD") },
+            { Controls.Button.Heal, ("bloodtype", "BLOOD") }, { Controls.Button.Pick, ("touch_app", "PICK UP") },
+            { Controls.Button.Plant, ("c4", "C4") }, { Controls.Button.Detonate, ("flash_on", "DETONATE") },
+            { Controls.Button.Coord, ("my_location", "PLACE") },
         };
+
+        /// <summary>
+        /// The hidden switch of the debug PLACE button: seven quick taps on the help line at the top of the
+        /// layout editor turn it on (or off again).
+        /// </summary>
+        private class SecretTaps : MonoBehaviour, IPointerClickHandler
+        {
+            public System.Action Done;
+            private int count;
+            private float last;
+            public void OnPointerClick(PointerEventData e)
+            {
+                count = Time.unscaledTime - last < 0.6f ? count + 1 : 1;
+                last = Time.unscaledTime;
+                if (count >= 7) { count = 0; Done?.Invoke(); }
+            }
+        }
 
         private void BuildLayoutEditor()
         {
@@ -52,6 +71,13 @@ namespace UA
             layoutSelected = null;
             var hint = UIKit.Txt(s, "Drag a button to move it.  Select it and use  -  /  +  to resize,  HIDE to remove it.", 30, TextAnchor.MiddleCenter, UIKit.TextColor).Shadowed();
             hint.rectTransform.At(0.5f, 1f, 0, -40, 1700, 50, 0.5f, 1f);
+            hint.raycastTarget = true;
+            hint.gameObject.AddComponent<SecretTaps>().Done = () =>
+            {
+                Settings.DebugCoords = !Settings.DebugCoords;
+                Toast(Settings.DebugCoords ? "DEBUG: PLACE BUTTON ON" : "DEBUG: PLACE BUTTON OFF");
+                LoadLayout();
+            };
             // fake stick area
             var stick = UIKit.Img(s, new Color(1, 1, 1, 0.08f), UIKit.Circle);
             stick.rectTransform.At(0f, 0f, 260, 250, Controls.StickRadius * 2, Controls.StickRadius * 2);
@@ -124,6 +150,8 @@ namespace UA
                 float r = Controls.ButtonRadius(item.Button);
                 item.Rect.At(0f, 0f, Controls.ButtonCenter(item.Button).x, Controls.ButtonCenter(item.Button).y, r * 2, r * 2);
                 item.Image.color = new Color(1, 1, 1, item.Visible ? 0.25f : 0.06f);
+                // the debug button is only there while it is switched on
+                item.Rect.gameObject.SetActive(item.Button != Controls.Button.Coord || Settings.DebugCoords);
             }
             layoutSelected = null;
             layoutInfo.text = "";

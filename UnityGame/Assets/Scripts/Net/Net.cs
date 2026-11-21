@@ -17,6 +17,7 @@ namespace UA
         Input = 5,
         Leave = 6,
         Kicked = 7,
+        WorldState = 8,
         Query = 20,
         Announce = 21,
     }

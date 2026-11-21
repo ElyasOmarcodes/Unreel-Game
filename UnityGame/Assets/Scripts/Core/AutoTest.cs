@@ -450,7 +450,165 @@ namespace UA
             yield return Wait(8f); // give the client time to see the results too
             app.LeaveGroup();
             yield return Wait(1f);
+            yield return AdvancedTest();
             yield return Tour();
+        }
+
+        // ---------------------------------------------------------------- the ADVANCED game
+        // A practice match on Steel City: the pistols at the start, a weapon taken from the ground, a crate
+        // opened, a fuel drum shot until it blows up, a C4 charge planted and set off, a grenade's blast, the
+        // vest bar, and a bot standing far off (the rim light and the red mark over it).
+
+        private static void Stand(Agent me, Vector3 at, Vector3 lookAt)
+        {
+            var d = lookAt - at;
+            float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+            me.Teleport(at, yaw);
+            CameraRig.I.Yaw = yaw;
+            CameraRig.I.Pitch = 0f;
+        }
+
+        /// <summary>Turns the camera so the crosshair is on the point (the shots go along it).</summary>
+        private static void AimAt(Vector3 point)
+        {
+            var cam = CameraRig.I.Cam.transform.position;
+            var d = (point - cam).normalized;
+            CameraRig.I.Yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+            CameraRig.I.Pitch = Mathf.Asin(Mathf.Clamp(d.y, -1f, 1f)) * Mathf.Rad2Deg;
+        }
+
+        /// <summary>A walkable place 'near' to 'far' metres from a point, with a clear view of it.</summary>
+        private static Vector3? Viewpoint(Vector3 target, float near, float far)
+        {
+            foreach (var w in World.I.Waypoints.OrderBy(w => Mathf.Abs(Vector3.Distance(w, target) - (near + far) / 2f)))
+            {
+                float d = Vector3.Distance(w, target);
+                if (d < near || d > far) continue;
+                if (!Physics.Linecast(w + Vector3.up * 1.6f, target + Vector3.up * 0.5f, World.EnvMask, QueryTriggerInteraction.Ignore)) return w;
+            }
+            return null;
+        }
+
+        private IEnumerator AdvancedTest()
+        {
+            var app = App.I;
+            var s = Session.I;
+            app.OpenCreate(true);
+            app.Draft.Kind = 1;
+            app.Draft.Map = 0;
+            app.Draft.Minutes = 5;
+            app.Draft.Bots = 2;
+            app.Draft.BotSkill = 0;
+            yield return Wait(0.6f);
+            yield return Shot("16-advanced-create");
+            app.CreateFromDraft();
+            yield return Until(() => app.Current == "lobby", 5);
+            yield return Until(() => World.I != null && World.I.MapReady, 40);
+            yield return Wait(1f);
+            s.StartMatch();
+            yield return Until(() => s.Phase == Phase.Playing, 10);
+            yield return Wait(1.2f);
+            App.Log($"advanced: {s.Loot.Count} things, {s.Barrels.Count} drums");
+            yield return Shot("16a-advanced-start");
+            if (!World.I.Agents.TryGetValue(s.LocalId, out var me) || me == null) yield break;
+            // a weapon from the ground
+            var gun = s.Loot.Where(l => l.Kind == LootKind.Weapon).OrderBy(l => (l.Pos - me.transform.position).sqrMagnitude).FirstOrDefault();
+            if (gun != null)
+            {
+                Stand(me, gun.Pos + new Vector3(1.3f, 0.05f, 0.6f), gun.Pos);
+                CameraRig.I.Pitch = -24f;
+                yield return Wait(0.8f);
+                yield return Shot("16b-loot-weapon");
+                Controls.SimPick = true;
+                yield return Wait(0.8f);
+                App.Log($"advanced: weapons now {s.Local.Primary} / {s.Local.Secondary}");
+                yield return Shot("16c-picked-weapon");
+            }
+            // a crate, opened
+            var crate = s.Loot.Where(l => l.Kind == LootKind.Crate).OrderBy(l => (l.Pos - me.transform.position).sqrMagnitude).FirstOrDefault();
+            if (crate != null)
+            {
+                Stand(me, crate.Pos + new Vector3(1.5f, 0.05f, -0.8f), crate.Pos);
+                CameraRig.I.Pitch = -20f;
+                yield return Wait(0.8f);
+                yield return Shot("16d-crate");
+                Controls.SimPick = true;
+                yield return Wait(0.8f);
+                yield return Shot("16e-crate-opened");
+            }
+            // a fuel drum, shot until it goes off
+            var drum = s.Barrels.FirstOrDefault(b => b.Alive && Viewpoint(b.Pos, 7f, 13f) != null);
+            if (drum != null)
+            {
+                var from = Viewpoint(drum.Pos, 7f, 13f).Value;
+                Stand(me, from, drum.Pos);
+                yield return Wait(0.6f);
+                AimAt(drum.Pos + Vector3.up * 0.5f);
+                yield return Wait(0.3f);
+                yield return Shot("16f-drum");
+                float until = Time.realtimeSinceStartup + 3f;
+                while (drum.Alive && Time.realtimeSinceStartup < until)
+                {
+                    AimAt(drum.Pos + Vector3.up * 0.5f);
+                    Controls.SimFire = true;
+                    yield return null;
+                }
+                Controls.SimFire = false;
+                yield return Wait(0.12f);
+                yield return Shot("16g-drum-blast");
+                yield return Wait(0.45f);
+                yield return Shot("16h-drum-blast-2");
+                yield return Wait(1.6f);
+                yield return Shot("16i-drum-burning");
+            }
+            // C4: two charges given, one planted at the feet, set off from a distance
+            if (s.Local != null) s.Local.C4 = 2;
+            yield return Wait(0.3f);
+            CameraRig.I.Pitch = -70f;
+            Controls.SimPlant = true;
+            yield return Wait(0.8f);
+            var charge = s.Charges.FirstOrDefault(c => c.Owner == s.LocalId);
+            if (charge != null)
+            {
+                var view = Viewpoint(charge.Pos, 9f, 15f) ?? charge.Pos + new Vector3(10f, 0f, 0f);
+                Stand(me, view, charge.Pos);
+                yield return Wait(0.5f);
+                AimAt(charge.Pos);
+                yield return Wait(0.3f);
+                yield return Shot("16j-c4-planted");
+                Controls.SimDetonate = true;
+                yield return Wait(0.2f);
+                yield return Shot("16k-c4-blast");
+                yield return Wait(0.6f);
+                yield return Shot("16l-c4-blast-2");
+            }
+            // a grenade's blast up close
+            CameraRig.I.Pitch = -6f;
+            Controls.SimGrenade = true;
+            yield return Wait(3.15f);
+            yield return Shot("16m-grenade-blast");
+            // the vest bar
+            if (s.Local != null) s.Local.Armor = 100;
+            yield return Wait(0.4f);
+            yield return Shot("16n-vest-bar");
+            // a bot far off, in plain sight: the rim of light and the red mark
+            var bot = World.I.Agents.Values.FirstOrDefault(a => a != null && a.State != null && a.State.IsBot && a.State.Alive);
+            if (bot != null)
+            {
+                var spot = World.I.Waypoints.Where(w => Vector3.Distance(w, me.transform.position) > 30f && Vector3.Distance(w, me.transform.position) < 55f
+                    && !Physics.Linecast(me.transform.position + Vector3.up * 1.7f, w + Vector3.up * 1.5f, World.EnvMask, QueryTriggerInteraction.Ignore)).DefaultIfEmpty(Vector3.zero).First();
+                if (spot != Vector3.zero)
+                {
+                    bot.Teleport(spot, 0f);
+                    bot.State.Pos = spot;
+                    yield return Wait(0.1f);
+                    AimAt(bot.transform.position + Vector3.up * 1.2f);
+                    yield return Wait(0.3f);
+                    yield return Shot("16o-far-enemy");
+                }
+            }
+            app.LeaveGroup();
+            yield return Wait(1f);
         }
 
         // ---------------------------------------------------------------- videos

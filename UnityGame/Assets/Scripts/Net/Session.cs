@@ -20,6 +20,9 @@ namespace UA
         public byte MaxPlayers = 255;   // no limit: as many as want to join
         public byte Bots = 2;
         public byte BotSkill = 1;
+        /// <summary>0 SIMPLE (each with the weapons they chose), 1 ADVANCED (two pistols, the rest found on the map).</summary>
+        public byte Kind;
+        public static readonly string[] KindNames = { "SIMPLE", "ADVANCED" };
         public string Password = "";   // host only, never sent: joiners must type it (empty = open group)
 
         public static readonly string[] MapNames =
@@ -58,13 +61,13 @@ namespace UA
 
         public void Write(BinaryWriter w)
         {
-            w.Write(GroupName); w.Write((byte)Mode); w.Write(Map); w.Write(Minutes); w.Write(MaxPlayers); w.Write(Bots); w.Write(BotSkill);
+            w.Write(GroupName); w.Write((byte)Mode); w.Write(Map); w.Write(Minutes); w.Write(MaxPlayers); w.Write(Bots); w.Write(BotSkill); w.Write(Kind);
         }
 
         public void Read(BinaryReader r)
         {
             GroupName = r.ReadString(); Mode = (Mode)r.ReadByte(); Map = r.ReadByte(); Minutes = r.ReadByte();
-            MaxPlayers = r.ReadByte(); Bots = r.ReadByte(); BotSkill = r.ReadByte();
+            MaxPlayers = r.ReadByte(); Bots = r.ReadByte(); BotSkill = r.ReadByte(); Kind = r.ReadByte();
         }
     }
 
@@ -87,13 +90,18 @@ namespace UA
         public ushort Hits;
         public ushort Shots, ShotHits, Heads, DamageDone;   // this match, for the results table
         public bool Spawned;   // placed in this match: only then is the body shown (never dead in the air at 0,0,0)
+        /// <summary>ADVANCED: the vest's points (0 none, 50 light, 100 heavy), the C4 charges carried.</summary>
+        public byte Armor, C4;
+        /// <summary>Counts the weapons taken from the ground (the player fills the new one's magazines when it changes).</summary>
+        public byte PickSeq, LastPicked;
+        public byte LobbyPrimary = 255, LobbySecondary = 255;   // host: the chosen loadout, back after an ADVANCED match
 
         // host side only
         public IPEndPoint EndPoint;
         public int Token;
         public float LastSeen;
         public float RespawnAt;
-        public int LastShotSeq, LastThrowSeq, LastHealSeq;
+        public int LastShotSeq, LastThrowSeq, LastHealSeq, LastActionSeq;
         public float LastDamageTime;
     }
 
@@ -117,12 +125,12 @@ namespace UA
     /// snapshot packets; clients own their own movement and send it with their shots. Plain UDP, no
     /// internet needed: works on a shared Wi-Fi or on one phone's hotspot.
     /// </summary>
-    public class Session : MonoBehaviour
+    public partial class Session : MonoBehaviour
     {
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 13;
+        public const byte Version = 14;
         public const byte NoPlayer = 255;
         public const string PasswordNeeded = "This group is locked: type its password";
         public const string WrongPassword = "Wrong password for this group";
@@ -269,6 +277,7 @@ namespace UA
             pendingHeals.Clear();
             healRing.Clear();
             Grenade.ClearAll();
+            ClearLoot();
             killInit = fxInit = nadeInit = healInit = false;
             Array.Clear(TeamScore, 0, TeamScore.Length);
             Phase = Phase.Lobby;
@@ -398,6 +407,7 @@ namespace UA
                     break;
                 case Msg.Lobby: if (joined) ClientOnLobby(r); break;
                 case Msg.Snapshot: if (joined) ClientOnSnapshot(r); break;
+                case Msg.WorldState: if (joined) ClientOnWorld(r); break;
                 case Msg.Kicked: Disconnect(r.ReadString()); break;
             }
         }
@@ -434,6 +444,7 @@ namespace UA
                         if (!p.Alive && now >= p.RespawnAt) Respawn(p);
                         if (p.Alive && p.Health < 100 && now - p.LastDamageTime > 5f) p.Health = Mathf.Min(100, p.Health + 12f * dt);
                     }
+                    HostLootTick(now);
                     if (TimeLeft <= 0) EndMatch();   // a match lasts its whole time, however many kills
                     break;
                 case Phase.Ended:
@@ -525,6 +536,8 @@ namespace UA
             BalanceBots();
             foreach (var p in Players.Values)
             {
+                p.LobbyPrimary = p.Primary;
+                p.LobbySecondary = p.Secondary;
                 p.Kills = p.Deaths = 0;
                 p.Shots = p.ShotHits = p.Heads = p.DamageDone = 0;
                 Respawn(p);
@@ -564,7 +577,13 @@ namespace UA
         public void BackToLobby()
         {
             if (!IsHost) return;
-            foreach (var p in Players.Values) p.Alive = false;
+            foreach (var p in Players.Values)
+            {
+                p.Alive = false;
+                // after an ADVANCED match everyone has the weapons they had chosen again
+                if (p.LobbyPrimary != 255) { p.Primary = p.LobbyPrimary; p.Secondary = p.LobbySecondary; p.Weapon = p.Primary; }
+                p.Armor = p.C4 = 0;
+            }
             SetPhase(Phase.Lobby);
         }
 
@@ -574,6 +593,10 @@ namespace UA
             Phase = phase;
             if (phase == Phase.Countdown) MatchNumber++;
             if (phase != Phase.Playing) Grenade.ClearAll();
+            // the map's loot is laid out at the countdown (host), and goes with the match
+            if (phase == Phase.Countdown && IsHost) SetupLoot();
+            if (phase == Phase.Lobby || phase == Phase.Ended) ClearLoot();
+            if (phase == Phase.Lobby && !IsHost && Local != null) { Local.Primary = Settings.Primary; Local.Secondary = Settings.Secondary; }
             if (phase == Phase.Lobby) foreach (var p in Players.Values) p.Spawned = false;
             App.Log("phase=" + phase);
             PhaseChanged?.Invoke(phase);
@@ -591,6 +614,7 @@ namespace UA
             p.SpawnSeq++;
             // back with the weapon that was in the hand (the choice is kept over a death)
             if (p.Weapon != p.Primary && p.Weapon != p.Secondary) p.Weapon = p.Primary;
+            AdvancedRespawn(p);
         }
 
         private void HostOnJoin(BinaryReader r, IPEndPoint from, float now)
@@ -690,6 +714,7 @@ namespace UA
                 p.LastHealSeq = seq;
                 HostHeal(id, target, kind);
             }
+            ReadActions(r, p);
         }
 
         /// <summary>Host: hit test a shot against the world and the players and apply its damage.</summary>
@@ -705,6 +730,7 @@ namespace UA
             {
                 var hit = World.I.TraceShot(shot.Origin, dirs[i], def.Range, shot.Shooter);
                 if (i == 0) { fx.End = hit.Point; fx.HitKind = hit.Kind; }
+                if (hit.Kind == 0 && Barrels.Count > 0) ShotAtBarrel(hit.Point, shooter, def);
                 sacred |= hit.Sacred;
                 if (hit.Victim != NoPlayer && Players.TryGetValue(hit.Victim, out var victim))
                 {
@@ -741,12 +767,20 @@ namespace UA
         }
 
         /// <summary>Applies the damage; returns how much health it really took (0 when refused).</summary>
-        private float Damage(PlayerState shooter, PlayerState victim, WeaponDef def, bool head, float amount)
+        private float Damage(PlayerState shooter, PlayerState victim, WeaponDef def, bool head, float amount, bool blast = false)
         {
             if (!victim.Alive) return 0f;
             if (MatchConfig.Mates(victim, shooter)) return 0f;
-            float dealt = Mathf.Min(victim.Health, amount * (head ? def.HeadMultiplier : 1f));
-            victim.Health -= amount * (head ? def.HeadMultiplier : 1f);
+            float hurt = amount * (head ? def.HeadMultiplier : 1f);
+            // a vest takes its share of a hit on the body (and less of a blast) out of its own points
+            if (victim.Armor > 0 && !head)
+            {
+                float absorbed = Mathf.Min(victim.Armor, hurt * (blast ? ArmorShare * 0.6f : ArmorShare));
+                victim.Armor = (byte)Mathf.Max(0, Mathf.FloorToInt(victim.Armor - absorbed));
+                hurt -= absorbed;
+            }
+            float dealt = Mathf.Min(victim.Health, hurt);
+            victim.Health -= hurt;
             victim.LastDamageTime = Time.unscaledTime;
             if (victim != shooter)
             {
@@ -758,6 +792,7 @@ namespace UA
             victim.Alive = false;
             victim.Deaths++;
             victim.RespawnAt = Time.unscaledTime + 4f;
+            DropOnDeath(victim);
             if (victim != shooter)
             {
                 shooter.Kills++;
@@ -801,6 +836,7 @@ namespace UA
                 w.Write((sbyte)Mathf.Clamp(Mathf.RoundToInt(p.MoveY * 50), -127, 127));
                 w.Write(p.Kills); w.Write(p.Deaths); w.Write(p.SpawnSeq); w.Write(p.Hits);
                 w.Write(p.Shots); w.Write(p.ShotHits); w.Write(p.Heads); w.Write(p.DamageDone);
+                w.Write(p.Primary); w.Write(p.Secondary); w.Write(p.Armor); w.Write(p.C4); w.Write(p.PickSeq); w.Write(p.LastPicked);
             }
             int kills = Mathf.Min(KillFeed.Count, 6);
             w.Write((byte)kills);
@@ -903,6 +939,7 @@ namespace UA
                 {
                     w.Write(h.Seq); w.Write(h.Target); w.Write(h.Kind);
                 }
+                WriteActions(w, now);
             }
             socket.Send(pw.Buffer, pw.Length, hostEndPoint);
         }
@@ -951,6 +988,10 @@ namespace UA
                 byte spawnSeq = r.ReadByte();
                 p.Hits = r.ReadUInt16();
                 p.Shots = r.ReadUInt16(); p.ShotHits = r.ReadUInt16(); p.Heads = r.ReadUInt16(); p.DamageDone = r.ReadUInt16();
+                byte primary = r.ReadByte(), secondary = r.ReadByte();
+                p.Armor = r.ReadByte(); p.C4 = r.ReadByte(); p.PickSeq = r.ReadByte(); p.LastPicked = r.ReadByte();
+                // in a match the host decides the weapons (ADVANCED: what was picked up); in the lobby our own choice stands
+                if (phase != Phase.Lobby) { p.Primary = primary; p.Secondary = secondary; }
                 p.Alive = (flags & 1) != 0;
                 bool respawned = spawnSeq != p.SpawnSeq;
                 p.SpawnSeq = spawnSeq;
@@ -998,6 +1039,7 @@ namespace UA
                 {
                     if (n.Thrower != LocalId) Grenade.Spawn(n.Thrower, n.ThrowSeq, n.A, n.B, false);
                 }
+                else if (n.Kind >= 2) Effects.BigExplosion(n.A, n.Kind);   // a drum (2) or a charge (3)
                 else
                 {
                     var g = Grenade.Find(n.Thrower, n.ThrowSeq);
@@ -1109,8 +1151,9 @@ namespace UA
                 if (!exposed && Vector3.Distance(blast, body) > Grenade.ThroughWalls) continue;
                 if (victim.Prone) amount *= 0.7f;
                 if (victim == thrower) amount *= 0.6f;
-                Damage(thrower, victim, Weapons.Grenade, false, amount);
+                Damage(thrower, victim, Weapons.Grenade, false, amount, true);
             }
+            GrenadeNearBarrels(pos, g.Thrower);
         }
 
         /// <summary>Called by the local player for every trigger pull.</summary>

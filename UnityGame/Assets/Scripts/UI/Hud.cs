@@ -103,6 +103,12 @@ namespace UA
         private Image hitMarker, crossDot;
         private Text timer, scoreBlue, scoreRed, center, centerSmall, killFeed, fps, playerName, kills, deaths, weaponLine, healthNumber;
         private readonly Image[] hpFill = new Image[5];
+        // ADVANCED: the vest's points under the health, in blue
+        private readonly Image[] armorFill = new Image[5];
+        private RectTransform armorRow;
+        private Text armorNumber;
+        // distant enemies in sight: a small red mark over the head
+        private readonly List<Image> marks = new List<Image>();
         private RectTransform rankBox, stopBox;
         private RectTransform scoreboard;
         private ResultsTable board;
@@ -174,8 +180,20 @@ namespace UA
             }
             healthNumber = UIKit.Txt(root, "100", 26, TextAnchor.MiddleLeft).Shadowed();
             healthNumber.rectTransform.At(0f, 1f, 560, -80, 100, 30, 0f, 1f);
+            armorRow = UIKit.Node(root, "Armor").At(0f, 1f, 0, -112, 720, 16, 0f, 1f);
+            for (int i = 0; i < 5; i++)
+            {
+                var seg = UIKit.Img(armorRow, new Color(0, 0, 0, 0.45f));
+                seg.rectTransform.At(0f, 0.5f, 14 + i * 108, 0, 100, 12, 0f, 0.5f);
+                armorFill[i] = UIKit.Img(seg.transform, new Color(0.35f, 0.7f, 1f));
+                armorFill[i].rectTransform.Fill();
+                armorFill[i].rectTransform.pivot = new Vector2(0, 0.5f);
+            }
+            armorNumber = UIKit.Txt(armorRow, "", 20, TextAnchor.MiddleLeft, new Color(0.55f, 0.8f, 1f)).Shadowed();
+            armorNumber.rectTransform.At(0f, 0.5f, 560, 0, 160, 24, 0f, 0.5f);
+            armorRow.gameObject.SetActive(false);
             var weaponBox = UIKit.Img(root, new Color(0, 0, 0, 0.55f));
-            weaponBox.rectTransform.At(0f, 1f, 0, -118, 440, 52, 0f, 1f);
+            weaponBox.rectTransform.At(0f, 1f, 0, -132, 440, 52, 0f, 1f);
             weaponLine = UIKit.Txt(weaponBox.transform, "", 32, TextAnchor.MiddleLeft).Shadowed();
             weaponLine.rectTransform.At(0f, 0.5f, 22, 0, 420, 48, 0f, 0.5f);
 
@@ -228,6 +246,10 @@ namespace UA
             AddButton(Controls.Button.Grenade, "grenade", "x2");
             AddButton(Controls.Button.Ammo, "ammo", "AMMO");
             AddButton(Controls.Button.Heal, "bloodtype", "BLOOD");
+            AddButton(Controls.Button.Pick, "touch_app", "PICK UP");
+            AddButton(Controls.Button.Plant, "c4", "C4");
+            AddButton(Controls.Button.Detonate, "flash_on", "DETONATE");
+            AddButton(Controls.Button.Coord, "my_location", "PLACE");
             AddButton(Controls.Button.Pause, "pause", "");
             AddButton(Controls.Button.Score, "leaderboard", "");
 
@@ -241,6 +263,13 @@ namespace UA
                 var t = UIKit.Txt(root, "", 24, TextAnchor.LowerCenter).Shadowed();
                 t.rectTransform.sizeDelta = new Vector2(300, 34);
                 names.Add(t);
+                // a small red diamond with a dark edge
+                var m = UIKit.Img(root, new Color(1f, 0.22f, 0.18f, 0.9f));
+                m.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, 0.7f);
+                m.rectTransform.sizeDelta = new Vector2(13, 13);
+                m.rectTransform.localRotation = Quaternion.Euler(0, 0, 45f);
+                m.enabled = false;
+                marks.Add(m);
             }
 
             Session.I.KillHappened += OnKill;
@@ -373,6 +402,14 @@ namespace UA
                 if (Sfx.Count("pain_") == 0) Sfx.Play("hurt", 0.6f);   // otherwise the agent cries out itself
             }
             lastHealth = hp;
+            // the vest: five segments of 20 under the health (only while one is worn)
+            float armor = me != null && me.Alive ? me.Armor : 0;
+            armorRow.gameObject.SetActive(armor > 0);
+            if (armor > 0)
+            {
+                for (int i = 0; i < 5; i++) armorFill[i].rectTransform.anchorMax = new Vector2(Mathf.Clamp01((armor - i * 20f) / 20f), 1f);
+                armorNumber.text = Loc.Pair("VEST", Mathf.CeilToInt(armor).ToString());
+            }
             damageAlpha = Mathf.MoveTowards(damageAlpha, hp < 30 && me != null && me.Alive ? 0.25f : 0f, Time.unscaledDeltaTime * 0.9f);
             damageFlash.color = new Color(0.75f, 0f, 0f, damageAlpha);
 
@@ -471,8 +508,9 @@ namespace UA
                 float r = Controls.ButtonRadius(pair.Key);
                 pair.Value.rectTransform.anchoredPosition = c;
                 pair.Value.rectTransform.sizeDelta = new Vector2(r * 2, r * 2);
-                bool show = (touchUi || pair.Key == Controls.Button.Ammo) && Controls.ButtonVisible(pair.Key) && pair.Key != Controls.Button.Pause && pair.Key != Controls.Button.Score
-                            && (pair.Key != Controls.Button.Ammo || Controls.AmmoAvailable) && (pair.Key != Controls.Button.Heal || Controls.HealAvailable);
+                bool contextual = pair.Key == Controls.Button.Ammo || pair.Key == Controls.Button.Pick || pair.Key == Controls.Button.Plant || pair.Key == Controls.Button.Detonate || pair.Key == Controls.Button.Coord;
+                bool show = (touchUi || contextual) && Controls.ButtonVisible(pair.Key) && pair.Key != Controls.Button.Pause && pair.Key != Controls.Button.Score
+                            && Controls.ButtonLive(pair.Key);
                 pair.Value.enabled = show;
                 foreach (var g in pair.Value.GetComponentsInChildren<Graphic>()) g.enabled = show;
                 bool held = Controls.Held.Contains(pair.Key);
@@ -489,6 +527,8 @@ namespace UA
             }
             if (buttonLabels.TryGetValue(Controls.Button.Grenade, out var grenadeLabel))
                 grenadeLabel.text = "x" + (lp != null ? lp.Grenades : 0);
+            if (buttonLabels.TryGetValue(Controls.Button.Pick, out var pickLabel)) pickLabel.text = Loc.T(Controls.PickLabel);
+            if (buttonLabels.TryGetValue(Controls.Button.Plant, out var plantLabel)) plantLabel.text = "C4 x" + (me != null ? me.C4 : 0);
             stickBase.enabled = stickKnob.enabled = touchUi;
             var stickCenter = Controls.StickActive ? Controls.StickCenter : new Vector2(260, 250);
             stickBase.rectTransform.At(0f, 0f, stickCenter.x, stickCenter.y, Controls.StickRadius * 2, Controls.StickRadius * 2);
@@ -518,7 +558,7 @@ namespace UA
         private void UpdateNames(Session s, PlayerState me)
         {
             var cam = CameraRig.I != null ? CameraRig.I.Cam : null;
-            int used = 0;
+            int used = 0, usedMarks = 0;
             if (cam != null && World.I != null && me != null)
             {
                 float scale = 1080f / Mathf.Max(1, Screen.height);
@@ -529,9 +569,22 @@ namespace UA
                     if (p == null || p.Id == s.LocalId || !p.Alive) continue;
                     var headPos = agent.transform.position + Vector3.up * 2.1f;
                     var screen = cam.WorldToScreenPoint(headPos);
-                    if (screen.z < 0.5f || screen.z > 45f) continue;
+                    if (screen.z < 0.5f) continue;
+                    // far enemies in plain sight: the red mark (the names stay for the close ones)
+                    if (screen.z > 25f && screen.z < 160f && usedMarks < marks.Count && World.I.IsEnemy(me, p, s)
+                        && World.I.LineOfSight(cam.transform.position, headPos) && (!CameraRig.I.Scope))
+                    {
+                        var m = marks[usedMarks++];
+                        m.enabled = true;
+                        m.rectTransform.anchorMin = m.rectTransform.anchorMax = Vector2.zero;
+                        m.rectTransform.anchoredPosition = new Vector2(screen.x, screen.y) * scale + new Vector2(0, 10);
+                        float k = Mathf.Clamp01((screen.z - 25f) / 10f);
+                        m.color = new Color(1f, 0.22f, 0.18f, 0.9f * k);
+                        continue;
+                    }
                     bool friend = !World.I.IsEnemy(me, p, s);
                     if (!friend && (screen.z > 25f || !World.I.LineOfSight(cam.transform.position, headPos))) continue;
+                    if (screen.z > 45f) continue;
                     var t = names[used++];
                     t.enabled = true;
                     t.text = Rtl.Shape(p.Name);
@@ -541,6 +594,7 @@ namespace UA
                 }
             }
             for (int i = used; i < names.Count; i++) names[i].enabled = false;
+            for (int i = usedMarks; i < marks.Count; i++) marks[i].enabled = false;
         }
     }
 }

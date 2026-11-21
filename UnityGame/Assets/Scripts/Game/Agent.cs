@@ -371,6 +371,7 @@ namespace UA
                     r.sharedMaterials = materials;
                 }
             }
+            CharacterShader.Apply(gameObject);
         }
 
         public void SetWeapon(int id)
