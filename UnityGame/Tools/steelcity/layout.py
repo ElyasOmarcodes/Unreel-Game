@@ -377,6 +377,11 @@ for (ax, az, bx, bz, lv) in [
 ]:
     fence(ax, az, bx, bz, lv)
 door_end(12, 14.4, -53.59, E)
+# the strip between the hall (Hangar_v4) and this wall stood open down to the town's floor (3 m below): filled
+# up to the yard, so behind the door is ground and not a pit
+box('StripFill', [(-7.84 + 14.6) / 2, (E + (-1.22 - L)) / 2, (-51.8 + -53.45) / 2], [14.6 + 7.84, E - (-1.22 - L), 1.65], 'asphalt')
+# the town's wall between the halls ended in the air where its neighbour was taken out: a column there
+put('Concrete_fence_v1_column', 25.17, -40.54, 0, 1.54 - L)
 out['boards'].append({'at': [-16, W, -76], 'ps': 'جنوبي انګړ', 'en': 'SOUTH YARD'})
 out['spawns'].append(r3([-3, W + L + 0.1, -81]))
 out['spawns'].append(r3([60, E + L + 0.1, -60]))

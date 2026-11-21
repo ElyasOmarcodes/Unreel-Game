@@ -660,9 +660,11 @@ namespace UA
             var p = hit.point;
             int map = s.Config.Map;
             string name = map >= 0 && map < MatchConfig.MapNames.Length ? MatchConfig.MapNames[map] : "MAP " + map;
-            string text = $"{name}  E={p.x:0.0}  N={p.z:0.0}  H={p.y:0.0}";
+            // always a point for the decimals, whatever the phone's language
+            string F(float v) => v.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+            string text = $"{name}  E={F(p.x)}  N={F(p.z)}  H={F(p.y)}";
             // Steel City is lifted in the world: its own height too (the map's documents use it)
-            if (World.LayoutOf(map) == World.CityLordLayout) text += $"  (map H={p.y - 12.922f:0.0})";
+            if (World.LayoutOf(map) == World.CityLordLayout) text += $"  (map H={F(p.y - 12.922f)})";
             text += $"  [{hit.collider.name}]";
             GUIUtility.systemCopyBuffer = text;
             App.Log("coord " + text);

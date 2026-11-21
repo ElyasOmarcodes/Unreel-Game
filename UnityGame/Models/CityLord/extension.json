@@ -2523,6 +2523,15 @@
 1,
 0.1795
 ]
+},
+{
+"name": "Concrete_fence_v1_column",
+"pos": [
+25.17,
+1.54,
+-40.54
+],
+"yaw": 0
 }
 ],
 "boxes": [
@@ -3630,6 +3639,23 @@
 "pitch": 32.229,
 "mat": "wood",
 "collider": false
+},
+{
+"name": "StripFill",
+"c": [
+3.38,
+0.401,
+-52.625
+],
+"size": [
+22.44,
+3.242,
+1.65
+],
+"yaw": 0.0,
+"pitch": 0.0,
+"mat": "asphalt",
+"collider": true
 }
 ],
 "ladders": [
