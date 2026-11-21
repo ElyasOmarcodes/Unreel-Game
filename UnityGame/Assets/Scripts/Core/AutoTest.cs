@@ -484,7 +484,11 @@ namespace UA
             {
                 float d = Vector3.Distance(w, target);
                 if (d < near || d > far) continue;
-                if (!Physics.Linecast(w + Vector3.up * 1.6f, target + Vector3.up * 0.5f, World.EnvMask, QueryTriggerInteraction.Ignore)) return w;
+                // stop short of the target: its own collider (a drum) must not count as a wall
+                var eye = w + Vector3.up * 1.6f;
+                var end = target + Vector3.up * 0.5f;
+                end += (eye - end).normalized * 0.6f;
+                if (!Physics.Linecast(eye, end, World.EnvMask, QueryTriggerInteraction.Ignore)) return w;
             }
             return null;
         }
@@ -537,10 +541,10 @@ namespace UA
                 yield return Shot("16e-crate-opened");
             }
             // a fuel drum, shot until it goes off
-            var drum = s.Barrels.FirstOrDefault(b => b.Alive && Viewpoint(b.Pos, 7f, 13f) != null);
+            var drum = s.Barrels.FirstOrDefault(b => b.Alive && Viewpoint(b.Pos, 5f, 16f) != null);
             if (drum != null)
             {
-                var from = Viewpoint(drum.Pos, 7f, 13f).Value;
+                var from = Viewpoint(drum.Pos, 5f, 16f).Value;
                 Stand(me, from, drum.Pos);
                 yield return Wait(0.6f);
                 AimAt(drum.Pos + Vector3.up * 0.5f);

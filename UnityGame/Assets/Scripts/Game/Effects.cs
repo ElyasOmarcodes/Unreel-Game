@@ -50,8 +50,8 @@ namespace UA
             var smokeTex = Resources.Load<Texture2D>("Effects/Smoke");
             if (fireTex != null)
             {
-                fireball = Sheet("Fireball", fireTex, 1.7f, 3.4f, new Color(1f, 1f, 1f, 1f), 1.6f, -0.02f);
-                flames = Sheet("Flames", fireTex, 0.9f, 0.9f, new Color(1f, 0.95f, 0.9f, 0.9f), 1.4f, -0.05f);
+                fireball = Sheet("Fireball", fireTex, 1.7f, 3.4f, new Color(1f, 1f, 1f, 1f), 1.6f, -0.02f, true);
+                flames = Sheet("Flames", fireTex, 0.9f, 0.9f, new Color(1f, 0.95f, 0.9f, 0.9f), 1.4f, -0.05f, true);
             }
             if (smokeTex != null) smokeCloud = Sheet("SmokeCloud", smokeTex, 5.5f, 3.6f, new Color(0.3f, 0.29f, 0.28f, 0.85f), 2.4f, -0.015f);
             embers = MakeParticles("Embers", Resources.Load<Material>("Materials/Spark"), 1.6f, 0.07f, 14f, -0.3f, new Color(1f, 0.62f, 0.25f), 1.1f);
@@ -98,10 +98,11 @@ namespace UA
         }
 
         /// <summary>Particles drawn from a 4 x 4 sheet of frames played once over their life, turned at random, growing.</summary>
-        private static ParticleSystem Sheet(string name, Texture2D tex, float life, float size, Color tint, float grow, float gravity)
+        private static ParticleSystem Sheet(string name, Texture2D tex, float life, float size, Color tint, float grow, float gravity, bool glow = false)
         {
-            var mat = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended")) { mainTexture = tex, name = name };
-            mat.SetColor("_TintColor", new Color(0.5f, 0.5f, 0.5f, 0.5f));
+            // fire gives light (added to what is behind it, so it glows and is never a dull brown ball); smoke hides
+            var mat = new Material(Shader.Find(glow ? "Legacy Shaders/Particles/Additive" : "Legacy Shaders/Particles/Alpha Blended")) { mainTexture = tex, name = name };
+            mat.SetColor("_TintColor", glow ? new Color(0.62f, 0.56f, 0.5f, 0.6f) : new Color(0.5f, 0.5f, 0.5f, 0.5f));
             var ps = MakeParticles(name, mat, life, size, 1f, 0f, tint, gravity);
             var main = ps.main;
             main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
