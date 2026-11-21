@@ -477,6 +477,23 @@ namespace UA
             CameraRig.I.Pitch = Mathf.Asin(Mathf.Clamp(d.y, -1f, 1f)) * Mathf.Rad2Deg;
         }
 
+        /// <summary>Turns the view until the crosshair (the middle of the screen) is on the point.</summary>
+        private IEnumerator AimExactly(Vector3 point)
+        {
+            AimAt(point);
+            for (int i = 0; i < 12; i++)
+            {
+                yield return null;
+                var cam = CameraRig.I.Cam;
+                var v = cam.WorldToViewportPoint(point);
+                if (v.z <= 0f) { AimAt(point); continue; }
+                float dx = (v.x - 0.5f) * cam.fieldOfView * cam.aspect, dy = (v.y - 0.5f) * cam.fieldOfView;
+                if (Mathf.Abs(dx) < 0.15f && Mathf.Abs(dy) < 0.15f) yield break;
+                CameraRig.I.Yaw += dx * 0.9f;
+                CameraRig.I.Pitch += dy * 0.9f;
+            }
+        }
+
         /// <summary>A walkable place 'near' to 'far' metres from a point, with a clear view of it.</summary>
         private static Vector3? Viewpoint(Vector3 target, float near, float far)
         {
@@ -547,17 +564,18 @@ namespace UA
                 var from = Viewpoint(drum.Pos, 5f, 16f).Value;
                 Stand(me, from, drum.Pos);
                 yield return Wait(0.6f);
-                AimAt(drum.Pos + Vector3.up * 0.5f);
-                yield return Wait(0.3f);
+                yield return AimExactly(drum.Pos + Vector3.up * 0.45f);
+                yield return Wait(0.2f);
                 yield return Shot("16f-drum");
                 float until = Time.realtimeSinceStartup + 3f;
                 while (drum.Alive && Time.realtimeSinceStartup < until)
                 {
-                    AimAt(drum.Pos + Vector3.up * 0.5f);
+                    yield return AimExactly(drum.Pos + Vector3.up * 0.45f);
                     Controls.SimFire = true;
                     yield return null;
                 }
                 Controls.SimFire = false;
+                App.Log($"drum: alive={drum.Alive} health={drum.Health}");
                 yield return Wait(0.12f);
                 yield return Shot("16g-drum-blast");
                 yield return Wait(0.45f);
@@ -567,7 +585,10 @@ namespace UA
             }
             // C4: two charges given, one planted at the feet, set off from a distance
             if (s.Local != null) s.Local.C4 = 2;
-            yield return Wait(0.3f);
+            // planted in the open, where it can be watched from 9-15 m
+            var open = World.I.Waypoints.FirstOrDefault(w => Viewpoint(w, 9f, 15f) != null);
+            if (open != Vector3.zero) Stand(me, open, open + Vector3.forward);
+            yield return Wait(0.5f);
             CameraRig.I.Pitch = -70f;
             Controls.SimPlant = true;
             yield return Wait(0.8f);
@@ -577,8 +598,8 @@ namespace UA
                 var view = Viewpoint(charge.Pos, 9f, 15f) ?? charge.Pos + new Vector3(10f, 0f, 0f);
                 Stand(me, view, charge.Pos);
                 yield return Wait(0.5f);
-                AimAt(charge.Pos);
-                yield return Wait(0.3f);
+                yield return AimExactly(charge.Pos);
+                yield return Wait(0.2f);
                 yield return Shot("16j-c4-planted");
                 Controls.SimDetonate = true;
                 yield return Wait(0.2f);
