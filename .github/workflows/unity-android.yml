@@ -95,6 +95,7 @@ jobs:
           build-targets: Android
           cache-installation: true
           auto-update-hub: false
+          auto-update-hub: false
 
       - name: Activate the Unity Personal license (email + password)
         uses: RageAgainstThePixel/activate-unity-license@v2
