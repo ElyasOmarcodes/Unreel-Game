@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 150
     permissions:
       contents: write   # the screenshot copies go to a branch of their own
@@ -74,7 +74,7 @@ jobs:
         run: |
           wget -qO - https://hub.unity3d.com/linux/keys/public | gpg --dearmor | sudo tee /usr/share/keyrings/Unity_Technologies_ApS.gpg >/dev/null
           printf 'Types: deb\nURIs: https://hub.unity3d.com/linux/repos/deb\nSuites: stable\nComponents: main\nSigned-By: /usr/share/keyrings/Unity_Technologies_ApS.gpg\n' | sudo tee /etc/apt/sources.list.d/unityhub.sources
-          sudo apt-get update -q && sudo apt-get install -y -q unityhub
+          sudo apt-get update -q && sudo apt-get install -y -q --allow-downgrades unityhub=3.22.6 && sudo apt-mark hold unityhub   # Hub 4 has no resources/app.asar, which unity-setup reads
           if [ -x /usr/lib/unityhub/unityhub ]; then HUB_DIR=/usr/lib/unityhub; else HUB_DIR=$(dirname "$(readlink -f "$(command -v unityhub)")"); fi
           echo "Unity Hub directory: $HUB_DIR"
           [ -x /opt/unityhub/unityhub ] || sudo ln -sfn "$HUB_DIR" /opt/unityhub
@@ -176,7 +176,7 @@ jobs:
 
   release:
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
