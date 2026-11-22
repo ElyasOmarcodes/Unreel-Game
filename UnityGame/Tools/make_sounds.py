@@ -195,6 +195,63 @@ def footsteps():
         save(f"crawl_{i}", rustle * shape + drag)
 
 
+def supply_drop():
+    """The supply drop: the cargo plane's four engines (a seamless loop), the alarm, the parachute snapping
+    open, the crate landing, a crate's latches and lid."""
+    # four propellers a little apart in speed: a low throb that beats; noise of the air through them
+    length = 4.0
+    t = t_axis(length)
+    x = np.zeros_like(t)
+    for k, f in enumerate((68.0, 69.5, 71.25, 72.5)):           # whole cycles in 4 s: the loop has no seam
+        blade = f * 4 / 4
+        for h, a in ((1, 1.0), (2, 0.55), (3, 0.3), (5, 0.12)):
+            x += a * np.sin(2 * np.pi * blade * h * t + k * 1.3)
+    air = band(noise(length), 120, 1400) * 0.5
+    x = x / 4 + air * (0.8 + 0.2 * np.sin(2 * np.pi * 0.5 * t))
+    x = lowpass(x, 2200)
+    data = normalise(x, 0.8)
+    # no fade at the ends (it loops): cross-fade the last 0.2 s into the first
+    n = int(SR * 0.2)
+    data[:n] = data[:n] * np.linspace(0, 1, n) + data[-n:] * np.linspace(1, 0, n)
+    data = data[:-n]
+    with wave.open(os.path.join(OUT, "plane.wav"), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
+        w.writeframes((data * 32767).astype(np.int16).tobytes())
+    print(f"plane: {len(data) / SR:.2f}s (loop)")
+
+    # the alarm: two rising tones, twice
+    length = 1.6
+    t = t_axis(length)
+    x = np.zeros_like(t)
+    for start in (0.0, 0.8):
+        seg = (t >= start) & (t < start + 0.7)
+        tt = t[seg] - start
+        f = 620 + 380 * np.clip(tt / 0.35, 0, 1)
+        x[seg] += np.sign(np.sin(2 * np.pi * np.cumsum(f) / SR)) * 0.3 * np.minimum(1, (0.7 - tt) / 0.05) * np.minimum(1, tt / 0.01)
+    save("drop_alarm", lowpass(x, 4000))
+
+    # the chute snapping open: a burst of cloth, a slap
+    length = 0.9
+    x = band(noise(length), 200, 3000) * env(length, 0.002, 0.12) + lowpass(noise(length), 400) * env(length, 0.01, 0.3) * 0.6
+    save("chute_open", x)
+
+    # the crate landing: a heavy thud, the frame ringing
+    length = 1.4
+    x = thump(length, 70, 38, 0.18) * 1.4 + band(noise(length), 80, 900) * env(length, 0.001, 0.12) * 0.7
+    t = t_axis(length)
+    for f, a in ((310, 0.18), (523, 0.12), (877, 0.06)):
+        x += a * np.sin(2 * np.pi * f * t) * env(length, 0.001, 0.35)
+    save("drop_land", x)
+
+    # a crate: the latches knocked open, then the lid
+    length = 0.7
+    x = click(length, 0.01, 1400, 0.008) + click(length, 0.16, 1250, 0.008) + band(noise(length), 300, 2500) * env(length, 0.25, 0.15, 0.25) * 0.5
+    save("crate_open", x)
+    length = 0.6
+    x = thump(length, 120, 70, 0.08) + click(length, 0.005, 900, 0.02, 0.8) + band(noise(length), 150, 1800) * env(length, 0.002, 0.06) * 0.6
+    save("crate_lid", x)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     #        name           len  crack lo    hi    tau    thumpHz tau  lvl  tail  lvl  drive action(at, Hz, level)
@@ -213,6 +270,7 @@ def main():
     grenade()
     ui()
     footsteps()
+    supply_drop()
 
 
 if __name__ == "__main__":

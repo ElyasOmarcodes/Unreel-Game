@@ -103,6 +103,8 @@ namespace UA
         public float RespawnAt;
         public int LastShotSeq, LastThrowSeq, LastHealSeq, LastActionSeq;
         public float LastDamageTime;
+        /// <summary>ADVANCED: crates opened without a blue weapon or better, deaths since the last kill (the luck that is made up for).</summary>
+        public int DryCrates, DryDeaths;
     }
 
     public struct KillEvent { public ushort Seq; public byte Killer, Victim, Weapon; public bool Headshot; }
@@ -130,7 +132,7 @@ namespace UA
         public static Session I;
         public const int GamePort = 7777;
         public const int DiscoveryPort = 47777;
-        public const byte Version = 14;
+        public const byte Version = 15;
         public const byte NoPlayer = 255;
         public const string PasswordNeeded = "This group is locked: type its password";
         public const string WrongPassword = "Wrong password for this group";
@@ -540,6 +542,7 @@ namespace UA
                 p.LobbySecondary = p.Secondary;
                 p.Kills = p.Deaths = 0;
                 p.Shots = p.ShotHits = p.Heads = p.DamageDone = 0;
+                p.DryCrates = p.DryDeaths = 0;
                 Respawn(p);
             }
             phaseEnd = Time.unscaledTime + 3.5f;
@@ -796,6 +799,7 @@ namespace UA
             if (victim != shooter)
             {
                 shooter.Kills++;
+                shooter.DryDeaths = 0;
                 if (shooter.Team > 0 && shooter.Team <= MatchConfig.MaxTeams) TeamScore[shooter.Team]++;
             }
             var kill = new KillEvent { Seq = ++killSeq, Killer = shooter.Id, Victim = victim.Id, Weapon = def.Id, Headshot = head };

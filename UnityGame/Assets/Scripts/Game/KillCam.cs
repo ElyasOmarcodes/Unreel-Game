@@ -83,7 +83,8 @@ namespace UA
             victim = b;
             def = Weapons.Get(k.Weapon);
             bool gun = k.Weapon < Weapons.Count;
-            to = victim.Chest;
+            // where the bullet really went: the head for a head shot, else the chest; from the muzzle
+            to = k.Headshot && victim.Head != null ? victim.Head.position : victim.Chest;
             from = gun && killer.Muzzle != null ? killer.Muzzle.position : killer.Chest;
             var dir = to - from;
             if (dir.sqrMagnitude < 0.01f) dir = killer.transform.forward;
@@ -431,8 +432,10 @@ namespace UA
             }
             else if (t < Intro + Aim + Flight)
             {
-                // with the bullet: the camera rides beside it and turns round it from the side over the top to
-                // behind, close in while it is slow; the last metres it stays and lets the bullet go into the victim
+                // with the bullet: out of the barrel beside the muzzle, the camera drops in behind the bullet, a
+                // little to its side and above, and flies with it looking at where it will hit: the bullet in
+                // the lower side third of the picture, the target ahead in the middle, all the way; the last
+                // metres the camera slows and stays, and the bullet goes on alone into the target
                 float f = Mathf.Clamp01((t - Intro - Aim) / Flight);
                 float u = Along(f);
                 var at = Vector3.Lerp(from, to, u);
@@ -454,41 +457,49 @@ namespace UA
                 }
                 // a ring of pushed air now and then along the way (more of them where it flies slowly)
                 while (u >= nextRing && nextRing < 0.97f) { Ring(Vector3.Lerp(from, to, nextRing), dir); nextRing += 0.11f; }
-                const float release = 0.78f;
+                var up = Vector3.ProjectOnPlane(Vector3.up, dir);
+                if (up.sqrMagnitude < 0.01f) up = Vector3.ProjectOnPlane(killer.transform.forward, dir);
+                up.Normalize();
+                // the side with room (a wall beside the line of flight does not fill the picture), chosen once
+                if (bulletSide == 0f)
+                {
+                    var probe = Vector3.Lerp(from, to, 0.3f);
+                    var sideR = Quaternion.AngleAxis(68f, dir) * up;
+                    var a = Clear(probe, probe - dir * 0.5f + sideR * 0.6f);
+                    var b = Clear(probe, probe - dir * 0.5f + Quaternion.AngleAxis(-68f, dir) * up * 0.6f);
+                    bulletSide = (a - probe).sqrMagnitude >= (b - probe).sqrMagnitude - 0.01f ? 1f : -1f;
+                }
+                const float release = 0.84f;
+                float total = Vector3.Distance(from, to);
+                // the camera's place round the bullet: beside the muzzle at first, then behind and to the side
+                float settle = Mathf.SmoothStep(0f, 1f, f / 0.12f);
+                float back = Mathf.Lerp(0.12f, Mathf.Clamp(total * 0.03f + 0.45f, 0.45f, 0.75f), settle);
+                float wide = Mathf.Lerp(0.36f, 0.2f, settle);
+                // it turns slowly round the line of flight, from the side towards the top
+                float turn = Mathf.Lerp(78f, 56f, Mathf.SmoothStep(0f, 1f, f / release)) * bulletSide;
+                var round = Quaternion.AngleAxis(turn, dir) * up;
                 if (f < release)
                 {
-                    // beside it and a little above (the horizon behind it, not the ground), swinging from the
-                    // side round towards the back while it slows, close in while it is slow
-                    float turn = Mathf.Lerp(100f, 50f, Mathf.SmoothStep(0f, 1f, f / release));
-                    var up = Vector3.ProjectOnPlane(Vector3.up, dir).normalized;
-                    float near = Mathf.Lerp(0.7f, 0.34f, Mathf.Sin(f / release * Mathf.PI));
-                    var back = at - dir * Mathf.Lerp(0.25f, 0.55f, f);
-                    // on the side with room (a wall beside the line of flight does not fill the picture); the side
-                    // is chosen once, so the camera does not flick from one to the other
-                    if (bulletSide == 0f)
-                    {
-                        var a = Clear(at, back + Quaternion.AngleAxis(turn, dir) * up * 0.7f);
-                        var b = Clear(at, back + Quaternion.AngleAxis(-turn, dir) * up * 0.7f);
-                        bulletSide = (a - at).sqrMagnitude >= (b - at).sqrMagnitude - 0.01f ? 1f : -1f;
-                    }
-                    var round = Quaternion.AngleAxis(turn * bulletSide, dir) * up;
-                    eye = Best(at, back + round * near, back + Quaternion.AngleAxis(-turn * bulletSide, dir) * up * near, back + up * near);
-                    look = at + dir * 0.12f;
+                    eye = Clear(at, at - dir * back + round * wide);
+                    // looking where it goes: the target in the middle, the bullet beside it
+                    look = Vector3.Lerp(at, to, 0.88f);
+                    if (releaseEye != null) releaseEye = null;
                 }
                 else
                 {
-                    // the camera stays where it sees the victim best and lets the bullet go the last metres in
+                    // the camera eases to a stop where it was and lets the bullet go the last metres into the target
                     if (releaseEye == null)
                     {
                         var stop = Vector3.Lerp(from, to, Along(release));
-                        releaseEye = Best(to, stop + right * 0.9f + Vector3.up * 0.3f - dir * 0.3f, stop - right * 0.9f + Vector3.up * 0.3f - dir * 0.3f,
-                            stop + Vector3.up * 0.7f - dir * 0.6f);
+                        releaseEye = Clear(stop, stop - dir * back + round * wide);
                     }
-                    eye = releaseEye.Value;
-                    look = Vector3.Lerp(at, to, 0.6f);
+                    float ease = Mathf.SmoothStep(0f, 1f, (f - release) / (1f - release));
+                    eye = releaseEye.Value + dir * Mathf.Min(0.6f, total * 0.02f) * ease;   // a last drift forwards
+                    look = Vector3.Lerp(Vector3.Lerp(at, to, 0.88f), to, ease);
                 }
-                fov = Mathf.Lerp(46f, 38f, Mathf.Sin(f * Mathf.PI));
-                roll = Mathf.Lerp(10f, -6f, f);
+                // narrowing on the target as the bullet nears it
+                fov = Mathf.Lerp(54f, Mathf.Lerp(44f, 34f, Mathf.Clamp01(total / 40f)), Mathf.SmoothStep(0f, 1f, f));
+                roll = Mathf.Lerp(7f, -3f, f) * bulletSide;
                 steady = true;
             }
             else if (t < Intro + Aim + Flight + Fall)

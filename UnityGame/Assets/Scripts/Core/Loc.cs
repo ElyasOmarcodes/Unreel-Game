@@ -219,6 +219,19 @@ SIMPLE|ساده|بسيط|SIMPLE
 ADVANCED|پیشرفته|متقدم|AVANZADO
 PICK UP|بردار|التقط|RECOGER
 OPEN CRATE|باز کردن جعبه|افتح الصندوق|ABRIR CAJA
+OPEN MILITARY CRATE|باز کردن جعبه نظامی|افتح الصندوق العسكري|ABRIR CAJA MILITAR
+OPEN SUPPLY DROP|باز کردن بسته هوایی|افتح الإنزال الجوي|ABRIR SUMINISTRO
+OPENING CRATE|در حال باز کردن جعبه|جارٍ فتح الصندوق|ABRIENDO CAJA
+OPENING MILITARY CRATE|در حال باز کردن جعبه نظامی|جارٍ فتح الصندوق العسكري|ABRIENDO CAJA MILITAR
+OPENING SUPPLY DROP|در حال باز کردن بسته هوایی|جارٍ فتح الإنزال الجوي|ABRIENDO SUMINISTRO
+SUPPLY DROP INCOMING|بسته هوایی در راه است|إنزال جوي قادم|SUMINISTRO EN CAMINO
+THE BEST WEAPONS - FOLLOW THE GOLD MARK|بهترین سلاح‌ها - نشان طلایی را دنبال کن|أفضل الأسلحة - اتبع العلامة الذهبية|LAS MEJORES ARMAS - SIGUE LA MARCA DORADA
+MILITARY VEST|جلیقه نظامی|سترة عسكرية|CHALECO MILITAR
+COMMON|معمولی|عادي|COMÚN
+UNCOMMON|غیرمعمول|غير شائع|POCO COMÚN
+RARE|کمیاب|نادر|RARO
+EPIC|حماسی|ملحمي|ÉPICO
+LEGENDARY|افسانه‌ای|أسطوري|LEGENDARIO
 LIGHT VEST|جلیقه سبک|سترة خفيفة|CHALECO LIGERO
 HEAVY VEST|جلیقه سنگین|سترة ثقيلة|CHALECO PESADO
 VEST|جلیقه|السترة|CHALECO

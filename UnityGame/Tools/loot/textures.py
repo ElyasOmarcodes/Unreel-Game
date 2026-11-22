@@ -166,8 +166,109 @@ def vest(name, color, seed):
     to_img(rgb).save(os.path.join(OUT, name + '.png'), optimize=True)
 
 
+# ----------------------------------------------------------------- military crate (hot spots)
+def military_crate():
+    S = 512
+    n = fbm(S, S, 61)
+    y, x = np.mgrid[0:S, 0:S]
+    rgb = np.array([0.11, 0.13, 0.1])[None, None, :] * (0.85 + 0.3 * n[..., None])
+    # moulded ribs across the case
+    rib = ((x % 64) < 6) * 0.06
+    rgb = rgb + rib[..., None]
+    img = to_img(rgb)
+    d = ImageDraw.Draw(img)
+    # a hazard band along the top, yellow and black
+    for i in range(-2, S // 28 + 2):
+        x0 = i * 28
+        d.polygon([(x0, 0), (x0 + 14, 0), (x0 + 14 + 40, 40), (x0 + 40, 40)], fill=(214, 170, 30))
+    d.line([0, 42, S, 42], fill=(20, 20, 18), width=4)
+    f = font(70, STENCIL)
+    t = 'MILITARY'
+    tw = d.textlength(t, font=f)
+    d.text(((S - tw) / 2, S / 2 - 70), t, font=f, fill=(222, 196, 92))
+    f2 = font(30, STENCIL)
+    for k, t2 in enumerate(('WEAPON SYSTEMS', 'HANDLE WITH CARE')):
+        tw = d.textlength(t2, font=f2)
+        d.text(((S - tw) / 2, S / 2 + 20 + k * 40), t2, font=f2, fill=(200, 196, 180))
+    # a purple marking stripe (the grade of what is inside)
+    d.rectangle([0, S - 46, S, S - 30], fill=(130, 70, 200))
+    arr = np.asarray(img).astype(np.float32) / 255
+    wear = (noise(S, S, 60, 63) > 0.66)[..., None]
+    arr = np.where(wear & (arr.mean(-1, keepdims=True) > 0.45), arr * 0.6 + rgb * 0.4, arr)
+    to_img(arr).save(os.path.join(OUT, 'MilitaryCrate.png'), optimize=True)
+
+
+# ----------------------------------------------------------------- supply drop crate panels
+def airdrop():
+    S = 512
+    n = fbm(S, S, 71)
+    rgb = np.array([0.27, 0.33, 0.36])[None, None, :] * (0.82 + 0.3 * n[..., None])
+    img = to_img(rgb)
+    d = ImageDraw.Draw(img)
+    # pressed panel lines and rivets
+    d.rectangle([18, 18, S - 19, S - 19], outline=(48, 56, 60), width=6)
+    for k in range(1, 4):
+        d.line([18, k * S // 4, S - 19, k * S // 4], fill=(52, 60, 64), width=3)
+    for xx in range(30, S, 60):
+        for yy in (30, S - 30):
+            d.ellipse([xx - 5, yy - 5, xx + 5, yy + 5], fill=(95, 104, 108))
+    # the parachute pictogram and the words
+    cx, cy = S // 2, 150
+    d.pieslice([cx - 90, cy - 70, cx + 90, cy + 70], 180, 360, fill=(240, 236, 224))
+    for k in range(-2, 3):
+        d.line([cx + k * 42, cy, cx, cy + 90], fill=(240, 236, 224), width=5)
+    d.rectangle([cx - 22, cy + 88, cx + 22, cy + 122], fill=(240, 236, 224))
+    t = 'SUPPLY DROP'
+    size = 74
+    while True:   # as big as fits between the frame's edges
+        f = font(size, STENCIL)
+        tw = d.textlength(t, font=f)
+        if tw < S - 80 or size < 30: break
+        size -= 2
+    d.text(((S - tw) / 2, 300), t, font=f, fill=(244, 240, 226))
+    f2 = font(32, STENCIL)
+    t2 = 'THIS SIDE UP'
+    tw = d.textlength(t2, font=f2)
+    d.text(((S - tw) / 2, 400), t2, font=f2, fill=(225, 70, 50))
+    for sx in (cx - tw / 2 - 40, cx + tw / 2 + 18):
+        d.polygon([(sx, 432), (sx + 22, 432), (sx + 11, 402)], fill=(225, 70, 50))
+    arr = np.asarray(img).astype(np.float32) / 255
+    wear = (noise(S, S, 70, 73) > 0.68)[..., None]
+    arr = np.where(wear & (arr.mean(-1, keepdims=True) > 0.55), arr * 0.6 + rgb * 0.4, arr)
+    to_img(arr).save(os.path.join(OUT, 'Airdrop.png'), optimize=True)
+
+
+# ----------------------------------------------------------------- parachute gores (u: 4 gores across the tile, v: rim to top)
+def parachute():
+    W, H = 256, 128
+    y, x = np.mgrid[0:H, 0:W]
+    gore = (x * 4 // W) % 2
+    orange = np.array([0.95, 0.42, 0.08]); white = np.array([0.93, 0.92, 0.88])
+    rgb = np.where(gore[..., None] == 0, orange[None, None, :], white[None, None, :])
+    seam = ((x % (W // 4)) < 2) | ((y % 32) < 1)
+    rgb = rgb * (1 - 0.18 * seam[..., None])
+    rgb = rgb * (0.9 + 0.1 * fbm(W, H, 81)[..., None])
+    to_img(rgb).save(os.path.join(OUT, 'Parachute.png'), optimize=True)
+
+
+def parachute_icon():
+    """A white parachute over a crate for the HUD (Resources/Icons, 96 px)."""
+    S = 96
+    img = Image.new('RGBA', (S * 4, S * 4), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = S * 2
+    d.pieslice([c - 150, 30, c + 150, 250], 180, 360, fill=(255, 255, 255, 255))
+    for k in (-3, -1, 1, 3):
+        d.pieslice([c + k * 37 - 37, 120, c + k * 37 + 37, 160], 0, 180, fill=(0, 0, 0, 0))
+    for k in (-150, -75, 0, 75, 150):
+        d.line([c + k, 140, c, 280], fill=(255, 255, 255, 255), width=10)
+    d.rounded_rectangle([c - 48, 275, c + 48, 360], radius=10, fill=(255, 255, 255, 255))
+    img.resize((S, S), Image.LANCZOS).save(os.path.join(OUT, '..', '..', 'Resources', 'Icons', 'parachute.png'), optimize=True)
+
+
 if __name__ == '__main__':
-    drum(); c4(); crate()
+    drum(); c4(); crate(); military_crate(); airdrop(); parachute(); parachute_icon()
+    vest('VestMilitary', (0.48, 0.38, 0.24), 53)
     vest('VestLight', (0.4, 0.38, 0.26), 51)
     vest('VestHeavy', (0.12, 0.13, 0.14), 52)
     print('textures in', os.path.abspath(OUT))

@@ -18,6 +18,13 @@ namespace UA
         private byte healTarget;
         private Agent bloodMate;
         private float nextThrow, nextPick, nextBomb;
+        // ADVANCED: a container being opened (the player stays by it until it is open)
+        private ushort openingId;
+        private float openStart, openTime, openHealth;
+        private Vector3 openFrom;
+        /// <summary>The container being opened: how far (0..1), or -1 when none.</summary>
+        public float OpenProgress => openingId != 0 ? Mathf.Clamp01((Time.time - openStart) / Mathf.Max(0.01f, openTime)) : -1f;
+        public LootKind OpeningKind { get; private set; }
         // the weapons last seen in the two slots (a new one from the ground comes with fresh magazines)
         private byte seenPrimary = 255, seenSecondary = 255, seenPick;
         public bool Reloading => reloadEnd > 0;
@@ -68,6 +75,7 @@ namespace UA
         {
             Refill();
             nextPick = nextBomb = 0f;
+            openingId = 0;
             Grenades = Grenade.PerLife;
             healEnd = 0;
             nextGive = 0;
@@ -591,6 +599,8 @@ namespace UA
         {
             if (state.Primary == seenPrimary && state.Secondary == seenSecondary && state.PickSeq == seenPick) return;
             bool picked = state.PickSeq != seenPick;
+            // grenades from the ground: two more (up to the most one can carry)
+            if (picked && state.LastPicked == Weapons.Grenade.Id) Grenades = Mathf.Min(Grenades + 2, Grenade.Max);
             for (int i = 0; i < 2; i++)
             {
                 byte id = i == 0 ? state.Primary : state.Secondary;
@@ -606,19 +616,56 @@ namespace UA
             seenPick = state.PickSeq;
         }
 
-        /// <summary>ADVANCED: PICK UP for what lies within reach, PLANT for a carried charge, DETONATE for the planted ones.</summary>
+        /// <summary>
+        /// ADVANCED: PICK UP for what lies within reach (a container is opened by staying by it a moment: moving
+        /// away or being hit stops it), PLANT for a carried charge, DETONATE for the planted ones.
+        /// </summary>
         private void Advanced(Session s, PlayerState state, bool can)
         {
             var near = can && s.Advanced ? LootView.Nearest(transform.position) : null;
             // a vest no better than the one worn is not offered
             if (near != null && near.Kind == LootKind.Armor && state.Armor >= near.Item) near = null;
-            Controls.PickAvailable = near != null;
+            Controls.PickAvailable = near != null && openingId == 0;
             Controls.PickLabel = near != null ? LootView.Label(near) : "";
-            if (near != null && Controls.PickPressed && Time.time >= nextPick)
+            Controls.PickTint = near != null ? Color.Lerp(Tiers.Tint(near), Color.white, 0.25f) : Color.white;
+            if (near != null && openingId == 0 && Controls.PickPressed && Time.time >= nextPick)
             {
                 nextPick = Time.time + 0.35f;
-                s.ActionLocal(1, near.Id);
-                Sfx.Play(near.Kind == LootKind.Crate ? "reload" : Sfx.Has("dry_1") ? "dry_1" : "click", 0.8f, near.Kind == LootKind.Crate ? 0.7f : 1.1f);
+                if (Tiers.Container(near.Kind))
+                {
+                    openingId = near.Id;
+                    OpeningKind = near.Kind;
+                    openStart = Time.time;
+                    openTime = Tiers.OpenTime(near.Kind);
+                    openFrom = transform.position;
+                    openHealth = state.Health;
+                    agent.PlayReload();
+                    Sfx.Play(Sfx.Has("crate_open") ? "crate_open" : "reload", 0.9f, 1f);
+                }
+                else
+                {
+                    s.ActionLocal(1, near.Id);
+                    int tier = Tiers.Of(near);
+                    Sfx.Play(Sfx.Has("dry_1") ? "dry_1" : "click", 0.8f, 1.1f);
+                    // the rare finds are told (purple and gold)
+                    if (tier >= Tiers.Epic) App.I?.Toast(Loc.T(Tiers.Names[tier]) + "   " + LootView.Label(near));
+                }
+            }
+            if (openingId != 0)
+            {
+                bool still = can && state.Alive && (transform.position - openFrom).sqrMagnitude < 0.9f && state.Health >= openHealth - 0.5f;
+                if (still)
+                {
+                    still = false;
+                    foreach (var l in s.Loot) if (l.Id == openingId) { still = true; break; }
+                }
+                if (!still) openingId = 0;
+                else if (Time.time - openStart >= openTime)
+                {
+                    s.ActionLocal(1, openingId);
+                    Sfx.Play(Sfx.Has("crate_lid") ? "crate_lid" : "click", 1f, 0.8f);
+                    openingId = 0;
+                }
             }
             Controls.PlantAvailable = can && s.Advanced && state.C4 > 0;
             bool planted = false;

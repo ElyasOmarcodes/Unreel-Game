@@ -358,35 +358,43 @@ namespace UA
             return clear >= 0 ? clear : nearest;
         }
 
-        private float nextLoot;
+        private float nextLoot, openingUntil;
+        private ushort openingId;
 
-        /// <summary>How good a weapon is for a bot: rifles, snipers and the machine gun 2, the shotgun 1.5, sub-machine guns 1, pistols 0.</summary>
-        private static float Rank(int id)
-        {
-            var d = Weapons.Get(id);
-            if (d.Pellets > 1) return 1.5f;
-            if (d.Primary) return d.Auto || d.Scope ? 2f : 1.5f;
-            return d.Auto ? 1f : 0f;
-        }
+        /// <summary>How good a weapon is for a bot: its grade (grey 0 .. gold 4); between two of a grade, the primary.</summary>
+        private static float Rank(int id) => Tiers.Weapon(id) + (Weapons.Get(id).Primary ? 0.1f : 0f);
 
         private static byte Best(PlayerState st) => Rank(st.Secondary) > Rank(st.Primary) ? st.Secondary : st.Primary;
 
-        /// <summary>ADVANCED: what the bot would like from the ground (a real weapon while it has only pistols, a crate, a better vest).</summary>
+        /// <summary>
+        /// ADVANCED: what the bot would like from the ground: a weapon of a better grade, a container (a supply
+        /// drop from far away, a military crate from a fair way, a supply crate nearby), a better vest; the
+        /// better things are worth a longer way.
+        /// </summary>
         private LootItem Wanted(Session s, float reach)
         {
             var st = agent.State;
-            bool needGun = Rank(Best(st)) < 2f;
+            int have = Tiers.Weapon(Best(st));
             LootItem best = null;
-            float bestD = reach;
+            float bestScore = float.MaxValue;
             foreach (var l in s.Loot)
             {
                 float d = Vector3.Distance(l.Pos, transform.position);
-                if (d >= bestD) continue;
-                bool want = l.Kind == LootKind.Weapon && needGun && Rank(l.Item) > Rank(Best(st))
-                            || l.Kind == LootKind.Crate && d < Mathf.Min(reach, 30f)
-                            || l.Kind == LootKind.Armor && l.Item > st.Armor && st.Armor < 50 && d < Mathf.Min(reach, 25f);
+                if (d >= reach) continue;
+                bool want;
+                switch (l.Kind)
+                {
+                    case LootKind.Weapon: want = Tiers.Weapon(l.Item) > have; break;
+                    case LootKind.Crate: want = d < 30f; break;
+                    case LootKind.Military: want = d < 45f && have < Tiers.Legendary; break;
+                    case LootKind.Airdrop: want = d < 75f; break;
+                    case LootKind.Armor: want = l.Item > st.Armor && d < 25f; break;
+                    default: want = false; break;   // charges and grenades: the bots do not use them
+                }
                 if (!want) continue;
-                bestD = d;
+                float score = d / (1f + 0.6f * Tiers.Of(l));
+                if (score >= bestScore) continue;
+                bestScore = score;
                 best = l;
             }
             return best;
@@ -395,20 +403,31 @@ namespace UA
         private int LootGoal(Session s, World world)
         {
             if (!s.Advanced) return -1;
-            var l = Wanted(s, 45f);
-            return l != null ? Nearest(world, l.Pos) : -1;
+            var l = Wanted(s, 75f);
+            if (l != null) return Nearest(world, l.Pos);
+            // a supply drop on its way down not too far off: be there when it lands
+            foreach (var d in s.Drops)
+                if (!d.Opened && (d.Pos - transform.position).sqrMagnitude < 70f * 70f) return Nearest(world, d.Pos);
+            return -1;
         }
 
-        /// <summary>Within reach of something it wants: takes it (a crate is opened, its content taken the next time).</summary>
+        /// <summary>Within reach of something it wants: takes it; a container is opened by staying by it its time.</summary>
         private void TakeLoot(Session s)
         {
-            nextLoot = Time.time + 0.4f;
+            nextLoot = Time.time + 0.25f;
             var l = Wanted(s, Session.PickReach);
-            if (l == null) return;
+            if (l == null) { openingId = 0; return; }
+            if (Tiers.Container(l.Kind))
+            {
+                if (openingId != l.Id) { openingId = l.Id; openingUntil = Time.time + Tiers.OpenTime(l.Kind); agent.PlayReload(); }
+                path.Clear();
+                if (Time.time < openingUntil) return;
+            }
             if (s.BotPickup(agent.Id, l.Id))
             {
-                agent.PlayReload();
+                if (!Tiers.Container(l.Kind)) agent.PlayReload();
                 path.Clear();
+                openingId = 0;
             }
         }
 

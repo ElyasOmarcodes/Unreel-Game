@@ -215,6 +215,24 @@ namespace UA
             Emit(dust, pos, dir, 5, 0.5f);
         }
 
+        /// <summary>A heavy thing landing (the supply drop): a ring of dust thrown out along the ground, and some up.</summary>
+        public static void LandingDust(Vector3 pos)
+        {
+            Ensure();
+            var p = new ParticleSystem.EmitParams { applyShapeToPosition = false };
+            for (int i = 0; i < 28; i++)
+            {
+                var dir = Quaternion.Euler(0f, i * 360f / 28f + Random.Range(-6f, 6f), 0f) * Vector3.forward;
+                p.position = pos + dir * 0.7f + Vector3.up * 0.15f;
+                p.velocity = dir * Random.Range(2.6f, 5.2f) + Vector3.up * Random.Range(0.2f, 1f);
+                p.startSize = Random.Range(0.7f, 1.3f);
+                p.startLifetime = Random.Range(1.3f, 2.2f);
+                p.startColor = new Color(0.64f, 0.6f, 0.52f, 0.65f);
+                dust.Emit(p, 1);
+            }
+            Emit(dust, pos + Vector3.up * 0.5f, Vector3.up, 8, 0.8f);
+        }
+
         public static void Impact(Vector3 pos, Vector3 normal)
         {
             Ensure();

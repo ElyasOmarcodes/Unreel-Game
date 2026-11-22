@@ -18,6 +18,8 @@ namespace UA
         /// <summary>ADVANCED: something to pick up within reach, C4 to plant, own charges to set off. Debug: the place button.</summary>
         public static bool PickAvailable, PlantAvailable, DetonateAvailable, CoordAvailable;
         public static string PickLabel = "";
+        /// <summary>The colour of the grade of what PICK UP takes.</summary>
+        public static Color PickTint = Color.white;
         public static Vector2 Move;
         public static Vector2 Look;
         public static bool FireHeld, FirePressed, AimPressed, JumpPressed, CrouchPressed, ReloadPressed, SwapPressed, PausePressed, ScoreHeld, ScorePressed, PronePressed, GrenadePressed, AmmoPressed, HealPressed;

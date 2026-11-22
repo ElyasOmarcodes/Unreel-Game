@@ -121,6 +121,15 @@ namespace UA
         private Image killToast;
         private Text killToastText;
         private float killToastUntil;
+        // ADVANCED: a supply drop coming (a banner and an alarm), where each one is (a gold marker with the distance),
+        // a container being opened (a bar), the vest's full size (100, or 150 for the military vest)
+        private RectTransform dropBanner;
+        private Text dropBannerText;
+        private float dropBannerUntil, armorCap;
+        private readonly List<(RectTransform root, Image icon, Text label)> dropMarks = new List<(RectTransform, Image, Text)>();
+        private RectTransform openBar;
+        private Image openFill;
+        private Text openText;
 
         public void Build()
         {
@@ -221,6 +230,43 @@ namespace UA
             killToastText = UIKit.Txt(killToast.transform, "", 32, TextAnchor.MiddleCenter).Shadowed();
             killToastText.rectTransform.Fill();
             killToast.gameObject.SetActive(false);
+
+            // the supply drop's banner: gold on dark, under the top bar
+            var banner = UIKit.Img(root, new Color(0.05f, 0.04f, 0.02f, 0.72f), UIKit.Rounded);
+            banner.gameObject.AddComponent<Outline>().effectColor = new Color(1f, 0.76f, 0.2f, 0.9f);
+            dropBanner = banner.rectTransform;
+            dropBanner.At(0.5f, 1f, 0, -205, 980, 104, 0.5f, 1f);
+            var bannerIcon = UIKit.IconImage(dropBanner, "parachute", 74, new Color(1f, 0.76f, 0.2f));
+            bannerIcon.rectTransform.At(0f, 0.5f, 26, 0, 74, 74, 0f, 0.5f);
+            dropBannerText = UIKit.Txt(dropBanner, "", 40, TextAnchor.MiddleCenter, new Color(1f, 0.8f, 0.3f)).Shadowed();
+            dropBannerText.supportRichText = true;
+            dropBannerText.rectTransform.At(0.5f, 0.5f, 40, 0, 860, 100);
+            dropBanner.gameObject.SetActive(false);
+            // up to three supply drop markers
+            for (int i = 0; i < 3; i++)
+            {
+                var mark = UIKit.Node(root, "DropMark");
+                mark.sizeDelta = new Vector2(220, 90);
+                var icon = UIKit.IconImage(mark, "parachute", 46, new Color(1f, 0.76f, 0.2f));
+                icon.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, 0.6f);
+                icon.rectTransform.At(0.5f, 1f, 0, 0, 46, 46, 0.5f, 1f);
+                var label = UIKit.Txt(mark, "", 22, TextAnchor.UpperCenter, new Color(1f, 0.82f, 0.35f)).Shadowed();
+                label.rectTransform.At(0.5f, 1f, 0, -46, 220, 44, 0.5f, 1f);
+                mark.gameObject.SetActive(false);
+                dropMarks.Add((mark, icon, label));
+            }
+            // opening a container: a bar under the cross
+            var openBack = UIKit.Img(root, new Color(0f, 0f, 0f, 0.6f), UIKit.Rounded);
+            openBar = openBack.rectTransform;
+            openBar.At(0.5f, 0.5f, 0, -150, 420, 64);
+            openText = UIKit.Txt(openBar, "", 24, TextAnchor.UpperCenter, UIKit.TextColor).Shadowed();
+            openText.rectTransform.At(0.5f, 1f, 0, -4, 420, 30, 0.5f, 1f);
+            var track = UIKit.Img(openBar, new Color(1f, 1f, 1f, 0.15f));
+            track.rectTransform.At(0.5f, 0f, 0, 12, 380, 12, 0.5f, 0f);
+            openFill = UIKit.Img(track.transform, new Color(1f, 0.76f, 0.2f));
+            openFill.rectTransform.Fill();
+            openFill.rectTransform.pivot = new Vector2(0f, 0.5f);
+            openBar.gameObject.SetActive(false);
             killFeed = UIKit.Txt(root, "", 28, TextAnchor.UpperRight).Shadowed();
             killFeed.rectTransform.At(1f, 1f, -40, -110, 820, 300, 1f, 1f);
             center = UIKit.Txt(root, "", 96, TextAnchor.MiddleCenter, UIKit.TextColor).Shadowed();
@@ -273,11 +319,25 @@ namespace UA
             }
 
             Session.I.KillHappened += OnKill;
+            Session.I.DropAnnounced += OnDrop;
+        }
+
+        /// <summary>A supply drop announced: the banner and the alarm.</summary>
+        private void OnDrop(AirDrop d)
+        {
+            var s = Session.I;
+            if (s == null || !s.Advanced) return;
+            dropBannerUntil = Time.unscaledTime + 4.5f;
+            int count = 0;
+            foreach (var x in s.Drops) if (!x.Opened && x.LandAt > Time.unscaledTime) count++;
+            dropBannerText.text = $"<b>{Loc.T("SUPPLY DROP INCOMING")}</b>" + (count > 1 ? $"  x{count}" : "") +
+                                  $"\n<size=24><color=#e8e0c8>{Loc.T("THE BEST WEAPONS - FOLLOW THE GOLD MARK")}</color></size>";
+            Sfx.Play(Sfx.Has("drop_alarm") ? "drop_alarm" : "ui_confirm", 0.9f);
         }
 
         private void OnDestroy()
         {
-            if (Session.I != null) Session.I.KillHappened -= OnKill;
+            if (Session.I != null) { Session.I.KillHappened -= OnKill; Session.I.DropAnnounced -= OnDrop; }
         }
 
         private void AddButton(Controls.Button b, string icon, string label)
@@ -402,12 +462,19 @@ namespace UA
                 if (Sfx.Count("pain_") == 0) Sfx.Play("hurt", 0.6f);   // otherwise the agent cries out itself
             }
             lastHealth = hp;
-            // the vest: five segments of 20 under the health (only while one is worn)
+            // the vest: five segments under the health (only while one is worn), of its full size (the military vest: 150, in gold)
             float armor = me != null && me.Alive ? me.Armor : 0;
+            armorCap = armor <= 0f ? 0f : Mathf.Max(armorCap, armor > 100f ? 150f : 100f);
             armorRow.gameObject.SetActive(armor > 0);
             if (armor > 0)
             {
-                for (int i = 0; i < 5; i++) armorFill[i].rectTransform.anchorMax = new Vector2(Mathf.Clamp01((armor - i * 20f) / 20f), 1f);
+                float seg = armorCap / 5f;
+                var armorColor = armorCap > 100f ? new Color(1f, 0.76f, 0.2f) : new Color(0.35f, 0.7f, 1f);
+                for (int i = 0; i < 5; i++)
+                {
+                    armorFill[i].rectTransform.anchorMax = new Vector2(Mathf.Clamp01((armor - i * seg) / seg), 1f);
+                    armorFill[i].color = armorColor;
+                }
                 armorNumber.text = Loc.Pair("VEST", Mathf.CeilToInt(armor).ToString());
             }
             damageAlpha = Mathf.MoveTowards(damageAlpha, hp < 30 && me != null && me.Alive ? 0.25f : 0f, Time.unscaledDeltaTime * 0.9f);
@@ -527,7 +594,12 @@ namespace UA
             }
             if (buttonLabels.TryGetValue(Controls.Button.Grenade, out var grenadeLabel))
                 grenadeLabel.text = "x" + (lp != null ? lp.Grenades : 0);
-            if (buttonLabels.TryGetValue(Controls.Button.Pick, out var pickLabel)) pickLabel.text = Loc.T(Controls.PickLabel);
+            if (buttonLabels.TryGetValue(Controls.Button.Pick, out var pickLabel))
+            {
+                pickLabel.text = Loc.T(Controls.PickLabel);
+                pickLabel.color = Controls.PickTint;
+            }
+            UpdateDrops(s, lp, now);
             if (buttonLabels.TryGetValue(Controls.Button.Plant, out var plantLabel)) plantLabel.text = "C4 x" + (me != null ? me.C4 : 0);
             stickBase.enabled = stickKnob.enabled = touchUi;
             var stickCenter = Controls.StickActive ? Controls.StickCenter : new Vector2(260, 250);
@@ -553,6 +625,60 @@ namespace UA
             fpsTimer += Time.unscaledDeltaTime;
             if (fpsTimer > 0.5f) { fpsValue = 1f / Mathf.Max(0.001f, Time.unscaledDeltaTime); fpsTimer = 0; }
             fps.text = Settings.ShowFps ? Mathf.RoundToInt(fpsValue) + " FPS" : "";
+        }
+
+        /// <summary>ADVANCED: the supply drop banner, the gold markers (distance, and the seconds until it lands), the opening bar.</summary>
+        private void UpdateDrops(Session s, LocalPlayer lp, float now)
+        {
+            bool advanced = s.Advanced && s.InMatch;
+            dropBanner.gameObject.SetActive(advanced && now < dropBannerUntil);
+            if (dropBanner.gameObject.activeSelf)
+            {
+                // in and out softly
+                float a = Mathf.Clamp01((dropBannerUntil - now) / 0.5f) * Mathf.Clamp01((4.5f - (dropBannerUntil - now)) / 0.25f);
+                dropBanner.localScale = Vector3.one * Mathf.Lerp(1.08f, 1f, Mathf.Clamp01((4.5f - (dropBannerUntil - now)) / 0.3f));
+                foreach (var g in dropBanner.GetComponentsInChildren<Graphic>()) g.canvasRenderer.SetAlpha(a);
+            }
+            var cam = CameraRig.I != null ? CameraRig.I.Cam : null;
+            int used = 0;
+            if (advanced && cam != null && LocalPlayer.I != null)
+            {
+                float scale = 1080f / Mathf.Max(1, Screen.height);
+                float wide = Screen.width * scale;
+                var from = LocalPlayer.I.transform.position;
+                foreach (var d in s.Drops)
+                {
+                    if (d.Opened || used >= dropMarks.Count) continue;
+                    var (mark, icon, label) = dropMarks[used++];
+                    mark.gameObject.SetActive(true);
+                    var at = d.Pos + Vector3.up * 1.6f;
+                    var screen = cam.WorldToScreenPoint(at);
+                    float dist = Vector3.Distance(from, d.Pos);
+                    float left = d.LandAt - now;
+                    label.text = Mathf.RoundToInt(dist) + " m" + (left > 0f ? $"   0:{Mathf.CeilToInt(left):00}" : "");
+                    var p = new Vector2(screen.x, screen.y) * scale;
+                    // behind the camera or off the screen: held at the edge, pointing the way
+                    bool behind = screen.z < 0f;
+                    if (behind) p = new Vector2(wide - p.x, -200f);
+                    var clamped = new Vector2(Mathf.Clamp(p.x, 90f, wide - 90f), Mathf.Clamp(p.y, 140f, 1080f - 150f));
+                    mark.anchorMin = mark.anchorMax = Vector2.zero;
+                    mark.pivot = new Vector2(0.5f, 0.25f);
+                    mark.anchoredPosition = clamped;
+                    float pulse = left > 0f ? 1f + Mathf.Sin(now * 6f) * 0.08f : 1f;
+                    icon.rectTransform.localScale = Vector3.one * pulse;
+                }
+            }
+            for (int i = used; i < dropMarks.Count; i++) dropMarks[i].root.gameObject.SetActive(false);
+            // opening a container
+            float open = lp != null ? lp.OpenProgress : -1f;
+            openBar.gameObject.SetActive(advanced && open >= 0f);
+            if (open >= 0f)
+            {
+                openFill.rectTransform.anchorMax = new Vector2(open, 1f);
+                var kind = lp.OpeningKind;
+                openText.text = Loc.T(kind == LootKind.Airdrop ? "OPENING SUPPLY DROP" : kind == LootKind.Military ? "OPENING MILITARY CRATE" : "OPENING CRATE");
+                openFill.color = kind == LootKind.Airdrop ? Tiers.Colors[Tiers.Legendary] : kind == LootKind.Military ? Tiers.Colors[Tiers.Epic] : new Color(1f, 0.6f, 0.15f);
+            }
         }
 
         private void UpdateNames(Session s, PlayerState me)

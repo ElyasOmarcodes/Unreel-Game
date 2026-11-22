@@ -554,8 +554,23 @@ namespace UA
                 yield return Wait(0.8f);
                 yield return Shot("16d-crate");
                 Controls.SimPick = true;
-                yield return Wait(0.8f);
+                yield return Wait(0.6f);
+                yield return Shot("16d2-crate-opening");
+                yield return Wait(1.1f);
                 yield return Shot("16e-crate-opened");
+            }
+            // a military crate at a hot spot (the highest places), opened
+            var hot = s.Loot.Where(l => l.Kind == LootKind.Military).OrderBy(l => (l.Pos - me.transform.position).sqrMagnitude).FirstOrDefault();
+            if (hot != null)
+            {
+                Stand(me, hot.Pos + new Vector3(1.6f, 0.05f, -0.9f), hot.Pos);
+                CameraRig.I.Pitch = -18f;
+                yield return Wait(0.8f);
+                yield return Shot("16e2-military-crate");
+                Controls.SimPick = true;
+                yield return Wait(2.8f);
+                yield return Shot("16e3-military-opened");
+                App.Log("advanced: hot spot opened, " + string.Join(", ", s.Loot.Where(l => (l.Pos - hot.Pos).sqrMagnitude < 4f).Select(l => LootView.Label(l))));
             }
             // a fuel drum, shot until it goes off
             var drum = s.Barrels.FirstOrDefault(b => b.Alive && Viewpoint(b.Pos, 5f, 16f) != null);
@@ -632,8 +647,78 @@ namespace UA
                     yield return Shot("16o-far-enemy");
                 }
             }
+            // a supply drop: the banner, the plane overhead, the crate on its parachute, the landing, the smoke, the gold loot
+            if (s.Local != null) s.Local.Health = 100f;
+            s.DropNow(me.transform.position);
+            var drop = s.Drops.LastOrDefault();
+            if (drop != null)
+            {
+                App.Log($"advanced: supply drop at ({drop.Pos.x:0.0}, {drop.Pos.z:0.0})");
+                var watch = Viewpoint(drop.Pos, 12f, 22f) ?? drop.Pos + new Vector3(14f, 0f, 0f);
+                Stand(me, watch, drop.Pos);
+                yield return Wait(0.6f);
+                yield return Shot("16p-drop-banner");
+                float release = drop.LandAt - Session.DropFall;
+                // the plane passing over
+                yield return UntilTime(release - 1.6f);
+                if (s.Local != null) s.Local.Health = 100f;
+                AimAt(AirDropView.PlaneAt(drop, Time.unscaledTime + 0.1f));
+                yield return null;
+                yield return Shot("16q-drop-plane");
+                // the crate on its parachute, high and then low
+                yield return UntilTime(release + 2.6f);
+                AimAt(AirDropView.CrateAt(drop, Time.unscaledTime + 0.05f) + Vector3.up * 2.5f);
+                yield return null;
+                yield return Shot("16r-drop-parachute");
+                yield return UntilTime(release + 7.4f);
+                if (s.Local != null) s.Local.Health = 100f;
+                AimAt(AirDropView.CrateAt(drop, Time.unscaledTime + 0.05f) + Vector3.up * 1.5f);
+                yield return null;
+                yield return Shot("16s-drop-parachute-low");
+                // landed: dust, smoke, strobe, the gold beam
+                yield return UntilTime(drop.LandAt + 0.35f);
+                AimAt(drop.Pos + Vector3.up * 1.2f);
+                yield return null;
+                yield return Shot("16t-drop-landed");
+                yield return Wait(2.6f);
+                AimAt(drop.Pos + Vector3.up * 2.5f);
+                yield return null;
+                yield return Shot("16t2-drop-smoke");
+                // opened: a gold weapon, the military vest and a third thing
+                var crate2 = s.Loot.FirstOrDefault(l => l.Kind == LootKind.Airdrop);
+                if (crate2 != null)
+                {
+                    if (s.Local != null) s.Local.Health = 100f;
+                    Stand(me, crate2.Pos + new Vector3(1.8f, 0.05f, -1f), crate2.Pos);
+                    CameraRig.I.Pitch = -22f;
+                    yield return Wait(0.4f);
+                    Controls.SimPick = true;
+                    yield return Wait(1.5f);
+                    yield return Shot("16u-drop-opening");
+                    yield return Wait(2f);
+                    yield return Shot("16v-drop-opened");
+                    App.Log("advanced: supply drop opened, " + string.Join(", ", s.Loot.Where(l => (l.Pos - crate2.Pos).sqrMagnitude < 4f).Select(l => LootView.Label(l))));
+                    var gold = s.Loot.Where(l => l.Kind == LootKind.Weapon && Tiers.Of(l) == Tiers.Legendary).OrderBy(l => (l.Pos - me.transform.position).sqrMagnitude).FirstOrDefault();
+                    if (gold != null)
+                    {
+                        Stand(me, gold.Pos + new Vector3(0.9f, 0.05f, -0.5f), gold.Pos);
+                        CameraRig.I.Pitch = -20f;
+                        yield return Wait(0.4f);
+                        Controls.SimPick = true;
+                        yield return Wait(0.8f);
+                        yield return Shot("16w-legendary");
+                        App.Log($"advanced: weapons now {s.Local.Primary} / {s.Local.Secondary}");
+                    }
+                }
+            }
             app.LeaveGroup();
             yield return Wait(1f);
+        }
+
+        /// <summary>Waits until the game's own clock (unscaled) reaches a time.</summary>
+        private static IEnumerator UntilTime(float time)
+        {
+            while (Time.unscaledTime < time) yield return null;
         }
 
         // ---------------------------------------------------------------- videos
@@ -1275,7 +1360,7 @@ namespace UA
             yield return Until(() => KillCam.Active, 150);
             if (!KillCam.Active) { App.Log("no first kill film"); yield break; }
             float start = Time.realtimeSinceStartup;
-            foreach (var (at, name) in new[] { (1.0f, "0-title"), (2.3f, "a-aim"), (3.1f, "b-bullet"), (3.9f, "c-bullet-slow"), (4.75f, "c2-bullet-near"), (5.25f, "d-hit"), (6.3f, "e-fall"), (7.9f, "f-killer"), (9.0f, "g-back-to-game") })
+            foreach (var (at, name) in new[] { (1.0f, "0-title"), (2.3f, "a-aim"), (2.86f, "a2-muzzle"), (3.1f, "b-bullet"), (3.9f, "c-bullet-slow"), (4.75f, "c2-bullet-near"), (5.25f, "d-hit"), (6.3f, "e-fall"), (7.9f, "f-killer"), (9.0f, "g-back-to-game") })
             {
                 while (Time.realtimeSinceStartup - start < at) yield return null;
                 yield return Shot($"{prefix}{name}-first-kill");
