@@ -133,6 +133,19 @@ public class ImportRules : AssetPostprocessor
         }
         var android = importer.GetPlatformTextureSettings("Android");
         android.overridden = true;
+        if (assetPath.Contains("Assets/Characters/Team1/"))
+        {
+            // TEAM 1's whole outfit on one atlas (Tools/team1): the cloth's weave needs the 2048 colour; its
+            // normals stay at 1024 with coarse blocks
+            bool normal = file.EndsWith("_Normal");
+            importer.maxTextureSize = normal ? 1024 : 2048;
+            importer.anisoLevel = 4;
+            android.maxTextureSize = normal ? 1024 : 2048;
+            android.format = normal ? TextureImporterFormat.ASTC_8x8 : TextureImporterFormat.ASTC_6x6;
+            android.compressionQuality = 50;
+            importer.SetPlatformTextureSettings(android);
+            return;
+        }
         // interiors and the village ground and mud are seen up close only in small patches: half size
         bool small = file.Contains("interior") || file.Contains("Ornaments") || file.StartsWith("Clay") || file.StartsWith("Ground1") || file.StartsWith("Gravel") || file.StartsWith("Rock0");
         // the guns are small on the screen: half size too

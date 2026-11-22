@@ -47,10 +47,27 @@ public static class CharacterPack
 
     private static readonly HashSet<string> RigidHands = new HashSet<string> { "RedBeret", "Army" };
 
-    public static List<Agent.OutfitPart> Dress(Outfit.Body body, bool female, Material team, List<Renderer> teamRenderers)
+    /// <summary>TEAM 1's value in the look (Wardrobe.Slot.Character): made in Blender on this very body (Tools/team1).</summary>
+    public const int Team1Character = 12;
+
+    /// <summary>The body's own head and hands worn with TEAM 1 (its skin tone set like the body's), or null.</summary>
+    public static Renderer Team1Skin;
+
+    public static List<Agent.OutfitPart> Dress(Outfit.Body body, bool female, Material team, List<Renderer> teamRenderers, Renderer[] face = null)
     {
         var parts = new List<Agent.OutfitPart>();
         int mask = 0;
+        Team1Skin = null;
+        if (!female)
+        {
+            var team1 = Team1(body, face ?? new Renderer[0], team, out var team1Band);
+            if (team1 != null) parts.Add(new Agent.OutfitPart { Object = team1, Slot = Wardrobe.Slot.Character, Mask = 1 << Team1Character });
+            if (team1 != null && team1Band != null)
+            {
+                parts.Add(new Agent.OutfitPart { Object = team1Band, Slot = Wardrobe.Slot.Character, Mask = 1 << Team1Character });
+                teamRenderers.AddRange(team1Band.GetComponentsInChildren<Renderer>(true));
+            }
+        }
         for (int i = 0; i < All.Length; i++)
         {
             if (All[i].female || female || Held.Contains(All[i].key)) continue;
@@ -615,18 +632,21 @@ public static class CharacterPack
     }
 
     /// <summary>A cloth band in the team colour round the left upper arm (riding on its bone).</summary>
-    private static GameObject Armband(Outfit.Body body, Material team)
+    private static GameObject Armband(Outfit.Body body, Material team) => Armband(body, team, "upperarm_l", "lowerarm_l", 0.4f, 0.072f);
+
+    /// <summary>A cloth band in the team colour of radius r round a limb, 'along' of the way from one joint to the next.</summary>
+    private static GameObject Armband(Outfit.Body body, Material team, string fromBone, string toBone, float along, float r)
     {
-        if (body.Bone("upperarm_l") < 0) return null;
-        Vector3 a = body.At("upperarm_l"), b = body.At("lowerarm_l");
+        if (body.Bone(fromBone) < 0 || body.Bone(toBone) < 0) return null;
+        Vector3 a = body.At(fromBone), b = body.At(toBone);
         var axis = (b - a).normalized;
-        var c = Vector3.Lerp(a, b, 0.4f);
+        var c = Vector3.Lerp(a, b, along);
         var u = Vector3.Cross(axis, Vector3.forward).normalized;
         if (u.sqrMagnitude < 0.01f) u = Vector3.Cross(axis, Vector3.up).normalized;
         var w = Vector3.Cross(axis, u);
         var g = new Outfit.Garment();
         const int n = 16;
-        const float r = 0.072f, half = 0.045f;
+        const float half = 0.045f;
         for (int i = 0; i <= n; i++)
         {
             float t = i * Mathf.PI * 2f / n;
@@ -636,6 +656,173 @@ public static class CharacterPack
         }
         // both faces (seen from outside whichever way the corners turn)
         for (int i = 0; i < n; i++) { g.Quad(2 * i + 1, 2 * i + 3, 2 * i, 2 * i + 2); g.Quad(2 * i + 3, 2 * i + 1, 2 * i + 2, 2 * i); }
-        return Outfit.Attach(body, g, "upperarm_l", "TeamArmband", team);
+        return Outfit.Attach(body, g, fromBone, "TeamArmband", team);
+    }
+
+    // ------------------------------------------------------------------ TEAM 1
+
+    /// <summary>
+    /// TEAM 1 (Models/Team1, made by Tools/team1/build.py on the game's own body): one mesh with one atlas, in
+    /// the game's axes, its skin weights by the body's bone names. It is fitted onto this body by the joints
+    /// (Team1_bones.json against the body's: the best of the axis orders and signs, a scale and a shift) and
+    /// worn on the body's bones; the body's own head and hands (the face in the hood's opening, the fingers out
+    /// of the gloves) and its eyes and brows go with it. The team colour is a band round the left forearm (the
+    /// flag is on the upper arm): 'band', riding on its bone.
+    /// </summary>
+    private static GameObject Team1(Outfit.Body body, Renderer[] face, Material team, out GameObject band)
+    {
+        band = null;
+        string dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Models", "Team1"));
+        string objFile = Path.Combine(dir, "Team1.obj"), weightFile = Path.Combine(dir, "Team1_weights.txt"), jointFile = Path.Combine(dir, "Team1_bones.json");
+        if (!File.Exists(objFile) || !File.Exists(weightFile) || !File.Exists(jointFile)) { Debug.LogWarning("[Setup] TEAM 1 missing in " + dir); return null; }
+        var inv = CultureInfo.InvariantCulture;
+        // the joints the outfit was made on
+        var joints = new Dictionary<string, Vector3>();
+        foreach (Match m in Regex.Matches(File.ReadAllText(jointFile), "\"(\\w+)\"\\s*:\\s*\\[\\s*([-\\d.eE+]+)\\s*,\\s*([-\\d.eE+]+)\\s*,\\s*([-\\d.eE+]+)\\s*\\]"))
+            joints[m.Groups[1].Value] = new Vector3(float.Parse(m.Groups[2].Value, inv), float.Parse(m.Groups[3].Value, inv), float.Parse(m.Groups[4].Value, inv));
+        var marks = new[] { "pelvis", "spine_03", "neck_01", "Head", "upperarm_l", "upperarm_r", "hand_l", "hand_r", "thigh_l", "thigh_r", "calf_l", "calf_r", "foot_l", "foot_r" }
+            .Where(n => joints.ContainsKey(n) && body.Bone(n) >= 0).ToList();
+        if (marks.Count < 6) { Debug.LogWarning("[Setup] TEAM 1: too few joints in common with the body"); return null; }
+        var src = marks.Select(n => joints[n]).ToList();
+        var dst = marks.Select(n => body.At(n)).ToList();
+        // the axes: of the 48 orders and signs, the one that lays the joints best onto the body's
+        Matrix4x4 best = Matrix4x4.identity;
+        float bestScale = 1f, bestErr = float.MaxValue;
+        Vector3 bestShift = Vector3.zero;
+        var orders = new[] { new[] { 0, 1, 2 }, new[] { 0, 2, 1 }, new[] { 1, 0, 2 }, new[] { 1, 2, 0 }, new[] { 2, 0, 1 }, new[] { 2, 1, 0 } };
+        foreach (var o in orders)
+            for (int signs = 0; signs < 8; signs++)
+            {
+                var m = Matrix4x4.zero;
+                for (int row = 0; row < 3; row++) m[row, o[row]] = ((signs >> row) & 1) == 1 ? -1f : 1f;
+                m[3, 3] = 1f;
+                var a = src.Select(p => m.MultiplyVector(p)).ToList();
+                Vector3 ca = Vector3.zero, cb = Vector3.zero;
+                for (int i = 0; i < a.Count; i++) { ca += a[i]; cb += dst[i]; }
+                ca /= a.Count;
+                cb /= a.Count;
+                float num = 0f, den = 0f;
+                for (int i = 0; i < a.Count; i++) { num += Vector3.Dot(a[i] - ca, dst[i] - cb); den += (a[i] - ca).sqrMagnitude; }
+                float scale = den > 1e-8f ? num / den : 0f;
+                if (scale <= 0f) continue;
+                var shift = cb - ca * scale;
+                float err = 0f;
+                for (int i = 0; i < a.Count; i++) err += (a[i] * scale + shift - dst[i]).sqrMagnitude;
+                if (err < bestErr) { bestErr = err; best = m; bestScale = scale; bestShift = shift; }
+            }
+        bool mirrors = best.determinant < 0f;
+        Debug.Log($"[Setup] TEAM 1 fitted on {marks.Count} joints: {Mathf.Sqrt(bestErr / marks.Count) * 100f:0.0} cm off on average, scale {bestScale:0.000}{(mirrors ? ", mirrored" : "")}");
+        // the mesh: one vertex per distinct corner
+        var v = new List<Vector3>();
+        var vt = new List<Vector2>();
+        var vn = new List<Vector3>();
+        var g = new Outfit.Garment();
+        var corner = new Dictionary<(int, int, int), int>();
+        var lineOf = new List<int>();
+        foreach (var line in File.ReadLines(objFile))
+        {
+            if (line.Length < 2 || line[0] == '#') continue;
+            var t = line.Split(' ');
+            if (t[0] == "v") v.Add(best.MultiplyVector(new Vector3(float.Parse(t[1], inv), float.Parse(t[2], inv), float.Parse(t[3], inv))) * bestScale + bestShift);
+            else if (t[0] == "vt") vt.Add(new Vector2(float.Parse(t[1], inv), float.Parse(t[2], inv)));
+            else if (t[0] == "vn") vn.Add(best.MultiplyVector(new Vector3(float.Parse(t[1], inv), float.Parse(t[2], inv), float.Parse(t[3], inv))).normalized);
+            else if (t[0] == "f" && t.Length >= 4)
+            {
+                var ids = new int[3];
+                for (int k = 0; k < 3; k++)
+                {
+                    var a = t[k + 1].Split('/');
+                    int pi = int.Parse(a[0]) - 1, ti = int.Parse(a[1]) - 1, ni = int.Parse(a[2]) - 1;
+                    if (!corner.TryGetValue((pi, ti, ni), out int c))
+                    {
+                        c = corner[(pi, ti, ni)] = g.Add(v[pi], vn[ni], vt[ti]);
+                        lineOf.Add(pi);
+                    }
+                    ids[k] = c;
+                }
+                // Blender's front faces turn the other way round from Unity's (unless the fit mirrored them back)
+                if (mirrors) g.Tri(ids[0], ids[1], ids[2]);
+                else g.Tri(ids[0], ids[2], ids[1]);
+            }
+        }
+        // the skin: by the body's bone names, else that of the nearest point of the body
+        var perV = File.ReadAllLines(weightFile);
+        int own = 0;
+        for (int i = 0; i < g.P.Count; i++)
+        {
+            var items = new List<(int bone, float weight)>();
+            int l = lineOf[i];
+            if (l < perV.Length)
+            {
+                var t = perV[l].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                for (int k = 0; k + 1 < t.Length; k += 2)
+                {
+                    int b = body.Bone(t[k]);
+                    if (b >= 0) items.Add((b, float.Parse(t[k + 1], inv)));
+                }
+            }
+            if (items.Count > 0) { g.W[i] = Outfit.Weight(items.ToArray()); own++; }
+            else g.W[i] = body.Nearest(g.P[i]);
+        }
+        Texture2D T(string kind)
+        {
+            foreach (var ext in new[] { ".jpg", ".png" })
+            {
+                var texture = AssetDatabase.LoadAssetAtPath<Texture2D>($"{Textures}/Team1/Body_{kind}{ext}");
+                if (texture != null) return texture;
+            }
+            return null;
+        }
+        var mat = AssetSetup.Mat("Char_Team1", Color.white, 0.16f, 0f, T("Albedo"), T("Normal"));
+        var root = new GameObject("Character_Team1");
+        root.transform.SetParent(body.Renderer.transform.parent, false);
+        var outfit = Outfit.Wear(body, g, "Team1_Outfit", mat);
+        if (outfit != null) outfit.transform.SetParent(root.transform, true);
+        // the body's own head and hands (whole triangles only), with its own skin material
+        var skin = new Outfit.Garment();
+        var keep = new Dictionary<int, int>();
+        var uvs = body.Renderer.sharedMesh.uv;
+        int Keep(int i)
+        {
+            if (!keep.TryGetValue(i, out int k)) k = keep[i] = skin.Add(body.Points[i], body.Normals[i], i < uvs.Length ? uvs[i] : Vector2.zero, body.Weights[i]);
+            return k;
+        }
+        bool Bare(int i) => body.Regions[i] == Outfit.Region.Head || body.Regions[i] == Outfit.Region.Hands;
+        var tris = body.Triangles;
+        for (int i = 0; i + 2 < tris.Length; i += 3)
+            if (Bare(tris[i]) && Bare(tris[i + 1]) && Bare(tris[i + 2]))
+            {
+                int a = Keep(tris[i]), b = Keep(tris[i + 1]), c = Keep(tris[i + 2]);
+                skin.T[0].Add(a);
+                skin.T[0].Add(b);
+                skin.T[0].Add(c);
+            }
+        skin.Tailored = false;   // the body's own triangles keep their own winding
+        var bare = Outfit.Wear(body, skin, "Team1_Skin", body.Renderer.sharedMaterials[0]);
+        if (bare != null)
+        {
+            bare.transform.SetParent(root.transform, true);
+            Team1Skin = bare.GetComponent<Renderer>();
+        }
+        // the eyes and the brows (not the hair or the beard: they are under the hood and the mask)
+        foreach (var r in face.OfType<SkinnedMeshRenderer>())
+        {
+            if (r == null || r.sharedMesh == null || r.name.Contains("Hair") || r.name.Contains("Beard")) continue;
+            var copy = new GameObject("Team1_" + r.name);
+            copy.transform.SetParent(r.transform.parent, false);
+            copy.transform.localPosition = r.transform.localPosition;
+            copy.transform.localRotation = r.transform.localRotation;
+            copy.transform.localScale = r.transform.localScale;
+            var c = copy.AddComponent<SkinnedMeshRenderer>();
+            c.sharedMesh = r.sharedMesh;
+            c.bones = r.bones;
+            c.rootBone = r.rootBone;
+            c.sharedMaterials = r.sharedMaterials;
+            c.localBounds = r.localBounds;
+            copy.transform.SetParent(root.transform, true);
+        }
+        band = Armband(body, team, "lowerarm_l", "hand_l", 0.35f, 0.07f);
+        Debug.Log($"[Setup] TEAM 1: {g.P.Count} vertices, {own} skinned by bone name, {keep.Count} of the body's for the head and the hands");
+        return root;
     }
 }

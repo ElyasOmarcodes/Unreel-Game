@@ -379,16 +379,19 @@ namespace UA
             yield return Until(() => Session.I.Phase == Phase.Playing && World.I.MapReady, 30);
             yield return Wait(3f);
             yield return Shot("08-match-start");
-            // the first kill of the match, for the film: the host shoots the nearest enemy bot
+            // the first kill of the match, for the film: the host shoots an enemy bot in plain sight, as a real
+            // shot needs (the nearest one with nothing between; else one brought out into the open in front)
             var me = Session.I.Local;
-            var prey = Session.I.Players.Values.Where(p => p.IsBot && p.Alive && !MatchConfig.Mates(p, me)).OrderBy(p => (p.Pos - me.Pos).sqrMagnitude).FirstOrDefault();
+            var prey = PreyInSight(me);
             if (prey != null)
             {
                 CameraRig.I.Yaw = Quaternion.LookRotation(prey.Pos - me.Pos).eulerAngles.y;
-                yield return Wait(0.3f);
+                yield return Wait(0.6f);
+                App.Log($"first kill: {prey.Name} {(prey.Pos - me.Pos).magnitude:F1} m away");
                 Session.I.TestKill(me.Id, prey.Id);
                 yield return Until(() => !KillCam.Active, 11);
             }
+            else App.Log("first kill: no enemy bot to shoot");
             yield return Play(10f, "09-running-firing", "10-fight");
             Controls.SimMove = Vector2.zero;
             Controls.SimGrenade = true;
@@ -494,6 +497,29 @@ namespace UA
             }
         }
 
+        /// <summary>A place on the ground about 'dist' metres from a thing on the ground, with room to stand and
+        /// nothing between (the first of eight ways round it that has all that; else the first way).</summary>
+        private static Vector3 BesideOf(Vector3 thing, float dist)
+        {
+            Vector3? first = null;
+            for (int k = 0; k < 8; k++)
+            {
+                var way = Quaternion.Euler(0f, 30f + k * 45f, 0f) * Vector3.forward;
+                var probe = thing + way * dist + Vector3.up * 1.5f;
+                if (!Physics.Raycast(probe, Vector3.down, out var ground, 3f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
+                var at = ground.point + Vector3.up * 0.05f;
+                if (first == null) first = at;
+                if (Mathf.Abs(ground.point.y - thing.y) > 0.6f) continue;
+                if (Physics.CheckCapsule(at + Vector3.up * 0.4f, at + Vector3.up * 1.6f, 0.3f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
+                var eye = at + Vector3.up * 1.2f;
+                var end = thing + Vector3.up * 0.4f;
+                end += (eye - end).normalized * 0.55f;   // its own collider is no wall
+                if (Physics.Linecast(eye, end, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
+                return at;
+            }
+            return first ?? thing + new Vector3(1.6f, 0.05f, -0.9f);
+        }
+
         /// <summary>A walkable place 'near' to 'far' metres from a point, with a clear view of it.</summary>
         private static Vector3? Viewpoint(Vector3 target, float near, float far)
         {
@@ -563,7 +589,10 @@ namespace UA
             var hot = s.Loot.Where(l => l.Kind == LootKind.Military).OrderBy(l => (l.Pos - me.transform.position).sqrMagnitude).FirstOrDefault();
             if (hot != null)
             {
-                Stand(me, hot.Pos + new Vector3(1.6f, 0.05f, -0.9f), hot.Pos);
+                // beside it on open ground with nothing between (the hot spots are up on roofs and yards), the
+                // bots holding their fire while it opens (a hit stops the opening)
+                Bot.HoldFire = true;
+                Stand(me, BesideOf(hot.Pos, 1.7f), hot.Pos);
                 CameraRig.I.Pitch = -18f;
                 yield return Wait(0.8f);
                 yield return Shot("16e2-military-crate");
@@ -571,6 +600,7 @@ namespace UA
                 yield return Wait(2.8f);
                 yield return Shot("16e3-military-opened");
                 App.Log("advanced: hot spot opened, " + string.Join(", ", s.Loot.Where(l => (l.Pos - hot.Pos).sqrMagnitude < 4f).Select(l => LootView.Label(l))));
+                Bot.HoldFire = false;
             }
             // a fuel drum, shot until it goes off
             var drum = s.Barrels.FirstOrDefault(b => b.Alive && Viewpoint(b.Pos, 5f, 16f) != null);
@@ -1352,6 +1382,41 @@ namespace UA
             yield return Until(() => app.Current == "results", 90);
             yield return Wait(1.5f);
             yield return Shot("c4-client-results");
+        }
+
+        /// <summary>An enemy bot the local player can see from their eyes, 6 to 40 metres off: the nearest such
+        /// one; else the nearest bot is brought to an open place 8 to 16 metres in front (ground under it, nothing
+        /// between). Null when there is no enemy bot.</summary>
+        private static PlayerState PreyInSight(PlayerState me)
+        {
+            if (me == null || !World.I.Agents.TryGetValue(me.Id, out var shooter) || shooter == null) return null;
+            var bots = Session.I.Players.Values.Where(p => p.IsBot && p.Alive && !MatchConfig.Mates(p, me))
+                .OrderBy(p => (p.Pos - me.Pos).sqrMagnitude).ToList();
+            var eye = shooter.Eye;
+            foreach (var p in bots)
+            {
+                float d = (p.Pos - me.Pos).magnitude;
+                if (d < 6f || d > 40f || !World.I.Agents.TryGetValue(p.Id, out var a) || a == null) continue;
+                if (World.I.LineOfSight(eye, a.Chest) && World.I.LineOfSight(eye, a.Eye)) return p;
+            }
+            if (bots.Count == 0 || !World.I.Agents.TryGetValue(bots[0].Id, out var prey) || prey == null) return null;
+            float yaw0 = CameraRig.I.Yaw;
+            foreach (float turn in new[] { 0f, 30f, -30f, 60f, -60f, 90f, -90f, 120f, -120f, 150f, -150f, 180f })
+                foreach (float dist in new[] { 14f, 11f, 16f, 8f })
+                {
+                    var flat = Quaternion.Euler(0f, yaw0 + turn, 0f) * Vector3.forward;
+                    var probe = shooter.transform.position + flat * dist + Vector3.up * 2.5f;
+                    if (!Physics.Raycast(probe, Vector3.down, out var ground, 4.5f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
+                    var at = ground.point;
+                    if (Mathf.Abs(at.y - shooter.transform.position.y) > 2.5f) continue;
+                    if (Physics.CheckCapsule(at + Vector3.up * 0.45f, at + Vector3.up * 1.6f, 0.32f, World.EnvMask, QueryTriggerInteraction.Ignore)) continue;
+                    if (!World.I.LineOfSight(eye, at + Vector3.up * 1.25f) || !World.I.LineOfSight(eye, at + Vector3.up * 1.65f)) continue;
+                    var back = shooter.transform.position - at;
+                    prey.Teleport(at + Vector3.up * 0.05f, Mathf.Atan2(back.x, back.z) * Mathf.Rad2Deg);
+                    bots[0].Pos = prey.transform.position;
+                    return bots[0];
+                }
+            return null;
         }
 
         /// <summary>The first kill film, on whichever machine: the shot leaving, the bullet on its way, the hit, the fall.</summary>

@@ -600,8 +600,12 @@ namespace UA
             return best;
         }
 
+        /// <summary>The bots hold their fire (the automatic test, while it films something up close).</summary>
+        public static bool HoldFire;
+
         private void Shoot(Session s, WeaponDef def, Vector3 toTarget, float distance)
         {
+            if (HoldFire) return;
             // short bursts with a pause between them, single shots taken with care
             if (burstLeft <= 0) burstLeft = def.Auto ? Random.Range(3, 6) : 1;
             burstLeft--;

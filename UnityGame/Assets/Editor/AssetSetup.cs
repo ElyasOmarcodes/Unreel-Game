@@ -1056,7 +1056,8 @@ public static class AssetSetup
             parts = dressed.Parts;
             teamRenderers = dressed.Team;
             // the ready-made characters of the player's pack on the same skeleton
-            parts.AddRange(CharacterPack.Dress(new Outfit.Body(bodyRenderer, prefabName), sex == "Female", vestMat, teamRenderers));
+            parts.AddRange(CharacterPack.Dress(new Outfit.Body(bodyRenderer, prefabName), sex == "Female", vestMat, teamRenderers,
+                skinned.Where(r => r != bodyRenderer).ToArray()));
         }
 
         // weapons in the right hand, aligned with the character's forward direction in the aim pose
@@ -1114,7 +1115,9 @@ public static class AssetSetup
         agent.Hitboxes = hitboxes.ToArray();
         agent.Controller = cc;
         agent.Skins = skins;
-        agent.SkinRenderers = realistic && bodyRenderer != null ? new Renderer[] { bodyRenderer } : new Renderer[0];
+        agent.SkinRenderers = realistic && bodyRenderer != null
+            ? (CharacterPack.Team1Skin != null ? new Renderer[] { bodyRenderer, CharacterPack.Team1Skin } : new Renderer[] { bodyRenderer })
+            : new Renderer[0];
         agent.Parts = parts.ToArray();
 
         PrefabUtility.SaveAsPrefabAsset(root, $"Assets/Resources/{prefabName}.prefab");

@@ -7,11 +7,14 @@ namespace UA
     /// The first kill of every match, shown to everyone as a short film in order: out of black the camera
     /// comes down like a crane from high over the place onto both players while the film bars close in and
     /// FIRST BLOOD is written over it; then over the killer's shoulder at the victim; then the bullet: it
-    /// leaves the barrel in a flash and a puff of smoke, and the camera flies with it, round it from the side
-    /// over the top, the flight quick at first, slowed nearly to a stop on the way and quick again at the end
-    /// (bullet time); a real-looking jacketed bullet, spinning, a thin hot line and a pale wake of air behind
-    /// it and rings of pushed air along the way; the camera lets it go the last metres into the victim; a
-    /// white flash at the hit and the victim falling in slow motion with the camera turning round them;
+    /// leaves the barrel in a flash and a puff of smoke, and the camera flies with it from that moment, just
+    /// behind it at an angle (a little to its side and above, turning slowly round its way towards the top),
+    /// looking at the very point it will go into: the target in the middle of the picture all the way, the
+    /// bullet in the lower side third; the flight quick at first, slowed nearly to a stop on the way and quick
+    /// again at the end (bullet time); a real-looking jacketed bullet, spinning, a thin hot line and a pale wake
+    /// of air behind it and rings of pushed air along the way; the camera eases to a stop a few metres short
+    /// and lets it go on alone into the victim; a soft white flash at the hit and the victim falling in slow
+    /// motion with the camera turning round them;
     /// then the killer from below with their name. The film goes to black and the game comes back out of
     /// it softly, the bars opening. Every shot moves smoothly (no jumps when a wall pushes the camera in),
     /// under a soft dark edge round the picture.
@@ -34,7 +37,8 @@ namespace UA
         private bool playing, hit, wasFrozen;
         private float start;
         private Agent killer, victim;
-        private Vector3 from, to, side;
+        private Vector3 from, to;
+        private AnimatorCullingMode victimCulling;
         private WeaponDef def;
         private Transform bullet;
         private RectTransform cover, barTop, barBottom;
@@ -46,8 +50,8 @@ namespace UA
         private float nextRing;
         private static Mesh bulletMesh, ringMesh, quadMesh;
         private Transform bulletGlow;
-        private Vector3? releaseEye;
-        private float bulletSide;      // which side of the bullet its camera flies on (0: not chosen yet)   // where the bullet's camera stops to let it go into the victim
+        private float bulletSide;      // which side of the bullet its camera flies on (+1 the shooter's right, -1 the left, 0 not chosen yet)
+        private float wideNow = -1f;   // how far to the side of the bullet's way its camera is now (pulled in by walls)
 
         private static Mesh Quad()
         {
@@ -83,23 +87,69 @@ namespace UA
             victim = b;
             def = Weapons.Get(k.Weapon);
             bool gun = k.Weapon < Weapons.Count;
+            // the victim stands still at the start of the fall until the bullet arrives (the pose taken now, so
+            // the point the bullet goes into is on the body as the film shows it)
+            if (victim.Anim != null)
+            {
+                // animated whether the body is on the screen or not (the pose is read before it is)
+                victimCulling = victim.Anim.cullingMode;
+                victim.Anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                victim.Anim.Play("Dead", 0, 0f);
+                victim.Anim.speed = 0f;
+                victim.Anim.Update(0f);
+            }
             // where the bullet really went: the head for a head shot, else the chest; from the muzzle
-            to = k.Headshot && victim.Head != null ? victim.Head.position : victim.Chest;
+            to = victim.Head == null ? victim.Chest : k.Headshot ? victim.Head.position : victim.Head.position + Vector3.down * 0.38f;
             from = gun && killer.Muzzle != null ? killer.Muzzle.position : killer.Chest;
+            if (gun) from = OpenLine(from, to, killer.Eye);
             var dir = to - from;
             if (dir.sqrMagnitude < 0.01f) dir = killer.transform.forward;
-            side = Vector3.Cross(Vector3.up, dir.normalized).normalized;
-            // the victim stands still at the start of the fall until the bullet arrives
-            if (victim.Anim != null) { victim.Anim.Play("Dead", 0, 0f); victim.Anim.speed = 0f; }
             hit = !gun;
-            releaseEye = null;
             bulletSide = 0f;
+            wideNow = -1f;
             start = Time.unscaledTime;
             if (gun) MakeBullet();
             ShowCover(k);
             wasFrozen = CameraRig.Frozen;
             CameraRig.Frozen = true;
             playing = true;
+        }
+
+        /// <summary>Where the film's bullet starts so that its whole way to the target is in the open (the camera
+        /// rides along it): the muzzle; else, when the barrel was behind the edge of a wall (the shot goes along the
+        /// crosshair's line, from the eyes), that line just in front of the face; else the open part of the way
+        /// next to the target.</summary>
+        private static Vector3 OpenLine(Vector3 muzzle, Vector3 target, Vector3 eye)
+        {
+            bool Open(Vector3 a) => !Physics.Linecast(a, target, World.EnvMask, QueryTriggerInteraction.Ignore);
+            if (Open(muzzle)) return muzzle;
+            var face = eye + (target - eye).normalized * 0.45f;
+            if (Open(face)) return face;
+            var back = (muzzle - target).normalized;
+            float d = Vector3.Distance(muzzle, target);
+            return Physics.SphereCast(target, 0.1f, back, out var wall, d, World.EnvMask, QueryTriggerInteraction.Ignore)
+                ? target + back * Mathf.Max(1.2f, wall.distance - 0.5f) : muzzle;
+        }
+
+        /// <summary>How far one can go from p along d (up to reach) before a wall, keeping a little away from it.</summary>
+        private static float Room(Vector3 p, Vector3 d, float reach)
+        {
+            return Physics.SphereCast(p, 0.1f, d, out var wall, reach, World.EnvMask, QueryTriggerInteraction.Ignore)
+                ? Mathf.Max(0f, wall.distance - 0.03f) : reach;
+        }
+
+        /// <summary>The side of the line of flight with room for the camera (+1 the shooter's right, -1 the left),
+        /// looked for at a few places along the way.</summary>
+        private float ChooseSide(Vector3 dir, Vector3 up)
+        {
+            float right = 0f, left = 0f;
+            foreach (float a in new[] { 0.04f, 0.3f, 0.55f, 0.8f })
+            {
+                var p = Vector3.Lerp(from, to, a);
+                right += Room(p, Quaternion.AngleAxis(-55f, dir) * up, 0.45f);
+                left += Room(p, Quaternion.AngleAxis(55f, dir) * up, 0.45f);
+            }
+            return right >= left - 0.05f ? 1f : -1f;
         }
 
         /// <summary>A rifle bullet turned on a lathe: flat base, straight copper body, pointed nose (along +Z).</summary>
@@ -333,7 +383,7 @@ namespace UA
             }
             // the white of the hit
             float sinceHit = t - (Intro + Aim + Flight);
-            flash.color = new Color(1f, 1f, 1f, sinceHit >= 0f && sinceHit < 0.3f ? 0.6f * (1f - sinceHit / 0.3f) : 0f);
+            flash.color = new Color(1f, 1f, 1f, sinceHit >= 0f && sinceHit < 0.22f ? 0.32f * (1f - sinceHit / 0.22f) : 0f);
             title.color = new Color(title.color.r, title.color.g, title.color.b, showTitle);
             title.rectTransform.localScale = Vector3.one * Mathf.Lerp(1.18f, 1f, grow);
             // the gold line drawn out from the middle under the title
@@ -432,10 +482,13 @@ namespace UA
             }
             else if (t < Intro + Aim + Flight)
             {
-                // with the bullet: out of the barrel beside the muzzle, the camera drops in behind the bullet, a
-                // little to its side and above, and flies with it looking at where it will hit: the bullet in
-                // the lower side third of the picture, the target ahead in the middle, all the way; the last
-                // metres the camera slows and stays, and the bullet goes on alone into the target
+                // with the bullet from the moment it leaves the barrel: the camera rides just behind it, a little
+                // to its side and above (at an angle, so the bullet never hides what it flies at), looking at the
+                // very point it will go into: the target held in the middle of the picture all the way, the
+                // bullet in the lower side third, the camera turning slowly round the line of flight from the
+                // side towards the top; the last metres the camera eases to a stop and the bullet goes on alone
+                // into the target. The camera keeps to the bullet's own way (open, the bullet went along it) and
+                // only that little to the side, pulled in where a wall is near
                 float f = Mathf.Clamp01((t - Intro - Aim) / Flight);
                 float u = Along(f);
                 var at = Vector3.Lerp(from, to, u);
@@ -447,6 +500,7 @@ namespace UA
                     Effects.Puff(from + dir * 0.05f, dir);   // the puff of smoke at the muzzle
                     Sfx.PlayAt(def.Sound, from, 0.9f, def.SoundPitch * 0.75f, false);
                     nextRing = 0.06f;
+                    wideNow = -1f;
                 }
                 if (bullet != null && bullet.gameObject.activeSelf)
                 {
@@ -461,45 +515,33 @@ namespace UA
                 if (up.sqrMagnitude < 0.01f) up = Vector3.ProjectOnPlane(killer.transform.forward, dir);
                 up.Normalize();
                 // the side with room (a wall beside the line of flight does not fill the picture), chosen once
-                if (bulletSide == 0f)
-                {
-                    var probe = Vector3.Lerp(from, to, 0.3f);
-                    var sideR = Quaternion.AngleAxis(68f, dir) * up;
-                    var a = Clear(probe, probe - dir * 0.5f + sideR * 0.6f);
-                    var b = Clear(probe, probe - dir * 0.5f + Quaternion.AngleAxis(-68f, dir) * up * 0.6f);
-                    bulletSide = (a - probe).sqrMagnitude >= (b - probe).sqrMagnitude - 0.01f ? 1f : -1f;
-                }
-                const float release = 0.84f;
+                if (bulletSide == 0f) bulletSide = ChooseSide(dir, up);
                 float total = Vector3.Distance(from, to);
-                // the camera's place round the bullet: beside the muzzle at first, then behind and to the side
-                float settle = Mathf.SmoothStep(0f, 1f, f / 0.12f);
-                float back = Mathf.Lerp(0.12f, Mathf.Clamp(total * 0.03f + 0.45f, 0.45f, 0.75f), settle);
-                float wide = Mathf.Lerp(0.36f, 0.2f, settle);
-                // it turns slowly round the line of flight, from the side towards the top
-                float turn = Mathf.Lerp(78f, 56f, Mathf.SmoothStep(0f, 1f, f / release)) * bulletSide;
-                var round = Quaternion.AngleAxis(turn, dir) * up;
-                if (f < release)
-                {
-                    eye = Clear(at, at - dir * back + round * wide);
-                    // looking where it goes: the target in the middle, the bullet beside it
-                    look = Vector3.Lerp(at, to, 0.88f);
-                    if (releaseEye != null) releaseEye = null;
-                }
-                else
-                {
-                    // the camera eases to a stop where it was and lets the bullet go the last metres into the target
-                    if (releaseEye == null)
-                    {
-                        var stop = Vector3.Lerp(from, to, Along(release));
-                        releaseEye = Clear(stop, stop - dir * back + round * wide);
-                    }
-                    float ease = Mathf.SmoothStep(0f, 1f, (f - release) / (1f - release));
-                    eye = releaseEye.Value + dir * Mathf.Min(0.6f, total * 0.02f) * ease;   // a last drift forwards
-                    look = Vector3.Lerp(Vector3.Lerp(at, to, 0.88f), to, ease);
-                }
-                // narrowing on the target as the bullet nears it
-                fov = Mathf.Lerp(54f, Mathf.Lerp(44f, 34f, Mathf.Clamp01(total / 40f)), Mathf.SmoothStep(0f, 1f, f));
-                roll = Mathf.Lerp(7f, -3f, f) * bulletSide;
+                // how far along the way the camera is: with the bullet, then easing (smoothly, no jolt) to a stop a
+                // few metres short of the target, the bullet going on alone
+                float stopAt = total < 0.01f ? 0f : Mathf.Clamp01(1f - Mathf.Clamp(total * 0.12f, 1.4f, 4f) / total);
+                const float soft = 0.07f;
+                float c = u < stopAt - soft ? u : stopAt - soft * Mathf.Exp(-(u - (stopAt - soft)) / soft);
+                c = Mathf.Max(0f, c);
+                var along = Vector3.Lerp(from, to, c);
+                // behind the bullet: close at the barrel (the flash and the smoke in the picture), a little further
+                // once it is on its way (behind the barrel the line can meet the wall at the shooter's back)
+                float back = Mathf.Lerp(0.42f, Mathf.Clamp(0.55f + total * 0.012f, 0.6f, 0.95f), Mathf.SmoothStep(0f, 1f, f / 0.15f));
+                back = Mathf.Min(back, Mathf.Max(0.12f, Room(along, -dir, back)));
+                var onLine = along - dir * back;
+                // at an angle: to the side and above, turning slowly round the line of flight towards the top
+                float turn = Mathf.Lerp(62f, 34f, Mathf.SmoothStep(0f, 1f, f));
+                var offDir = Quaternion.AngleAxis(-turn * bulletSide, dir) * up;
+                const float wide = 0.24f;
+                // pulled in at once where a wall is near the way, let out again smoothly
+                float room = Room(onLine, offDir, wide);
+                wideNow = wideNow < 0f ? room : Mathf.Min(room, Mathf.Lerp(wideNow, room, 1f - Mathf.Exp(-6f * Time.unscaledDeltaTime)));
+                eye = onLine + offDir * wideNow;
+                // the very point it goes into, in the middle of the picture
+                look = to;
+                // narrowing on the target as the bullet nears it (the bullet stays inside the picture)
+                fov = Mathf.Lerp(54f, Mathf.Lerp(44f, 36f, Mathf.Clamp01(total / 40f)), Mathf.SmoothStep(0f, 1f, f));
+                roll = Mathf.Lerp(6f, -2f, f) * bulletSide;
                 steady = true;
             }
             else if (t < Intro + Aim + Flight + Fall)
@@ -559,7 +601,7 @@ namespace UA
             // the game comes back out of black (Afterwards), the bars opening
             if (cover != null && cover.gameObject.activeSelf) stoppedAt = Time.unscaledTime;
             if (killer != null) killer.SetVisible(true);
-            if (victim != null && victim.Anim != null) victim.Anim.speed = 1f;
+            if (victim != null && victim.Anim != null) { victim.Anim.speed = 1f; victim.Anim.cullingMode = victimCulling; }
         }
     }
 }

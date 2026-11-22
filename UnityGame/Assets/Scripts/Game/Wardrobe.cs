@@ -28,7 +28,7 @@ namespace UA
             new[] { "NONE", "ASSAULT PACK" },
             null, null, null,
             // a ready-made character of the player's pack in place of all the pieces (0: built piece by piece)
-            new[] { "OWN BUILD", "MERCENARY", "POLICE OFFICER", "FIELD AGENT", "OPERATIVE", "BODYGUARD", "SWAT", "RIFLEMAN", "RED BERET", "BLACK SQUAD", "RANGER", "UNDERCOVER" },
+            new[] { "OWN BUILD", "MERCENARY", "POLICE OFFICER", "FIELD AGENT", "OPERATIVE", "BODYGUARD", "SWAT", "RIFLEMAN", "RED BERET", "BLACK SQUAD", "RANGER", "UNDERCOVER", "TEAM 1" },
         };
         /// <summary>
         /// Pieces no longer offered (women's: the abaya, the hijab, the pack's woman FIELD AGENT; the RANGER, held
@@ -196,7 +196,7 @@ namespace UA
             new Preset("POLICE OFFICER", 0, 0, 0, 0, 0, 0, (Slot.Character, 2)),
             new Preset("OPERATIVE", 0, 0, 0, 0, 0, 0, (Slot.Character, 4)),
             new Preset("BODYGUARD", 0, 0, 0, 0, 0, 0, (Slot.Character, 5)),
-            new Preset("TEAM 1", 0, 8, 7, 7, 0, 1),       // hexagon camo, hood and scarf, the flag on the arm
+            new Preset("TEAM 1", 0, 8, 7, 7, 0, 1, (Slot.Character, 12)),       // hexagon camo, hood and scarf, the flag on the arm (made in Blender: Tools/team1)
             // white ghutra with a black agal, white perahan and tunban, dark waistcoat, sandals, camo pack, no beard
             new Preset("DESERT SCOUT", 0, 2, 0, 0, 2, 0, (Slot.Head, 6), (Slot.Bag, 1)),
             new Preset("ELDER", 1, 3, 1, 1, 2, 1),        // Afghan elder: blue chapan, white turban
@@ -237,7 +237,7 @@ namespace UA
             if (Get(look, Slot.Top) == 0) look = Set(look, Slot.BottomColor, Get(look, Slot.TopColor));
             // now and then one of the pack characters
             if (UnityEngine.Random.value < 0.35f)
-                look = Set(look, Slot.Character, new[] { 1, 2, 4, 5, 6, 7, 8, 9, 11 }[UnityEngine.Random.Range(0, 9)]);
+                look = Set(look, Slot.Character, new[] { 1, 2, 4, 5, 6, 7, 8, 9, 11, 12 }[UnityEngine.Random.Range(0, 10)]);
             return look;
         }
     }
