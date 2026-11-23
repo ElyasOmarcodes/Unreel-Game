@@ -38,6 +38,8 @@ public static class MixamoClips
         { "Crouch_Bwd_L_Loop", ("walk_crouching_backward_left", true) }, { "Crouch_Bwd_R_Loop", ("walk_crouching_backward_right", true) },
         { "Jump_Loop", ("jump_loop", true) },
         { "Death01", ("death_from_the_front", false) },
+        // the player's weapon animations (Models/Animations/mixamo_new, the same retarget): the reload
+        { "Pistol_Reload", ("reloading_rifle_while_standing", false) },
     };
 
     private static Dictionary<string, AnimationClip> built;

@@ -429,6 +429,8 @@ public static class AssetSetup
         shoot.speed = 1.6f;
         var reload = armSm.AddState("Reload");
         reload.motion = Clip("Pistol_Reload");
+        // the Mixamo reload (3.3 s) played in the time a reload takes
+        if (MixamoClips.Get("Pistol_Reload") != null && reload.motion != null) reload.speed = reload.motion.length / 2.2f;
         var anyShoot = armSm.AddAnyStateTransition(shoot);
         anyShoot.hasExitTime = false;
         anyShoot.duration = 0.03f;
