@@ -465,7 +465,7 @@ public static class AssetSetup
             var rifleReload = armSm.AddState("RifleReload");
             rifleReload.motion = Clip("Rifle_Reload") ?? reload.motion;
             // the Mixamo reload (3.3 s) in about the time a rifle's reload takes
-            if (rifleReload.motion != null) rifleReload.speed = rifleReload.motion.length / 2.4f;
+            if (rifleReload.motion is AnimationClip reloadClip) rifleReload.speed = reloadClip.length / 2.4f;
             void Hold(AnimatorState from, AnimatorState to, int hold, bool equal)
             {
                 var tr = from.AddTransition(to);
