@@ -287,7 +287,8 @@ public static class AssetSetup
         c.AddParameter("MoveY", AnimatorControllerParameterType.Float);
         c.AddParameter("Pitch", AnimatorControllerParameterType.Float);
         c.AddParameter("Hold", AnimatorControllerParameterType.Int);
-        c.AddParameter("Throw", AnimatorControllerParameterType.Trigger);   // 0 pistol, 1 rifle, 2 heavy machine gun
+        c.AddParameter("Throw", AnimatorControllerParameterType.Trigger);
+        c.AddParameter("Swap", AnimatorControllerParameterType.Trigger);   // 0 pistol, 1 rifle, 2 heavy machine gun
         c.AddParameter("Crouch", AnimatorControllerParameterType.Bool);
         c.AddParameter("Grounded", AnimatorControllerParameterType.Bool);
         c.AddParameter("Dead", AnimatorControllerParameterType.Bool);
@@ -499,13 +500,29 @@ public static class AssetSetup
             th.hasExitTime = false;
             th.duration = 0.06f;
             th.AddCondition(AnimatorConditionMode.If, 0, "Throw");
-            foreach (var (st, exit) in new[] { (rifleShoot, 0.7f), (rifleReload, 0.92f), (throwState, 0.95f) })
+            // changing weapon: the hand to the holster for the pistol, back over the shoulder for a rifle (0.5 s
+            // in all, the new gun shown in the hand halfway: Agent.SwapArm)
+            var toPistol = armSm.AddState("SwapToPistol");
+            toPistol.motion = Clip("Swap_To_Pistol");
+            if (toPistol.motion is AnimationClip tp) toPistol.speed = tp.length / 0.5f;
+            var toRifle = armSm.AddState("SwapToRifle");
+            toRifle.motion = Clip("Swap_To_Rifle");
+            if (toRifle.motion is AnimationClip tr2) toRifle.speed = tr2.length / 0.25f;
+            foreach (var (st, pistolHold) in new[] { (toPistol, true), (toRifle, false) })
+            {
+                var sw = armSm.AddAnyStateTransition(st);
+                sw.hasExitTime = false;
+                sw.duration = 0.05f;
+                sw.AddCondition(AnimatorConditionMode.If, 0, "Swap");
+                sw.AddCondition(pistolHold ? AnimatorConditionMode.Equals : AnimatorConditionMode.NotEqual, 0, "Hold");
+            }
+            foreach (var (st, exit) in new[] { (rifleShoot, 0.7f), (rifleReload, 0.92f), (throwState, 0.95f), (toPistol, 0.9f), (toRifle, 0.98f) })
                 foreach (var (to, hold) in new[] { (rifleAim, 1), (heavyAim, 2), (aim, 0) })
                 {
                     var back = st.AddTransition(to);
                     back.hasExitTime = true;
                     back.exitTime = exit;
-                    back.duration = 0.15f;
+                    back.duration = st == toRifle ? 0.25f : 0.15f;
                     back.AddCondition(AnimatorConditionMode.Equals, hold, "Hold");
                 }
         }

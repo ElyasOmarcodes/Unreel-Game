@@ -31,7 +31,7 @@ public static class MixamoClips
         { "Jog_Fwd_L_Loop", ("run_forward_left", true) }, { "Jog_Fwd_R_Loop", ("run_forward_right", true) },
         { "Jog_Bwd_L_Loop", ("run_backward_left", true) }, { "Jog_Bwd_R_Loop", ("run_backward_right", true) },
         { "Sprint_Loop", ("sprint_forward", true) },
-        { "Crouch_Idle_Loop", ("idle_crouching", true) },
+        { "Crouch_Idle_Loop", ("rifle_kneeling_idle", true) },   // crouched and still: down on one knee
         { "Crouch_Fwd_Loop", ("walk_crouching_forward", true) }, { "Crouch_Bwd_Loop", ("walk_crouching_backward", true) },
         { "Crouch_Left_Loop", ("walk_crouching_left", true) }, { "Crouch_Right_Loop", ("walk_crouching_right", true) },
         { "Crouch_Fwd_L_Loop", ("walk_crouching_forward_left", true) }, { "Crouch_Fwd_R_Loop", ("walk_crouching_forward_right", true) },
@@ -45,6 +45,8 @@ public static class MixamoClips
         { "Rifle_Shoot", ("firing_a_rifle_while_standing", false) },
         { "Rifle_Reload", ("reloading_rifle_while_standing", false) },
         { "Grenade_Throw", ("throwing_something_holding_rifle_aimed", false) },
+        { "Swap_To_Pistol", ("drawing_gun_from_lower_back", false) },
+        { "Swap_To_Rifle", ("putting_rifle_away", false) },
     };
 
     /// <summary>Clips of which only some frames are used (first, last): the throw itself, from the arm going
@@ -52,6 +54,10 @@ public static class MixamoClips
     private static readonly Dictionary<string, (int from, int to)> Trims = new Dictionary<string, (int, int)>
     {
         { "throwing_something_holding_rifle_aimed", (36, 72) },
+        // the hand to the holster at the lower back and up again with the pistol
+        { "drawing_gun_from_lower_back", (0, 46) },
+        // the hand up and back over the shoulder for the rifle (it comes forward again by the blend to the aim)
+        { "putting_rifle_away", (12, 40) },
     };
 
     private static Dictionary<string, AnimationClip> built;

@@ -177,7 +177,7 @@ namespace UA
         private void CarryArms()
         {
             if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
-            bool up = State.Aiming || Time.time - lastFire < 1.1f || State.Prone || (clipThrow && Time.time - throwStart < 0.8f);
+            bool up = State.Aiming || Time.time - lastFire < 1.1f || State.Prone || (clipThrow && Time.time - throwStart < 0.8f) || (clipSwap && Time.time - swapStart < 0.55f);
             Ready = Mathf.MoveTowards(Ready, up ? 1f : 0f, Time.deltaTime * (up ? 7f : 2.5f));
             if (Anim != null && Anim.layerCount > 1) Anim.SetLayerWeight(1, State.Prone ? 0f : Ready);
             if (Ready > 0.99f) return;
@@ -205,6 +205,9 @@ namespace UA
         }
 
         private bool clipThrow;
+        private bool clipSwap;
+        private static readonly int SwapId = Animator.StringToHash("Swap");
+        private static readonly int SwapStateId = Animator.StringToHash("Arms.SwapToPistol");
         private static readonly int ThrowId = Animator.StringToHash("Throw");
         private static readonly int ThrowStateId = Animator.StringToHash("Arms.Throw");
 
@@ -228,6 +231,7 @@ namespace UA
             if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
             if (State.MoveY > 1.2f) return;   // sprinting: the gun is carried, not aimed
             if (clipThrow && Time.time - throwStart < 0.75f) return;   // throwing: the clip moves the arm
+            if (clipSwap && Time.time - swapStart < 0.45f) return;     // changing weapon: so does the swap's clip
             if (Ready < 0.5f) return;   // carried low
             var muzzle = Muzzles[weapon];
             var forward = Quaternion.Euler(-State.Pitch, State.Yaw, 0) * Vector3.forward;
@@ -390,7 +394,12 @@ namespace UA
         {
             id = Mathf.Clamp(id, 0, Weapons.Count - 1);
             // a change of weapon while alive: the hand goes to the back (or the hip) and comes up with the other
-            if (id != weapon && weapon >= 0 && State != null && Alive && Time.time - swapStart > 0.3f) swapStart = Time.time;
+            if (id != weapon && weapon >= 0 && State != null && Alive && Time.time - swapStart > 0.3f)
+            {
+                swapStart = Time.time;
+                clipSwap = Anim != null && Anim.layerCount > 1 && Anim.HasState(1, SwapStateId) && !State.Prone;
+                if (clipSwap) Anim.SetTrigger(SwapId);
+            }
             weapon = id;
             bool inHand = visible && Time.time - swapStart > 0.22f;
             for (int i = 0; i < WeaponModels.Length; i++)
@@ -471,7 +480,7 @@ namespace UA
             // the gun in the hand appears halfway, when the hand comes back up
             if (weapon >= 0 && weapon < WeaponModels.Length && WeaponModels[weapon] != null && WeaponModels[weapon].activeSelf != (visible && t > 0.22f))
                 WeaponModels[weapon].SetActive(visible && t > 0.22f);
-            if (t > length) return;
+            if (t > length || clipSwap) return;   // the clip moves the arm (the arms' layer)
             bool pistol = !Weapons.Get(weapon).Primary;
             float reach = pistol ? 55f : -125f;   // down to the hip / back over the shoulder
             float angle = t < 0.22f ? Mathf.SmoothStep(0f, reach, t / 0.22f) : Mathf.SmoothStep(reach, 0f, (t - 0.22f) / (length - 0.22f));
