@@ -60,6 +60,7 @@ namespace UA
         private static readonly int GroundedId = Animator.StringToHash("Grounded");
         private static readonly int DeadId = Animator.StringToHash("Dead");
         private static readonly int PitchId = Animator.StringToHash("Pitch");
+        private static readonly int HoldId = Animator.StringToHash("Hold");
         private static readonly int ProneId = Animator.StringToHash("Prone");
         private bool proneBox;
         private static readonly int FireId = Animator.StringToHash("Fire");
@@ -504,6 +505,8 @@ namespace UA
             Anim.SetBool(GroundedId, s.Grounded);
             Anim.SetBool(DeadId, !s.Alive);
             Anim.SetFloat(PitchId, Mathf.Clamp(s.Pitch / 70f, -1f, 1f));
+            // how the arms hold the gun: a pistol, a rifle, or the PKM low at the hip
+            if (weapon >= 0) Anim.SetInteger(HoldId, Weapons.Get(weapon).Name == "PKM" ? 2 : Weapons.Get(weapon).Primary ? 1 : 0);
             if (Anim.layerCount > 1 && (!s.Alive || s.Prone)) Anim.SetLayerWeight(1, 0f);
         }
 

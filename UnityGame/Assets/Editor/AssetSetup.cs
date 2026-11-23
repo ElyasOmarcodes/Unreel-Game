@@ -286,6 +286,7 @@ public static class AssetSetup
         c.AddParameter("MoveX", AnimatorControllerParameterType.Float);
         c.AddParameter("MoveY", AnimatorControllerParameterType.Float);
         c.AddParameter("Pitch", AnimatorControllerParameterType.Float);
+        c.AddParameter("Hold", AnimatorControllerParameterType.Int);   // 0 pistol, 1 rifle, 2 heavy machine gun
         c.AddParameter("Crouch", AnimatorControllerParameterType.Bool);
         c.AddParameter("Grounded", AnimatorControllerParameterType.Bool);
         c.AddParameter("Dead", AnimatorControllerParameterType.Bool);
@@ -429,8 +430,6 @@ public static class AssetSetup
         shoot.speed = 1.6f;
         var reload = armSm.AddState("Reload");
         reload.motion = Clip("Pistol_Reload");
-        // the Mixamo reload (3.3 s) played in the time a reload takes
-        if (MixamoClips.Get("Pistol_Reload") != null && reload.motion != null) reload.speed = reload.motion.length / 2.2f;
         var anyShoot = armSm.AddAnyStateTransition(shoot);
         anyShoot.hasExitTime = false;
         anyShoot.duration = 0.03f;
@@ -446,6 +445,59 @@ public static class AssetSetup
             back.hasExitTime = true;
             back.exitTime = s == shoot ? 0.6f : 0.9f;
             back.duration = 0.15f;
+        }
+        // a rifle and the PKM held as the player's Mixamo clips hold them (the aim is then set by Agent.AimArms
+        // as for the pistol): the stock at the shoulder, the left hand on the fore-end; the PKM lower, at the hip
+        var rifleAimClip = Clip("Rifle_Aim");
+        if (rifleAimClip != null)
+        {
+            // the pistol's own shot and reload only with a pistol in the hand
+            anyShoot.AddCondition(AnimatorConditionMode.Equals, 0, "Hold");
+            anyReload.AddCondition(AnimatorConditionMode.Equals, 0, "Hold");
+            var rifleAim = armSm.AddState("RifleAim");
+            rifleAim.motion = rifleAimClip;
+            var heavyAim = armSm.AddState("HeavyAim");
+            heavyAim.motion = Clip("Heavy_Aim") ?? rifleAimClip;
+            var rifleShoot = armSm.AddState("RifleShoot");
+            rifleShoot.motion = Clip("Rifle_Shoot") ?? shoot.motion;
+            rifleShoot.speed = 1.4f;
+            var rifleReload = armSm.AddState("RifleReload");
+            rifleReload.motion = Clip("Rifle_Reload") ?? reload.motion;
+            // the Mixamo reload (3.3 s) in about the time a rifle's reload takes
+            if (rifleReload.motion != null) rifleReload.speed = rifleReload.motion.length / 2.4f;
+            void Hold(AnimatorState from, AnimatorState to, int hold, bool equal)
+            {
+                var tr = from.AddTransition(to);
+                tr.hasExitTime = false;
+                tr.duration = 0.2f;
+                tr.AddCondition(equal ? AnimatorConditionMode.Equals : AnimatorConditionMode.NotEqual, hold, "Hold");
+            }
+            Hold(aim, rifleAim, 1, true);
+            Hold(aim, heavyAim, 2, true);
+            Hold(rifleAim, aim, 0, true);
+            Hold(rifleAim, heavyAim, 2, true);
+            Hold(heavyAim, aim, 0, true);
+            Hold(heavyAim, rifleAim, 1, true);
+            var rs = armSm.AddAnyStateTransition(rifleShoot);
+            rs.hasExitTime = false;
+            rs.duration = 0.03f;
+            rs.canTransitionToSelf = true;
+            rs.AddCondition(AnimatorConditionMode.If, 0, "Fire");
+            rs.AddCondition(AnimatorConditionMode.NotEqual, 0, "Hold");
+            var rr = armSm.AddAnyStateTransition(rifleReload);
+            rr.hasExitTime = false;
+            rr.duration = 0.1f;
+            rr.AddCondition(AnimatorConditionMode.If, 0, "Reload");
+            rr.AddCondition(AnimatorConditionMode.NotEqual, 0, "Hold");
+            foreach (var (st, exit) in new[] { (rifleShoot, 0.7f), (rifleReload, 0.92f) })
+                foreach (var (to, hold) in new[] { (rifleAim, 1), (heavyAim, 2), (aim, 0) })
+                {
+                    var back = st.AddTransition(to);
+                    back.hasExitTime = true;
+                    back.exitTime = exit;
+                    back.duration = 0.15f;
+                    back.AddCondition(AnimatorConditionMode.Equals, hold, "Hold");
+                }
         }
         EditorUtility.SetDirty(c);
         return c;

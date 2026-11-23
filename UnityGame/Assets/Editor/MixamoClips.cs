@@ -38,8 +38,12 @@ public static class MixamoClips
         { "Crouch_Bwd_L_Loop", ("walk_crouching_backward_left", true) }, { "Crouch_Bwd_R_Loop", ("walk_crouching_backward_right", true) },
         { "Jump_Loop", ("jump_loop", true) },
         { "Death01", ("death_from_the_front", false) },
-        // the player's weapon animations (Models/Animations/mixamo_new, the same retarget): the reload
-        { "Pistol_Reload", ("reloading_rifle_while_standing", false) },
+        // the player's weapon animations (Models/Animations/mixamo_new, the same retarget): how the arms hold a
+        // rifle and the heavy machine gun (the pistol keeps its own pistol clips), firing and reloading them
+        { "Rifle_Aim", ("rifle_standing_aiming_idle", true) },
+        { "Heavy_Aim", ("two_hand_lowered_gun_rifle_idle", true) },
+        { "Rifle_Shoot", ("firing_a_rifle_while_standing", false) },
+        { "Rifle_Reload", ("reloading_rifle_while_standing", false) },
     };
 
     private static Dictionary<string, AnimationClip> built;
