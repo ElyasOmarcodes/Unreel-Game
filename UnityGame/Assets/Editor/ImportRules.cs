@@ -5,7 +5,7 @@ using UnityEngine;
 public class ImportRules : AssetPostprocessor
 {
     // bump to re-import everything with changed rules (Library caches keep old imports otherwise)
-    public override uint GetVersion() => 3;
+    public override uint GetVersion() => 4;
 
     private void OnPreprocessModel()
     {
@@ -141,8 +141,8 @@ public class ImportRules : AssetPostprocessor
             importer.maxTextureSize = normal ? 1024 : 2048;
             importer.anisoLevel = 4;
             android.maxTextureSize = normal ? 1024 : 2048;
-            android.format = normal ? TextureImporterFormat.ASTC_8x8 : TextureImporterFormat.ASTC_6x6;
-            android.compressionQuality = 50;
+            android.format = TextureImporterFormat.ASTC_8x8;
+            android.compressionQuality = 100;
             importer.SetPlatformTextureSettings(android);
             return;
         }
@@ -153,6 +153,9 @@ public class ImportRules : AssetPostprocessor
         android.maxTextureSize = small ? 512 : 1024;
         // colour keeps the finer 6x6 blocks; normal and roughness maps can be coarser (smaller APK)
         android.format = file.EndsWith("_Normal") || file.EndsWith("_MS") ? TextureImporterFormat.ASTC_8x8 : TextureImporterFormat.ASTC_6x6;
+        // the maps' own textures (walls, ground, roofs, trees) are seen big and soft on a phone: the coarse blocks
+        // there too (a much smaller APK); the guns keep the finer ones
+        if (assetPath.Contains("ThirdParty/")) android.format = TextureImporterFormat.ASTC_8x8;
         android.compressionQuality = 50;
         if (assetPath.Contains("Assets/Characters/") && !file.EndsWith("_Normal"))
         {
