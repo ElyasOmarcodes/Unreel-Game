@@ -286,7 +286,8 @@ public static class AssetSetup
         c.AddParameter("MoveX", AnimatorControllerParameterType.Float);
         c.AddParameter("MoveY", AnimatorControllerParameterType.Float);
         c.AddParameter("Pitch", AnimatorControllerParameterType.Float);
-        c.AddParameter("Hold", AnimatorControllerParameterType.Int);   // 0 pistol, 1 rifle, 2 heavy machine gun
+        c.AddParameter("Hold", AnimatorControllerParameterType.Int);
+        c.AddParameter("Throw", AnimatorControllerParameterType.Trigger);   // 0 pistol, 1 rifle, 2 heavy machine gun
         c.AddParameter("Crouch", AnimatorControllerParameterType.Bool);
         c.AddParameter("Grounded", AnimatorControllerParameterType.Bool);
         c.AddParameter("Dead", AnimatorControllerParameterType.Bool);
@@ -489,7 +490,16 @@ public static class AssetSetup
             rr.duration = 0.1f;
             rr.AddCondition(AnimatorConditionMode.If, 0, "Reload");
             rr.AddCondition(AnimatorConditionMode.NotEqual, 0, "Hold");
-            foreach (var (st, exit) in new[] { (rifleShoot, 0.7f), (rifleReload, 0.92f) })
+            // the grenade: the player's Mixamo throw (the arm back and over, the gun kept in the hand), quick
+            var throwClip = Clip("Grenade_Throw");
+            var throwState = armSm.AddState("Throw");
+            throwState.motion = throwClip;
+            if (throwClip != null) throwState.speed = throwClip.length / 0.7f;
+            var th = armSm.AddAnyStateTransition(throwState);
+            th.hasExitTime = false;
+            th.duration = 0.06f;
+            th.AddCondition(AnimatorConditionMode.If, 0, "Throw");
+            foreach (var (st, exit) in new[] { (rifleShoot, 0.7f), (rifleReload, 0.92f), (throwState, 0.95f) })
                 foreach (var (to, hold) in new[] { (rifleAim, 1), (heavyAim, 2), (aim, 0) })
                 {
                     var back = st.AddTransition(to);

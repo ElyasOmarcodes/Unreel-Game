@@ -177,7 +177,7 @@ namespace UA
         private void CarryArms()
         {
             if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
-            bool up = State.Aiming || Time.time - lastFire < 1.1f || State.Prone;
+            bool up = State.Aiming || Time.time - lastFire < 1.1f || State.Prone || (clipThrow && Time.time - throwStart < 0.8f);
             Ready = Mathf.MoveTowards(Ready, up ? 1f : 0f, Time.deltaTime * (up ? 7f : 2.5f));
             if (Anim != null && Anim.layerCount > 1) Anim.SetLayerWeight(1, State.Prone ? 0f : Ready);
             if (Ready > 0.99f) return;
@@ -196,13 +196,23 @@ namespace UA
         }
 
         /// <summary>Grenade throw: the right arm winds up behind the head, swings over and follows through.</summary>
-        public void PlayThrow() => throwStart = Time.time;
+        public void PlayThrow()
+        {
+            throwStart = Time.time;
+            // the animated throw (the arms' layer), standing or crouched; lying down the arm is turned by hand
+            clipThrow = Anim != null && Anim.layerCount > 1 && Anim.HasState(1, ThrowStateId) && (State == null || !State.Prone);
+            if (clipThrow) Anim.SetTrigger(ThrowId);
+        }
+
+        private bool clipThrow;
+        private static readonly int ThrowId = Animator.StringToHash("Throw");
+        private static readonly int ThrowStateId = Animator.StringToHash("Arms.Throw");
 
         private void ThrowArm()
         {
             const float length = 0.65f;
             float t = Time.time - throwStart;
-            if (t < 0f || t > length || upperArmBone == null || State == null || !Alive) return;
+            if (t < 0f || t > length || upperArmBone == null || State == null || !Alive || clipThrow) return;
             float angle = t < 0.25f ? Mathf.SmoothStep(0f, -150f, t / 0.25f)
                 : t < 0.4f ? Mathf.Lerp(-150f, 40f, (t - 0.25f) / 0.15f)
                 : Mathf.SmoothStep(40f, 0f, (t - 0.4f) / (length - 0.4f));
@@ -217,6 +227,7 @@ namespace UA
         {
             if (State == null || !Alive || weapon < 0 || handBone == null || weapon >= Muzzles.Length || Muzzles[weapon] == null) return;
             if (State.MoveY > 1.2f) return;   // sprinting: the gun is carried, not aimed
+            if (clipThrow && Time.time - throwStart < 0.75f) return;   // throwing: the clip moves the arm
             if (Ready < 0.5f) return;   // carried low
             var muzzle = Muzzles[weapon];
             var forward = Quaternion.Euler(-State.Pitch, State.Yaw, 0) * Vector3.forward;

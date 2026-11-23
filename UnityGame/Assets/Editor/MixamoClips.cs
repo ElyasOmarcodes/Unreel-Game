@@ -44,6 +44,14 @@ public static class MixamoClips
         { "Heavy_Aim", ("two_hand_lowered_gun_rifle_idle", true) },
         { "Rifle_Shoot", ("firing_a_rifle_while_standing", false) },
         { "Rifle_Reload", ("reloading_rifle_while_standing", false) },
+        { "Grenade_Throw", ("throwing_something_holding_rifle_aimed", false) },
+    };
+
+    /// <summary>Clips of which only some frames are used (first, last): the throw itself, from the arm going
+    /// back to the follow-through (the pin pulled before it is left out: the game throws at once).</summary>
+    private static readonly Dictionary<string, (int from, int to)> Trims = new Dictionary<string, (int, int)>
+    {
+        { "throwing_something_holding_rifle_aimed", (36, 72) },
     };
 
     private static Dictionary<string, AnimationClip> built;
@@ -130,9 +138,10 @@ public static class MixamoClips
                 foreach (int k in order) curves[k] = new[] { new AnimationCurve(), new AnimationCurve(), new AnimationCurve(), new AnimationCurve() };
                 var hips = new[] { new AnimationCurve(), new AnimationCurve(), new AnimationCurve() };
                 var last = new Dictionary<int, Quaternion>();
-                for (int f = 0; f < clip.Frames.Count; f++)
+                var span = Trims.TryGetValue(clip.Name, out var trim) ? trim : (0, clip.Frames.Count - 1);
+                for (int f = span.Item1; f <= Mathf.Min(span.Item2, clip.Frames.Count - 1); f++)
                 {
-                    float time = f / clip.Fps;
+                    float time = (f - span.Item1) / clip.Fps;
                     var row = clip.Frames[f];
                     var world = new Dictionary<Transform, Quaternion>();
                     foreach (int k in order)
