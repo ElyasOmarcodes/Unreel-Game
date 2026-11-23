@@ -1,0 +1,232 @@
+name: Stride - build, test on emulator, release APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - StrideGame/**
+      - .github/workflows/stride-android.yml
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  LAVAPIPE_VERSION: "2026.10.12"
+  # Same as Stride's own CI: old (2018) package signatures fail chain validation on Linux.
+  DOTNET_NUGET_SIGNATURE_VERIFICATION: "false"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: StrideGame
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/swift /opt/hostedtoolcache/CodeQL /usr/local/lib/node_modules /usr/local/.ghcup /usr/share/dotnet/shared/Microsoft.AspNetCore.App 2>/dev/null || true
+          df -h /
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages and the Stride package resolver
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nuget/packages
+            ~/.local/share/stride
+          key: nuget-stride-4.4.1-${{ hashFiles('StrideGame/**/*.csproj') }}
+          restore-keys: nuget-stride-4.4.1-
+
+      - name: Cache downloaded CC0 assets (Poly Haven)
+        uses: actions/cache@v4
+        with:
+          path: StrideGame/ArenaRush.Game/Resources/Level
+          key: polyhaven-${{ hashFiles('StrideGame/tools/build_level.py') }}
+          restore-keys: polyhaven-
+
+      - name: Install .NET Android workload
+        run: dotnet workload install android
+
+      - name: Android SDK packages
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          packages: platform-tools build-tools;36.0.0 platforms;android-36
+
+      - name: Vulkan (Lavapipe) + virtual display for the Stride asset compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan1 xvfb libva2 libva-drm2 libva-x11-2
+          mkdir -p $RUNNER_TEMP/lavapipe && cd $RUNNER_TEMP/lavapipe
+          curl -sSL -o lvp.nupkg "https://api.nuget.org/v3-flatcontainer/stride.dependencies.lavapipe/${LAVAPIPE_VERSION}/stride.dependencies.lavapipe.${LAVAPIPE_VERSION}.nupkg"
+          unzip -q -o lvp.nupkg
+          LIB=$(find "$PWD" -path "*runtimes/linux-x64-nodmabuf/native/libvulkan_lvp.so" | head -1)
+          echo "Lavapipe: $LIB"
+          echo "{\"file_format_version\":\"1.0.0\",\"ICD\":{\"library_path\":\"$LIB\",\"api_version\":\"1.3.0\"}}" > lvp_icd.json
+          echo "VK_DRIVER_FILES=$PWD/lvp_icd.json" >> $GITHUB_ENV
+          Xvfb :99 -screen 0 1920x1080x24 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: Build the level (download CC0 Poly Haven assets, generate Stride assets + scene)
+        run: python3 tools/build_level.py
+
+      - name: Record shader permutations on desktop (precompiled shaders => fast start on phones)
+        continue-on-error: true
+        run: |
+          dotnet build ArenaRush.Linux/ArenaRush.Linux.csproj -c Release -v:m
+          cd Bin/Linux/Release
+          ARENARUSH_EFFECT_LOG=$GITHUB_WORKSPACE/StrideGame/effects.log timeout 900 ./ArenaRush.Linux 2>&1 \
+            | grep -E "\[effects\]|rror|xception" | tail -60 || true
+          cd $GITHUB_WORKSPACE/StrideGame
+          if [ -s effects.log ]; then
+            cp effects.log ArenaRush.Game/Assets/EffectCompileLog.sdeffectlog
+            echo "Effect log with $(grep -c '^!EffectCompileRequest' effects.log) permutations will be precompiled"
+          else
+            echo "::warning::no effect log recorded; shaders will compile on the device"
+          fi
+
+      - name: Build APKs (arm64 for phones, x64 for the emulator test)
+        run: |
+          set -e
+          for RID in android-arm64 android-x64; do
+            # Pass 1 compiles code only: Stride 4.4.1 compiles Android assets before the app assembly exists.
+            dotnet build ArenaRush.Android/ArenaRush.Android.csproj -c Release -p:ArenaAbi=$RID \
+              -p:StrideCompilerSkipBuild=true -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" -v:m
+            # Pass 2 compiles assets and packages the APK.
+            dotnet build ArenaRush.Android/ArenaRush.Android.csproj -c Release -p:ArenaAbi=$RID \
+              -p:AndroidSdkDirectory="$ANDROID_HOME" -p:JavaSdkDirectory="$JAVA_HOME" -v:m
+            mkdir -p out
+            APK=$(find Bin ArenaRush.Android/bin -name "*-Signed.apk" -path "*$RID*" -newer tools/build_level.py | head -1)
+            [ -z "$APK" ] && APK=$(ls -t $(find Bin ArenaRush.Android/bin -name "*-Signed.apk") | head -1)
+            echo "$RID -> $APK"
+            cp "$APK" out/ArenaRush-$RID.apk
+          done
+          ls -la out
+          python3 - <<'PY'
+          import zipfile, collections
+          for f in ["out/ArenaRush-android-arm64.apk"]:
+              z = zipfile.ZipFile(f); c = collections.Counter()
+              for i in z.infolist(): c["/".join(i.filename.split("/")[:2])] += i.compress_size
+              print(f); [print(f"  {v/1e6:7.2f} MB  {k}") for k, v in c.most_common(12)]
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apks
+          path: StrideGame/out/*.apk
+
+  emulator-test:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: apks
+          path: apks
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Host Vulkan (Lavapipe) for the emulator GPU
+        run: |
+          sudo apt-get update && sudo apt-get install -y libvulkan1
+          mkdir -p $RUNNER_TEMP/lavapipe && cd $RUNNER_TEMP/lavapipe
+          curl -sSL -o lvp.nupkg "https://api.nuget.org/v3-flatcontainer/stride.dependencies.lavapipe/${LAVAPIPE_VERSION}/stride.dependencies.lavapipe.${LAVAPIPE_VERSION}.nupkg"
+          unzip -q -o lvp.nupkg
+          LIB=$(find "$PWD" -path "*runtimes/linux-x64-nodmabuf/native/libvulkan_lvp.so" | head -1)
+          echo "{\"file_format_version\":\"1.0.0\",\"ICD\":{\"library_path\":\"$LIB\",\"api_version\":\"1.3.0\"}}" > lvp_icd.json
+          echo "VK_DRIVER_FILES=$PWD/lvp_icd.json" >> $GITHUB_ENV
+
+      - name: Cache the emulator image (AVD snapshot)
+        id: avd-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34-google_apis-x86_64-pixel6
+
+      - name: Create the AVD snapshot (first run only)
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "AVD snapshot created"
+
+      - name: Play the game on an Android emulator and take screenshots
+        env:
+          ANDROID_EMU_VK_ICD: ""
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -no-boot-anim -no-audio -gpu swiftshader_indirect -camera-back none
+          disable-animations: true
+          script: bash .github/scripts/emulator-play.sh apks/ArenaRush-android-x64.apk shots
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-screenshots
+          path: shots/
+
+  release:
+    # Only publish builds that ran on the emulator without crashing.
+    needs: [build, emulator-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: emulator-screenshots
+          path: shots
+      - uses: actions/download-artifact@v4
+        with:
+          name: apks
+          path: apks
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tropical-factory-${{ github.run_number }}
+          name: Tropical Factory (Stride) - build ${{ github.run_number }}
+          prerelease: true
+          body: |
+            TROPICAL STRIKE - third-person action shooter made with the Stride engine (MIT, free, no licence needed).
+            Splash, main menu, settings (graphics, sensitivity, volume, invert Y, FPS), pause, victory/defeat screens.
+            Weapons: AK-47, M4A1, pistol. Mission: eliminate the 8 hostiles in the island factory.
+            Glowing cells give health and ammo. CC0 Poly Haven assets, physics props, synthesized sound effects.
+
+            Install: download ArenaRush-android-arm64.apk on your phone and allow "install unknown apps".
+            Controls: left side = move stick, drag on the right side = aim, hold FIRE (and drag to aim while shooting),
+            JUMP, R = reload, SWAP = next weapon, pause button at the top. Shoot crates and barrels to push them.
+
+          files: |
+            apks/ArenaRush-android-arm64.apk
+            shots/*.png

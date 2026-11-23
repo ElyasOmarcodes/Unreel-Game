@@ -1,0 +1,21 @@
+            cam.Cam.fieldOfView = 62;
+            (int map, string name, Vector3 from, Vector3 to)[] views =
+            {
+                (0, "21-port-office", new Vector3(44f, 4f, 4f), new Vector3(58f, 5f, 24f)),
+                (0, "22-port-office-inside", new Vector3(53f, 1.7f, 16.3f), new Vector3(63f, 1.6f, 24f)),
+                (0, "23-port-office-roof", new Vector3(52f, 12f, 17f), new Vector3(10f, 3f, 0f)),
+                (0, "24-port-hidden-route", new Vector3(-38f, 5f, -32f), new Vector3(-56f, 3f, -45f)),
+                (0, "25-port-trees", new Vector3(52f, 2.5f, 34f), new Vector3(58f, 3f, 48f)),
+                (0, "26-port-fire-escape", new Vector3(-24f, 4f, 30f), new Vector3(-34f, 4.5f, 37f)),
+                (0, "27-port-silos", new Vector3(-6f, 4f, 22f), new Vector3(-14f, 4f, 31f)),
+                (0, "27b-port-containers", new Vector3(-4f, 2f, -24f), new Vector3(-12f, 1.5f, -14f)),
+                (0, "27c-port-pit", new Vector3(66f, 4f, -40f), new Vector3(79f, -2f, -23f)),
+                (0, "27d-port-crane", new Vector3(-2f, 6f, 34f), new Vector3(-21f, 8f, 57f)),
+                (1, "27e-port-ship", new Vector3(40f, 9f, 48f), new Vector3(10f, 4f, 88f)),
+                (0, "27f-port-tunnel", new Vector3(79f, -2.3f, -9f), new Vector3(79f, -3f, 20f)),
+                (0, "27g-port-slopes", new Vector3(44f, 4f, 46f), new Vector3(62f, 1f, 56f)),
+                (0, "27h-port-factory-climb", new Vector3(-22f, 8f, 12f), new Vector3(-37f, 4f, 27f)),
+                (0, "27i-port-yards", new Vector3(10f, 20f, -26f), new Vector3(-34f, 1f, -56f)),
+                (0, "27j-port-store-rooms", new Vector3(-10f, 3f, 36f), new Vector3(-10f, 1.5f, 20f)),
+                (0, "27k-port-factory-east", new Vector3(76f, 10f, -52f), new Vector3(58f, 4f, -36f)),
+                (3, "28-village-bazaar", new Vector3(14f, 5f, -24f), new Vector3(0f, 2f, 0f)),

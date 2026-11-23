@@ -1,0 +1,16 @@
+newmtl Boot_dark_plastic
+Kd 0.0254 0.0254 0.0254
+Ns 114.2
+
+newmtl Boot_mattglovesblack
+Kd 0.0072 0.0072 0.0072
+Ns 36.2
+
+newmtl Boot_dark_plastic_.002
+Kd 0.0254 0.0254 0.0254
+Ns 114.2
+
+newmtl Boot_strapping_black
+Kd 0.0199 0.0203 0.0166
+Ns 14.9
+

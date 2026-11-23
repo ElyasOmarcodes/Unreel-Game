@@ -1,0 +1,12 @@
+newmtl BootBrown_brownrubber
+Kd 0.0420 0.0233 0.0022
+Ns 68.1
+
+newmtl BootBrown_brown_leather
+Kd 0.0291 0.0115 0.0032
+Ns 73.7
+
+newmtl BootBrown_Material.005
+Kd 0.1376 0.0786 0.0144
+Ns 13.5
+

@@ -1,0 +1,8 @@
+!SpriteFont
+Id: 3c1d7a52-9b0e-4f6a-8d21-6e5f0a9c4b11
+SerializedVersion: {Stride: 2.1.0.0}
+Tags: []
+FontSource: !FileFontProvider
+    Source: ../Resources/Fonts/RussoOne-Regular.ttf
+FontType: !RuntimeRasterizedSpriteFontType
+    Size: 48.0
